@@ -1,0 +1,71 @@
+"""
+A few tools for reading .siff and .tiff files from ScanImage that should be tucked away.
+
+SCT March 28 2021, still rainy in Maywood
+"""
+
+from .matlab_to_python import *
+
+# types to cast strings to when looked up
+frame_meta_lookup_cast ={
+    'FrameNumbers' : int,
+    'frameNumberAcquisition' : int,
+    'frameTimestamps_sec' : float,
+    'epoch' : float
+}
+
+
+def most_important_header_data(header_dict):
+    """ Returns a dict of the most important data.
+    KEYS are strings, VALUES as defined below.
+    TODO: Add all the values I want. I'm sure it'll
+    come up as I do analysis
+
+    RETURNS
+    -------
+    IM_PARAMS (dict):
+        NUM_SLICES -- (int)
+        FRAMES_PER_SLICE -- (int)
+        STEP_SIZE -- (float)
+        Z_VALS -- (list of floats)
+        COLORS -- (list of ints)
+        TODO:DIMENSIONS -- (list of ints)
+        TODO:XRESOLUTION -- (float)
+        TODO:YRESOLUTION -- (float)
+        ZOOM -- (float)
+        TODO: HISTOGRAM_BIN_SIZE -- (int) (in picoseconds)
+    """
+
+    im_params = {}
+    im_params["NUM_SLICES"] = int(header_dict["SI.hStackManager.numSlices"])
+    im_params["FRAMES_PER_SLICE"] = int(header_dict["SI.hStackManager.framesPerSlice"])
+    im_params["STEP_SIZE"] = float(header_dict["SI.hStackManager.actualStackZStepSize"])
+    im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
+    im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
+    im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
+
+    return im_params
+
+def get_color_ax(numpy_array):
+    """
+    Returns which axis is the color axis of input array (only works on standard order data)
+    """
+    if numpy_array.ndim < 5: return None
+    if numpy_array.ndim == 5: return 0
+    if numpy_array.ndim == 6: return 1
+
+
+### Dealing with framewise metadata
+
+def line_to_dict_val(line):
+    splitline = line.split(' = ')
+    if splitline[0] in frame_meta_lookup_cast:
+        return frame_meta_lookup_cast[splitline[0]](splitline[1])
+    
+
+def single_frame_metadata_to_dict(frame):
+    return {line.split(' = ')[0]:line_to_dict_val(line) for line in frame['Frame metadata'].split('\n') if len(line.split(' = '))>0}
+
+def frame_metadata_to_dict(metadata):
+    """ Returns a list of metadata dicts from a list of siffreader metadata returns """
+    return [single_frame_metadata_to_dict(frame) for frame in metadata]
