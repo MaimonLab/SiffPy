@@ -22,6 +22,15 @@ class SiffReader(object):
     im_params (dict):
         The most useful meta data. Color channels, number of slices, number of volumes, z positions, etc.
 
+    flim (bool):
+        Whether or not to use arrival time data
+
+    opened (bool):
+        Is there an open .siff or .tiff?
+
+    filename (str):
+        If there is an open .siff or .tiff, this is its path
+
 	Methods
 	-------
 	open(self, filename):
@@ -36,11 +45,12 @@ class SiffReader(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, flim : bool = True):
         self.file_header = {}
         self.im_params = {}
         self.opened = False
         self.filename = ''
+        self.flim = flim
 
     def __str__(self):
         ret_string = ""
@@ -55,7 +65,7 @@ class SiffReader(object):
         # TODO
         return "__repr__ print statement not yet implemented"
 
-    def open(self, filename: 'string' = None) -> None:
+    def open(self, filename: str = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -121,9 +131,11 @@ class SiffReader(object):
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
         num_slices = self.im_params['NUM_SLICES']
+        
         num_colors = 1
         if self.im_params is list:
             num_colors = len(self.im_params['COLORS'])
+        
         timestep_size = num_slices*num_colors # how many frames constitute a timepoint
         
         # figure out the start and stop points we're analyzing.
@@ -174,9 +186,91 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
         ])
 
+    def sum_across_time(self, timespan : int = 1, 
+        timepoint_start : int = 0, timepoint_end : int = None,
+        z_list : list[int] = None, color_list : list[int] = None
+        ) -> np.ndarray:
+        """
+        Sums adjacent frames in time of width "timespan" and returns a
+        numpy array in standard form.
+
+        TODO: finish this docstring.
+        """
+
+        ##### pre=processing
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        
+        # make them iterables if they're not
+        if isinstance(z_list, int):
+            z_list = [z_list]
+        if isinstance(color_list, int):
+            color_list = [color_list]
+
+        num_slices = self.im_params['NUM_SLICES']
+        
+        num_colors = 1
+        if self.im_params is list:
+            num_colors = len(self.im_params['COLORS'])
+        
+        # make them the full volume if they're None
+        if z_list is None:
+            z_list = list(range(num_slices))
+        if color_list is None:
+            color_list = list(range(num_colors))
+
+        timestep_size = num_slices*num_colors # how many frames constitute a timepoint
+
+        # figure out the start and stop points we're analyzing.
+        frame_start = timepoint_start * timestep_size
+        
+        if timepoint_end is None:
+            frame_end = self.im_params['NUM_FRAMES']
+        else:
+            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
+                warnings.warn(
+                    "timepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead."
+                )
+                timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
+            
+            frame_end = timepoint_end * timestep_size
+
+        ##### the real stuff
+
+        # now convert to a list for each set of frames we want to pool
+        # list comprehension makes this... incomprehensible. So let's do it
+        # the generic way.
+        framelist = []
+        # a list for every element of a volume
+        probe_lists = [[] for idx in range(timestep_size)]
+
+        # offsets from the frame start that we actually want, as specified by
+        # z_list and color_list
+        viable_indices = [z*num_colors + c for z in z_list for c in color_list]
+
+        # step from volume to volume, recording lists of frames to pool
+        for volume_start in range(frame_start,frame_end, timestep_size):
+            for vol_idx in range(timestep_size):
+                if vol_idx in viable_indices: # ignore undesired frames
+                    probe_lists[vol_idx].append(volume_start + vol_idx)
+            if (volume_start-frame_start)%timespan == 0:
+                for slicelist in probe_lists:
+                    if len(slicelist) > 0: # don't append ignored arrays
+                        framelist.append(slicelist)
+                probe_lists = [[] for idx in range(timestep_size)]
+            
+
+        # ordered by time changing slowest, then z, then color, e.g.
+        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
+        list_of_arrays = siffreader.pool_frames(framelist, flim=self.flim)
+
+        np.array(list_of_arrays).reshape((-1, ))
+        return list_of_arrays
 
     def frames_to_single_array(self, frames=None):
         """
+        TODO: IMPLEMENT
         Retrieves the frames in the list frames and uses the information retrieved from the header
         to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
         rather than returning a list of numpy arrays
@@ -185,10 +279,10 @@ class SiffReader(object):
         ------
         frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
         """
-        pass
     
     def map_to_standard_order(self, numpy_array, map_list=['time','color','z','y','x','tau']):
         """
+        TODO: IMPLEMENT
         Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
         Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
 
@@ -210,8 +304,6 @@ class SiffReader(object):
         ----------
         reshaped: (ndarray) numpy_array reordered as the standard order, (time, color, z, y, x, tau)
         """
-
-
         pass
 
 
@@ -269,48 +361,48 @@ def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int =2) -> FL
 
 
 def fit_exp(numpy_array : np.ndarray, num_components: int = 2) -> list[FLIMParams]:
-        """
-        params = siffpy.fit_exp(numpy_array, num_components=2)
+    """
+    params = siffpy.fit_exp(numpy_array, num_components=2)
 
 
-        Takes a numpy array with dimensions (time, color, z, y,x,tau) or excluding any dimensions up to (y,x,tau) and
-        returns a color-element list of dicts with fits of the fluorescence emission model for each color channel
+    Takes a numpy array with dimensions (time, color, z, y,x,tau) or excluding any dimensions up to (y,x,tau) and
+    returns a color-element list of dicts with fits of the fluorescence emission model for each color channel
 
-        INPUTS
-        ------
-        numpy_array: (ndarray) An array of data formatted as any of:
-            (time, color, z, y, x, tau)
-            (color, z, y, x, tau)
-            (z, y, x, tau)
-            (y, x, tau)
+    INPUTS
+    ------
+    numpy_array: (ndarray) An array of data formatted as any of:
+        (time, color, z, y, x, tau)
+        (color, z, y, x, tau)
+        (z, y, x, tau)
+        (y, x, tau)
 
-        num_components: (int) Number of exponentials in the fit
-        
-        RETURN VALUES
-        -------------
+    num_components: (int) Number of exponentials in the fit
+    
+    RETURN VALUES
+    -------------
 
-        fits (list):
-            A list of FLIMParams objects, containing fit parameters as attributes and with functionality
-            to return the parameters as a tuple or dict.
+    fits (list):
+        A list of FLIMParams objects, containing fit parameters as attributes and with functionality
+        to return the parameters as a tuple or dict.
 
-        """
-        # if there's a color axis, identify it first.
-        color_ax = siffutils.get_color_ax(numpy_array)
+    """
+    # if there's a color axis, identify it first.
+    color_ax = siffutils.get_color_ax(numpy_array)
 
-        # get a tuple that is the index of all dimensions that are neither color nor tau
-        non_color_non_tau_tuple = tuple([x for x in range(numpy_array.ndim-1) if (not x == color_ax)])
-        
-        #compress all non-color axes down to arrival time axis
-        condensed = np.sum(numpy_array,axis=non_color_non_tau_tuple) # color by tau
+    # get a tuple that is the index of all dimensions that are neither color nor tau
+    non_color_non_tau_tuple = tuple([x for x in range(numpy_array.ndim-1) if (not x == color_ax)])
+    
+    #compress all non-color axes down to arrival time axis
+    condensed = np.sum(numpy_array,axis=non_color_non_tau_tuple) # color by tau
 
-        n_colors = 1
-        if len(condensed.shape)>1:
-            n_colors = condensed.shape[0]
+    n_colors = 1
+    if len(condensed.shape)>1:
+        n_colors = condensed.shape[0]
 
-        # channel_exp_fit is in exp_math.py in siffutils
-        if n_colors>1:
-            fit_list = [channel_exp_fit( condensed[x,:],num_components ) for x in range(n_colors)]
-        else:
-            fit_list = [channel_exp_fit( condensed,num_components )]
+    # channel_exp_fit is in exp_math.py in siffutils
+    if n_colors>1:
+        fit_list = [channel_exp_fit( condensed[x,:],num_components ) for x in range(n_colors)]
+    else:
+        fit_list = [channel_exp_fit( condensed,num_components )]
 
-        return fit_list
+    return fit_list

@@ -203,8 +203,8 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
             PyObject* listOfFrames = PyList_GetItem(listOfLists, idx);
             
             if(PyList_Size(listOfFrames)==0) { // empty list, you silly goose.
-                Py_INCREF(Py_None);
                 PyList_Append(returnedList,Py_None);
+                Py_DECREF(Py_None);
             }
             // get the first frame requested.
             PyArrayObject* firstFrame = frameAsNumpy(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], flim);
@@ -221,7 +221,8 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
                 }
             }
             
-            PyList_Append(returnedList, (PyObject*) firstFrame);
+            PyList_Append(returnedList, (PyObject*) firstFrame); // ADDS a reference
+            Py_DECREF(firstFrame); // prevent memory leaks on this object
         }
         return returnedList;
     }
@@ -341,6 +342,7 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     loadArrayWithData(numpyArray, params, frameData, siff, flim);
     
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
+    Py_DECREF(numpyArray);
     
     if (ret<0) std::runtime_error("Failure to append frame array to list");
 }
@@ -393,7 +395,9 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
         siff.read(tagBuffer, params.bytesPerTag);
         // append info to frameData, defined in framedatastruct.hpp
         parseTags(tagBuffer,frameData,params);
-        PyList_Append(frameData.tagList, Py_BuildValue("y#",tagBuffer, Py_ssize_t(params.bytesPerTag)));
+        PyObject* tempVal = Py_BuildValue("y#",tagBuffer, Py_ssize_t(params.bytesPerTag));
+        PyList_Append(frameData.tagList, tempVal);
+        Py_DECREF(tempVal); // Append adds a reference
     }
     
     siff.clear();
@@ -409,7 +413,9 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     siff.read(metaString, description_length);
     siff.clear();
     frameData.frameMetaData = std::string(metaString);
-    PyList_Append(metaDictList, frameDataToDict(frameData));
+    PyObject* frameDict = frameDataToDict(frameData);
+    PyList_Append(metaDictList, frameDict); // append adds a reference
+    Py_DECREF(frameDict);
 }
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim) {
