@@ -9,9 +9,11 @@ except ImportError as error:
 
 # written for Darwin. Probably should write a Windows and/or GNU compatible
 siffmodule = Extension('siffreader',
-                    sources = ['SiffReader/src/siffreadermodule.cpp', 'SiffReader/src/siffreader.cpp'],
+                    sources = ['siffpy/siffreadermodule/src/siffreadermodule.cpp', 
+                        'siffpy/siffreadermodule/src/siffreader.cpp'
+                    ],
                     include_dirs = [
-                        'SiffReader/include⁩',
+                        'siffpy/siffreadermodule/include⁩',
                         numpy.get_include()
                         ]
                     ,

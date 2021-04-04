@@ -62,7 +62,6 @@ def line_to_dict_val(line):
     if splitline[0] in frame_meta_lookup_cast:
         return frame_meta_lookup_cast[splitline[0]](splitline[1])
     
-
 def single_frame_metadata_to_dict(frame):
     return {line.split(' = ')[0]:line_to_dict_val(line) for line in frame['Frame metadata'].split('\n') if len(line.split(' = '))>0}
 

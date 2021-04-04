@@ -55,7 +55,7 @@ class SiffReader(object):
         # TODO
         return "__repr__ print statement not yet implemented"
 
-    def open(self, filename=None):
+    def open(self, filename: 'string' = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -72,6 +72,7 @@ class SiffReader(object):
 
         if self.opened and not (filename == self.filename):
             siffreader.close()
+
         siffreader.open(filename)
         
         hd = siffreader.get_file_header()
@@ -80,15 +81,196 @@ class SiffReader(object):
         self.im_params['NUM_FRAMES'] = siffreader.num_frames()
         self.opened = True
 
-    def close(self):
+    def close(self) -> None:
         """ Closes opened file """
         siffreader.close()
         self.opened = False
         self.filename = ''
 
-    def fit_exp(self, numpy_array, num_components=2):
+    def t_axis(self, timepoint_start : int = 0, timepoint_end : int = None, reference_z : int = 0) -> np.ndarray:
         """
-        params = SiffReader.fit_exp(numpy_array, num_components=2)
+        Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
+        to acquisition start.
+
+        INPUTS
+        ------
+        
+        timepoint_start (optional, int):
+            Index of time point to start at. Note this is in units of
+            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
+            If no argument is given, this is treated as 0
+        
+        timepoint_end (optional, int):
+            Index of time point to end at. Note Note this is in units of
+            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
+            If no argument is given, this is the end of the file.
+
+        reference_z (optional, int):
+            Picks the timepoint of a single slice in a z stack and only returns
+            that corresponding value. Means nothing if imaging is a single plane.
+            If no argument is given, assumes the first slice
+
+        RETURN VALUES
+        -------
+        timepoints (1-d ndarray):
+            Time point of the requested frames, relative to beginning of the
+            image acquisition. Size will be:
+                (timepoint_end - timepoint_start)*num_slices
+            unless reference_z is used.
+        """
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        num_slices = self.im_params['NUM_SLICES']
+        num_colors = 1
+        if self.im_params is list:
+            num_colors = len(self.im_params['COLORS'])
+        timestep_size = num_slices*num_colors # how many frames constitute a timepoint
+        
+        # figure out the start and stop points we're analyzing.
+        frame_start = timepoint_start * timestep_size
+        
+        if timepoint_end is None:
+            frame_end = self.im_params['NUM_FRAMES']
+        else:
+            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
+                warnings.warn(
+                    "timepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead."
+                )
+                timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
+            
+            frame_end = timepoint_end * timestep_size
+
+        # now convert to a list of all the frames whose metadata we want
+        framelist = [frame for frame in range(frame_start, frame_end) 
+            if (((frame-frame_start) % timestep_size) == (num_colors*reference_z))
+        ]
+        
+        return np.array([frame['frameTimestamps_sec']
+            for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=framelist))
+        ])
+    
+    def get_time(self, frames : list = None) -> np.ndarray:
+        """
+        Gets the recorded time (in seconds) of the frame(s) numbered in list frames
+
+        INPUTS
+        ------
+        frames (optional, list):
+            If not provided, retrieves time value of ALL frames.
+
+        RETURN VALUES
+        -------------
+        time (np.ndarray):
+            Ordered like the list in frames (or in order from 0 to end if frames is None).
+            Time into acquisition of frames (in seconds)
+        """
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        if frames is None:
+            frames = list(np.range(self.im_params['NUM_FRAMES']))
+
+        return np.array([frame['frameTimestamps_sec']
+            for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+        ])
+
+
+    def frames_to_single_array(self, frames=None):
+        """
+        Retrieves the frames in the list frames and uses the information retrieved from the header
+        to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
+        rather than returning a list of numpy arrays
+
+        INPUTS
+        ------
+        frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
+        """
+        pass
+    
+    def map_to_standard_order(self, numpy_array, map_list=['time','color','z','y','x','tau']):
+        """
+        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
+        Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
+
+        INPUTS
+        ----------
+        numpy_array: (ndarray)
+
+        map_list: (list) List of any subset of the strings:
+            "time"
+            "color"
+            "z"
+            "y"
+            "x"
+            "tau"
+            to make it clear which indices correspond to which dimension.
+            If the input array has fewer dimensions than 6, that's fine.
+
+        RETURN VALUES
+        ----------
+        reshaped: (ndarray) numpy_array reordered as the standard order, (time, color, z, y, x, tau)
+        """
+
+
+        pass
+
+
+
+#########
+#########
+# LOCAL #
+#########
+#########
+
+def suppress_warnings() -> None:
+    siffreader.suppress_warnings()
+
+def report_warnings() -> None:
+    siffreader.report_warnings()
+
+def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int =2) -> FLIMParams:
+    """
+    Takes row data of arrival times and returns the param dict from an exponential fit.
+    TODO: Provide more options to how fitting is done
+
+
+    INPUTS
+    ----------
+
+    photon_arrivals (1-dim ndarray): Histogrammed arrival time of each photon.
+
+    num_components (int): Number of components to the exponential TODO: enable more diversity?
+
+
+    RETURN VALUES
+    ----------
+    FLIMParams -- (FLIMParams object)
+    """
+    dummy_dict = { # pretty decent guess for Camui data
+        'NCOMPONENTS' : 2,
+        'EXPPARAMS' : [
+            {'FRAC' : 0.7, 'TAU' : 115},
+            {'FRAC' : 0.3, 'TAU' : 25}
+        ],
+        'CHISQ' : 0.0,
+        'T_O' : 20,
+        'IRF' :
+            {
+                'DIST' : 'GAUSSIAN',
+                'PARAMS' : {
+                    'SIGMA' : 4
+                }
+            }
+    }
+
+    params = FLIMParams(param_dict=dummy_dict)
+    params.fit_data(photon_arrivals,num_components=num_components)
+    return params
+
+
+def fit_exp(numpy_array : np.ndarray, num_components: int = 2) -> list[FLIMParams]:
+        """
+        params = siffpy.fit_exp(numpy_array, num_components=2)
 
 
         Takes a numpy array with dimensions (time, color, z, y,x,tau) or excluding any dimensions up to (y,x,tau) and
@@ -132,159 +314,3 @@ class SiffReader(object):
             fit_list = [channel_exp_fit( condensed,num_components )]
 
         return fit_list
-
-    def t_axis(self, timepoint_start = 0, timepoint_end = None, reference_z = 0):
-        """
-        Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
-        to acquisition start.
-
-        INPUTS
-        ------
-        
-        timepoint_start (optional, int):
-            Index of time point to start at. Note this is in units of
-            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
-            If no argument is given, this is treated as 0
-        
-        timepoint_end (optional, int):
-            Index of time point to end at. Note Note this is in units of
-            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
-            If no argument is given, this is the end of the file.
-
-        reference_z (optional, int):
-            Picks the timepoint of a single slice in a z stack and only returns
-            that corresponding value. Means nothing if imaging is a single plane.
-            If no argument is given, assumes the first slice
-
-        RETURN VALUES
-        -------
-        timepoints (1-d ndarray):
-            Time point of the requested frames, relative to beginning of the
-            image acquisition. Size will be:
-                (timepoint_end - timepoint_start)*num_slices
-            unless reference_z is used.
-        """
-
-        num_slices = self.im_params['NUM_SLICES']
-        num_colors = 1
-        if self.im_params is list:
-            num_colors = len(self.im_params['COLORS'])
-        timestep_size = num_slices*num_colors # how many frames constitute a timepoint
-        
-        # figure out the start and stop points we're analyzing.
-        frame_start = timepoint_start * timestep_size
-        
-        if timepoint_end is None:
-            frame_end = self.im_params['NUM_FRAMES']
-        else:
-            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
-                warnings.warn(
-                    "timepoint_end greater than total number of frames.\n"+
-                    "Using maximum number of complete timepoints in image instead."
-                )
-                timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
-            
-            frame_end = timepoint_end * timestep_size
-
-        # now convert to a list of all the frames whose metadata we want
-        framelist = [frame for frame in range(frame_start, frame_end) 
-            if ((((frame-frame_start)%num_colors) == 0) and # only first color
-                (((frame-frame_start)/num_colors)%(num_slices) == reference_z) # only ref_z plane
-            )
-        ]
-       
-        return np.array([frame['frameTimestamps_sec']
-            for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=framelist))
-        ])
-        
-        
-
-
-
-    def frames_to_single_array(self, frames=None):
-        """
-        Retrieves the frames in the list frames and uses the information retrieved from the header
-        to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
-        rather than returning a list of numpy arrays
-
-        INPUTS
-        ------
-        frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
-        """
-        pass
-    
-    def map_to_standard_order(self, numpy_array, map_list=['time','color','z','y','x','tau']):
-        """
-        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
-        Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
-
-        INPUTS
-        ----------
-        numpy_array: (ndarray)
-
-        map_list: (list) List of any subset of the strings:
-            "time"
-            "color"
-            "z"
-            "y"
-            "x"
-            "tau"
-            to make it clear which indices correspond to which dimension.
-            If the input array has fewer dimensions than 6, that's fine.
-
-        RETURN VALUES
-        ----------
-        reshaped: (ndarray) numpy_array reordered as the standard order, (time, color, z, y, x, tau)
-        """
-
-
-        pass
-
-
-### LOCAL FUNCTIONS
-
-
-def channel_exp_fit(photon_arrivals, num_components=2):
-    """
-    Takes row data of arrival times and returns the param dict from an exponential fit.
-    TODO: Provide more options to how fitting is done
-
-
-    INPUTS
-    ----------
-
-    photon_arrivals (1-dim ndarray): Histogrammed arrival time of each photon.
-
-    num_components (int): Number of components to the exponential TODO: enable more diversity?
-
-
-    RETURN VALUES
-    ----------
-    FLIMParams -- (FLIMParams object)
-    """
-    dummy_dict = { # pretty decent guess for Camui data
-        'NCOMPONENTS' : 2,
-        'EXPPARAMS' : [
-            {'FRAC' : 0.7, 'TAU' : 115},
-            {'FRAC' : 0.3, 'TAU' : 25}
-        ],
-        'CHISQ' : 0.0,
-        'T_O' : 20,
-        'IRF' :
-            {
-                'DIST' : 'GAUSSIAN',
-                'PARAMS' : {
-                    'SIGMA' : 4
-                }
-            }
-    }
-
-    params = FLIMParams(param_dict=dummy_dict)
-    params.fit_data(photon_arrivals,num_components=num_components)
-    return params
-
-def suppress_warnings():
-    siffreader.suppress_warnings()
-
-def report_warnings():
-    siffreader.report_warnings()
