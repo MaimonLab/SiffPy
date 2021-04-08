@@ -5,6 +5,7 @@ SCT March 28 2021, still rainy in Maywood
 """
 
 from .matlab_to_python import *
+from .fluorophore_inits import available_fluorophores
 
 # types to cast strings to when looked up
 frame_meta_lookup_cast ={
@@ -37,9 +38,10 @@ def most_important_header_data(header_dict):
     """
 
     im_params = {}
-    im_params["NUM_SLICES"] = int(header_dict["SI.hStackManager.numSlices"])
+    im_params["NUM_SLICES"] = int(header_dict["SI.hStackManager.actualNumSlices"])
     im_params["FRAMES_PER_SLICE"] = int(header_dict["SI.hStackManager.framesPerSlice"])
-    im_params["STEP_SIZE"] = float(header_dict["SI.hStackManager.actualStackZStepSize"])
+    if im_params["NUM_SLICES"] > 1:
+        im_params["STEP_SIZE"] = float(header_dict["SI.hStackManager.actualStackZStepSize"])
     im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
     im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
     im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
@@ -50,9 +52,10 @@ def get_color_ax(numpy_array):
     """
     Returns which axis is the color axis of input array (only works on standard order data)
     """
-    if numpy_array.ndim < 5: return None
-    if numpy_array.ndim == 5: return 0
-    if numpy_array.ndim == 6: return 1
+    if numpy_array.ndim < 4: return None
+    if numpy_array.ndim == 4: return 0
+    if numpy_array.ndim == 5: return 1
+    if numpy_array.ndim == 6: return 2
 
 
 ### Dealing with framewise metadata

@@ -139,7 +139,7 @@ void SiffReader::discernFrames() {
 
         siff.read((char*)&nextIFD, params.bytesPerPointer);
     }
-    params.allIFDs.pop_back(); // this is for the case that the last IFD is not 0ULL
+    if(!nextIFD) params.allIFDs.pop_back(); // this is for the case that the last IFD is not 0ULL
     params.numFrames = params.allIFDs.size();
     siff.clear(); // get rid of failbits
 }
@@ -363,7 +363,7 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim) {
     dims[0] = frameData.imageLength;
     dims[1] = frameData.imageWidth;
     if (params.issiff & flim) dims[2] = tau_dim;
-
+//
     PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
         ND,
         dims,
@@ -382,11 +382,11 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     siff.clear();
     siff.seekg(thisIFD, std::ios::beg); // go there first
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Siff unable to open frame. Likely error in preceding processing.");
-
+    
     uint64_t numTags; // number of tags in this directory before the real metadata
     siff.read((char*) &numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
     FrameData frameData;
-   
+
     if (debug) {
         frameData.tagList = PyList_New(Py_ssize_t(0));
     }
@@ -394,18 +394,20 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
         siff.read(tagBuffer, params.bytesPerTag);
         // append info to frameData, defined in framedatastruct.hpp
-        parseTags(tagBuffer,frameData,params);
+        parseTags(tagBuffer,frameData,params);//
         PyObject* tempVal = Py_BuildValue("y#",tagBuffer, Py_ssize_t(params.bytesPerTag));
         PyList_Append(frameData.tagList, tempVal);
         Py_DECREF(tempVal); // Append adds a reference
     }
-    
     siff.clear();
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
-    
     if(!debug && (frameData.dataStripAddress < frameData.endOfIFD)) throw std::runtime_error("Negative description length -- error parsing tags?");
-    uint64_t description_length = frameData.dataStripAddress - frameData.endOfIFD;
     
+    uint64_t description_length = frameData.siffCompress ?
+        frameData.dataStripAddress - frameData.endOfIFD - frameData.imageLength*frameData.imageWidth*sizeof(uint16_t)
+        :
+        frameData.dataStripAddress - frameData.endOfIFD;
+//
     frameData.stringlength = description_length;
     siff.seekg(frameData.endOfIFD, std::ios::beg);
     siff.clear();

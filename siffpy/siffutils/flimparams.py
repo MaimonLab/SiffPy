@@ -66,6 +66,26 @@ class FLIMParams(object):
             self.IRF = param_dict['IRF']
             self.T_O = param_dict['T_O']
 
+    @classmethod
+    def from_tuple(cls, param_tuple):
+        """ Instantiate a FLIMParams from the parameter tuple """
+        num_components = len(param_tuple) - 2
+        exp_params = [
+            {'FRAC' : param_tuple[comp*num_components], 
+            'TAU' : param_tuple[comp*num_components + 1]} 
+            for comp in range(num_components)
+        ]
+
+        params_dict = {
+            'NCOMPONENTS' : num_components,
+            'EXPPARAMS' : exp_params,
+            'CHISQ' : 0.0,
+            'T_O' : param_tuple[-2],
+            'IRF' : param_tuple[-1]
+        }
+        return cls(param_dict=params_dict)
+
+
     def __str__(self):
         return self.param_dict().__str__()
 

@@ -87,6 +87,7 @@ class SiffReader(object):
         
         hd = siffreader.get_file_header()
         self.file_header =  {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}
+
         self.im_params = siffutils.most_important_header_data(self.file_header)
         self.im_params['NUM_FRAMES'] = siffreader.num_frames()
         self.opened = True
@@ -265,7 +266,15 @@ class SiffReader(object):
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         list_of_arrays = siffreader.pool_frames(framelist, flim=self.flim)
 
-        np.array(list_of_arrays).reshape((-1, ))
+        frameshape = list_of_arrays[0].shape
+
+        if self.flim:
+            reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
+        else:
+            reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
+        
+        np.array(list_of_arrays).reshape(reshaped_dims)
+
         return list_of_arrays
 
     def frames_to_single_array(self, frames=None):
@@ -280,7 +289,7 @@ class SiffReader(object):
         frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
         """
     
-    def map_to_standard_order(self, numpy_array, map_list=['time','color','z','y','x','tau']):
+    def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
         """
         TODO: IMPLEMENT
         Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
@@ -292,8 +301,8 @@ class SiffReader(object):
 
         map_list: (list) List of any subset of the strings:
             "time"
-            "color"
             "z"
+            "color"
             "y"
             "x"
             "tau"
@@ -302,7 +311,7 @@ class SiffReader(object):
 
         RETURN VALUES
         ----------
-        reshaped: (ndarray) numpy_array reordered as the standard order, (time, color, z, y, x, tau)
+        reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
         """
         pass
 
@@ -320,7 +329,9 @@ def suppress_warnings() -> None:
 def report_warnings() -> None:
     siffreader.report_warnings()
 
-def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int =2) -> FLIMParams:
+## Maybe should relocate these to siffutils.exp_math?
+
+def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, initial_fit : dict = None) -> FLIMParams:
     """
     Takes row data of arrival times and returns the param dict from an exponential fit.
     TODO: Provide more options to how fitting is done
@@ -333,34 +344,37 @@ def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int =2) -> FL
 
     num_components (int): Number of components to the exponential TODO: enable more diversity?
 
+    initial_fit (dict): FLIMParams formatted dict of first-guess FLIM fit.
+
 
     RETURN VALUES
     ----------
     FLIMParams -- (FLIMParams object)
     """
-    dummy_dict = { # pretty decent guess for Camui data
-        'NCOMPONENTS' : 2,
-        'EXPPARAMS' : [
-            {'FRAC' : 0.7, 'TAU' : 115},
-            {'FRAC' : 0.3, 'TAU' : 25}
-        ],
-        'CHISQ' : 0.0,
-        'T_O' : 20,
-        'IRF' :
-            {
-                'DIST' : 'GAUSSIAN',
-                'PARAMS' : {
-                    'SIGMA' : 4
+    if initial_fit is None:
+        initial_fit = { # pretty decent guess for Camui data
+            'NCOMPONENTS' : 2,
+            'EXPPARAMS' : [
+                {'FRAC' : 0.7, 'TAU' : 115},
+                {'FRAC' : 0.3, 'TAU' : 25}
+            ],
+            'CHISQ' : 0.0,
+            'T_O' : 20,
+            'IRF' :
+                {
+                    'DIST' : 'GAUSSIAN',
+                    'PARAMS' : {
+                        'SIGMA' : 4
+                    }
                 }
-            }
-    }
+        }
 
-    params = FLIMParams(param_dict=dummy_dict)
-    params.fit_data(photon_arrivals,num_components=num_components)
+    params = FLIMParams(param_dict=initial_fit)
+    params.fit_data(photon_arrivals,num_components=num_components, x0=params.param_tuple())
     return params
 
 
-def fit_exp(numpy_array : np.ndarray, num_components: int = 2) -> list[FLIMParams]:
+def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : list[str] = None) -> list[FLIMParams]:
     """
     params = siffpy.fit_exp(numpy_array, num_components=2)
 
@@ -376,7 +390,14 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2) -> list[FLIMParam
         (z, y, x, tau)
         (y, x, tau)
 
-    num_components: (int) Number of exponentials in the fit
+    num_components: 
+    
+        (int) Number of exponentials in the fit
+
+    fluorophores (list[str] or str):
+
+        List of fluorophores, in same order as color channels. By default, is None.
+        Used for initial conditions in fitting the exponentials. I doubt it's critical.
     
     RETURN VALUES
     -------------
@@ -399,10 +420,26 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2) -> list[FLIMParam
     if len(condensed.shape)>1:
         n_colors = condensed.shape[0]
 
-    # channel_exp_fit is in exp_math.py in siffutils
+    # type-checking -- HEY I thought this was Python!
+    if not (isinstance(fluorophores, list) or isinstance(fluorophores, str)):
+        fluorophores = None
+
+    # take care of the fluorophores arg
+    if fluorophores is None:
+        fluorophores = [None] * n_colors
+
+    if len(fluorophores) < n_colors:
+        fluorophores += [None] * (n_colors - len(fluorophores)) # pad with Nones
+
+    # take these strings, turn them into initial guesses for the fit parameters
+    availables = siffutils.available_fluorophores(dtype=dict)
+    list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]
+    list_of_flimparams = [FLIMParams(param_dict = this_dict) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
+    fluorophores_tuple_list = [FlimP.param_tuple() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
+
     if n_colors>1:
-        fit_list = [channel_exp_fit( condensed[x,:],num_components ) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( condensed[x,:],num_components, fluorophores_tuple_list[x] ) for x in range(n_colors)]
     else:
-        fit_list = [channel_exp_fit( condensed,num_components )]
+        fit_list = [channel_exp_fit( condensed,num_components, fluorophores_tuple_list[0] )]
 
     return fit_list

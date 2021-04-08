@@ -25,6 +25,7 @@ struct FrameData{
     uint64_t ROI_address;
     uint16_t sampleFormat;
     std::string frameMetaData; // only populated when retrieving metadata
+    bool siffCompress = false; // only present in .siff files and only in newer versions
 
     uint64_t stringlength;
     PyObject* tagList;
@@ -40,9 +41,9 @@ void parseTags(const char* thisTag, FrameData& frameData, SiffParams params) {
     // 4 bytes (if TIFF), 8 bytes (if BigTiff/Siff): each individual value OR an offset pointer to the value(s)
 
     // LSB + MSB << 8
-    uint16_t tagID = (uint16_t) thisTag[(1-params.little)] + (((uint16_t) thisTag[(int) params.little]) << 8);
+    uint16_t tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
     // figure out the number of bytes needed to read the data correctly
-    uint16_t datatype = (uint16_t) thisTag[(3-params.little)] + (((uint16_t) thisTag[2+params.little]) << 8);
+    uint16_t datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
     uint16_t contentChars = datatypeToCharCount(datatype); // defined in sifdefin
 
     if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
@@ -51,11 +52,8 @@ void parseTags(const char* thisTag, FrameData& frameData, SiffParams params) {
     
     // convert to a single value
     
-    //uint64_t contentVals = std::stoull(&thisTag[8 + 4*params.bigtiff]);
-    
     uint64_t contentVals = 0;
     // 8 + 4*bigtiff corresponds to the 4 bytes of identifier + the 4 bytes for number of values in tag (or 8 if bigtiff)
-    
     for(int16_t charnum = (contentChars-1); 0<=charnum; charnum--) {
         contentVals <<= 8;
         contentVals += (thisTag[charnum + 8 + 4*params.bigtiff] & 0xFF); // gotta be honest... I don't understand why the  & 0xFF is necessary. Cut me some slack I learned C 2 months ago.
@@ -118,10 +116,13 @@ void parseTags(const char* thisTag, FrameData& frameData, SiffParams params) {
         case SAMPLEFORMAT:
             frameData.sampleFormat = (uint16_t) contentVals;
             break;
+        case SIFFTAG:
+            frameData.siffCompress = (bool) contentVals;
+            break;
         default:
             if (params.suppress_warnings) break;
             PyErr_WarnEx(PyExc_RuntimeWarning,
-                (std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID) + 
+                (std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID) +  "\n" +
                 std::string("To suppress this warning in the future, call siffreader.suppress_warnings()")).c_str(),
                 Py_ssize_t(1)
             );
@@ -142,8 +143,9 @@ PyObject* frameDataToDict(FrameData& frameData){
     PyDict_SetItemString(dataDict, "X Resolution", Py_BuildValue("K", frameData.xResolution));
     PyDict_SetItemString(dataDict, "YResolution", Py_BuildValue("K", frameData.yResolution));
     PyDict_SetItemString(dataDict, "Bytecount", Py_BuildValue("K", frameData.stripByteCounts));
-    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
+//    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
     PyDict_SetItemString(dataDict, "Tag bytes", Py_BuildValue("O",frameData.tagList));
+    PyDict_SetItemString(dataDict, "Siff compression", Py_BuildValue("O",frameData.siffCompress ? Py_True : Py_False));
     return dataDict;
 }
 

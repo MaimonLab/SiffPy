@@ -54,6 +54,66 @@ inline FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& sif
     return frameData;
 }
 
+
+inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, bool flim, npy_intp* dims) // uses siffCompress
+    {
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+    if(!flim) { // easy, this data's already stored in the start.
+        siff.read((char*) data_ptr, pixelsInImage * sizeof(uint16_t));
+        return;
+    }
+    
+    // first get the number of photons for each pixel
+    uint16_t photonCounts[frameData.imageLength * frameData.imageWidth];
+    siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
+
+    // now put the arrival time values that are in succession into the right elements of the numpy array.
+    for (uint64_t px = 0; px < pixelsInImage; px++) {
+        uint16_t photonsThisPx = photonCounts[px];
+        uint16_t pxReads[photonsThisPx];
+        siff.read((char*)&pxReads, photonsThisPx*sizeof(uint16_t));
+
+        for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
+            data_ptr[
+                (px / frameData.imageWidth) * dims[1] * dims[2] // y index
+                    +(px % frameData.imageWidth)*dims[2]       // x index
+                        + pxReads[readNum]                      // tau index
+            ]++;
+        }
+        
+    }
+}
+
+inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, bool flim, npy_intp* dims) // every read is a uint64 of y, x, tau
+    {
+    
+    uint64_t frameReads[samplesThisFrame];
+    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.clear();
+    if(flim) {
+        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+            // increment the appropriate numpy element
+            data_ptr[
+                (U64TOY(frameReads[photon])*dims[1]*dims[2])
+                    + (std::min<uint16_t>(U64TOX(frameReads[photon]),dims[1]-1)*dims[2]) // THIS SHOULD NOT BE HERE. 
+                    //ONLY NECESSARY DUE TO AN EARLY ERROR IN CODE. TODO REMOVE THIS STD::MIN CALL!!
+                        + U64TOTAU(frameReads[photon])
+            ]++;
+        }
+    }
+    else{
+        // if we're just doing intensity, the pointer element to increment should be different
+        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+                // increment the appropriate numpy element
+            data_ptr[U64TOY(frameReads[photon])*dims[1] + U64TOX(frameReads[photon])]++;
+        }
+    }
+}
+
+
 inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, FrameData& frameData, std::ifstream& siff, bool flim){
     // TODO: put the bool flags into the SiffParams struct.
     uint16_t* data_ptr = (uint16_t *) PyArray_DATA(numpyArray);
@@ -68,27 +128,9 @@ inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, Fra
     siff.clear();
 
     if (params.issiff) {
-        uint64_t frameReads[samplesThisFrame];
-        siff.read((char*)&frameReads,frameData.stripByteCounts);
-        siff.clear();
-        if(flim) {
-            for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
-                // increment the appropriate numpy element
-                data_ptr[
-                    (U64TOY(frameReads[photon])*dims[1]*dims[2])
-                        + (std::min<uint16_t>(U64TOX(frameReads[photon]),dims[1]-1)*dims[2]) // THIS SHOULD NOT BE HERE. 
-                        //ONLY NECESSARY DUE TO AN EARLY ERROR IN CODE. TODO REMOVE THIS STD::MIN CALL!!
-                            + U64TOTAU(frameReads[photon])
-                ]++;
-            }
-        }
-        else{
-            // if we're just doing intensity, the pointer element to increment should be different
-            for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
-                    // increment the appropriate numpy element
-                data_ptr[U64TOY(frameReads[photon])*dims[1] + U64TOX(frameReads[photon])]++;
-            }
-        }
+        frameData.siffCompress ?
+            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims) : 
+            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims);
     }
     else {
         // pretty simple -- it's already formatted right.
@@ -105,6 +147,7 @@ inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, Fra
             data_ptr[px] += frameReads[px];
         }
     }
-}
+};
+
 
 #endif

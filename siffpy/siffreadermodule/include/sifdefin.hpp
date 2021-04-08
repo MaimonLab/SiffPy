@@ -23,6 +23,7 @@
 #define SOFTWAREPACKAGE 305
 #define ARTIST 315
 #define SAMPLEFORMAT 339
+#define SIFFTAG 907
 
 #define TIFF_BYTE 1
 #define TIFF_ASCII 2
@@ -81,6 +82,8 @@ inline uint16_t tiffDataType(uint16_t tiffTag){
             return TIFF_ASCII;
         case SAMPLEFORMAT:
             return TIFF_SHORT;
+        case SIFFTAG:
+            return TIFF_BYTE;
         default:
             return 0;
     }
