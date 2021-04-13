@@ -14,6 +14,7 @@
 ///////////////////////
 
 // BIG TIME TODO: MAKE THIS CROSS-ENDIAN COMPATIBLE.
+
 int SiffReader::openFile(const char* _filename) {
     // Opens a .siff file for further analysis / use.
     
@@ -558,5 +559,5 @@ void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint
 void SiffReader::reset() {
     if (siff.is_open()) siff.close();
     params = SiffParams();
-    filename = std::string("");
+    filename = std::string();
 }
