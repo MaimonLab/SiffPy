@@ -163,7 +163,7 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=framelist))
         ])
     
-    def get_time(self, frames : list = None) -> np.ndarray:
+    def get_time(self, frames : list[int] = None) -> np.ndarray:
         """
         Gets the recorded time (in seconds) of the frame(s) numbered in list frames
 
@@ -189,11 +189,12 @@ class SiffReader(object):
 
     def sum_across_time(self, timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
-        z_list : list[int] = None, color_list : list[int] = None
+        z_list : list[int] = None, color_list : list[int] = None,
+        flim : bool = None, ret_type : type = list
         ) -> np.ndarray:
         """
         Sums adjacent frames in time of width "timespan" and returns a
-        numpy array in standard form.
+        list of numpy arrays in standard form (or a single numpy array).
 
         TODO: finish this docstring.
         """
@@ -208,6 +209,9 @@ class SiffReader(object):
         if isinstance(color_list, int):
             color_list = [color_list]
 
+        if flim is None:
+            flim = self.flim
+        
         num_slices = self.im_params['NUM_SLICES']
         
         num_colors = 1
@@ -240,6 +244,7 @@ class SiffReader(object):
         ##### the real stuff
 
         # now convert to a list for each set of frames we want to pool
+        #
         # list comprehension makes this... incomprehensible. So let's do it
         # the generic way.
         framelist = []
@@ -255,7 +260,9 @@ class SiffReader(object):
             for vol_idx in range(timestep_size):
                 if vol_idx in viable_indices: # ignore undesired frames
                     probe_lists[vol_idx].append(volume_start + vol_idx)
-            if (volume_start-frame_start)%timespan == 0:
+            if ((volume_start-frame_start) > 0) and \
+            ((volume_start-frame_start)/timestep_size)%timespan == 0: ## timespan number of volumes
+                
                 for slicelist in probe_lists:
                     if len(slicelist) > 0: # don't append ignored arrays
                         framelist.append(slicelist)
@@ -264,18 +271,41 @@ class SiffReader(object):
 
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        list_of_arrays = siffreader.pool_frames(framelist, flim=self.flim)
+        list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
 
-        frameshape = list_of_arrays[0].shape
+        if ret_type == list:
+            return list_of_arrays
 
-        if self.flim:
-            reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
-        else:
-            reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
-        
-        np.array(list_of_arrays).reshape(reshaped_dims)
+        if ret_type == np.ndarray:
+            ## NOT YET IMPLEMENTED
+            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
 
-        return list_of_arrays
+            frameshape = list_of_arrays[0].shape
+
+            if flim:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
+            else:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
+            
+            np.array(list_of_arrays).reshape(reshaped_dims)
+
+    def get_histogram(self, frames: list[int] = None):
+        """
+        Get just the arrival times of photons in the list frames.
+        INPUTS
+        -----
+        frames (optional, list of ints):
+
+            Frames to get arrival times of. If NONE, collects from all frames.
+
+        RETURN VALUES
+        -------------
+        histogram (np.ndarray):
+            1 dimensional histogram of arrival times
+        """
+        if frames is None:
+            return siffreader.get_histogram()
+        return siffreader.get_histogram(frames=frames)
 
     def frames_to_single_array(self, frames=None):
         """
@@ -351,28 +381,45 @@ def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, init
     ----------
     FLIMParams -- (FLIMParams object)
     """
-    if initial_fit is None:
-        initial_fit = { # pretty decent guess for Camui data
-            'NCOMPONENTS' : 2,
-            'EXPPARAMS' : [
-                {'FRAC' : 0.7, 'TAU' : 115},
-                {'FRAC' : 0.3, 'TAU' : 25}
-            ],
-            'CHISQ' : 0.0,
-            'T_O' : 20,
-            'IRF' :
-                {
-                    'DIST' : 'GAUSSIAN',
-                    'PARAMS' : {
-                        'SIGMA' : 4
+    if (initial_fit is None):
+        if num_components == 2:
+            initial_fit = { # pretty decent guess for Camui data
+                'NCOMPONENTS' : 2,
+                'EXPPARAMS' : [
+                    {'FRAC' : 0.7, 'TAU' : 115},
+                    {'FRAC' : 0.3, 'TAU' : 25}
+                ],
+                'CHISQ' : 0.0,
+                'T_O' : 20,
+                'IRF' :
+                    {
+                        'DIST' : 'GAUSSIAN',
+                        'PARAMS' : {
+                            'SIGMA' : 4
+                        }
                     }
-                }
-        }
+            }
+        if num_components == 1:
+            initial_fit = { # GCaMP / free GFP fluoroscence
+                'NCOMPONENTS' : 1,
+                'EXPPARAMS' : [
+                    {'FRAC' : 1.0, 'TAU' : 140}
+                ],
+                'CHISQ' : 0.0,
+                'T_O' : 20,
+                'IRF' :
+                    {
+                        'DIST' : 'GAUSSIAN',
+                        'PARAMS' : {
+                            'SIGMA' : 4
+                        }
+                    }
+            }
+
 
     params = FLIMParams(param_dict=initial_fit)
     params.fit_data(photon_arrivals,num_components=num_components, x0=params.param_tuple())
     return params
-
 
 def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : list[str] = None) -> list[FLIMParams]:
     """
@@ -433,13 +480,19 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
 
     # take these strings, turn them into initial guesses for the fit parameters
     availables = siffutils.available_fluorophores(dtype=dict)
+
+    for idx in range(len(fluorophores)):
+        if not (fluorophores[idx] in availables):
+            warnings.warn("Proposed fluorophore %s not in known fluorophore list. Using default paramss instead" % (fluorophores[idx]))
+            fluorophores[idx] = None
+
     list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]
     list_of_flimparams = [FLIMParams(param_dict = this_dict) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
-    fluorophores_tuple_list = [FlimP.param_tuple() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
+    fluorophores_dict_list = [FlimP.param_dict() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
 
     if n_colors>1:
-        fit_list = [channel_exp_fit( condensed[x,:],num_components, fluorophores_tuple_list[x] ) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( condensed[x,:],num_components, fluorophores_dict_list[x] ) for x in range(n_colors)]
     else:
-        fit_list = [channel_exp_fit( condensed,num_components, fluorophores_tuple_list[0] )]
+        fit_list = [channel_exp_fit( condensed,num_components, fluorophores_dict_list[0] )]
 
     return fit_list

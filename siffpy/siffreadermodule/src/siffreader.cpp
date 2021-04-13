@@ -25,6 +25,7 @@ int SiffReader::openFile(const char* _filename) {
                 return -2;
             }
             siff.close();
+            reset();
         }
         siff.open(_filename, std::ios::binary | std::ios::in);
         if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
@@ -208,7 +209,7 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
             }
             // get the first frame requested.
             PyArrayObject* firstFrame = frameAsNumpy(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], flim);
-            
+           
             // fuse in more if they asked for it.
             if(PyList_Size(listOfFrames) > Py_ssize_t(1)) {
                 // more than one frame in the list
@@ -228,6 +229,105 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
     }
     catch(std::exception& e) {
         errstring = std::string("Error in pool frames: ") + e.what();
+        throw e;
+    }
+}
+
+PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure) {
+    
+    try{
+        // check the tauo offset value before we waste time evaluating things
+        PyObject* T_O = PyObject_GetAttrString(FLIMParams, "T_O");
+        double_t tauo = PyFloat_AS_DOUBLE(T_O);
+        Py_DECREF(T_O);
+        if ((tauo == -1.0) && PyErr_Occurred()) {
+            throw std::runtime_error("Purported FLIMParams object has no attribute 'T_O'.");
+        }
+
+        PyObject* TupleOutList = PyList_New(Py_ssize_t(0));
+        
+        if (!listOfLists) { // default behavior, all frames
+            // TODO: IMPLEMENT
+        }
+        for(Py_ssize_t idx(0); idx < PyList_Size(listOfLists); idx++) {
+            // one merged numpy array for all of them. TODO: size checking!!
+            // need to ensure they all have compatible dimensions -- for now
+            // I just assume it, but as this expands to support mROI...
+
+            // already ensured these were all PyLongs
+            PyObject* listOfFrames = PyList_GetItem(listOfLists, idx);
+            
+            if(PyList_Size(listOfFrames)==0) { // empty list, you silly goose.
+                PyList_Append(TupleOutList,Py_None);
+                Py_DECREF(Py_None);
+            }
+
+            FrameData firstFrameData = getTagData(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], params, siff);
+
+            // Have to get all the reads together in one place.
+            // Opting to do this with one uint64_t vector regardless of
+            // compression format.
+            std::vector<uint64_t> photonReadsTogether(0);
+            photonReadsTogether.reserve(
+                10* PyList_Size(listOfFrames) * firstFrameData.imageLength * firstFrameData.imageWidth
+            ); // make space for 10 photons per pixel. Likely unnecessarily large but since
+            // this is done sequentially, probably will never be more than 2GB of RAM eaten up
+            // by the whole process.
+            
+            for(Py_ssize_t frameIdx(0); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
+                fuseReadVector( // simply appends this frame's read vector onto the old ones.
+                    photonReadsTogether,
+                    params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx))]
+                );
+            }
+
+            PyObject* flimMap = readVectorToNumpyTuple(photonReadsTogether,
+                firstFrameData, FLIMParams, conf_measure
+            );
+            PyList_Append(TupleOutList, flimMap); // ADDS a reference
+            Py_DECREF(flimMap); // prevent memory leaks on this object
+        }
+        return TupleOutList;
+    }
+    catch(std::exception& e) {
+        errstring = std::string("Error in flim_map: ") + e.what();
+        throw e;
+    }
+}
+
+PyArrayObject* SiffReader::getHistogram(uint64_t frames[], uint64_t framesN) {
+    // NOTE! THIS USES UINT64_T BECAUSE YOU'RE LIKELY TO GET >65k PHOTONS PER BIN
+    // By default, retrieves ALL frames, returns a single numpy array of the arrival times
+    try{
+        if(!siff.is_open()) throw std::runtime_error("No open file.");
+        if(!params.issiff) throw std::runtime_error("Not a .siff -- no arrival time data.");
+        siff.clear();
+        
+        // create the 1-d numpy array.
+        uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
+        npy_intp dims[1];
+        dims[0] = tau_dim;
+        PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
+            1,
+            dims,
+            NPY_UINT64, 
+            0 // C order, i.e. last index increases fastest
+        );
+
+        if(frames){
+            for(uint64_t i = 0; i < framesN; i++){
+                singleFrameHistogram(params.allIFDs[frames[i]], numpyArray);
+            }
+        }
+        else{
+            for(uint64_t i = 0; i<params.numFrames; i++){
+                singleFrameHistogram(params.allIFDs[i], numpyArray);
+            }
+        }
+        return numpyArray;
+    }
+    catch(std::exception& e){
+        errstring = std::string("Error parsing frames: ") + e.what();
         throw e;
     }
 }
@@ -407,7 +507,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
         frameData.dataStripAddress - frameData.endOfIFD - frameData.imageLength*frameData.imageWidth*sizeof(uint16_t)
         :
         frameData.dataStripAddress - frameData.endOfIFD;
-//
+
     frameData.stringlength = description_length;
     siff.seekg(frameData.endOfIFD, std::ios::beg);
     siff.clear();
@@ -418,6 +518,14 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     PyObject* frameDict = frameDataToDict(frameData);
     PyList_Append(metaDictList, frameDict); // append adds a reference
     Py_DECREF(frameDict);
+}
+
+void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray){
+    // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
+
+    FrameData frameData = getTagData(thisIFD, params, siff);
+
+    addArrivalsToArray(numpyArray, params, frameData, siff);
 }
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim) {
@@ -434,4 +542,21 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
 
     loadArrayWithData(fuseFrame, params, frameData, siff, flim);
+}
+
+void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD) {
+    FrameData frameData = getTagData(nextIFD, params, siff);
+
+    std::vector<uint64_t> frameReads = // this frame's photon countss
+        frameData.siffCompress ? 
+            compressedReadsToVec(frameData, siff) :
+            uncompressedReadsToVec(frameData, siff);
+//
+    photonReadsTogether.insert(photonReadsTogether.end(), frameReads.begin(), frameReads.end());
+}
+
+void SiffReader::reset() {
+    if (siff.is_open()) siff.close();
+    params = SiffParams();
+    filename = std::string("");
 }

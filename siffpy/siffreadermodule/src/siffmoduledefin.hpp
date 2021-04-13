@@ -10,6 +10,10 @@
 
 #define POOL_FRAMES_KEYWORDS (char*[]){"pool_lists", "type", "flim", NULL}
 
+#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", NULL}
+
+#define GET_HISTOGRAM_KEYWORDS (char*[]){"frames", NULL}
+
 
 // DOCSTRING DEFS
 
@@ -26,17 +30,20 @@
         "\tReturns header data that applies across the file."\
     "get_frames(frames=[], type=list, flim=False):\n"\
         "\tReturns frames as a list of numpy arrays.\n"\
-    "get_metadata(frames=[]):\n"\
+    "get_frame_metadata(frames=[]):\n"\
         "\tReturns frame metadata.\n"\
     "pool_frames(pool_lists, type=list, flim=False):\n"\
         "\tReturns summed versions of frames.\n"\
+    "flim_map(params, framelist=None, confidence_metric='log_p'):\n"\
+        "\tReturns a tuple: empirical lifetime, intensity, and a confidence metric.\n"\
+    "get_histogram(frames=None):\n"\
+        "\tReturns histogrm of photon arrival times."\
     "suppress_warnings():\n"\
         "\tSuppresses module-specific warnings.\n"\
     "report_warnings():\n"\
-        "\tAllows module-specific warnings."\
+        "\tAllows module-specific warnings.\n"\
     "num_frames():\n"\
         "\tIf file is open, reports the total number of frames."
-
 
 
 #define OPEN_DOCSTRING \
@@ -85,6 +92,34 @@
     "If list, returns a list of single frame numpy arrays. If an ndarray, returns a full (time by color by z by x by y by tau) array,"\
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"\
     "\tflim (optional, BOOL): return a tau axis containing arrival time (irrelevant if file is not a .siff)"
+
+#define FLIM_MAP_DOCSTRING \
+    "flim_map(params, framelist=None, confidence_metric='chi_sq')\n"\
+    "Takes in a FLIMParams object and a list of lists of frames.\n"\
+    "Returns a tuple of lists, each as long as the framelist.\n"\
+    "Written to be (far) more memory efficient than using 3d numpy arrays.\n"\
+    "Input arguments:\n"\
+    "\tparams (FLIMParams): A fitted FLIMParams object giving the relevant info for the fluorophore.\n"\
+    "\tframelist (list of lists of ints): Formatted as in pool_frames, the length of this list is"\
+    "how many frames to return. Each sublist is the list of frames to pool together.\n"\
+    "\tconfidence_metric (string): A string determining what the final element of the tuple will contain.\n"\
+    "\tOptions:\n"\
+    "\t\t'log_p'  : log likelihood of the pixel distribution (computes fast, iteratively).\n"\
+    "\t\t'chi_sq' : chi-squared statistic of the data (computes slower, has some nicer properties).\n"\
+    "Returns:\n"\
+    "\t(flimmap, intensity, chi_sq)\n"\
+    "\t\tflimmap: list of np.ndarrays containing the empirical lifetime for each pixel (UNITS OF HISTOGRAM BINS).\n"\
+    "\t\tintensity: list of np.ndarrays containing the number of photons used to compute the lifetime in each pixel.\n"\
+    "\t\tconfidence: list of np.ndarrays reporting the confidence metric for each pixel under the assumption in FLIMParams."
+
+#define GET_HISTOGRAM_DOCSTRING \
+    "get_histogram(frames=None)\n"\
+    "Retrieves only the photon arrival times from the frames in the list frames.\n"\
+    "Input arguments:\n"\
+    "\tframes (optional, LIST): a list of the indices of the frames whose arrival times are desired.\n"\
+    "\tif NONE, collects from ALL frames."\
+    "Returns:\n"\
+    "HISTOGRAM (ndarray): 1 dimensional numpy.ndarray"
 
 #define SUPPRESS_WARNINGS_DOCSTRING \
     "suppress_warnings()\n"\

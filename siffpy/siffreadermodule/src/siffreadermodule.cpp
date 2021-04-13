@@ -16,7 +16,7 @@
 // import_array() on its own. BUT, this can be avoided by doing this:
 // in this file, I define a PY_ARRAY_UNIQUE_SYMBOL referring to this
 // PyArray_API. Then, in any other file that includes numpy/arrayobject.h
-// I define NO_IMPORT_ARRAY and deifne the unique symbol again.
+// I define NO_IMPORT_ARRAY and define the unique symbol again.
 // for more reading: https://docs.scipy.org/doc/numpy-1.10.1/reference/c-api.array.html#miscellaneous
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes, some compiler thing I don't really understand
@@ -79,7 +79,6 @@ static PyObject* siffreader_get_file_header(PyObject *self, PyObject *args) {
 }
 
 static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject* kw) {
-    // TODO implement correctly 
     // 
 
     PyObject *frames_list = NULL;
@@ -116,10 +115,6 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
             return NULL;
         }
     }
-
-    PyErr_SetString(PyExc_RuntimeError, "Unknown error has led you outside of any expected branches.\
-        Truly you are lost. May God have mercy on your soul");
-    return NULL; // you better not get here
 }
 
 static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, PyObject* kw) {
@@ -150,9 +145,7 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
         uint64_t framesN = PyList_Size(frames_list);
         return Sf.readMetaData(framesArray, framesN);
     }
-    PyErr_SetString(PyExc_RuntimeError, "Unknown error has led you outside of any expected branches.\
-        Truly you are lost. May God have mercy on your soul");
-    return NULL; // you better not get here
+    
 }
 
 static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObject* kw) {
@@ -173,7 +166,14 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
             PyErr_SetString(PyExc_TypeError, "All elements of pool_list must be lists themselves");
             return NULL;
         }
-        // check that elements of this list are ints. If so, pass them along to be used by the siffreader functionality.
+        
+        // Have been surprised by encountering int overflow here, 65k photons per pixel requires either massive data
+        // rates or loooots of pooling. I should do smarter checking but this is a short term solution.
+        if (PyList_Size(item) > 10000) {
+            PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
+        }
+
+        // check that elements of this list are ints. If so, pass them along to be used by the siffreader functionality. 
         for(Py_ssize_t subidx = Py_ssize_t(0); subidx < PyList_Size(item); subidx++) {
             PyObject* element = PyList_GET_ITEM(item, subidx);
             if(!PyLong_Check(element)) {
@@ -186,6 +186,122 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
 
     try{
         return Sf.poolFrames(listOfFramesListed, flim);
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        return NULL;
+    }
+}
+
+static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* kw) {
+    // Takes in a FLIMParams object and frames desired and returns a lifetime map, an intensity distribution,
+    // and a chi-squared value for every pixel.
+
+    PyObject* FLIMParams = NULL;
+    PyObject* listOfFramesListed = NULL;
+    const char* conf_measure;
+    uint16_t conf_measure_length = 0;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#:flim_map", FLIM_MAP_KEYWORDS, &FLIMParams ,&PyList_Type, &listOfFramesListed, &conf_measure, &conf_measure_length)) {
+        return NULL;
+    }
+
+    if(!conf_measure_length) conf_measure = "chi_sq";
+
+    // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
+    if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
+
+        PyErr_SetString(PyExc_TypeError, 
+            strcat("Expected params to be of type FLIMParams. Instead is type: ",
+                FLIMParams->ob_type->tp_name
+            )
+        );
+        return NULL;
+    }
+
+    // check that conf_measure is one of the permitted values
+    if (strcmp(conf_measure, "log_p") && strcmp(conf_measure,"chi_sq")) {
+        PyErr_SetString(PyExc_TypeError, 
+            strcat("Expected confidence_measure to be one of 'log_p', 'chi_sq'. Instead is type: ",
+                conf_measure
+            )
+        );
+        return NULL;
+    }
+
+    if (!listOfFramesListed) { // default behavior, skip type-checking.
+        try{
+            return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure);
+        }
+        catch(...) {
+            PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+            return NULL;
+        }
+    }
+
+    // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
+    for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
+        PyObject* item = PyList_GET_ITEM(listOfFramesListed, idx);
+        if(!PyList_Check(item)) {
+            PyErr_SetString(PyExc_TypeError, "All elements of framelist must be lists themselves");
+            return NULL;
+        }
+        
+        // Have been surprised by encountering int overflow here, 65k photons per pixel requires either massive data
+        // rates or loooots of pooling. I should do smarter checking but this is a short term solution.
+        if (PyList_Size(item) > 10000) {
+            PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
+        }
+
+        // check that elements of this list are ints. If so, pass them along to be used by the siffreader functionality. 
+        for(Py_ssize_t subidx = Py_ssize_t(0); subidx < PyList_Size(item); subidx++) {
+            PyObject* element = PyList_GET_ITEM(item, subidx);
+            if(!PyLong_Check(element)) {
+                PyErr_SetString(PyExc_TypeError, "All elements of sublists in framelist must be of type int.");
+                return NULL;
+            }
+        }
+    }
+
+    try{
+        return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure);
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        return NULL;
+    }
+}
+
+static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, PyObject* kw) {
+    PyObject* frames = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", GET_HISTOGRAM_KEYWORDS, &PyList_Type, &frames)) {
+        return NULL;
+    }
+
+    try{
+        if(!frames) {
+            return Sf.getHistogram();
+        }
+        else {
+            uint64_t framesArray[PyList_Size(frames)];
+
+            // Check that they're ints
+            for(Py_ssize_t idx = Py_ssize_t(0); idx< PyList_Size(frames); idx++) {
+                // these references are BORROWED, so we don't have to worry about INCREF or DECREF
+                PyObject* item = PyList_GET_ITEM(frames, idx);
+                if(!PyLong_Check(item)) {
+                    PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
+                    return NULL;
+                }
+                framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
+            }
+
+            uint64_t framesN = PyList_Size(frames);
+            return Sf.getHistogram(framesArray, framesN);
+        }
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
@@ -238,6 +354,8 @@ static PyMethodDef SiffreaderMethods[] = {
         {"get_frames", (PyCFunction) siffreader_get_frames, METH_VARARGS|METH_KEYWORDS, GET_FRAMES_DOCSTRING},
         {"get_frame_metadata", (PyCFunction) siffreader_get_frame_metadata, METH_VARARGS|METH_KEYWORDS, GET_METADATA_DOCSTRING},
         {"pool_frames", (PyCFunction) siffreader_pool_frames, METH_VARARGS|METH_KEYWORDS, POOL_FRAMES_DOCSTRING},
+        {"flim_map", (PyCFunction) siffreader_flim_map, METH_VARARGS|METH_KEYWORDS, FLIM_MAP_DOCSTRING},
+        {"get_histogram", (PyCFunction) siffreader_get_histogram, METH_VARARGS|METH_KEYWORDS, GET_HISTOGRAM_DOCSTRING},
         {"suppress_warnings", siffreader_suppress_warnings, METH_VARARGS, SUPPRESS_WARNINGS_DOCSTRING},
         {"report_warnings", siffreader_report_warnings, METH_VARARGS, REPORT_WARNINGS_DOCSTRING},
         {"num_frames", siffreader_num_frames, METH_VARARGS, NUM_FRAMES_DOCSTRING},

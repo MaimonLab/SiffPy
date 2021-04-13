@@ -23,7 +23,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.2.01',
+       version = '0.2.02',
        install_requires = [
            'numpy'
        ],

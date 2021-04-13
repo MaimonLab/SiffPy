@@ -60,11 +60,13 @@ class FLIMParams(object):
             self.Exp_params = []
             self.IRF = {}
             self.T_O = 0
+            self.CHI_SQD = np.nan
         else:
             self.Ncomponents = param_dict['NCOMPONENTS']
             self.Exp_params = param_dict['EXPPARAMS']
             self.IRF = param_dict['IRF']
             self.T_O = param_dict['T_O']
+            self.CHI_SQD = param_dict['CHISQ']
 
     @classmethod
     def from_tuple(cls, param_tuple):
@@ -79,7 +81,7 @@ class FLIMParams(object):
         params_dict = {
             'NCOMPONENTS' : num_components,
             'EXPPARAMS' : exp_params,
-            'CHISQ' : 0.0,
+            'CHISQ' : np.nan,
             'T_O' : param_tuple[-2],
             'IRF' : param_tuple[-1]
         }
@@ -89,15 +91,17 @@ class FLIMParams(object):
     def __str__(self):
         return self.param_dict().__str__()
 
-    def chi_sq(self, data, params=None):
+    def chi_sq(self, data, use_params=None):
         """
         Computes the chi-squared statistic of the
         input data "data" using the fit parameters
         in this class.
         TODO: USE THE WRAPAROUND
         """
-        if params is None:
+        if use_params is None:
             params = self.param_tuple()
+        else:
+            params = use_params
 
         arrival_p = np.zeros(data.shape) # incrementally updated by each component
         for component in range(self.Ncomponents):
@@ -112,7 +116,13 @@ class FLIMParams(object):
         chi_sq = ((data - total_photons*arrival_p)**2)/arrival_p
 
         chi_sq[np.isinf(chi_sq)]=0 # ignore the pre-pulse data where arrival_p = 0
-        return np.nansum(chi_sq)
+        
+        true_chisq = np.nansum(chi_sq)
+
+        if use_params is None:
+            self.CHI_SQD = true_chisq
+        
+        return true_chisq
 
     def fit_data(self, data, num_components=2, x0=None ,metric=None):
         """
@@ -150,7 +160,7 @@ class FLIMParams(object):
         self.Ncomponents = num_components
 
         if metric is None:
-            objective = lambda x: self.chi_sq(data, params=x)
+            objective = lambda x: self.chi_sq(data, use_params=x)
 
         else:
             objective = lambda x: metric(data, x)
@@ -168,6 +178,8 @@ class FLIMParams(object):
 
         self.T_O = fit_tuple[-2]
         self.IRF = {'DIST':'GAUSSIAN', 'PARAMS': {'SIGMA':fit_tuple[-1]}}
+
+        self.CHI_SQD = self.chi_sq(data)
 
         return fit_obj
 
@@ -190,7 +202,7 @@ class FLIMParams(object):
             param_tuple.extend([self.Exp_params[comp]['FRAC'],self.Exp_params[comp]['TAU']])
         param_tuple.append(self.T_O)
         param_tuple.append(self.IRF['PARAMS']['SIGMA'])
-        return param_tuple
+        return tuple(param_tuple)
 
     def param_dict(self):
         """
@@ -217,7 +229,7 @@ class FLIMParams(object):
         params_dict = {
             'NCOMPONENTS' : self.Ncomponents,
             'EXPPARAMS' : self.Exp_params,
-            'CHISQ' : 0.0,
+            'CHISQ' : self.CHI_SQD,
             'T_O' : self.T_O,
             'IRF' : self.IRF
         }

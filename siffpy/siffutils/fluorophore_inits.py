@@ -40,6 +40,40 @@ FLIM_AKAR = {
                 }
         }
 
+jRCaMP1b = {
+            'NCOMPONENTS' : 2,
+            'EXPPARAMS' : [
+                {'FRAC' : 0.6, 'TAU' : 210.0},
+                {'FRAC' : 0.4, 'TAU' : 30.0}
+            ],
+            'CHISQ' : 0.0,
+            'T_O' : 62,
+            'IRF' :
+                {
+                    'DIST' : 'GAUSSIAN',
+                    'PARAMS' : {
+                        'SIGMA' : 3.4
+                    }
+                }
+        }
+
+jGCaMP7s = {
+            'NCOMPONENTS' : 2,
+            'EXPPARAMS' : [
+                {'FRAC' : 0.99, 'TAU' : 140.0},
+                {'FRAC' : 0.01, 'TAU' : 30.0}
+            ],
+            'CHISQ' : 0.0,
+            'T_O' : 20,
+            'IRF' :
+                {
+                    'DIST' : 'GAUSSIAN',
+                    'PARAMS' : {
+                        'SIGMA' : 4.3
+                    }
+                }
+        }
+
 def available_fluorophores(dtype : type = list) -> list[str]:
     """ 
     Return available fluorophores with initial conditions for FLIM
@@ -67,14 +101,18 @@ def available_fluorophores(dtype : type = list) -> list[str]:
     if dtype == list:
         list_of_fluorophores = [
             'gCamui',
-            'FLIM_AKAR'
+            'FLIM_AKAR',
+            'jRCaMP1b',
+            'jGCaMP7s'
         ]
 
     if dtype == dict:
         list_of_fluorophores = {
             None : None,
             'gCamui' : gCamui,
-            'FLIM_AKAR': FLIM_AKAR
+            'FLIM_AKAR': FLIM_AKAR,
+            'jRCaMP1b' : jRCaMP1b,
+            'jGCaMP7s' : jGCaMP7s
         }
 
     return list_of_fluorophores
