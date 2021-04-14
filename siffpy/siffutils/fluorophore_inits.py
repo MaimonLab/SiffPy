@@ -58,18 +58,17 @@ jRCaMP1b = {
         }
 
 jGCaMP7s = {
-            'NCOMPONENTS' : 2,
+            'NCOMPONENTS' : 1,
             'EXPPARAMS' : [
-                {'FRAC' : 0.99, 'TAU' : 140.0},
-                {'FRAC' : 0.01, 'TAU' : 30.0}
+                {'FRAC' : 0.99, 'TAU' : 140.0}
             ],
             'CHISQ' : 0.0,
-            'T_O' : 20,
+            'T_O' : 26.0,
             'IRF' :
                 {
                     'DIST' : 'GAUSSIAN',
                     'PARAMS' : {
-                        'SIGMA' : 4.3
+                        'SIGMA' : 3.0
                     }
                 }
         }

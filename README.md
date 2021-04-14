@@ -36,7 +36,7 @@ print(sr.im_params)
 
 # Pool the first 100 timepoints for all stacks in a z-stack, but only in the first color channel
 T_START = 0
-T_END = 100
+T_END = 101
 POOL_WIDTH = 100
 
 # list of frames
@@ -57,7 +57,14 @@ print(siffutils.available_fluorophores())
 fit_list = siffpy.fit_exp(histogram, fluorophores=['gCamui']) # returns a list of FLIMParams object for each element
 # of histogram. Since histogram is 1 element this will just return one. 
 
-print(fit_list.param_dict())
+print(fit_list[0].param_dict())
+
+# just to check the fit (siffplot will implement a nicer version of this eventually):
+import matplotlib.pyplot as plt
+
+MAX_NUMBER_BINS=1024 # this is hardcoded at the moment, with siffreadermodule return a FLIM dimension of size 1024
+plt.semilogy(histogram)
+plt.semilogy(fit_list[0].p_dist(np.arange(MAX_NUMBER_BINS)))
 
 
 # Return three x-dim by y-dim arrays: a map of empirical lifetimes (in units of histogram BINS, will be converted to nanoseconds in later implementations), the regular pixelwise number of photons, and a confidence metric reflecting how well-fit the data are by our overall FLIM fitting procedure. Noise pixels will be poorly fit while signal pixels will show good quality fits. Here we'll use the chi-squared statistic.

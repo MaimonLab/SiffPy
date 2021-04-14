@@ -41,15 +41,18 @@ class FLIMParams(object):
     Methods
     -------
 
-    fit_data(self, data, num_components, x0, metric):
+    fit_data(self, data, num_components, x0, metric) -> None:
         Takes in the ndarray data and fits the parameters of the model defined by this
         FLIMParams object. metric reflects the objective function.
 
-    param_tuple(self):
+    param_tuple(self) -> tuple:
         Returns a tuple listing the parameter values in a standardized order.
 
-    param_dict(self):
-        Returrns a dict listing parameter values in an easy-to-understand key value logic
+    param_dict(self) -> dict:
+        Returns a dict listing parameter values in an easy-to-understand key value logic
+
+    p_dist(self, x_range) -> np.ndarray:
+        Return a numpy array reflecting the probability distribution of the fit variables along the input x range
 
     SCT March 28 2021, rainy day in Maywood NJ
     """
@@ -69,7 +72,7 @@ class FLIMParams(object):
             self.CHI_SQD = param_dict['CHISQ']
 
     @classmethod
-    def from_tuple(cls, param_tuple):
+    def from_tuple(cls, param_tuple : tuple):
         """ Instantiate a FLIMParams from the parameter tuple """
         num_components = len(param_tuple) - 2
         exp_params = [
@@ -91,7 +94,7 @@ class FLIMParams(object):
     def __str__(self):
         return self.param_dict().__str__()
 
-    def chi_sq(self, data, use_params=None):
+    def chi_sq(self, data : np.ndarray, use_params : bool = None) -> float:
         """
         Computes the chi-squared statistic of the
         input data "data" using the fit parameters
@@ -113,7 +116,7 @@ class FLIMParams(object):
                 )
         
         total_photons = np.sum(data)
-        chi_sq = ((data - total_photons*arrival_p)**2)/arrival_p
+        chi_sq = ((data - total_photons*arrival_p)**2)/(total_photons*arrival_p)
 
         chi_sq[np.isinf(chi_sq)]=0 # ignore the pre-pulse data where arrival_p = 0
         
@@ -124,7 +127,7 @@ class FLIMParams(object):
         
         return true_chisq
 
-    def fit_data(self, data, num_components=2, x0=None ,metric=None):
+    def fit_data(self, data : np.ndarray, num_components : int = 2, x0 : tuple = None , metric = None) -> None:
         """
         Takes in the data and adjusts the internal
         parameters of this FLIMParams object to
@@ -183,7 +186,7 @@ class FLIMParams(object):
 
         return fit_obj
 
-    def param_tuple(self):
+    def param_tuple(self) -> tuple:
         """
         Return the FLIM parameters as a tuple. Order:
 
@@ -204,7 +207,7 @@ class FLIMParams(object):
         param_tuple.append(self.IRF['PARAMS']['SIGMA'])
         return tuple(param_tuple)
 
-    def param_dict(self):
+    def param_dict(self) -> dict:
         """
         Return the FLIM parameters as a dict as follows:
 
@@ -234,6 +237,41 @@ class FLIMParams(object):
             'IRF' : self.IRF
         }
         return params_dict
+
+    def p_dist(self, x_range : np.ndarray) -> np.ndarray:
+        """
+        Return the fit value's probability distribution. To plot against a
+        data set, rescale this by the total number of photons in the data set.
+        Assumes x_range is in units of BIN SIZE, not true time.
+
+        INPUTS
+        ------
+        x_range : np.ndarray (1-dimensional)
+
+            The x values you want the output probabilities of. Usually this will be something like
+            np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
+
+        RETURN VALUES
+        ------------
+        p_out : np.ndarray(1-dimensional)
+            
+            The probability of observing a photon in each corresponding bin of x_range.
+        """
+        
+        if len(x_range.shape) > 1:
+            raise Exception("x_range must be one dimensional")
+
+        params = self.param_tuple()
+
+        arrival_p = np.zeros(x_range.shape) # incrementally updated by each component
+        for component in range(self.Ncomponents):
+            arrival_p += params[2*component] * \
+                monoexponential_prob(
+                    x_range-params[-2], # arrival time shifted by t_o
+                    params[2*component + 1], # this component's tau value
+                    params[-1] # the IRF width
+                )
+        return arrival_p
 
 
 
