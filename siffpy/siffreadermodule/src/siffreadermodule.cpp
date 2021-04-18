@@ -153,11 +153,21 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
     PyObject* listOfFramesListed = NULL;
     PyObject* type = NULL;
     bool flim = false;
+    PyObject* registrationDict = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!p:pool_frames", POOL_FRAMES_KEYWORDS, &PyList_Type, &listOfFramesListed, &PyType_Type, &type, &flim)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!:pool_frames", 
+        POOL_FRAMES_KEYWORDS,
+        &PyList_Type, &listOfFramesListed,
+        &PyType_Type, &type,
+        &flim,
+        &PyDict_Type, &registrationDict)
+    ) {
         return NULL;
     }
+
+    // defaults to 0's
+    if(!registrationDict) registrationDict = PyDict_New();
 
     // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
     for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
@@ -180,12 +190,22 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
                 PyErr_SetString(PyExc_TypeError, "All elements of sublists in pool_list must be of type int.");
                 return NULL;
             }
+
+            // if this isn't in the registration dict, shift by (0,0)
+            if (!PyDict_Contains(registrationDict, element)) {
+                PyDict_SetItem(registrationDict, element, // steals the reference to the value
+                    PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                        PyLong_FromLong(0),
+                        PyLong_FromLong(0)
+                    )
+                );
+            }
         }
     }
 
 
     try{
-        return Sf.poolFrames(listOfFramesListed, flim);
+        return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());

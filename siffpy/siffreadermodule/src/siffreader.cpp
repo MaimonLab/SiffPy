@@ -187,7 +187,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
     }
 }
 
-PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
+PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* registrationDict) {
     // Pools all frames into one summed element by reading one at a time
     // and then appending them together. Considerably less memory intensive
     // than reading them all into NumPy arrays first and THEN pooling.
@@ -209,16 +209,21 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim) {
                 Py_DECREF(Py_None);
             }
             // get the first frame requested.
-            PyArrayObject* firstFrame = frameAsNumpy(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], flim);
-           
+
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,0));
+            PyArrayObject* firstFrame = 
+                frameAsNumpy(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], flim, shift_tuple);
+
             // fuse in more if they asked for it.
             if(PyList_Size(listOfFrames) > Py_ssize_t(1)) {
                 // more than one frame in the list
                 for(Py_ssize_t frameIdx(1); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
+                    PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,frameIdx)); 
                     fuseFrames(
                         firstFrame, // template fused onto
                         params.allIFDs[ PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx)) ], // next frame to add
-                        flim // what style to fuse it onto
+                        flim, // what style to fuse it onto
+                        shift_tuple // registration shift
                     ); 
                 }
             }
@@ -448,9 +453,11 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     if (ret<0) std::runtime_error("Failure to append frame array to list");
 }
 
-PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim) {
+PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* shift_tuple) {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Identical to above, except returns numpyArray instead of appending it to a list
+
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
     FrameData frameData = getTagData(thisIFD, params, siff);
     
@@ -464,15 +471,15 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim) {
     dims[0] = frameData.imageLength;
     dims[1] = frameData.imageWidth;
     if (params.issiff & flim) dims[2] = tau_dim;
-//
+
     PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
         ND,
         dims,
         NPY_UINT16, 
         0 // C order, i.e. last index increases fastest
-    ); // Or should I make a sparse array? Maybe make that an option? TODO.
+    );
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim);
+    loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
     
     return numpyArray;
 }
@@ -529,7 +536,7 @@ void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArra
     addArrivalsToArray(numpyArray, params, frameData, siff);
 }
 
-void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim) {
+void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple) {
     
     uint16_t* data_ptr = (uint16_t*) PyArray_DATA(fuseFrame);
     npy_intp* dims = PyArray_DIMS(fuseFrame);
@@ -542,13 +549,13 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     uint16_t bytesPerSample = frameData.bitsPerSample/8;
     uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
 
-    loadArrayWithData(fuseFrame, params, frameData, siff, flim);
+    loadArrayWithData(fuseFrame, params, frameData, siff, flim, shift_tuple);
 }
 
 void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD) {
     FrameData frameData = getTagData(nextIFD, params, siff);
 
-    std::vector<uint64_t> frameReads = // this frame's photon countss
+    std::vector<uint64_t> frameReads = // this frame's photon counts
         frameData.siffCompress ? 
             compressedReadsToVec(frameData, siff) :
             uncompressedReadsToVec(frameData, siff);

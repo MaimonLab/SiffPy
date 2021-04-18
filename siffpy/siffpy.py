@@ -7,9 +7,19 @@ import siffutils
 from siffutils.exp_math import *
 from siffutils.flimparams import FLIMParams
 
+# TODO:
+# __repr__
+# ret_type in multiple functions
+# "map to standard order"
+
 class SiffReader(object):
     """
 	Centralized Pythonic interface to the SiffReader module implemented in C.
+
+    Designed to streamline several types of operations one might perform with a
+    single file, so it operates by opening a file and then taking arguments that
+    relate to that specific file, e.g. frame numbers or slice numbers, as opposed
+    to accepting numpy arrays of frames.
 
 	DOCSTRING still in progress. File first made SCT 03/24/2021
 
@@ -187,6 +197,30 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
         ])
 
+    def get_frames(self, frames: list[int] = None, flim : bool = False) -> list[np.ndarray]:
+        """
+        Returns the frames requested in frames keyword, or if None returns all frames.
+
+        Wraps siffreader.get_frames
+
+        INPUTS
+        ------
+        frames (optional) : list[int]
+
+            Indices of input frames requested
+
+        flim (optional) : bool
+
+            Whether or not the returned np.ndarrays are 3d or 2d.
+
+        RETURN VALUES
+        -------------
+        list[np.ndarray] 
+
+            Each frame requested returned as a numpy array (either 2d or 3d).
+        """
+        return siffreader.get_frames(frames = frames, flim = flim)
+
     def sum_across_time(self, timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
         z_list : list[int] = None, color_list : list[int] = None,
@@ -196,7 +230,54 @@ class SiffReader(object):
         Sums adjacent frames in time of width "timespan" and returns a
         list of numpy arrays in standard form (or a single numpy array).
 
-        TODO: finish this docstring.
+        TODO: IMPLEMENT RET_TYPE
+
+        INPUTS
+        ------
+        timespan (optional, default = 1) : int
+
+            The number of TIMEPOINTS you want to pool together. This will determine the
+            size of your output list: (timepoint_end - timepoint_start) / timespan.
+
+        timepoint_start (optional, default = 0) : int
+
+            The TIMEPOINT of the first frame you want to sum, so if you have a stack
+            or multiple colors, this will not be the same as the frame number. If no
+            input is given, this starts from the first timepoint.
+
+        timepoint_end (optional, default = None) : int
+        
+            The TIMEPOINT of the last frame you want to sum, so if you have a stack
+            or multiple colors, this will not be the same as the frame number. If no
+            input is given, this will be the last timpeoint in the file.
+
+        z_list (optional, default = None) : list[int]
+
+            List of the z values you want to sum. If no list is given, defaults to the full volume.
+
+        color_list (optional, default = None) : list[int]
+
+            List of the color channels you want to sum. If no list is given, defaults to all present colors.
+
+        flim (optional, default = False) : bool
+
+            Whether to return FLIM arrays (y by x by tau) or INTENSITY arrays (y by x). Default is intensity.
+
+        ret_type (optional, default = list) : type
+
+            Determines the return type (either a single numpy array or a list of numpy arrays). The default
+            option is list, but if you want a numpy array, input numpy.ndarray
+
+
+        RETURN VALUES
+        -------------
+
+        list or np.ndarray
+
+            If list, returns a list of length len(color_list)*(timepoint_end-time_point_start)/timespan
+            corresponding to the summed values of the pixels (or time bins) of TIMESPAN number of 
+            successive timepoints.
+
         """
 
         ##### pre=processing
@@ -223,6 +304,12 @@ class SiffReader(object):
             z_list = list(range(num_slices))
         if color_list is None:
             color_list = list(range(num_colors))
+
+        if len(z_list) > num_slices:
+            warnings.warn("Length of z_list is greater than the number of planes in a stack.\n" +
+                "Defaulting to full volume (%s slices)" %num_slices
+            )
+            z_list = list(range(num_slices))
 
         timestep_size = num_slices*num_colors # how many frames constitute a timepoint
 
@@ -318,7 +405,8 @@ class SiffReader(object):
         ------
         frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
         """
-    
+        raise Exception("Not yet implemented.")
+
     def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
         """
         TODO: IMPLEMENT
@@ -343,7 +431,7 @@ class SiffReader(object):
         ----------
         reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
         """
-        pass
+        raise Exception("Not yet implemented")
 
 
 

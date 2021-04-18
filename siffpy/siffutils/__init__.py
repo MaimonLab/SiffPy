@@ -4,6 +4,7 @@ A few tools for reading .siff and .tiff files from ScanImage that should be tuck
 SCT March 28 2021, still rainy in Maywood
 """
 
+from . import registration
 from .matlab_to_python import *
 from .fluorophore_inits import available_fluorophores
 

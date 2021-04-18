@@ -57,12 +57,28 @@ inline FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& sif
 
 
 inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims) // uses siffCompress
+    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
     {
+    
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    
+    
     uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
     if(!flim) { // easy, this data's already stored in the start.
-        siff.read((char*) data_ptr, pixelsInImage * sizeof(uint16_t));
+
+        uint16_t frameReads[samplesThisFrame];
+        siff.read((char*)&frameReads,pixelsInImage * sizeof(uint16_t));
+        siff.clear();
+
+        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+            uint64_t shifted_px = ( (((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
+            shifted_px += (px % dims[0] + x_shift) % dims[1];
+            data_ptr[shifted_px] += frameReads[px];
+        }
+
         return;
     }
     
@@ -78,8 +94,8 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
 
         for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
             data_ptr[
-                (px / frameData.imageWidth) * dims[1] * dims[2] // y index
-                    +(px % frameData.imageWidth)*dims[2]       // x index
+                ((px / frameData.imageWidth + y_shift) % dims[0]) * dims[1] * dims[2] // y index
+                    +((px % frameData.imageWidth + x_shift) % dims[1]) *dims[2]       // x index
                         + pxReads[readNum]                      // tau index
             ]++;
         }
@@ -88,9 +104,13 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
 }
 
 inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims) // every read is a uint64 of y, x, tau
+    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple) // every read is a uint64 of y, x, tau
     {
     
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
     uint64_t frameReads[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
     siff.clear();
@@ -98,9 +118,8 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
         for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
             // increment the appropriate numpy element
             data_ptr[
-                (U64TOY(frameReads[photon])*dims[1]*dims[2])
-                    + (std::min<uint16_t>(U64TOX(frameReads[photon]),dims[1]-1)*dims[2]) // THIS SHOULD NOT BE HERE. 
-                    //ONLY NECESSARY DUE TO AN EARLY ERROR IN CODE. TODO REMOVE THIS STD::MIN CALL!!
+                ((U64TOY(frameReads[photon] + y_shift) % dims[0])*dims[1]*dims[2])
+                    + (((U64TOX(frameReads[photon]) + x_shift) % dims[1]) * dims[2])
                         + U64TOTAU(frameReads[photon])
             ]++;
         }
@@ -109,13 +128,19 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
         // if we're just doing intensity, the pointer element to increment should be different
         for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
                 // increment the appropriate numpy element
-            data_ptr[U64TOY(frameReads[photon])*dims[1] + U64TOX(frameReads[photon])]++;
+            data_ptr[(U64TOY(frameReads[photon] + y_shift) % dims[0])*dims[1] + 
+                ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
         }
     }
 }
 
 
-inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, FrameData& frameData, std::ifstream& siff, bool flim){
+inline void loadArrayWithData(PyArrayObject* numpyArray,
+    SiffParams& params, FrameData& frameData, std::ifstream& siff,
+    bool flim, PyObject* shift_tuple = NULL) {
+    
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+
     // TODO: put the bool flags into the SiffParams struct.
     uint16_t* data_ptr = (uint16_t *) PyArray_DATA(numpyArray);
     npy_intp* dims = PyArray_DIMS(numpyArray);
@@ -130,8 +155,8 @@ inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, Fra
 
     if (params.issiff) {
         frameData.siffCompress ?
-            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims) : 
-            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims);
+            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple) : 
+            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple);
     }
     else {
         // pretty simple -- it's already formatted right.
@@ -144,8 +169,15 @@ inline void loadArrayWithData(PyArrayObject* numpyArray, SiffParams& params, Fra
         uint16_t frameReads[samplesThisFrame];
         siff.read((char*)&frameReads,frameData.stripByteCounts);
         siff.clear();
+
+        // figure out the rigid deformation for registration
+        uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+        uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
         for(uint64_t px = 0; px < samplesThisFrame; px++) {
-            data_ptr[px] += frameReads[px];
+            uint64_t shifted_px = (( ((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
+            shifted_px += (px % dims[0] + x_shift) % dims[1];
+            data_ptr[shifted_px] += frameReads[px];
         }
     }
 };
