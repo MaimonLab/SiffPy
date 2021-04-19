@@ -239,7 +239,7 @@ inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, Fr
 
 }
 
-inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifstream& siff) {
+inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
     // decompresses them. Inelegant but I just wanted a single format for all frame types.
     // Might come back and adjust this implementation so that everything actually uses the compressed
     // format -- there are reasons it'd be better for the flim_map function anyways.
@@ -260,6 +260,12 @@ inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifs
     uint16_t frameReads[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
 
+    uint64_t ydim = frameData.imageLength;
+    uint64_t xdim = frameData.imageWidth;
+
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
     std::vector<uint64_t> readsVector(0);
     readsVector.reserve(samplesThisFrame);
@@ -272,7 +278,7 @@ inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifs
         for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
             readsVector.push_back(
                 pxReads[readNum] +                   // tau index
-                    (px%frameData.imageWidth +(px/frameData.imageWidth << 16)) << 32 // x and y indices
+                    ((px+x_shift)%xdim +(((px/xdim + y_shift)%ydim) << 16)) << 32 // x and y indices
             );
         }
         
@@ -280,7 +286,7 @@ inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifs
     return readsVector;
 };
 
-inline std::vector<uint64_t> uncompressedReadsToVec(FrameData& frameData, std::ifstream& siff) {
+inline std::vector<uint64_t> uncompressedReadsToVec(FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
     siff.clear();
     siff.seekg(frameData.dataStripAddress);
     siff.clear();
@@ -288,8 +294,26 @@ inline std::vector<uint64_t> uncompressedReadsToVec(FrameData& frameData, std::i
     uint64_t samplesThisFrame = 8*frameData.stripByteCounts/frameData.bitsPerSample;
     uint64_t frameReads[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
+    std::vector<uint64_t> retVec(0);
+    retVec.reserve(samplesThisFrame);
 
-    return std::vector<uint64_t>(frameReads, frameReads + samplesThisFrame);
+    uint64_t ydim = frameData.imageLength;
+    uint64_t xdim = frameData.imageWidth;
+
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+        uint64_t thisRead = frameReads[photon];
+        
+        retVec.push_back(U64TOTAU(thisRead) +
+                ((((U64TOX(thisRead) + x_shift) % xdim) +
+                (((U64TOY(thisRead) + y_shift) % ydim) << 16)) <<32)
+        );
+    }
+
+    return retVec;
 };
 
 
@@ -329,7 +353,7 @@ void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         uint64_t read = reads[readNum];
         uint64_t this_px = U64TOY(read)*dims[1] + U64TOX(read);
         uint16_t arrival = U64TOTAU(read);
-
+        
         lifetime_ptr[this_px] += arrival;
         intensity_ptr[this_px]++;
         

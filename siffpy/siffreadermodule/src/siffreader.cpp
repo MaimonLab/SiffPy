@@ -239,7 +239,7 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* reg
     }
 }
 
-PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure) {
+PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict) {
     
     try{
         // check the tauo offset value before we waste time evaluating things
@@ -281,9 +281,21 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
             // by the whole process.
             
             for(Py_ssize_t frameIdx(0); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
+                PyObject* element = PyList_GetItem(listOfFrames, frameIdx);
+                if(!PyDict_Contains(registrationDict, element)) {
+                    PyDict_SetItem(registrationDict, element, // steals the reference to the value
+                        PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                            PyLong_FromLong(0),
+                            PyLong_FromLong(0)
+                        )
+                    );
+                } 
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, element);
+                
                 fuseReadVector( // simply appends this frame's read vector onto the old ones.
                     photonReadsTogether,
-                    params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx))]
+                    params.allIFDs[PyLong_AsLongLong(element)],
+                    shift_tuple
                 );
             }
 
@@ -552,13 +564,13 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     loadArrayWithData(fuseFrame, params, frameData, siff, flim, shift_tuple);
 }
 
-void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD) {
+void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple) {
     FrameData frameData = getTagData(nextIFD, params, siff);
 
     std::vector<uint64_t> frameReads = // this frame's photon counts
         frameData.siffCompress ? 
-            compressedReadsToVec(frameData, siff) :
-            uncompressedReadsToVec(frameData, siff);
+            compressedReadsToVec(frameData, siff, shift_tuple) :
+            uncompressedReadsToVec(frameData, siff, shift_tuple);
 //
     photonReadsTogether.insert(photonReadsTogether.end(), frameReads.begin(), frameReads.end());
 }

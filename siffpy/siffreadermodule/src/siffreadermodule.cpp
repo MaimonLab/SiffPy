@@ -221,13 +221,20 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     PyObject* listOfFramesListed = NULL;
     const char* conf_measure;
     uint16_t conf_measure_length = 0;
+    PyObject* registrationDict = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#:flim_map", FLIM_MAP_KEYWORDS, &FLIMParams ,&PyList_Type, &listOfFramesListed, &conf_measure, &conf_measure_length)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!:flim_map", FLIM_MAP_KEYWORDS,
+        &FLIMParams,
+        &PyList_Type,&listOfFramesListed,
+        &conf_measure, &conf_measure_length,
+        &PyDict_Type, &registrationDict)) {
         return NULL;
     }
 
     if(!conf_measure_length) conf_measure = "chi_sq";
+    // defaults to 0's
+    if(!registrationDict) registrationDict = PyDict_New();
 
     // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
@@ -252,7 +259,9 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
 
     if (!listOfFramesListed) { // default behavior, skip type-checking.
         try{
-            return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure);
+            PyErr_SetString(PyExc_RuntimeError, "All frames default is not yet implemented");
+            return NULL;
+            //return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
         }
         catch(...) {
             PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
@@ -281,11 +290,21 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
                 PyErr_SetString(PyExc_TypeError, "All elements of sublists in framelist must be of type int.");
                 return NULL;
             }
+
+            // if this isn't in the registration dict, shift by (0,0)
+            if (!PyDict_Contains(registrationDict, element)) {
+                PyDict_SetItem(registrationDict, element, // steals the reference to the value
+                    PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                        PyLong_FromLong(0),
+                        PyLong_FromLong(0)
+                    )
+                );
+            }
         }
     }
 
     try{
-        return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure);
+        return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());

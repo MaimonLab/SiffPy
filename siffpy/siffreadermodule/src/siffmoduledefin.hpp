@@ -10,7 +10,7 @@
 
 #define POOL_FRAMES_KEYWORDS (char*[]){"pool_lists", "type", "flim", "registration", NULL}
 
-#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", NULL}
+#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", "registration", NULL}
 
 #define GET_HISTOGRAM_KEYWORDS (char*[]){"frames", NULL}
 
@@ -34,7 +34,7 @@
         "\tReturns frame metadata.\n"\
     "pool_frames(pool_lists, type=list, flim=False, registration=None):\n"\
         "\tReturns summed versions of frames.\n"\
-    "flim_map(params, framelist=None, confidence_metric='log_p'):\n"\
+    "flim_map(params, framelist=None, confidence_metric='log_p', registration=None):\n"\
         "\tReturns a tuple: empirical lifetime, intensity, and a confidence metric.\n"\
     "get_histogram(frames=None):\n"\
         "\tReturns histogrm of photon arrival times."\
@@ -107,6 +107,7 @@
     "\tOptions:\n"\
     "\t\t'log_p'  : log likelihood of the pixel distribution (computes fast, iteratively).\n"\
     "\t\t'chi_sq' : chi-squared statistic of the data (computes slower, has some nicer properties).\n"\
+    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."\
     "Returns:\n"\
     "\t(flimmap, intensity, chi_sq)\n"\
     "\t\tflimmap: list of np.ndarrays containing the empirical lifetime for each pixel (UNITS OF HISTOGRAM BINS).\n"\
