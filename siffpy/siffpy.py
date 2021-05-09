@@ -392,8 +392,8 @@ class SiffReader(object):
     def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
         z_list : list[int] = None, color_list : list[int] = None,
-        ret_type : type = list, registration : dict = None
-        ) -> np.ndarray:
+        ret_type : type = list, registration : dict = None,
+        confidence_metric='chi_sq') -> np.ndarray:
         """
         Exactly as in sum_across_time but returns a flimmap instead
 
@@ -442,6 +442,10 @@ class SiffReader(object):
         registration (optional, dict):
 
             Registration dict for each frame
+
+        confidence_metric (optional, default='chi_sq') : str
+
+            What metric to use to compute the confidence matrix returned in each tuple
 
 
         RETURN VALUES
@@ -536,13 +540,12 @@ class SiffReader(object):
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         if registration is None:
-            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist)
+            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, 
+                                                 confidence_metric=confidence_metric
+                                                )
         else:
-            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, registration = registration)
-
-        # return in units of picoseconds, rather than bins
-        for returned_frame in list_of_arrays:
-            returned_frame[0] *= self.im_params['PICOSECONDS_PER_BIN']/1000.0
+            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, registration = registration,
+                                                confidence_metric=confidence_metric)
 
         if ret_type == list:
             return list_of_arrays

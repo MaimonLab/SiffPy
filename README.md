@@ -73,6 +73,11 @@ plt.semilogy(fit_list[0].p_dist(np.arange(MAX_NUMBER_BINS)))
 #how well-fit the data are by our overall FLIM fitting procedure. Noise pixels will be poorly fit while signal
 #pixels will show good quality fits. Here we'll use the chi-squared statistic.
 
+# just to get a sense of how to use the siffreader module underneath, let's use the flim_map function.
+# siffpy has a python implementation of it that looks like the sum_across_time functionality.
+# If you want to use that, try help(sr.flimmap_across_time)
+
+import siffreader
 (flim_map, intensity, chi_sq) = siffreader.flim_map(fit_list[0], frames=[list(range(4,15000,10)) + list(range(3,15000,10))],confidence_metric='chi_sq')
 
 # mask the data by how informative each pixel is about a fluoroscence lifetime measurement
