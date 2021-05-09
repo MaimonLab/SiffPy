@@ -4,7 +4,7 @@ import setuptools
 try:
     import numpy
 except ImportError as error:
-    print("Numpy is not yet installed on this distribution. Set up using command 'pip install .' instead.")
+    raise Exception("Numpy is not yet installed on this distribution. Set up using command 'pip install .' instead.")
     
 
 # written for Darwin. Probably should write a Windows and/or GNU compatible
@@ -23,7 +23,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.2.02',
+       version = '0.2.03',
        install_requires = [
            'numpy'
        ],

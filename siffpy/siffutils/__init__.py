@@ -35,7 +35,8 @@ def most_important_header_data(header_dict):
         TODO:XRESOLUTION -- (float)
         TODO:YRESOLUTION -- (float)
         ZOOM -- (float)
-        TODO: HISTOGRAM_BIN_SIZE -- (int) (in picoseconds)
+        PICOSECONDS_PER_BIN -- (int)
+        NUM_BINS -- (int)
     """
 
     im_params = {}
@@ -46,6 +47,8 @@ def most_important_header_data(header_dict):
     im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
     im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
     im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
+    im_params["PICOSECONDS_PER_BIN"] = 10*2**(1+int(header_dict['SI.hScan2D.hAcq.binResolution']))
+    im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
 
     return im_params
 

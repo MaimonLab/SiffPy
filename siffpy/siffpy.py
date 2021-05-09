@@ -58,9 +58,11 @@ class SiffReader(object):
     def __init__(self, flim : bool = True):
         self.file_header = {}
         self.im_params = {}
+        self.ROI_group_data = {}
         self.opened = False
         self.filename = ''
         self.flim = flim
+        self.registrationDict = None
 
     def __str__(self):
         ret_string = ""
@@ -96,10 +98,12 @@ class SiffReader(object):
         siffreader.open(filename)
         
         hd = siffreader.get_file_header()
-        self.file_header =  {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}
+        self.file_header =  siffutils.header_data_to_nvfd(hd)
 
         self.im_params = siffutils.most_important_header_data(self.file_header)
         self.im_params['NUM_FRAMES'] = siffreader.num_frames()
+
+        self.ROI_group_data = siffutils.header_data_to_roi_string(hd)
         self.opened = True
 
     def close(self) -> None:
@@ -224,7 +228,7 @@ class SiffReader(object):
     def sum_across_time(self, timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
         z_list : list[int] = None, color_list : list[int] = None,
-        flim : bool = None, ret_type : type = list
+        flim : bool = None, ret_type : type = list, registration : dict = None
         ) -> np.ndarray:
         """
         Sums adjacent frames in time of width "timespan" and returns a
@@ -268,6 +272,10 @@ class SiffReader(object):
             Determines the return type (either a single numpy array or a list of numpy arrays). The default
             option is list, but if you want a numpy array, input numpy.ndarray
 
+        registration (optional, dict):
+
+            Registration dict for each frame
+
 
         RETURN VALUES
         -------------
@@ -277,6 +285,8 @@ class SiffReader(object):
             If list, returns a list of length len(color_list)*(timepoint_end-time_point_start)/timespan
             corresponding to the summed values of the pixels (or time bins) of TIMESPAN number of 
             successive timepoints.
+
+            np.ndarray returns not yet implemented
 
         """
 
@@ -358,7 +368,209 @@ class SiffReader(object):
 
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
+        if registration is None:
+            list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
+        else:
+            list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration)
+
+        if ret_type == list:
+            return list_of_arrays
+
+        if ret_type == np.ndarray:
+            ## NOT YET IMPLEMENTED
+            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
+
+            frameshape = list_of_arrays[0].shape
+
+            if flim:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
+            else:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
+            
+            np.array(list_of_arrays).reshape(reshaped_dims)
+
+    def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, 
+        timepoint_start : int = 0, timepoint_end : int = None,
+        z_list : list[int] = None, color_list : list[int] = None,
+        ret_type : type = list, registration : dict = None
+        ) -> np.ndarray:
+        """
+        Exactly as in sum_across_time but returns a flimmap instead
+
+        TODO: IMPLEMENT RET_TYPE
+
+        INPUTS
+        ------
+        flimfit : FLIMParams
+
+            The fit FLIM parameters for each color channel
+
+        timespan (optional, default = 1) : int
+
+            The number of TIMEPOINTS you want to pool together. This will determine the
+            size of your output list: (timepoint_end - timepoint_start) / timespan.
+
+        timepoint_start (optional, default = 0) : int
+
+            The TIMEPOINT of the first frame you want to sum, so if you have a stack
+            or multiple colors, this will not be the same as the frame number. If no
+            input is given, this starts from the first timepoint.
+
+        timepoint_end (optional, default = None) : int
+        
+            The TIMEPOINT of the last frame you want to sum, so if you have a stack
+            or multiple colors, this will not be the same as the frame number. If no
+            input is given, this will be the last timpeoint in the file.
+
+        z_list (optional, default = None) : list[int]
+
+            List of the z values you want to sum. If no list is given, defaults to the full volume.
+
+        color_list (optional, default = None) : list[int]
+
+            List of the color channels you want to sum. If no list is given, defaults to all present colors.
+
+        flim (optional, default = False) : bool
+
+            Whether to return FLIM arrays (y by x by tau) or INTENSITY arrays (y by x). Default is intensity.
+
+        ret_type (optional, default = list) : type
+
+            Determines the return type (either a single numpy array or a list of numpy arrays). The default
+            option is list, but if you want a numpy array, input numpy.ndarray
+
+        registration (optional, dict):
+
+            Registration dict for each frame
+
+
+        RETURN VALUES
+        -------------
+
+        list or np.ndarray
+
+            If list, returns a list of length len(color_list)*(timepoint_end-time_point_start)/timespan
+            corresponding to the summed values of the pixels (or time bins) of TIMESPAN number of 
+            successive timepoints.
+
+            np.ndarray returns not yet implemented
+
+        """
+
+        ##### pre=processing
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        if not isinstance(flimfit, FLIMParams):
+            raise TypeError("Argument flimfit not of type FLIMParams")
+
+        # make them iterables if they're not
+        if isinstance(z_list, int):
+            z_list = [z_list]
+        if isinstance(color_list, int):
+            color_list = [color_list]
+
+        num_slices = self.im_params['NUM_SLICES']
+        
+        num_colors = 1
+        if self.im_params is list:
+            num_colors = len(self.im_params['COLORS'])
+
+        timestep_size = num_slices*num_colors # how many frames constitute a timepoint
+        
+        # make them the full volume if they're None
+        if z_list is None:
+            z_list = list(range(num_slices))
+        if color_list is None:
+            color_list = list(range(num_colors))
+
+        if len(z_list) > num_slices:
+            warnings.warn("Length of z_list is greater than the number of planes in a stack.\n" +
+                "Defaulting to full volume (%s slices)" %num_slices
+            )
+            z_list = list(range(num_slices))
+
+
+        # figure out the start and stop points we're analyzing.
+        frame_start = timepoint_start * timestep_size
+
+        if timepoint_end is None:
+            frame_end = self.im_params['NUM_FRAMES']
+        else:
+            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
+                warnings.warn(
+                    "timepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead."
+                )
+                timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
+            
+            frame_end = timepoint_end * timestep_size
+
+        ##### the real stuff
+
+        # now convert to a list for each set of frames we want to pool
+        #
+        # list comprehension makes this... incomprehensible. So let's do it
+        # the generic way.
+        framelist = []
+        # a list for every element of a volume
+        probe_lists = [[] for idx in range(timestep_size)]
+
+        # offsets from the frame start that we actually want, as specified by
+        # z_list and color_list
+        viable_indices = [z*num_colors + c for z in z_list for c in color_list]
+
+        # step from volume to volume, recording lists of frames to pool
+        for volume_start in range(frame_start,frame_end, timestep_size):
+            for vol_idx in range(timestep_size):
+                if vol_idx in viable_indices: # ignore undesired frames
+                    probe_lists[vol_idx].append(volume_start + vol_idx)
+            if ((volume_start-frame_start) > 0) and \
+            ((volume_start-frame_start)/timestep_size)%timespan == 0: ## timespan number of volumes
+                
+                for slicelist in probe_lists:
+                    if len(slicelist) > 0: # don't append ignored arrays
+                        framelist.append(slicelist)
+                probe_lists = [[] for idx in range(timestep_size)]
+            
+
+        # ordered by time changing slowest, then z, then color, e.g.
+        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
+        if registration is None:
+            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist)
+        else:
+            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, registration = registration)
+
+        # return in units of picoseconds, rather than bins
+        for returned_frame in list_of_arrays:
+            returned_frame[0] *= self.im_params['PICOSECONDS_PER_BIN']/1000.0
+
+        if ret_type == list:
+            return list_of_arrays
+
+        if ret_type == np.ndarray:
+            ## NOT YET IMPLEMENTED
+            raise NotImplementedError("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
+
+            frameshape = list_of_arrays[0].shape
+
+            if flim:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
+            else:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
+            
+            np.array(list_of_arrays).reshape(reshaped_dims)
+
+    def pool_frames(self, flim : bool = False, registration : dict = None, ret_type : type = list 
+        ) -> list[np.ndarray]:
+        """
+        Wraps siffreader.pool_frames
+        TODO: Docstring.
+        """
+            
+
+        # ordered by time changing slowest, then z, then color, e.g.
+        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
+        list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
 
         if ret_type == list:
             return list_of_arrays
@@ -394,6 +606,95 @@ class SiffReader(object):
             return siffreader.get_histogram()
         return siffreader.get_histogram(frames=frames)
 
+    def framelist_by_slice(self, color_channel : int = None) -> list[list[int]]:
+        """
+        Return a list of lists of the frames in the image corresponding to each z slice (but only one color channel)
+
+        INPUTS
+        ------
+
+        color_channel : int
+
+            Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
+
+        RETURN
+        ------
+
+        list[list[int]] :
+
+            Returns a list of lists of ints, each sublist corresponding all frames across time for one z slice
+            and one color channel.
+        """
+        # quick reference to image parameters
+        n_slices = self.im_params['NUM_SLICES']
+        fps = self.im_params['FRAMES_PER_SLICE']
+        colors = self.im_params['COLORS']
+        
+        if isinstance(colors, list):
+            n_colors = len(colors)
+        else:
+            n_colors = 1
+
+        frames_per_volume = n_slices * fps * n_colors
+
+        if (color_channel is None) and (n_colors == 1):
+            color_channel = 0
+        if (color_channel is None) and (n_colors > 1):
+            color_channel = min(colors) - 1 # MATLAB idx is 1-based
+
+        frame_list = []
+        for slice_idx in range(n_slices):
+            slice_offset = slice_idx * fps * n_colors # frames into volume before this slice begins
+            slice_offset += color_channel
+            slice_list = [] # all frames in this z plane
+            for frame_num in range(fps):
+                fn = frame_num * n_colors # 1 for each frame in the same slice
+                slice_list += list(range(slice_offset+fn, self.im_params['NUM_FRAMES'], frames_per_volume))
+
+            frame_list.append(slice_list)        
+        
+        return frame_list
+
+    def registration_dict(self, reference_method="average", color_channel : int = None) -> dict:
+        """
+        Performs image registration by finding the rigid shift of each frame that maximizes its
+        phase correlation with a reference image. The reference image is constructed according to 
+        the requested reference method. If there are multiple color channels, defaults to the 'green'
+        channel unless color_channel is passed as an argument. Returns the registration dict but also
+        stores it in the Siffreader class. Internal alignment methods can be reached in the siffutils
+        package, under the registration submodule. Aligns each z plane independently.
+
+        TODO: provide support for more sophisticated registration methods
+
+        INPUTS
+        ------
+
+        reference_method : str
+
+            What method to use to construct the reference image for alignment. Options are:
+                'average' -- Take the average over all frames in each z plane.
+                'suite2p' -- Suite2p iterative alignment procedure. Much slower, much better.
+
+        color_channel : int
+
+            Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
+
+        RETURN
+        ------
+
+        dict :
+
+            A dict explaining the rigid transformation to apply to each frame. Form is:
+                { FRAME_NUM_1 : (Y_SHIFT, X_SHIFT), FRAME_NUM_2 : (Y_SHIFT, X_SHIFT), ...}
+
+                Can be passed directory to siffreader functionality that takes a registrationDict.
+        """
+        frames_list = self.framelist_by_slice(color_channel=color_channel)
+        ref_images =[siffutils.registration.build_reference_image(slice_element, method=reference_method) for slice_element in frame_list]
+
+        ref_dict = {}
+        return ref_dict
+
     def frames_to_single_array(self, frames=None):
         """
         TODO: IMPLEMENT
@@ -405,7 +706,7 @@ class SiffReader(object):
         ------
         frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
         """
-        raise Exception("Not yet implemented.")
+        raise NotImplementedError()
 
     def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
         """
@@ -431,7 +732,7 @@ class SiffReader(object):
         ----------
         reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
         """
-        raise Exception("Not yet implemented")
+        raise NotImplementedError()
 
 
 

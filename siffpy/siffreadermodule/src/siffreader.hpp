@@ -23,9 +23,9 @@ class SiffReader
         std::string filename; // the name of the file
         SiffParams params; // fixed TIFF parameters
 
-        bool suppress_errors = false; // a setting to suppress potentially kernel-killing errors thrown by checks
-        bool suppress_warnings = false; // a setting to ignore errors if there is an issue reading one or more frames.
-        bool debug = true;
+        bool suppress_errors; // a setting to suppress potentially kernel-killing errors thrown by checks
+        bool suppress_warnings; // a setting to ignore errors if there is an issue reading one or more frames.
+        bool debug;
 
         std::string errstring; // error string to retrieve
         void discernFrames(); // quickly runs through the file to identify all frames and their IFDs
@@ -41,7 +41,7 @@ class SiffReader
         void reset(); // when you close one file and open another, wipe the slate clean
 
     public:
-        SiffReader(){};
+        SiffReader();
         ~SiffReader(){closeFile();};
         int openFile(const char* filename);
         PyObject* retrieveFrames(uint64_t frames[]=NULL, uint64_t framesN=0, bool flim = false);

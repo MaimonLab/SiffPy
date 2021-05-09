@@ -48,4 +48,13 @@ def vector_to_list(vector, ret_type=float):
         return [ret_type(element) for element in col_split]
     else:
         return [ret_type(element) for element in row_split]
+
+def header_data_to_nvfd(hd):
+    return {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}
+
+def header_data_to_roi_string(hd : str) -> dict:
+    """ Iterate through the many layers of the ROI strings to return the appropriate dict """
+    return eval(hd['ROI string'].replace("null", "None"))
+
+
     

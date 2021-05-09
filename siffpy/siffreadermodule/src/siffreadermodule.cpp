@@ -168,6 +168,10 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
 
     // defaults to 0's
     if(!registrationDict) registrationDict = PyDict_New();
+    if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
+        // can't help but think there's a DECREF that should go in here.
+        registrationDict = PyDict_New();
+    }
 
     // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
     for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
@@ -219,7 +223,7 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
 
     PyObject* FLIMParams = NULL;
     PyObject* listOfFramesListed = NULL;
-    const char* conf_measure;
+    char* conf_measure;
     uint16_t conf_measure_length = 0;
     PyObject* registrationDict = NULL;
 
@@ -232,15 +236,19 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
         return NULL;
     }
 
-    if(!conf_measure_length) conf_measure = "chi_sq";
+    if(!conf_measure_length) conf_measure = (char*) "chi_sq";
     // defaults to 0's
     if(!registrationDict) registrationDict = PyDict_New();
+    if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
+        // can't help but think there's a DECREF that should go in here.
+        registrationDict = PyDict_New();
+    }
 
     // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
 
         PyErr_SetString(PyExc_TypeError, 
-            strcat("Expected params to be of type FLIMParams. Instead is type: ",
+            strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
                 FLIMParams->ob_type->tp_name
             )
         );
@@ -250,7 +258,7 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     // check that conf_measure is one of the permitted values
     if (strcmp(conf_measure, "log_p") && strcmp(conf_measure,"chi_sq")) {
         PyErr_SetString(PyExc_TypeError, 
-            strcat("Expected confidence_measure to be one of 'log_p', 'chi_sq'. Instead is type: ",
+            strcat((char*) "Expected confidence_measure to be one of 'log_p', 'chi_sq'. Instead is type: ",
                 conf_measure
             )
         );

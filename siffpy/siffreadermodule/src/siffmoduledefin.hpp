@@ -47,23 +47,23 @@
 
 
 #define OPEN_DOCSTRING \
-    "open(str filename)\n"\
+    "open(filename : str)->None\n"\
     "Opens a .siff file, or even a .tiff file! Fancy that.\n"\
     "Input arguments:\n"\
     "\tfilename (str): \n\t\tPath to a .tiff or .siff file."
 
 #define CLOSE_DOCSTRING \
-    "close()\n"\
+    "close()->None\n"\
     "Closes an open .siff or .tiff, if one is open.\n"\
 
 #define GET_FILE_HEADER_DOCSTRING \
-    "get_file_header()\n"\
+    "get_file_header()->dict\n"\
     "Retrieves non-varying file data, e.g. ScanImage variable "\
     "values at the onset.\nReturns as a dict, with keywords corresponding "\
     "to ScanImage variables and values their corresponding measurements."
 
 #define GET_FRAMES_DOCSTRING \
-    "get_frames(frames=[], type=list, flim=False)\n"\
+    "get_frames(frames : list[int] = [], type : type = list, flim : bool = False)\n"\
     "Reads an opened .siff or .tiff file and returns a PyObject corresponding to a (time by z by y by x by tau) array.\n"\
     "Input arguments:\n"\
     "\tframes (optional, LIST): \n\t\tA list of the indices of the frames to extract. "\
@@ -74,14 +74,14 @@
     "\tflim (optional, BOOL): \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"
 
 #define GET_METADATA_DOCSTRING \
-    "get_metadata(frames=[])\n"\
+    "get_metadata(frames : list[int] = [])\n"\
     "Get the framewise metadata, e.g. dimensions, timestamps.\n"\
     "Input arguments:\n"\
     "\tframes (optional, LIST): \n \t\ta list of the indices of the frames whose metadata is to be extract. "\
     "TODO: Make this timepoint-specific instead of frames?"
 
 #define POOL_FRAMES_DOCSTRING \
-    "pool_frames(pool_lists, type=list, flim=False, registration=None)\n"\
+    "pool_frames(pool_lists : list[list[int]], type : type = list, flim : bool = False, registration : dict = None)\n"\
     "Reads an opened .siff or .tiff file and returns a PyObject corresponding to frames pooled according to the pool_lists argument.\n"\
     "Each element of the returned list corresponds to one element of the pool_lists: the pooled version of the indices contained IN that element.\n"\
     "Input arguments:\n"\
@@ -95,9 +95,9 @@
     "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."
 
 #define FLIM_MAP_DOCSTRING \
-    "flim_map(params, framelist=None, confidence_metric='chi_sq')\n"\
+    "flim_map(params : siffutils.FLIMParams, framelist : list[list[int]] = None, confidence_metric : string = 'chi_sq')\n"\
     "Takes in a FLIMParams object and a list of lists of frames.\n"\
-    "Returns a tuple of lists, each as long as the framelist.\n"\
+    "Returns a list of tuples, each with 3 elements.\n"\
     "Written to be (far) more memory efficient than using 3d numpy arrays.\n"\
     "Input arguments:\n"\
     "\tparams (FLIMParams): A fitted FLIMParams object giving the relevant info for the fluorophore.\n"\
@@ -115,7 +115,7 @@
     "\t\tconfidence: list of np.ndarrays reporting the confidence metric for each pixel under the assumption in FLIMParams."
 
 #define GET_HISTOGRAM_DOCSTRING \
-    "get_histogram(frames=None)\n"\
+    "get_histogram(frames : list[int] = None)-> np.ndarray \n"\
     "Retrieves only the photon arrival times from the frames in the list frames.\n"\
     "Input arguments:\n"\
     "\tframes (optional, LIST): \n\t\tA list of the indices of the frames whose arrival times are desired.\n"\
@@ -124,15 +124,15 @@
     "HISTOGRAM (ndarray): 1 dimensional numpy.ndarray"
 
 #define SUPPRESS_WARNINGS_DOCSTRING \
-    "suppress_warnings()\n"\
+    "suppress_warnings()->None\n"\
     "Suppresses output warnings for siffreader functions."
 
 #define REPORT_WARNINGS_DOCSTRING \
-    "report_warnings()\n"\
+    "report_warnings()->None\n"\
     "Forces reporting of warnings for siffreader functions."
 
 #define NUM_FRAMES_DOCSTRING \
-    "num_frames()\n"\
+    "num_frames()-> int\n"\
     "Reports number of frames in opened file."
 
 

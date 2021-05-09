@@ -223,7 +223,6 @@ inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std
 inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, FrameData& frameData, std::ifstream& siff) {
     // Takes a numpy array and adds arrival times of a frame to it.
     uint64_t* data_ptr = (uint64_t *) PyArray_DATA(numpyArray);
-    npy_intp* dims = PyArray_DIMS(numpyArray);
     
     siff.clear();
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
@@ -278,7 +277,7 @@ inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifs
         for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
             readsVector.push_back(
                 pxReads[readNum] +                   // tau index
-                    ((px+x_shift)%xdim +(((px/xdim + y_shift)%ydim) << 16)) << 32 // x and y indices
+                    (((px+x_shift)%xdim +(((px/xdim + y_shift)%ydim) << 16)) << 32) // x and y indices
             );
         }
         
@@ -329,9 +328,7 @@ void log_p(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         intensity_ptr[this_px]++;
         double_t logp = log(arrival_p[U64TOTAU(read)]); // easy!
         
-        isinf(logp) || isnan(logp) ?
-            : // ignore nans and infs
-            conf_ptr[this_px] += logp;
+        if ( !(isinf(logp) || isnan(logp)) ) conf_ptr[this_px] += logp;
     }
 
     for (uint64_t px = 0; px<dims[0]*dims[1]; px++) {
@@ -357,8 +354,6 @@ void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         lifetime_ptr[this_px] += arrival;
         intensity_ptr[this_px]++;
         
-        //if (this_px >= dims[1]*dims[0]) this_px = dims[1]*dims[0] - 1 ; // why does this happen?
-        // and more importantly, why does it only occur here and not for the above two arrays?
         observed[this_px][arrival]++;
     }
 
@@ -373,6 +368,7 @@ void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         }
 
         conf_ptr[px] = chi_sq;
+        if (intensity_ptr[px] == 0) conf_ptr[px] = NAN;
     }
 }
 

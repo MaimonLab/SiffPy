@@ -68,15 +68,18 @@ plt.semilogy(histogram)
 plt.semilogy(fit_list[0].p_dist(np.arange(MAX_NUMBER_BINS)))
 
 
-# Return three x-dim by y-dim arrays: a map of empirical lifetimes (in units of histogram BINS, will be converted to nanoseconds in later implementations), the regular pixelwise number of photons, and a confidence metric reflecting how well-fit the data are by our overall FLIM fitting procedure. Noise pixels will be poorly fit while signal pixels will show good quality fits. Here we'll use the chi-squared statistic.
+# Return three x-dim by y-dim arrays: a map of empirical lifetimes (in units of histogram BINS, will be converted to
+#nanoseconds in later implementations), the regular pixelwise number of photons, and a confidence metric reflecting
+#how well-fit the data are by our overall FLIM fitting procedure. Noise pixels will be poorly fit while signal
+#pixels will show good quality fits. Here we'll use the chi-squared statistic.
 
 (flim_map, intensity, chi_sq) = siffreader.flim_map(fit_list[0], frames=[list(range(4,15000,10)) + list(range(3,15000,10))],confidence_metric='chi_sq')
 
 # mask the data by how informative each pixel is about a fluoroscence lifetime measurement
 import scipy.stats as stats
-alphas = 1.0 - stats.chi2.cdf(chi_sq,600) # the 600 will be replaced by a param from the siff file soon.
+alphas = 1.0 - stats.chi2.cdf(chi_sq,sr.im_params['NUM_BINS'])
 
-BIN_WIDTH = 0.02 # (nanoseconds per bin)
+BIN_WIDTH = sr.im_params['PICOSECONDS_PER_BIN']/1000.0 # (nanoseconds per bin)
 
 plt.figure()
 ax = plt.axes()

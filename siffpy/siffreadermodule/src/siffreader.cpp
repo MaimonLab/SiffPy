@@ -15,6 +15,12 @@
 
 // BIG TIME TODO: MAKE THIS CROSS-ENDIAN COMPATIBLE.
 
+SiffReader::SiffReader(){
+    suppress_errors = false; 
+    suppress_warnings = false;
+    debug = true;
+}
+
 int SiffReader::openFile(const char* _filename) {
     // Opens a .siff file for further analysis / use.
     
@@ -403,11 +409,10 @@ PyObject* SiffReader::readFixedData(){
     PyDict_SetItemString(headerDict, "BigTiff", Py_BuildValue("O", params.bigtiff ? Py_True : Py_False));
     PyDict_SetItemString(headerDict, "IsSiff",Py_BuildValue("O", params.issiff ? Py_True : Py_False));
     PyDict_SetItemString(headerDict, "Number of frames", Py_BuildValue("n", params.numFrames));
-    PyDict_SetItemString(headerDict, "Non-varying frame data", Py_BuildValue("s#",params.headerstring.c_str(),params.NVFD_length));
-    PyDict_SetItemString(headerDict, "ROI string", Py_BuildValue("s#",params.ROI_string.c_str(),params.ROI_string_length));
+    PyDict_SetItemString(headerDict, "Non-varying frame data", Py_BuildValue("s#",params.headerstring.c_str(),Py_ssize_clean_t(params.NVFD_length)));
+    PyDict_SetItemString(headerDict, "ROI string", Py_BuildValue("s#",params.ROI_string.c_str(),Py_ssize_clean_t(params.ROI_string_length)));
     if (debug) {
         PyDict_SetItemString(headerDict, "IFD pointers", Py_BuildValue("O",VectorToList(params.allIFDs)));
-    
     }
     
     return headerDict;
@@ -550,16 +555,10 @@ void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArra
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple) {
     
-    uint16_t* data_ptr = (uint16_t*) PyArray_DATA(fuseFrame);
-    npy_intp* dims = PyArray_DIMS(fuseFrame);
-    
     FrameData frameData = getTagData(nextIFD, params, siff);
 
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
-
-    uint16_t bytesPerSample = frameData.bitsPerSample/8;
-    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
 
     loadArrayWithData(fuseFrame, params, frameData, siff, flim, shift_tuple);
 }
