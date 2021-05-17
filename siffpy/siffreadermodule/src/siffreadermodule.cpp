@@ -84,15 +84,28 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
     PyObject *frames_list = NULL;
     PyObject *type = NULL;
     bool flim = false;
+    PyObject* registrationDict = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!p:get_frames", GET_FRAMES_KEYWORDS, &PyList_Type, &frames_list, &PyType_Type, &type, &flim)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!pO!:get_frames", GET_FRAMES_KEYWORDS,
+        &PyList_Type, &frames_list,
+        &PyType_Type, &type,
+        &flim,
+        &PyDict_Type, &registrationDict)
+    ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
     // default mode: get all frames as an intensity profile
     if(!frames_list) {
         return Sf.retrieveFrames((uint64_t *) NULL, 0, flim);
+    }
+
+    if(!registrationDict) registrationDict = PyDict_New();
+    if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
+        // can't help but think there's a DECREF that should go in here.
+        registrationDict = PyDict_New();
     }
 
     else {
@@ -104,10 +117,20 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
                 return NULL;
             }
             framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
+
+            // if this isn't in the registration dict, shift by (0,0)
+            if (!PyDict_Contains(registrationDict, item)) {
+                PyDict_SetItem(registrationDict, item, // steals the reference to the value
+                    PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                        PyLong_FromLong(0),
+                        PyLong_FromLong(0)
+                    )
+                );
+            }
         }
         uint64_t framesN = PyList_Size(frames_list);
         try{
-            PyObject* frames = Sf.retrieveFrames(framesArray, framesN,flim);
+            PyObject* frames = Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
             return frames;
         }
         catch(...) {

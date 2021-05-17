@@ -658,7 +658,7 @@ class SiffReader(object):
         
         return frame_list
 
-    def registration_dict(self, reference_method="average", color_channel : int = None, **kwargs) -> dict:
+    def registration_dict(self, reference_method="suite2p", color_channel : int = None, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 
@@ -697,10 +697,20 @@ class SiffReader(object):
                 Can be passed directory to siffreader functionality that takes a registrationDict.
         """
         frames_list = self.framelist_by_slice(color_channel=color_channel)
-        ref_images =[siffutils.registration.build_reference_image(slice_element, method=reference_method) for slice_element in frame_list]
+        slicewise_reg =[siffutils.registration.register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+        # each element of the above is of the form:
+        #   [registration_dict, difference_between_alignment_movements, reference image]
 
-        ref_dict = {}
-        return ref_dict
+        # all we have to do now is do diagnostics to make sure there weren't any badly aligned frames
+        # and then stick everything together into one dict
+        
+        for n in range(len(slicewise_reg)):
+            siffutils.registration.registration_cleanup(slicewise_reg[n], frames_list[n])
+
+        # merge the dicts
+        from functools import reduce
+        reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
+        return reg_dict
 
     def frames_to_single_array(self, frames=None):
         """

@@ -4,7 +4,7 @@
 
 // KEYWORD ARGS BY FUNCTION
 
-#define GET_FRAMES_KEYWORDS (char*[]){"frames", "type", "flim", NULL}
+#define GET_FRAMES_KEYWORDS (char*[]){"frames", "type", "flim", "registration", NULL}
 
 #define GET_FRAMES_METADATA_KEYWORDS (char*[]){"frames", NULL}
 
@@ -28,7 +28,7 @@
         "\tCloses an open file.\n"\
     "get_file_header():\n"\
         "\tReturns header data that applies across the file."\
-    "get_frames(frames=[], type=list, flim=False):\n"\
+    "get_frames(frames=[], type=list, flim=False, registration = None):\n"\
         "\tReturns frames as a list of numpy arrays.\n"\
     "get_frame_metadata(frames=[]):\n"\
         "\tReturns frame metadata.\n"\
@@ -63,7 +63,7 @@
     "to ScanImage variables and values their corresponding measurements."
 
 #define GET_FRAMES_DOCSTRING \
-    "get_frames(frames : list[int] = [], type : type = list, flim : bool = False)\n"\
+    "get_frames(frames : list[int] = [], type : type = list, flim : bool = False, registration : dict = {})\n"\
     "Reads an opened .siff or .tiff file and returns a PyObject corresponding to a (time by z by y by x by tau) array.\n"\
     "Input arguments:\n"\
     "\tframes (optional, LIST): \n\t\tA list of the indices of the frames to extract. "\
@@ -71,7 +71,8 @@
     "\ttype (optional, TYPE): \n\t\tFormat of returned data. Can be list or numpy.ndarray. "\
     "If list, returns a list of single frame numpy arrays. If an ndarray, returns a full (time by color by z by x by y by tau) array, "\
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"\
-    "\tflim (optional, BOOL): \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"
+    "\tflim (optional, BOOL): \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"\
+    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."
 
 #define GET_METADATA_DOCSTRING \
     "get_metadata(frames : list[int] = [])\n"\

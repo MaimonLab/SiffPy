@@ -165,7 +165,7 @@ void SiffReader::closeFile(){
 ////////////////////////////
 
 
-PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim) {
+PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
     // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
     // the variable type of output
@@ -177,6 +177,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
 
         if(frames){
             for(uint64_t i = 0; i < framesN; i++){
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i])); 
                 singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim);
             }
         }
@@ -440,7 +441,7 @@ const char* SiffReader::getErrString(){
 //////// INTERNAL FUNCTIONS //////
 //////////////////////////////////
 
-void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim){
+void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
     FrameData frameData = getTagData(thisIFD, params, siff);
@@ -462,7 +463,7 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
         0 // C order, i.e. last index increases fastest
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim);
+    loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
     
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);

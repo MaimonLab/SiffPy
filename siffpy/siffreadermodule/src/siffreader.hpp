@@ -30,7 +30,7 @@ class SiffReader
         std::string errstring; // error string to retrieve
         void discernFrames(); // quickly runs through the file to identify all frames and their IFDs
         PyArrayObject* frameAsNumpy(uint64_t IFD, bool flim, PyObject* shift_tuple = NULL); // returns an ndarray object 
-        void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim); // internal method called in loops to get each frame and point to the next
+        void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList); // internal method to get metadata for one frame
         void singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray); // add this frame's arrival times to the 1-d array numpyArray
         void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple = NULL); // takes a source frame and the address of the frame to fuse in
@@ -44,7 +44,7 @@ class SiffReader
         SiffReader();
         ~SiffReader(){closeFile();};
         int openFile(const char* filename);
-        PyObject* retrieveFrames(uint64_t frames[]=NULL, uint64_t framesN=0, bool flim = false);
+        PyObject* retrieveFrames(uint64_t frames[]=NULL, uint64_t framesN=0, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0); // get metadata enumerated in frames
         PyObject* readFixedData(); // returns the data in the primary ScanImage header

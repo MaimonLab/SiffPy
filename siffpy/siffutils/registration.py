@@ -67,6 +67,10 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
         number will have fuzzier boundaries that are more reliable.
         Must be smaller than nimg_init. Default is 20 (like suite2p)
 
+    registration_dict (optional) : dict
+
+        Lookup table to align the frames (used durign iterative alignment)
+
     """
 
     nimg_init = min(len(frames)/10, 200)
@@ -81,12 +85,21 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
                           f"of frames being aligned. Defaulting to {len(frames)}.")
             nimg_init = len(frames)
 
+    registration_dict = {}
+    
+    if 'registration_dict' in kwargs:
+        registration_dict = kwargs['registration_dict']
+        if not isinstance(registration_dict, dict):
+            warnings.warn("Suite2p alignment arg 'registration_dict' is not of type dict."
+                          " Using an empty dict instead")
+            registration_dict = {}
+
     # randomly sample nimg_init frames    
 
     init_frames_idx = random.sample(frames, nimg_init)
 
     init_frames = np.array(
-                    siffreader.get_frames(frames = init_frames_idx, flim = False)
+                    siffreader.get_frames(frames = init_frames_idx, flim = False, registration = registration_dict)
                   )
     
     # find the few frame most correlated with the mean of these
@@ -110,7 +123,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
     
     seed_idx = np.argpartition(err_val, seed_ref_count)[:seed_ref_count]
 
-    return np.mean(init_frames[seed_idx,:,:],axis=0)
+    return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
                        subpx : bool = False, phase_corr : bool = False, blur : bool = False) -> tuple[np.ndarray, tuple[int, int]]:
@@ -258,18 +271,74 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
             The reference image used for the alignment.
     """
 
+
     frames_np = siffreader.get_frames(frames = frames, flim = False)
 
+    import time
+    t = time.time()
     ref_im = build_reference_image(frames, **kwargs)
+    print(f"Ref image: {time.time() - t} seconds")
+    # maybe there's a faster way to do this in one pass in numpy
+    # I'll revisit it if registration starts to eat a lot of memory
+    # or go super slow
+    t = time.time()
     rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
+    print(f"Align images: {time.time() - t} seconds")
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
+    n_ref_iters = 4
+    if 'n_ref_iters' in kwargs:
+        if isinstance(kwargs[n_ref_iters], int):
+            n_ref_iters = kwargs[n_ref_iters] - 1
+
+    import tqdm
+    for ref_iter in tqdm.tqdm(range(n_ref_iters)):
+        t = time.time()
+        ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
+        print(f"Ref image: {time.time() - t} seconds")
+
+        t = time.time()
+        rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
+        print(f"Align images: {time.time() - t} seconds")
+
+        reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
 
     ysize,xsize = frames_np[0].shape
 
     roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
 
     return (reg_dict, roll_d_array, ref_im)
+
+def registration_cleanup(registration_tuple : tuple, frame_idxs : list[int])-> tuple[dict, np.ndarray, np.ndarray]:
+    """
+    Take in a tuple from register_frames above and try to
+    clean it up a bit by identifying badly behaving frames
+    and seeing if we can't find a slightly better alignment
+    for them by blurring the phase correlation map.
+    """
+
+    estimated_shifts = registration_tuple[1]
+    velocity = np.diff(estimated_shifts) # we expect this to be near constant
+
+    # find where the velocity is varying a lot
+    jittery_frames_idx = np.where((velocity-np.mean(velocity))/np.std(velocity) > 2.5)[0]
+    if len(jittery_frames_idx):
+        warnings.warn("Some frames seem not to have aligned well. Trying again with"
+        " a blurred phase correlation")
+    
+    # the above is in term of the frame indices within this FOV, not the
+    # actual frame number I need for the siffreader
+    absolute_idxs = [frame_idxs[frame] for frame in jittery_frames_idx]
+
+    naughty_frames = siffreader.get_frames(frames=absolute_idxs, flim=False)
+    new_shifts = [align_to_reference(registration_tuple[2], nframe, blur = True, shift_only = True) for nframe in naughty_frames]
+
+    # remap the registration dict
+    for n in range(len(absolute_idxs)):
+        registration_tuple[0][absolute_idxs[n]] = new_shifts[n]
+    
+    #TODO CLEAN UP REGISTRATION_TUPLE[1] WITH NEW INFO
+    return registration_tuple
 
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
