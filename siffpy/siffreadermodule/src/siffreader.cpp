@@ -304,7 +304,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                     shift_tuple
                 );
             }
-
+    
             PyObject* flimMap = readVectorToNumpyTuple(photonReadsTogether,
                 firstFrameData, FLIMParams, conf_measure
             );

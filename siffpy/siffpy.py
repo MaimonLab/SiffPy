@@ -658,7 +658,7 @@ class SiffReader(object):
         
         return frame_list
 
-    def registration_dict(self, reference_method="average", color_channel : int = None) -> dict:
+    def registration_dict(self, reference_method="average", color_channel : int = None, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 
@@ -667,6 +667,8 @@ class SiffReader(object):
         stores it in the Siffreader class. Internal alignment methods can be reached in the siffutils
         package, under the registration submodule. Aligns each z plane independently.
 
+        Takes additional keyword args of siffutils.registration.register_frames
+        
         TODO: provide support for more sophisticated registration methods
 
         INPUTS
@@ -681,6 +683,8 @@ class SiffReader(object):
         color_channel : int
 
             Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
+
+        Other kwargs are as in siffutils.registration.register_frames
 
         RETURN
         ------

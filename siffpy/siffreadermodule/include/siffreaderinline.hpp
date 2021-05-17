@@ -358,6 +358,11 @@ void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     }
 
     for (uint64_t px = 0; px<dims[0]*dims[1]; px++) {
+        if (intensity_ptr[px] == 0) {
+            lifetime_ptr[px] = NAN;
+            conf_ptr[px] = NAN;
+            continue;
+        }
         lifetime_ptr[px] /= intensity_ptr[px];
         lifetime_ptr[px] -= tauo;
         double_t chi_sq = 0;
