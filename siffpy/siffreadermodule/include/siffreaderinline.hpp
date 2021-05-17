@@ -118,7 +118,7 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
         for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
             // increment the appropriate numpy element
             data_ptr[
-                ((U64TOY(frameReads[photon] + y_shift) % dims[0])*dims[1]*dims[2])
+                (((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1]*dims[2])
                     + (((U64TOX(frameReads[photon]) + x_shift) % dims[1]) * dims[2])
                         + U64TOTAU(frameReads[photon])
             ]++;
@@ -128,7 +128,7 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
         // if we're just doing intensity, the pointer element to increment should be different
         for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
                 // increment the appropriate numpy element
-            data_ptr[(U64TOY(frameReads[photon] + y_shift) % dims[0])*dims[1] + 
+            data_ptr[((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1] + 
                 ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
         }
     }

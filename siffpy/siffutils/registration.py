@@ -3,7 +3,7 @@ from numpy import fft
 import siffreader
 import warnings, random, scipy
 
-def build_reference_image(frames : list[int], ref_method : str = 'average', **kwargs) -> np.ndarray:
+def build_reference_image(frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
     """
     Constructs a reference image for alignment. WARNING: DOES NOT TYPECHECK FOR COMPATIBLE SHAPES
 
@@ -120,9 +120,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
             warnings.warn("Suite2p alignment arg 'seed_ref_count' is greater than number "
                           f"of frames being aligned. Defaulting to 20.")
             seed_ref_count = 20
-    
     seed_idx = np.argpartition(err_val, seed_ref_count)[:seed_ref_count]
-
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
@@ -198,6 +196,7 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
 
     (dy,dx) = np.unravel_index(offset, ref.shape)
 
+    (dy,dx) = (int(dy), int(dx))
     # various return types
     if shift_only:
         return (dy,dx)
@@ -246,6 +245,14 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         averaged to construct the reference image. Fewer is a sharper image.
         More is a more robust image.
 
+    n_ref_iters (optional) : int
+
+        Number of times to iteratively align. So it computes a reference image,
+        aligns each frame to that reference image, but then can go back and compute
+        a new reference image from aligned frames. n_ref_iters determines how many
+        times to repeat this process. Default is 2: one naive and one with an aligned
+        registration.
+
     subpx (optional) : bool
 
         Utilizes subpixel alignment in the Fourier phase correlation. NOT
@@ -286,13 +293,13 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     print(f"Align images: {time.time() - t} seconds")
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
-    n_ref_iters = 4
+    
+    n_ref_iters = 2
     if 'n_ref_iters' in kwargs:
-        if isinstance(kwargs[n_ref_iters], int):
-            n_ref_iters = kwargs[n_ref_iters] - 1
+        if isinstance(kwargs['n_ref_iters'], int):
+            n_ref_iters = kwargs['n_ref_iters']
 
-    import tqdm
-    for ref_iter in tqdm.tqdm(range(n_ref_iters)):
+    for ref_iter in range(n_ref_iters - 1):
         t = time.time()
         ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
         print(f"Ref image: {time.time() - t} seconds")
@@ -324,7 +331,8 @@ def registration_cleanup(registration_tuple : tuple, frame_idxs : list[int])-> t
     jittery_frames_idx = np.where((velocity-np.mean(velocity))/np.std(velocity) > 2.5)[0]
     if len(jittery_frames_idx):
         warnings.warn("Some frames seem not to have aligned well. Trying again with"
-        " a blurred phase correlation")
+                      f" a blurred phase correlation. Fixing {len(jittery_frames_idx)} frames"
+        )
     
     # the above is in term of the frame indices within this FOV, not the
     # actual frame number I need for the siffreader

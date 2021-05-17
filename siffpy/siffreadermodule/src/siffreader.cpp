@@ -177,13 +177,14 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
 
         if(frames){
             for(uint64_t i = 0; i < framesN; i++){
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i])); 
-                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim);
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
+                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, shift_tuple);
             }
         }
         else{
             for(uint64_t i = 0; i<params.numFrames; i++){
-                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim);
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(i));
+                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, shift_tuple);
             }
         }
         return numpyArrayList;
@@ -468,7 +469,7 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
     
-    if (ret<0) std::runtime_error("Failure to append frame array to list");
+    if (ret<0) throw std::runtime_error("Failure to append frame array to list");
 }
 
 PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* shift_tuple) {
