@@ -4,7 +4,7 @@ A few tools for reading .siff and .tiff files from ScanImage that should be tuck
 SCT March 28 2021, still rainy in Maywood
 """
 
-from . import registration
+from .registration import *
 from .matlab_to_python import *
 from .fluorophore_inits import available_fluorophores
 
@@ -15,7 +15,6 @@ frame_meta_lookup_cast ={
     'frameTimestamps_sec' : float,
     'epoch' : float
 }
-
 
 def most_important_header_data(header_dict):
     """ Returns a dict of the most important data.

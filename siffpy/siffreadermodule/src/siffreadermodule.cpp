@@ -104,13 +104,13 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
 
     if(!registrationDict) registrationDict = PyDict_New();
     if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
-        // can't help but think there's a DECREF that should go in here.
+        Py_DECREF(registrationDict);
         registrationDict = PyDict_New();
     }
 
     else {
         uint64_t framesArray[PyList_Size(frames_list)];
-        for(Py_ssize_t idx = Py_ssize_t(0); idx< PyList_Size(frames_list); idx++) {
+        for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
             PyObject* item = PyList_GET_ITEM(frames_list, idx);
             if(!PyLong_Check(item)) {
                 PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");

@@ -3,7 +3,7 @@ import numpy as np
 import tkinter as tk
 import warnings
 
-import siffutils
+from . import siffutils
 from siffutils.exp_math import *
 from siffutils.flimparams import FLIMParams
 
@@ -101,7 +101,7 @@ class SiffReader(object):
         self.file_header =  siffutils.header_data_to_nvfd(hd)
 
         self.im_params = siffutils.most_important_header_data(self.file_header)
-        self.im_params['NUM_FRAMES'] = siffreader.num_frames()
+        self.im_params['NUM_FRAMES'] = siffreader.num_frames() # TODO fix the bug in this that gives 1 frame too many sometimes!!
 
         self.ROI_group_data = siffutils.header_data_to_roi_string(hd)
         self.opened = True
@@ -656,9 +656,14 @@ class SiffReader(object):
 
             frame_list.append(slice_list)        
         
+        # This is bad code to spare me the headache of figuring out this bizarre bug where num_frames is
+        # 1 too high sometimes.
+        consistent_stack_size = min([len(frame_list[slice_idx]) for slice_idx in range(len(frame_list))])
+        frame_list = [frame_list[n][:consistent_stack_size] for n in range(len(frame_list))]
+
         return frame_list
 
-    def registration_dict(self, reference_method="suite2p", color_channel : int = None, **kwargs) -> dict:
+    def registration_dict(self, reference_method="suite2p", color_channel : int = None, save = True, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 
@@ -684,6 +689,10 @@ class SiffReader(object):
 
             Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
 
+        save (optional) : bool
+
+            Whether or not to save the dict. Name will be as TODO
+
         Other kwargs are as in siffutils.registration.register_frames
 
         RETURN
@@ -697,7 +706,15 @@ class SiffReader(object):
                 Can be passed directory to siffreader functionality that takes a registrationDict.
         """
         frames_list = self.framelist_by_slice(color_channel=color_channel)
-        slicewise_reg =[siffutils.registration.register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+        from .siffutils.registration import register_frames, registration_cleanup
+        try:
+            if __IPYTHON__: # check if we're running in a notebook
+                import tqdm
+                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in tqdm.tqdm(frames_list)]
+            else:
+                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+        except (ImportError,NameError):
+            slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
         # each element of the above is of the form:
         #   [registration_dict, difference_between_alignment_movements, reference image]
 
@@ -705,7 +722,7 @@ class SiffReader(object):
         # and then stick everything together into one dict
         
         for n in range(len(slicewise_reg)):
-            siffutils.registration.registration_cleanup(slicewise_reg[n], frames_list[n])
+            registration_cleanup(slicewise_reg[n], frames_list[n])
 
         # merge the dicts
         from functools import reduce

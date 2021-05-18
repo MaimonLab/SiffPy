@@ -147,7 +147,7 @@ void SiffReader::discernFrames() {
 
         siff.read((char*)&nextIFD, params.bytesPerPointer);
     }
-    if(!nextIFD) params.allIFDs.pop_back(); // this is for the case that the last IFD is not 0ULL
+    if(params.allIFDs.back() == 0) params.allIFDs.pop_back(); // this is for the case that the last IFD is not 0ULL
     params.numFrames = params.allIFDs.size();
     siff.clear(); // get rid of failbits
 }
@@ -174,7 +174,6 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
         siff.clear();
         // create the list into which we shall stuff the numpy arrays
         PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
-
         if(frames){
             for(uint64_t i = 0; i < framesN; i++){
                 PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
@@ -465,7 +464,7 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
     loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
-    
+    //
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
     

@@ -3,7 +3,7 @@ import bokeh
 from holoviews import opts
 hv.extension('bokeh')
 
-from siffplot import SiffPlot
+from .siffplot import SiffPlot
 
 from matplotlib import pyplot as plt
 import numpy as np

@@ -278,19 +278,17 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
             The reference image used for the alignment.
     """
 
-
     frames_np = siffreader.get_frames(frames = frames, flim = False)
-
     import time
     t = time.time()
     ref_im = build_reference_image(frames, **kwargs)
-    print(f"Ref image: {time.time() - t} seconds")
+    print(f"Ref image (1): {time.time() - t} seconds")
     # maybe there's a faster way to do this in one pass in numpy
     # I'll revisit it if registration starts to eat a lot of memory
     # or go super slow
     t = time.time()
     rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
-    print(f"Align images: {time.time() - t} seconds")
+    print(f"Align images (1): {time.time() - t} seconds")
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
     
@@ -302,11 +300,11 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     for ref_iter in range(n_ref_iters - 1):
         t = time.time()
         ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
-        print(f"Ref image: {time.time() - t} seconds")
+        print(f"Ref image ({ref_iter + 1}): {time.time() - t} seconds")
 
         t = time.time()
         rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
-        print(f"Align images: {time.time() - t} seconds")
+        print(f"Align images ({ref_iter + 1}): {time.time() - t} seconds")
 
         reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
 
@@ -322,6 +320,8 @@ def registration_cleanup(registration_tuple : tuple, frame_idxs : list[int])-> t
     clean it up a bit by identifying badly behaving frames
     and seeing if we can't find a slightly better alignment
     for them by blurring the phase correlation map.
+
+    TODO: CLEANUP IN B
     """
 
     estimated_shifts = registration_tuple[1]
@@ -334,6 +334,7 @@ def registration_cleanup(registration_tuple : tuple, frame_idxs : list[int])-> t
                       f" a blurred phase correlation. Fixing {len(jittery_frames_idx)} frames"
         )
     
+    print(registration_tuple[1][jittery_frames_idx])
     # the above is in term of the frame indices within this FOV, not the
     # actual frame number I need for the siffreader
     absolute_idxs = [frame_idxs[frame] for frame in jittery_frames_idx]
