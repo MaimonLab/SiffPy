@@ -9,6 +9,8 @@ class FLIMParams(object):
     fitting FLIM arrival time data
     to an exponential.
 
+    Booga booga
+
     TODO: OFFER MORE OPTIONS FOR FITTING
     E.G. WITH MYSTIC, WITH DIFFERENT
     CONSTRAINED NONLINEAR FITTING APPROACHES,

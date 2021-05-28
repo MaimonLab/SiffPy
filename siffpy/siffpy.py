@@ -1,16 +1,19 @@
+from siffpy.siffutils import registration
 import siffreader
 import numpy as np
 import tkinter as tk
 import warnings
 
 from . import siffutils
-from siffutils.exp_math import *
-from siffutils.flimparams import FLIMParams
+from .siffutils.exp_math import *
+from .siffutils.flimparams import FLIMParams
 
 # TODO:
 # __repr__
 # ret_type in multiple functions
 # "map to standard order"
+
+__all__ = ['SiffReader','fit_exp']
 
 class SiffReader(object):
     """
@@ -63,6 +66,7 @@ class SiffReader(object):
         self.filename = ''
         self.flim = flim
         self.registrationDict = None
+        self.reference_frames = None
 
     def __str__(self):
         ret_string = ""
@@ -201,7 +205,7 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
         ])
 
-    def get_frames(self, frames: list[int] = None, flim : bool = False) -> list[np.ndarray]:
+    def get_frames(self, frames: list[int] = None, flim : bool = False, registration_dict = None) -> list[np.ndarray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 
@@ -223,7 +227,11 @@ class SiffReader(object):
 
             Each frame requested returned as a numpy array (either 2d or 3d).
         """
-        return siffreader.get_frames(frames = frames, flim = flim)
+
+        if registration_dict is None:
+            return siffreader.get_frames(frames = frames, flim = flim)
+        else:
+            return siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
 
     def sum_across_time(self, timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
@@ -591,7 +599,7 @@ class SiffReader(object):
             
             np.array(list_of_arrays).reshape(reshaped_dims)
 
-    def get_histogram(self, frames: list[int] = None):
+    def get_histogram(self, frames: list[int] = None) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
         INPUTS
@@ -705,6 +713,9 @@ class SiffReader(object):
 
                 Can be passed directory to siffreader functionality that takes a registrationDict.
         """
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+
         frames_list = self.framelist_by_slice(color_channel=color_channel)
         from .siffutils.registration import register_frames, registration_cleanup
         try:
@@ -721,12 +732,17 @@ class SiffReader(object):
         # all we have to do now is do diagnostics to make sure there weren't any badly aligned frames
         # and then stick everything together into one dict
         
+        print("First pass alignment finished")
+
         for n in range(len(slicewise_reg)):
             registration_cleanup(slicewise_reg[n], frames_list[n])
 
         # merge the dicts
         from functools import reduce
         reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
+        self.registrationDict = reg_dict
+        self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
+
         return reg_dict
 
     def frames_to_single_array(self, frames=None):
@@ -859,6 +875,7 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
         (color, z, y, x, tau)
         (z, y, x, tau)
         (y, x, tau)
+        (tau)
 
     num_components: 
     

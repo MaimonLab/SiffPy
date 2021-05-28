@@ -1,4 +1,4 @@
 from __future__ import annotations
-from .siffpy import SiffReader
+from .siffpy import *
 from . import siffplot
 from . import siffutils

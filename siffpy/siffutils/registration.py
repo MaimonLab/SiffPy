@@ -2,6 +2,7 @@ import numpy as np
 from numpy import fft
 import siffreader
 import warnings, random, scipy
+import scipy.ndimage
 
 def build_reference_image(frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
     """
@@ -124,7 +125,8 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
-                       subpx : bool = False, phase_corr : bool = False, blur : bool = False) -> tuple[np.ndarray, tuple[int, int]]:
+                       subpx : bool = False, phase_corr : bool = False, blur : bool = False,
+                       blur_size = None) -> tuple[np.ndarray, tuple[int, int]]:
     """
     Aligns an input image "im" to a reference image "ref". Uses the shift maximizing phase-correlation,
     but only the max integer-level pixel shift. TODO: Maybe add subpixel shifts?
@@ -188,9 +190,10 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
     pcorr = np.abs(fft.ifft2(ref*im2))
 
     if blur: # for when the phasecorr map is messy and you get a surprisingly large alignment shift
-        import scipy.ndimage
-        blur_size = float(min(pcorr.shape)/100.0)
-        pcorr = -scipy.ndimage.gaussian_laplace(pcorr, sigma=blur_size,mode='wrap')
+        if blur_size is None:
+            blur_size = float(min(pcorr.shape)/100.0)
+        
+        pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size,mode='wrap')
     
     offset = np.argmax(pcorr) # the index at which the inverse FFT of the product is maximum
 
@@ -287,7 +290,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     # I'll revisit it if registration starts to eat a lot of memory
     # or go super slow
     t = time.time()
-    rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
+    rolls = [align_to_reference(ref_im, frame, shift_only = True, blur=True) for frame in frames_np]
     print(f"Align images (1): {time.time() - t} seconds")
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
@@ -300,11 +303,11 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     for ref_iter in range(n_ref_iters - 1):
         t = time.time()
         ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
-        print(f"Ref image ({ref_iter + 1}): {time.time() - t} seconds")
+        print(f"Ref image ({ref_iter + 2}): {time.time() - t} seconds")
 
         t = time.time()
-        rolls = [align_to_reference(ref_im, frame, shift_only = True) for frame in frames_np]
-        print(f"Align images ({ref_iter + 1}): {time.time() - t} seconds")
+        rolls = [align_to_reference(ref_im, frame, shift_only = True, blur = True) for frame in frames_np]
+        print(f"Align images ({ref_iter + 2}): {time.time() - t} seconds")
 
         reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
 
@@ -313,41 +316,6 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
 
     return (reg_dict, roll_d_array, ref_im)
-
-def registration_cleanup(registration_tuple : tuple, frame_idxs : list[int])-> tuple[dict, np.ndarray, np.ndarray]:
-    """
-    Take in a tuple from register_frames above and try to
-    clean it up a bit by identifying badly behaving frames
-    and seeing if we can't find a slightly better alignment
-    for them by blurring the phase correlation map.
-
-    TODO: CLEANUP IN B
-    """
-
-    estimated_shifts = registration_tuple[1]
-    velocity = np.diff(estimated_shifts) # we expect this to be near constant
-
-    # find where the velocity is varying a lot
-    jittery_frames_idx = np.where((velocity-np.mean(velocity))/np.std(velocity) > 2.5)[0]
-    if len(jittery_frames_idx):
-        warnings.warn("Some frames seem not to have aligned well. Trying again with"
-                      f" a blurred phase correlation. Fixing {len(jittery_frames_idx)} frames"
-        )
-    
-    print(registration_tuple[1][jittery_frames_idx])
-    # the above is in term of the frame indices within this FOV, not the
-    # actual frame number I need for the siffreader
-    absolute_idxs = [frame_idxs[frame] for frame in jittery_frames_idx]
-
-    naughty_frames = siffreader.get_frames(frames=absolute_idxs, flim=False)
-    new_shifts = [align_to_reference(registration_tuple[2], nframe, blur = True, shift_only = True) for nframe in naughty_frames]
-
-    # remap the registration dict
-    for n in range(len(absolute_idxs)):
-        registration_tuple[0][absolute_idxs[n]] = new_shifts[n]
-    
-    #TODO CLEAN UP REGISTRATION_TUPLE[1] WITH NEW INFO
-    return registration_tuple
 
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
