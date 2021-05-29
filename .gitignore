@@ -2,6 +2,8 @@
 *.siff
 *.json
 *.ipynb
+*.dict
+*.ref
 *.DS_Store
 
 # Byte-compiled / optimized / DLL files

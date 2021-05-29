@@ -2,7 +2,7 @@ from siffpy.siffutils import registration
 import siffreader
 import numpy as np
 import tkinter as tk
-import warnings
+import warnings, os, pickle
 
 from . import siffutils
 from .siffutils.exp_math import *
@@ -100,7 +100,8 @@ class SiffReader(object):
             siffreader.close()
 
         siffreader.open(filename)
-        
+        self.filename = filename
+
         hd = siffreader.get_file_header()
         self.file_header =  siffutils.header_data_to_nvfd(hd)
 
@@ -109,6 +110,26 @@ class SiffReader(object):
 
         self.ROI_group_data = siffutils.header_data_to_roi_string(hd)
         self.opened = True
+
+        if os.path.exists(os.path.splitext(filename)[0] + ".dict"):
+            with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
+                reg_dict = pickle.load(dict_file)
+            if isinstance(reg_dict, dict):
+                warnings.warn("Found a registration dictionary for this image and importing it.")
+                self.registrationDict = reg_dict
+            else:
+                warnings.warn("Putative registration dict for this file is not of type dict.")
+        
+        if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
+            with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
+                ref_ims = pickle.load(images_list)
+            if isinstance(reg_dict, list):
+                warnings.warn("Found a reference images for this file and importing it.")
+                self.reference_frames = ref_ims
+            else:
+                warnings.warn("Putative reference images for this file is not of type list.")
+            
+
 
     def close(self) -> None:
         """ Closes opened file """
@@ -386,7 +407,7 @@ class SiffReader(object):
 
         if ret_type == np.ndarray:
             ## NOT YET IMPLEMENTED
-            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
+            raise NotImplementedError("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
 
             frameshape = list_of_arrays[0].shape
 
@@ -717,7 +738,7 @@ class SiffReader(object):
             raise RuntimeError("No open .siff or .tiff")
 
         frames_list = self.framelist_by_slice(color_channel=color_channel)
-        from .siffutils.registration import register_frames, registration_cleanup
+        from .siffutils.registration import register_frames
         try:
             if __IPYTHON__: # check if we're running in a notebook
                 import tqdm
@@ -726,22 +747,24 @@ class SiffReader(object):
                 slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
         except (ImportError,NameError):
             slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+        
         # each element of the above is of the form:
         #   [registration_dict, difference_between_alignment_movements, reference image]
 
         # all we have to do now is do diagnostics to make sure there weren't any badly aligned frames
         # and then stick everything together into one dict
         
-        print("First pass alignment finished")
-
-        for n in range(len(slicewise_reg)):
-            registration_cleanup(slicewise_reg[n], frames_list[n])
-
         # merge the dicts
         from functools import reduce
         reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
         self.registrationDict = reg_dict
         self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
+
+        if save:
+            with open(os.path.splitext(self.filename)[0] + ".dict",'wb') as dict_path:
+                pickle.dump(reg_dict, dict_path)
+            with open(os.path.splitext(self.filename)[0] + ".ref",'wb') as ref_images_path:
+                pickle.dump(self.reference_frames, ref_images_path)
 
         return reg_dict
 

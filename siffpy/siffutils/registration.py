@@ -125,8 +125,9 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
-                       subpx : bool = False, phase_corr : bool = False, blur : bool = False,
-                       blur_size = None) -> tuple[np.ndarray, tuple[int, int]]:
+                       subpx : bool = False, phase_corr : bool = False, blur : bool = True,
+                       blur_size = None, ref_Fourier_normed : bool = False
+                       ) -> tuple[np.ndarray, tuple[int, int]]:
     """
     Aligns an input image "im" to a reference image "ref". Uses the shift maximizing phase-correlation,
     but only the max integer-level pixel shift. TODO: Maybe add subpixel shifts?
@@ -157,6 +158,15 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
 
         Blur the phase correlation before taking the max (useful for noisy images)
 
+    blur_size (optional) : float
+
+        Size of the phase correlation blur applied (in pixels)
+
+    ref_Fourier_normed (optional) : bool
+
+        Whether the input reference image has already been Fourier transformed.
+    
+
     RETURNS
     -------------
 
@@ -179,8 +189,9 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
         " this argument. Sorry!")
 
     # Take the Fourier transform of the reference image and normalize it.
-    ref = fft.fft2(ref)
-    ref /= np.abs(ref)
+    if not ref_Fourier_normed:
+        ref = fft.fft2(ref)
+        ref /= np.abs(ref)
 
     # Take the normalized complex conjugate of the Fourier transform of im
     im2 = fft.fft2(im)
@@ -286,11 +297,16 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     t = time.time()
     ref_im = build_reference_image(frames, **kwargs)
     print(f"Ref image (1): {time.time() - t} seconds")
+
     # maybe there's a faster way to do this in one pass in numpy
     # I'll revisit it if registration starts to eat a lot of memory
     # or go super slow
     t = time.time()
-    rolls = [align_to_reference(ref_im, frame, shift_only = True, blur=True) for frame in frames_np]
+
+    # Faster to just transform ref_im once
+    ref_im_NORMED = fft.fft2(ref_im)
+    ref_im_NORMED /= np.abs(ref_im_NORMED)
+    rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
     print(f"Align images (1): {time.time() - t} seconds")
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
@@ -306,7 +322,9 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         print(f"Ref image ({ref_iter + 2}): {time.time() - t} seconds")
 
         t = time.time()
-        rolls = [align_to_reference(ref_im, frame, shift_only = True, blur = True) for frame in frames_np]
+        ref_im_NORMED = fft.fft2(ref_im)
+        ref_im_NORMED /= np.abs(ref_im_NORMED)
+        rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
         print(f"Align images ({ref_iter + 2}): {time.time() - t} seconds")
 
         reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
