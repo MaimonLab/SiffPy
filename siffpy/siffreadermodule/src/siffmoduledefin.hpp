@@ -43,7 +43,9 @@
     "report_warnings():\n"\
         "\tAllows module-specific warnings.\n"\
     "num_frames():\n"\
-        "\tIf file is open, reports the total number of frames."
+        "\tIf file is open, reports the total number of frames.\n"\
+    "debug():\n"\
+        "\tEnables siffreadermodule debugging log."
 
 
 #define OPEN_DOCSTRING \
@@ -108,6 +110,7 @@
     "\tOptions:\n"\
     "\t\t'log_p'  : log likelihood of the pixel distribution (computes fast, iteratively).\n"\
     "\t\t'chi_sq' : chi-squared statistic of the data (computes slower, has some nicer properties).\n"\
+    "\t\t'None'   : No confidence measure. Much faster.\n"\
     "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."\
     "Returns:\n"\
     "\t(flimmap, intensity, chi_sq)\n"\
@@ -135,6 +138,10 @@
 #define NUM_FRAMES_DOCSTRING \
     "num_frames()-> int\n"\
     "Reports number of frames in opened file."
+
+#define DEBUG_DOCSTRING \
+    "debug() -> None\n"\
+    "Creates a debug log."
 
 
 

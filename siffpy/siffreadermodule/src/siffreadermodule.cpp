@@ -279,9 +279,9 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     }
 
     // check that conf_measure is one of the permitted values
-    if (strcmp(conf_measure, "log_p") && strcmp(conf_measure,"chi_sq")) {
+    if (strcmp(conf_measure, "log_p") && strcmp(conf_measure,"chi_sq") && strcmp(conf_measure,"None")) {
         PyErr_SetString(PyExc_TypeError, 
-            strcat((char*) "Expected confidence_measure to be one of 'log_p', 'chi_sq'. Instead is type: ",
+            strcat((char*) "Expected confidence_measure to be one of 'log_p', 'chi_sq', 'None'. Instead is type: ",
                 conf_measure
             )
         );
@@ -389,7 +389,6 @@ static PyObject* siffreader_suppress_warnings(PyObject* self, PyObject *args){
     Py_RETURN_NONE;
 }
 
-
 static PyObject* siffreader_report_warnings(PyObject* self, PyObject *args){
     // Suppresses warnings
     if(!PyArg_ParseTuple(args, ":report_warnings")) return NULL;
@@ -415,6 +414,17 @@ static PyObject* siffreader_num_frames(PyObject* self, PyObject *args){
     return PyLong_FromUnsignedLongLong(ret_val);
 }
 
+
+static PyObject* siffreader_debug(PyObject* self, PyObject *args){
+    // Returns number of frames in file
+
+    if(!PyArg_ParseTuple(args, ":debug")) return NULL;
+    // if there are any args, it shouldn't go through
+    
+    Sf.setDebug(true);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef SiffreaderMethods[] = {
 // Array of the methods and corresponding docstrings
         {"open", siffreader_open, METH_VARARGS,OPEN_DOCSTRING},
@@ -429,6 +439,7 @@ static PyMethodDef SiffreaderMethods[] = {
         {"suppress_warnings", siffreader_suppress_warnings, METH_VARARGS, SUPPRESS_WARNINGS_DOCSTRING},
         {"report_warnings", siffreader_report_warnings, METH_VARARGS, REPORT_WARNINGS_DOCSTRING},
         {"num_frames", siffreader_num_frames, METH_VARARGS, NUM_FRAMES_DOCSTRING},
+        {"debug", siffreader_debug, METH_VARARGS, DEBUG_DOCSTRING},
         {NULL, NULL, 0, NULL}        /* Sentinel */
 
 };

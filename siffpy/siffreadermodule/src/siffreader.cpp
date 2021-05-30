@@ -5,7 +5,6 @@
 #include "siffreader.hpp"
 
 #include "../include/sifdefin.hpp"
-#include "../include/framedatastruct.hpp"
 #include "../include/siffreaderinline.hpp"
 #include <algorithm>
 
@@ -246,9 +245,64 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* reg
     }
 }
 
-PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict) {
-    
+PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict) {
+    // For no confidence measure
     try{
+        PyObject* T_O = PyObject_GetAttrString(FLIMParams, "T_O");
+        double_t tauo = PyFloat_AS_DOUBLE(T_O);
+        Py_DECREF(T_O);
+        if ((tauo == -1.0) && PyErr_Occurred()) {
+            throw std::runtime_error("Purported FLIMParams object has no attribute 'T_O'.");
+        }
+
+        PyObject* TupleOutList = PyList_New(Py_ssize_t(0));
+
+        // iterate through each list of frame indices
+        for(Py_ssize_t idx(0); idx < PyList_Size(listOfLists); idx++) {
+            // one merged numpy array for all of them. TODO: size checking!!
+            // need to ensure they all have compatible dimensions -- for now
+            // I just assume it, but as this expands to support mROI...
+
+            // already ensured these were all PyLongs
+            PyObject* listOfFrames = PyList_GetItem(listOfLists, idx);
+            
+            if(PyList_Size(listOfFrames)==0) { // empty list, you silly goose.
+                PyList_Append(TupleOutList,Py_None);
+                Py_DECREF(Py_None);
+            }
+            
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,0));
+            
+            PyObject* flimTup = makeFlimTuple(
+                    params.allIFDs[ PyLong_AsLongLong(PyList_GetItem(listOfFrames,0)) ],
+                    shift_tuple
+                    );
+
+            for(Py_ssize_t frameIdx(1); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,frameIdx)); 
+                fuseIntoFlimTuple(flimTup,
+                    params.allIFDs[ PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx)) ],
+                    shift_tuple);
+            }
+
+            normalizeAndOffsetFlimTuple(flimTup, tauo); // operation can only be done after all arrivals merged
+
+            PyList_Append(TupleOutList, flimTup); // ADDS a reference
+            Py_DECREF(flimTup); // prevent memory leaks on this object
+
+        }
+        return TupleOutList;
+    }
+    catch(std::exception& e) {
+        errstring = std::string("Error in flimMap: ") + e.what();
+        throw e;
+    }
+}
+
+PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict) {
+    // For the case in which a confidence measure is requested.
+    try{
+        if (strcmp(conf_measure,"None")==0) return flimMap(FLIMParams, listOfLists, registrationDict);
         // check the tauo offset value before we waste time evaluating things
         PyObject* T_O = PyObject_GetAttrString(FLIMParams, "T_O");
         double_t tauo = PyFloat_AS_DOUBLE(T_O);
@@ -261,7 +315,9 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
         
         if (!listOfLists) { // default behavior, all frames
             // TODO: IMPLEMENT
+            throw std::runtime_error("List of frames must be provided (all frame default not implemented yet.");
         }
+
         for(Py_ssize_t idx(0); idx < PyList_Size(listOfLists); idx++) {
             // one merged numpy array for all of them. TODO: size checking!!
             // need to ensure they all have compatible dimensions -- for now
@@ -305,13 +361,15 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                     shift_tuple
                 );
             }
-    
+
             PyObject* flimMap = readVectorToNumpyTuple(photonReadsTogether,
                 firstFrameData, FLIMParams, conf_measure
             );
+
             PyList_Append(TupleOutList, flimMap); // ADDS a reference
-            Py_DECREF(flimMap); // prevent memory leaks on this object
+            Py_DECREF(flimMap); // prevent memory leaks on this object            
         }
+
         return TupleOutList;
     }
     catch(std::exception& e) {
@@ -516,6 +574,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     if (debug) {
         frameData.tagList = PyList_New(Py_ssize_t(0));
     }
+
     char tagBuffer[params.bytesPerTag];
     for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
         siff.read(tagBuffer, params.bytesPerTag);
@@ -554,6 +613,55 @@ void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArra
     addArrivalsToArray(numpyArray, params, frameData, siff);
 }
 
+PyObject* SiffReader::makeFlimTuple(uint64_t thisIFD, PyObject* shift_tuple){
+    // Makes a tuple of SUMMED arrival times (in units of bins) and intensity
+
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+
+    FrameData frameData = getTagData(thisIFD, params, siff);
+    
+    const int ND = 2; // number of dimensions
+    npy_intp dims[ND];
+
+    dims[0] = frameData.imageLength;
+    dims[1] = frameData.imageWidth;
+
+    PyArrayObject* lifetimeArray = (PyArrayObject*) PyArray_ZEROS(
+        ND,
+        dims,
+        NPY_FLOAT64, 
+        0 // C order, i.e. last index increases fastest
+    );
+
+    PyArrayObject* intensityArray = (PyArrayObject*) PyArray_ZEROS(
+        ND,
+        dims,
+        NPY_UINT16, 
+        0 // C order, i.e. last index increases fastest
+    );
+
+    loadArrayWithSummedArrivalTimes(lifetimeArray, intensityArray, params, frameData, siff, shift_tuple);
+    
+    return PyTuple_Pack(Py_ssize_t(2), lifetimeArray, intensityArray);
+
+}
+
+void SiffReader::fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple){
+    
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+
+    FrameData frameData = getTagData(nextIFD, params, siff);
+
+    siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
+    if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    PyArrayObject* lifetimeArray = (PyArrayObject*) PyTuple_GetItem(FlimTup, Py_ssize_t(0));
+    PyArrayObject* intensityArray = (PyArrayObject*) PyTuple_GetItem(FlimTup, Py_ssize_t(1));
+
+    loadArrayWithSummedArrivalTimes(lifetimeArray, intensityArray, params, frameData, siff, shift_tuple);
+
+}
+
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple) {
     
     FrameData frameData = getTagData(nextIFD, params, siff);
@@ -571,11 +679,12 @@ void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint
         frameData.siffCompress ? 
             compressedReadsToVec(frameData, siff, shift_tuple) :
             uncompressedReadsToVec(frameData, siff, shift_tuple);
-//
+
     photonReadsTogether.insert(photonReadsTogether.end(), frameReads.begin(), frameReads.end());
 }
 
 void SiffReader::reset() {
+    
     if (siff.is_open()) siff.close();
     params = SiffParams();
     filename = std::string();

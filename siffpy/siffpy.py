@@ -474,7 +474,10 @@ class SiffReader(object):
 
         confidence_metric (optional, default='chi_sq') : str
 
-            What metric to use to compute the confidence matrix returned in each tuple
+            What metric to use to compute the confidence matrix returned in each tuple. Options:
+                'None' Don't use it, tuple returned is length two (ARG MUST BE A STRING)
+                'chi_sq' Chi-squared statistic
+                'log_p' log-likelihood of the pixel distribution
 
 
         RETURN VALUES

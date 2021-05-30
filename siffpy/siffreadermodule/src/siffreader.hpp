@@ -20,6 +20,8 @@ class SiffReader
 {
     private:
         std::ifstream siff; // the .siff file, a very delicately wrapped tiff
+        std::ofstream debugger; // file for debug logging.
+        std::chrono::high_resolution_clock debug_clock = std::chrono::high_resolution_clock();
         std::string filename; // the name of the file
         SiffParams params; // fixed TIFF parameters
 
@@ -33,6 +35,8 @@ class SiffReader
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList); // internal method to get metadata for one frame
         void singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray); // add this frame's arrival times to the 1-d array numpyArray
+        PyObject* makeFlimTuple(uint64_t IFD, PyObject* shift_tuple = NULL); // makes a tuple of [lifetime, intensity] from one frame, with lifetime unnormalized
+        void fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple = NULL); // merges two together
         void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple = NULL); // takes a source frame and the address of the frame to fuse in
         void fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple = NULL); // takes a vector of photon reads and adds the next frame's reads to it.
         uint64_t nextIFD;
@@ -48,6 +52,7 @@ class SiffReader
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0); // get metadata enumerated in frames
         PyObject* readFixedData(); // returns the data in the primary ScanImage header
+        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq
         PyArrayObject* getHistogram(uint64_t frames[] = NULL, uint64_t framesN = 0); // returns an arrival time vector, independent of pixel location.
         std::string getNVFD();
@@ -59,6 +64,7 @@ class SiffReader
         // HEADER FUNCTION DEFS. BAD PRACTICE BUT LESS CLUTTERED.
         void suppressWarnings(bool suppress) {suppress_warnings = suppress; params.suppress_warnings = suppress;};
         uint64_t numFrames(){return siff.is_open() ? params.allIFDs.size() : -1;};
+        void setDebug(bool debug_bool) {debug = debug_bool;};
 
 };
 
