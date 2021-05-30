@@ -361,7 +361,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                     shift_tuple
                 );
             }
-
+//
             PyObject* flimMap = readVectorToNumpyTuple(photonReadsTogether,
                 firstFrameData, FLIMParams, conf_measure
             );
@@ -369,7 +369,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
             PyList_Append(TupleOutList, flimMap); // ADDS a reference
             Py_DECREF(flimMap); // prevent memory leaks on this object            
         }
-
+        
         return TupleOutList;
     }
     catch(std::exception& e) {
@@ -641,7 +641,7 @@ PyObject* SiffReader::makeFlimTuple(uint64_t thisIFD, PyObject* shift_tuple){
     );
 
     loadArrayWithSummedArrivalTimes(lifetimeArray, intensityArray, params, frameData, siff, shift_tuple);
-    
+    //
     return PyTuple_Pack(Py_ssize_t(2), lifetimeArray, intensityArray);
 
 }
@@ -659,7 +659,7 @@ void SiffReader::fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject
     PyArrayObject* intensityArray = (PyArrayObject*) PyTuple_GetItem(FlimTup, Py_ssize_t(1));
 
     loadArrayWithSummedArrivalTimes(lifetimeArray, intensityArray, params, frameData, siff, shift_tuple);
-
+    //
 }
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple) {
