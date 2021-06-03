@@ -10,7 +10,7 @@
 
 #define POOL_FRAMES_KEYWORDS (char*[]){"pool_lists", "type", "flim", "registration", NULL}
 
-#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", "registration", NULL}
+#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", "registration","sizeSafe", NULL}
 
 #define GET_HISTOGRAM_KEYWORDS (char*[]){"frames", NULL}
 

@@ -251,11 +251,12 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     PyObject* registrationDict = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!:flim_map", FLIM_MAP_KEYWORDS,
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!p:flim_map", FLIM_MAP_KEYWORDS,
         &FLIMParams,
         &PyList_Type,&listOfFramesListed,
         &conf_measure, &conf_measure_length,
-        &PyDict_Type, &registrationDict)) {
+        &PyDict_Type, &registrationDict
+        )) {
         return NULL;
     }
 

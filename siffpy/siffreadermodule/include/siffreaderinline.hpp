@@ -457,19 +457,23 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
 
     // Now re-read the arrival time, knowing the expected value for each histogram bin per pixel
     // to compute the chi-squared statistic
-    // Sadly, since chi-sq is NONLINEAR I have to track the number observed for each bin by pixel.
-    // It's a big array! This seems so wasteful to allocate and destroy
 
-    std::vector< std::vector<uint16_t> > observed(1024, std::vector<uint16_t>(dims[0]*dims[1],0));
-
-    for (uint64_t readNum = 0; readNum < reads.size(); readNum++) {
+    // surprised to find this is the fastest way, simply because it avoids all the pre- and re-
+    // allocation of memory to track the arrival times of each pixel. It's not exactly blazing
+    // fast, and the more frames averaged (or the longer the vector) the smaller the gains.
+    // anyways, worth revisiting if I need to find more speed gains.
+    std::sort(reads.begin(), reads.end());
+    uint16_t obs = 0;
+    uint64_t lastRead = reads[0];
+    for (uint64_t readNum = 1; readNum < reads.size(); readNum++) {
         uint64_t read = reads[readNum];
         uint64_t this_px = U64TOY(read)*dims[1] + U64TOX(read);
         uint16_t arrival = U64TOTAU(read);
-        
+        obs = obs*(read==lastRead) + 1;
         double_t expected = intensity_ptr[this_px]*arrival_p[arrival];
-        conf_ptr[this_px] += ((2*observed[arrival][this_px]+1)/expected) - 2; // dChi-sq/dObserved
+        conf_ptr[this_px] += ((2*obs+1)/expected) - 2; // dChi-sq/dObserved
     }
+    // still debating whether there's a better, faster way
 }
 
 inline PyObject* readVectorToNumpyTuple(std::vector<uint64_t>& photonReadsTogether, 

@@ -11,7 +11,7 @@
 ///////////////////////
 ////// FILE I/O ///////
 ///////////////////////
-
+//
 // BIG TIME TODO: MAKE THIS CROSS-ENDIAN COMPATIBLE.
 
 SiffReader::SiffReader(){
@@ -302,7 +302,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObj
 PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict) {
     // For the case in which a confidence measure is requested.
     try{
-        if (strcmp(conf_measure,"None")==0) return flimMap(FLIMParams, listOfLists, registrationDict);
+        if (strcmp(conf_measure,"None")==0) return flimMap(FLIMParams, listOfLists, registrationDict); // much faster not to waste time with conf
         // check the tauo offset value before we waste time evaluating things
         PyObject* T_O = PyObject_GetAttrString(FLIMParams, "T_O");
         double_t tauo = PyFloat_AS_DOUBLE(T_O);
@@ -377,6 +377,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
         throw e;
     }
 }
+
 
 PyArrayObject* SiffReader::getHistogram(uint64_t frames[], uint64_t framesN) {
     // NOTE! THIS USES UINT64_T BECAUSE YOU'RE LIKELY TO GET >65k PHOTONS PER BIN

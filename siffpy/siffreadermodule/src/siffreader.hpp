@@ -25,18 +25,23 @@ class SiffReader
         std::string filename; // the name of the file
         SiffParams params; // fixed TIFF parameters
 
-        bool suppress_errors; // a setting to suppress potentially kernel-killing errors thrown by checks
+        bool suppress_errors;   // a setting to suppress potentially kernel-killing errors thrown by checks
         bool suppress_warnings; // a setting to ignore errors if there is an issue reading one or more frames.
-        bool debug;
+        bool debug;             // a setting for whether or not to print to the debugger file
 
-        std::string errstring; // error string to retrieve
-        void discernFrames(); // quickly runs through the file to identify all frames and their IFDs
+        std::string errstring;  // error string to retrieve
+        
+        void discernFrames();   // quickly runs through the file to identify all frames and their IFDs
+        
         PyArrayObject* frameAsNumpy(uint64_t IFD, bool flim, PyObject* shift_tuple = NULL); // returns an ndarray object 
+        
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList); // internal method to get metadata for one frame
         void singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray); // add this frame's arrival times to the 1-d array numpyArray
+        
         PyObject* makeFlimTuple(uint64_t IFD, PyObject* shift_tuple = NULL); // makes a tuple of [lifetime, intensity] from one frame, with lifetime unnormalized
-        void fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple = NULL); // merges two together
+        void fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple = NULL); // takes existing FlimTuple and merges in a new frame's data
+        
         void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple = NULL); // takes a source frame and the address of the frame to fuse in
         void fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple = NULL); // takes a vector of photon reads and adds the next frame's reads to it.
         uint64_t nextIFD;
@@ -47,18 +52,24 @@ class SiffReader
     public:
         SiffReader();
         ~SiffReader(){closeFile();};
+        
         int openFile(const char* filename);
+        
         PyObject* retrieveFrames(uint64_t frames[]=NULL, uint64_t framesN=0, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
-        PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0); // get metadata enumerated in frames
-        PyObject* readFixedData(); // returns the data in the primary ScanImage header
+
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq
+
         PyArrayObject* getHistogram(uint64_t frames[] = NULL, uint64_t framesN = 0); // returns an arrival time vector, independent of pixel location.
+
+        PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0); // get metadata enumerated in frames
+        PyObject* readFixedData(); // returns the data in the primary ScanImage header
         std::string getNVFD();
         std::string getROIstring();
         
         const char* getErrString();
+        
         void closeFile();
 
         // HEADER FUNCTION DEFS. BAD PRACTICE BUT LESS CLUTTERED.
