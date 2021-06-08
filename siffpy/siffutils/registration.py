@@ -126,7 +126,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
                        subpx : bool = False, phase_corr : bool = False, blur : bool = True,
-                       blur_size = None, ref_Fourier_normed : bool = False
+                       blur_size = None, ref_Fourier_normed : bool = False, regularize_sigma : float = 2.0
                        ) -> tuple[np.ndarray, tuple[int, int]]:
     """
     Aligns an input image "im" to a reference image "ref". Uses the shift maximizing phase-correlation,
@@ -165,7 +165,7 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
     ref_Fourier_normed (optional) : bool
 
         Whether the input reference image has already been Fourier transformed.
-    
+
 
     RETURNS
     -------------
@@ -272,6 +272,10 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         Utilizes subpixel alignment in the Fourier phase correlation. NOT
         YET IMPLEMENTED!
     
+    tqdm (optional) : tqdm.tqdm
+
+        For prettier output formatting in a notebook or script. Pass the tqdm.tqdm object.
+
     RETURNS
     -------
 
@@ -293,10 +297,23 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     """
 
     frames_np = siffreader.get_frames(frames = frames, flim = False)
+    use_tqdm = False
+    if 'tqdm' in kwargs:
+        import tqdm
+        if isinstance(kwargs['tqdm'], tqdm.tqdm):
+            use_tqdm = True
+            pbar : tqdm.tqdm = kwargs['tqdm']
+    
+    regularize_sigma = 1.0
+    if 'regularize_sigma' in kwargs:
+        if isinstance(kwargs['regularize_sigma'], float):
+            regularize_sigma = kwargs['regularize_sigma']
+
     import time
     t = time.time()
     ref_im = build_reference_image(frames, **kwargs)
-    print(f"Ref image (1): {time.time() - t} seconds")
+    if use_tqdm:
+        pbar.set_description(f"Ref image (1): {time.time() - t} seconds")
 
     # maybe there's a faster way to do this in one pass in numpy
     # I'll revisit it if registration starts to eat a lot of memory
@@ -306,8 +323,15 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     # Faster to just transform ref_im once
     ref_im_NORMED = fft.fft2(ref_im)
     ref_im_NORMED /= np.abs(ref_im_NORMED)
+    if use_tqdm:    
+        pbar.set_postfix({"Alignment iteration" : 1})
+    
     rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
-    print(f"Align images (1): {time.time() - t} seconds")
+    
+    if regularize_sigma > 0:
+        # adjacent timepoints should be near each other.
+        rolls = regularize_adjacent_tuples(rolls, ref_im.shape[0], ref_im.shape[1], sigma = regularize_sigma)
+        
 
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
     
@@ -317,15 +341,18 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
             n_ref_iters = kwargs['n_ref_iters']
 
     for ref_iter in range(n_ref_iters - 1):
+        pbar.set_postfix({"Alignment iteration" : ref_iter})
         t = time.time()
         ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
-        print(f"Ref image ({ref_iter + 2}): {time.time() - t} seconds")
 
         t = time.time()
         ref_im_NORMED = fft.fft2(ref_im)
         ref_im_NORMED /= np.abs(ref_im_NORMED)
         rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
-        print(f"Align images ({ref_iter + 2}): {time.time() - t} seconds")
+        
+        if regularize_sigma > 0:
+            # adjacent timepoints should be near each other.
+            rolls = regularize_adjacent_tuples(rolls, ref_im.shape[0], ref_im.shape[1], sigma = regularize_sigma)
 
         reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
 
@@ -337,10 +364,27 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
-    return min((x-y) % rollover, (y-(x-rollover)) % rollover)
+    return ((x-y + rollover/2) % rollover) - rollover/2
 
 def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: float, rollover_x : float)->float:
     """ Distance between two rollovers """
     d_y = circ_d(roll1[0],roll2[0],rollover_y)
     d_x = circ_d(roll1[1],roll2[1],rollover_x)
     return np.sqrt(d_x**2 + d_y**2)
+
+def regularize_adjacent_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : float = 2.0) -> list[tuple]:
+    """
+    Take a list of tuples, pretend they're coupled by springs and to their original values.
+    Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
+    High sigma is more like the initial values. Low sigma pushes them all to identical values
+    """
+    from scipy.sparse import diags
+    from scipy.sparse.linalg import spsolve
+
+    s = (sigma**2)*np.ones(len(tuples))
+    off = -1*np.ones(len(tuples)-1)
+    trans_mat = diags(2+s) + diags(off,-1) + diags(off,1) # the forcing function is trans_mat * tuples - sigma**2 * tuples_init
+
+    yz = spsolve(trans_mat,(sigma**2)*np.array([(roll_point[0] + ydim/2) % ydim - ydim/2 for roll_point in tuples]))
+    xz = spsolve(trans_mat,(sigma**2)*np.array([(roll_point[1] + xdim/2) % xdim - xdim/2 for roll_point in tuples]))
+    return [( int(yz[k] + ydim)%ydim  ,  int(xz[k] + xdim)%xdim  ) for k in range(len(yz))]

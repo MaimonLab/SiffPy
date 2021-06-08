@@ -665,35 +665,8 @@ class SiffReader(object):
         fps = self.im_params['FRAMES_PER_SLICE']
         colors = self.im_params['COLORS']
         
-        if isinstance(colors, list):
-            n_colors = len(colors)
-        else:
-            n_colors = 1
-
-        frames_per_volume = n_slices * fps * n_colors
-
-        if (color_channel is None) and (n_colors == 1):
-            color_channel = 0
-        if (color_channel is None) and (n_colors > 1):
-            color_channel = min(colors) - 1 # MATLAB idx is 1-based
-
-        frame_list = []
-        for slice_idx in range(n_slices):
-            slice_offset = slice_idx * fps * n_colors # frames into volume before this slice begins
-            slice_offset += color_channel
-            slice_list = [] # all frames in this z plane
-            for frame_num in range(fps):
-                fn = frame_num * n_colors # 1 for each frame in the same slice
-                slice_list += list(range(slice_offset+fn, self.im_params['NUM_FRAMES'], frames_per_volume))
-
-            frame_list.append(slice_list)        
+        return siffutils.framelist_by_slice(n_slices, fps, colors, color_channel,self.im_params['NUM_FRAMES'])
         
-        # This is bad code to spare me the headache of figuring out this bizarre bug where num_frames is
-        # 1 too high sometimes.
-        consistent_stack_size = min([len(frame_list[slice_idx]) for slice_idx in range(len(frame_list))])
-        frame_list = [frame_list[n][:consistent_stack_size] for n in range(len(frame_list))]
-
-        return frame_list
 
     def registration_dict(self, reference_method="suite2p", color_channel : int = None, save = True, **kwargs) -> dict:
         """
@@ -745,7 +718,8 @@ class SiffReader(object):
         try:
             if __IPYTHON__: # check if we're running in a notebook
                 import tqdm
-                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in tqdm.tqdm(frames_list)]
+                pbar = tqdm.tqdm(frames_list)
+                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
             else:
                 slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
         except (ImportError,NameError):

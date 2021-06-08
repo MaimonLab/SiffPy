@@ -7,6 +7,7 @@ SCT March 28 2021, still rainy in Maywood
 from .registration import *
 from .matlab_to_python import *
 from .fluorophore_inits import available_fluorophores
+from .slicefcns import *
 
 # types to cast strings to when looked up
 frame_meta_lookup_cast ={
