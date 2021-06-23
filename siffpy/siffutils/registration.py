@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import fft
+from numpy.core.numeric import rollaxis
 import siffreader
 import warnings, random, scipy
 import scipy.ndimage
@@ -99,8 +100,17 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
 
     init_frames_idx = random.sample(frames, nimg_init)
 
+    if 'discard_bins' in kwargs:
+        discard_bins = None
+        if isinstance(kwargs['discard_bins'], int):
+            discard_bins = kwargs['discard_bins']
+
     init_frames = np.array(
-                    siffreader.get_frames(frames = init_frames_idx, flim = False, registration = registration_dict)
+                    siffreader.get_frames(
+                        frames = init_frames_idx, 
+                        flim = False,
+                        registration = registration_dict
+                    )
                   )
     
     # find the few frame most correlated with the mean of these
@@ -110,17 +120,17 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
     err_val = np.sum(mean_subbed,axis=(1,2))
 
     # how many of the most correlated frames to take
-    seed_ref_count = 20
+    seed_ref_count = 100
     if 'seed_ref_count' in kwargs:
         seed_ref_count = kwargs['seed_ref_count']
         if not isinstance(seed_ref_count, int):
+            seed_ref_count = 100
             warnings.warn("Suite2p alignment arg 'seed_ref_count' is not of type int. "
-                          "Using 20 instead.")
-            seed_ref_count = 20
+                          f"Using {seed_ref_count} instead.")
         if seed_ref_count > nimg_init:
+            seed_ref_count = 100
             warnings.warn("Suite2p alignment arg 'seed_ref_count' is greater than number "
-                          f"of frames being aligned. Defaulting to 20.")
-            seed_ref_count = 20
+                          f"of frames being aligned. Defaulting to {seed_ref_count}.")
     seed_idx = np.argpartition(err_val, seed_ref_count)[:seed_ref_count]
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
@@ -271,6 +281,11 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
         Utilizes subpixel alignment in the Fourier phase correlation. NOT
         YET IMPLEMENTED!
+
+    discard_bins (optional) : int
+
+        Time bin above which photons should be discarded. Useful for known noise sources
+        and known fluorophore IDs.
     
     tqdm (optional) : tqdm.tqdm
 
@@ -295,6 +310,11 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
             The reference image used for the alignment.
     """
+
+    if 'discard_bins' in kwargs:
+        discard_bins = None
+        if isinstance(kwargs['discard_bins'], int):
+            discard_bins = kwargs['discard_bins']
 
     frames_np = siffreader.get_frames(frames = frames, flim = False)
     use_tqdm = False
@@ -340,6 +360,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         if isinstance(kwargs['n_ref_iters'], int):
             n_ref_iters = kwargs['n_ref_iters']
 
+    # Repeat the same process -- build a reference, re-align
     for ref_iter in range(n_ref_iters - 1):
         pbar.set_postfix({"Alignment iteration" : ref_iter})
         t = time.time()
@@ -366,6 +387,10 @@ def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
     return ((x-y + rollover/2) % rollover) - rollover/2
 
+def re_circ(x : float, rollover : float) -> float:
+    """ Takes de-circularized data and reverts it to circularized """
+    return (x + rollover) % rollover
+
 def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: float, rollover_x : float)->float:
     """ Distance between two rollovers """
     d_y = circ_d(roll1[0],roll2[0],rollover_y)
@@ -374,7 +399,7 @@ def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: f
 
 def regularize_adjacent_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : float = 2.0) -> list[tuple]:
     """
-    Take a list of tuples, pretend they're coupled by springs and to their original values.
+    Take a list of tuples, pretend adjacent ones are coupled by springs and to their original values.
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
     High sigma is more like the initial values. Low sigma pushes them all to identical values
     """
@@ -385,6 +410,21 @@ def regularize_adjacent_tuples(tuples : list[tuple], xdim : int, ydim: int, sigm
     off = -1*np.ones(len(tuples)-1)
     trans_mat = diags(2+s) + diags(off,-1) + diags(off,1) # the forcing function is trans_mat * tuples - sigma**2 * tuples_init
 
-    yz = spsolve(trans_mat,(sigma**2)*np.array([(roll_point[0] + ydim/2) % ydim - ydim/2 for roll_point in tuples]))
-    xz = spsolve(trans_mat,(sigma**2)*np.array([(roll_point[1] + xdim/2) % xdim - xdim/2 for roll_point in tuples]))
-    return [( int(yz[k] + ydim)%ydim  ,  int(xz[k] + xdim)%xdim  ) for k in range(len(yz))]
+    yz = spsolve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[0], 0, ydim) for roll_point in tuples]))
+    xz = spsolve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[1], 0, xdim) for roll_point in tuples]))
+    return [ ( int(re_circ(yz[k], ydim)) , int(re_circ(xz[k], xdim))  ) for k in range(len(yz)) ]
+
+def regularize_all_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : float = 2.0) -> list[tuple]:
+    """
+    Take a list of tuples, pretend they're ALL coupled by springs and to their original values.
+    Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
+    High sigma is more like the initial values. Low sigma pushes them all to identical values
+    """
+    from numpy.linalg import solve
+
+    s = (3+sigma**2)*np.diag(np.ones(len(tuples)))
+    trans_mat = s - 1
+
+    yz = solve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[0], 0, ydim) for roll_point in tuples]))
+    xz = solve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[1], 0, xdim) for roll_point in tuples]))
+    return [ ( int(re_circ(yz[k], ydim)) , int(re_circ(xz[k], xdim))  ) for k in range(len(yz)) ]

@@ -111,6 +111,16 @@ class SiffReader(object):
         self.ROI_group_data = siffutils.header_data_to_roi_string(hd)
         self.opened = True
 
+        try:
+            xy = self.ROI_group_data['RoiGroups']['imagingRoiGroup']['rois']['scanfields']['pixelResolutionXY']
+            self.im_params['XSIZE'] = xy[0]
+            self.im_params['YSIZE'] = xy[1]
+        except:
+            raise Exception("ROI header information is more complicated. Probably haven't implemented the reader"
+            " to be comaptible with mROI scanning. Don't worry -- if you're getting this error, I'm already"
+            " planning on addressing it."
+            )
+
         if os.path.exists(os.path.splitext(filename)[0] + ".dict"):
             with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
                 reg_dict = pickle.load(dict_file)
@@ -127,10 +137,8 @@ class SiffReader(object):
                 warnings.warn("Found a reference images for this file and importing it.")
                 self.reference_frames = ref_ims
             else:
-                warnings.warn("Putative reference images for this file is not of type list.")
+                warnings.warn("Putative reference images object for this file is not of type list.", stacklevel=2)
             
-
-
     def close(self) -> None:
         """ Closes opened file """
         siffreader.close()
@@ -626,6 +634,10 @@ class SiffReader(object):
     def get_histogram(self, frames: list[int] = None) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
+
+        Note: uses FRAME numbers, not timepoints. So you will mix color channels
+        if you're not careful.
+        
         INPUTS
         -----
         frames (optional, list of ints):
@@ -667,8 +679,34 @@ class SiffReader(object):
         
         return siffutils.framelist_by_slice(n_slices, fps, colors, color_channel,self.im_params['NUM_FRAMES'])
         
+    def framelist_by_time(self, color_channel : int = None)->list[list[int]]:
+        """
+        Returns a list of lists of frame indices that are simultaneous (within a single color channel)
 
-    def registration_dict(self, reference_method="suite2p", color_channel : int = None, save = True, **kwargs) -> dict:
+        INPUTS
+        ------
+
+        color_channel : int
+
+            Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
+
+        RETURN
+        ------
+
+        list[list[int]] :
+
+            Returns a list of lists of ints, each sublist corresponding all frames across z for one timepoint
+            and one color channel.
+        """
+        
+        n_slices = self.im_params['NUM_SLICES']
+        fps = self.im_params['FRAMES_PER_SLICE']
+        colors = self.im_params['COLORS']
+        
+        return siffutils.slicefcns.framelist_by_timepoint(n_slices, fps, colors, color_channel, self.im_params['NUM_FRAMES'])
+
+    def registration_dict(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
+        elastic_slice : float = np.nan, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 
@@ -697,6 +735,12 @@ class SiffReader(object):
         save (optional) : bool
 
             Whether or not to save the dict. Name will be as TODO
+        
+        elastic_slice (optional) : float
+
+            After each slice is registered, regularize estimated shifts. To ignore, use np.nan, None, or False.
+            Defaults to off. The larger the argument, the stronger the "prior" (i.e. the less adjacent slices
+            in time matter to compress the shift). Sometimes this works well. Sometimes it does not.
 
         Other kwargs are as in siffutils.registration.register_frames
 
@@ -734,6 +778,30 @@ class SiffReader(object):
         # merge the dicts
         from functools import reduce
         reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
+
+        # Decide if simultaneous frames from separate planes will be used to help align one another
+        if not isinstance(elastic_slice,float):
+            elastic_slice = 0.0
+        if elastic_slice > 0.0:
+            if np.abs(elastic_slice - np.sqrt(self.im_params['NUM_SLICES']-3)) < 0.3:
+                warnings.warn("ELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
+                              f"\nYOU USED {elastic_slice}"
+                              f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD"
+                             )
+                elastic_slice = elastic_slice+1.0
+            simultaneous_frames = self.framelist_by_time(color_channel=color_channel)
+            from .siffutils.registration import regularize_all_tuples
+            for framelist in simultaneous_frames:
+                regularized = regularize_all_tuples(
+                    [reg_dict[frame] for frame in framelist],
+                    self.im_params['YSIZE'],
+                    self.im_params['XSIZE'],
+                    elastic_slice
+                )
+                for frame_idx in range(len(framelist)):
+                    reg_dict[framelist[frame_idx]] = regularized[frame_idx]                    
+
+        # Now store the registration dict
         self.registrationDict = reg_dict
         self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
 

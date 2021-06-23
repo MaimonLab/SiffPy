@@ -96,7 +96,7 @@ def px_log_likelihood_exp(photon_arrivals, params):
 
     return np.nansum(np.log(arrival_p)*photon_arrivals)
 
-def monoexponential_prob(x_range, tau, tau_g):
+def monoexponential_prob(x_range, tau, tau_g, cut_negatives = True):
     """ Takes in parameters of an exponential distribution
     convolved with a Gaussian, and outputs the probability
     of each element of x_range
@@ -120,12 +120,15 @@ def monoexponential_prob(x_range, tau, tau_g):
     p (ndarray) -- Probability of each corresponding element of x_range
     """
     gauss_coeff = (1/(2*tau)) * np.exp((tau_g**2)/(2*(tau**2)))
-    normalization = special.erfc( -(tau * x_range - tau_g**2)/ (np.sqrt(2)*tau_g*tau) )
+    normalization = special.erfc( -(tau * x_range + tau_g**2)/ (np.sqrt(2)*tau_g*tau) )
     exp_dist = np.exp(-x_range/tau)
 
-    p_out = gauss_coeff * normalization * exp_dist * (x_range > 0) # for above tau_o
-
-    #rev_norm = special.erfc( -(-tau*x_range - tau_g**2)/ (np.sqrt(2)*tau_g*tau))
+    if cut_negatives:
+        p_out = gauss_coeff * normalization * exp_dist * (x_range > 0) # for above tau_o
+    else:
+        p_out = gauss_coeff * normalization * exp_dist
+    
+    #rev_norm = special.erfc( -(-tau*x_range + tau_g**2)/ (np.sqrt(2)*tau_g*tau))
 
     #p_out += normalization*gauss_coeff*(x_range < 0)
     return p_out

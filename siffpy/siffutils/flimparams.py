@@ -9,8 +9,6 @@ class FLIMParams(object):
     fitting FLIM arrival time data
     to an exponential.
 
-    Booga booga
-
     TODO: OFFER MORE OPTIONS FOR FITTING
     E.G. WITH MYSTIC, WITH DIFFERENT
     CONSTRAINED NONLINEAR FITTING APPROACHES,
@@ -240,7 +238,7 @@ class FLIMParams(object):
         }
         return params_dict
 
-    def p_dist(self, x_range : np.ndarray) -> np.ndarray:
+    def p_dist(self, x_range : np.ndarray, **kwargs) -> np.ndarray:
         """
         Return the fit value's probability distribution. To plot against a
         data set, rescale this by the total number of photons in the data set.
@@ -271,7 +269,8 @@ class FLIMParams(object):
                 monoexponential_prob(
                     x_range-params[-2], # arrival time shifted by t_o
                     params[2*component + 1], # this component's tau value
-                    params[-1] # the IRF width
+                    params[-1], # the IRF width
+                    **kwargs
                 )
         return arrival_p
 
