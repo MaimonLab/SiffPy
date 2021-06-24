@@ -18,6 +18,7 @@ SiffReader::SiffReader(){
     suppress_errors = false; 
     suppress_warnings = false;
     debug = true;
+    debug_clock = std::chrono::high_resolution_clock();
 }
 
 int SiffReader::openFile(const char* _filename) {
@@ -163,6 +164,36 @@ void SiffReader::closeFile(){
 ///// GET FILE DATA ////////
 ////////////////////////////
 
+PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim) {
+    // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
+    // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
+    // the variable type of output
+    try{
+        if(!siff.is_open()) throw std::runtime_error("No open file.");
+        siff.clear();
+        // create the list into which we shall stuff the numpy arrays
+        PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
+        PyObject* shift_tuple = PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                        PyLong_FromLong(0),
+                        PyLong_FromLong(0)
+                    );
+        if(frames){
+            for(uint64_t i = 0; i < framesN; i++){
+                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, shift_tuple);
+            }
+        }
+        else{
+            for(uint64_t i = 0; i<params.numFrames; i++){
+                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, shift_tuple);
+            }
+        }
+        return numpyArrayList;
+    }
+    catch(std::exception& e){
+        errstring = std::string("Error parsing frames: ") + e.what();
+        throw e;
+    }
+}
 
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
@@ -185,6 +216,38 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
                 singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, shift_tuple);
             }
         }
+        return numpyArrayList;
+    }
+    catch(std::exception& e){
+        errstring = std::string("Error parsing frames: ") + e.what();
+        throw e;
+    }
+}
+
+PyObject* SiffReader::retrieveFrames(uint64_t frames[], 
+    uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin) {
+    // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
+    // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
+    // the variable type of output
+    try{
+        if(!siff.is_open()) throw std::runtime_error("No open file.");
+        if(!params.issiff) return retrieveFrames(frames, framesN, flim, registrationDict);
+        siff.clear();
+        // create the list into which we shall stuff the numpy arrays
+        PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
+        if(frames){
+            for(uint64_t i = 0; i < framesN; i++){
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
+                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, terminalBin, shift_tuple);
+            }
+        }
+        else{
+            for(uint64_t i = 0; i<params.numFrames; i++){
+                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(i));
+                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, terminalBin, shift_tuple);
+            }
+        }
+        //throw std::runtime_error("Terminal bin not yet implemented!");
         return numpyArrayList;
     }
     catch(std::exception& e){
@@ -523,6 +586,40 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
     loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
+    //
+    int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
+    Py_DECREF(numpyArray);
+    
+    if (ret<0) throw std::runtime_error("Failure to append frame array to list");
+}
+
+
+void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, 
+    uint64_t terminalBin, PyObject* shift_tuple){
+    // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
+    // Then appends that IFD to a list of numpy arrays
+    if(!params.issiff) return singleFrameRetrieval(thisIFD, numpyArrayList, flim, shift_tuple);
+    
+    FrameData frameData = getTagData(thisIFD, params, siff);
+    // create a new numpy array of dimensions:
+    // (y, x, tau)
+    //const int ND = 2;
+    const int ND = 2 + (params.issiff && flim); // number of dimensions
+    npy_intp dims[ND];
+    uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
+
+    dims[0] = frameData.imageLength;
+    dims[1] = frameData.imageWidth;
+    if (params.issiff & flim) dims[2] = tau_dim;
+
+    PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
+        ND,
+        dims,
+        NPY_UINT16, 
+        0 // C order, i.e. last index increases fastest
+    ); // Or should I make a sparse array? Maybe make that an option? TODO.
+
+    loadArrayWithData(numpyArray, params, frameData, siff, flim, terminalBin, shift_tuple);
     //
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);

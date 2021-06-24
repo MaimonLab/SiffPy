@@ -103,6 +103,53 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     }
 }
 
+inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple, uint64_t terminalBin) // uses siffCompress
+    { // TODO : FINSIH ME!!!
+    
+    throw std::runtime_error("Not yet implemented (compressed reads with a terminal bin.");
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    
+    
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+    if(!flim) { // easy, this data's already stored in the start.
+
+        uint16_t frameReads[samplesThisFrame];
+        siff.read((char*)&frameReads,pixelsInImage * sizeof(uint16_t));
+        siff.clear();
+
+        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+            uint64_t shifted_px = ( (((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
+            shifted_px += (px % dims[0] + x_shift) % dims[1];
+            data_ptr[shifted_px] += frameReads[px];
+        }
+
+        return;
+    }
+    
+    // first get the number of photons for each pixel
+    uint16_t photonCounts[frameData.imageLength * frameData.imageWidth];
+    siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
+
+    // now put the arrival time values that are in succession into the right elements of the numpy array.
+    for (uint64_t px = 0; px < pixelsInImage; px++) {
+        uint16_t photonsThisPx = photonCounts[px];
+        uint16_t pxReads[photonsThisPx];
+        siff.read((char*)&pxReads, photonsThisPx*sizeof(uint16_t));
+
+        for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
+            data_ptr[
+                ((px / frameData.imageWidth + y_shift) % dims[0]) * dims[1] * dims[2] // y index
+                    +((px % frameData.imageWidth + x_shift) % dims[1]) *dims[2]       // x index
+                        + pxReads[readNum]                      // tau index
+            ]++;
+        }
+        
+    }
+}
 
 inline void readCompressedForArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
     double_t* lifetime_ptr, uint16_t* intensity_ptr, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
@@ -170,6 +217,40 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
     }
 }
 
+inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple, uint64_t terminalBin) // every read is a uint64 of y, x, tau
+    {
+    
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+    uint64_t frameReads[samplesThisFrame];
+    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.clear();
+    if(flim) {
+        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+            // increment the appropriate numpy element
+            if (U64TOTAU(frameReads[photon]) > terminalBin) continue;
+            
+            data_ptr[
+                (((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1]*dims[2])
+                    + (((U64TOX(frameReads[photon]) + x_shift) % dims[1]) * dims[2])
+                        + U64TOTAU(frameReads[photon])
+            ]++;
+        }
+    }
+    else{
+        // if we're just doing intensity, the pointer element to increment should be different
+        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+            if (U64TOTAU(frameReads[photon]) > terminalBin) continue;
+                // increment the appropriate numpy element
+            data_ptr[((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1] + 
+                ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
+        }
+    }
+}
+
 
 inline void readRawForArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
     double_t* lifetime_ptr, uint16_t* intensity_ptr, npy_intp* dims, PyObject* shift_tuple) // every read is a uint64 of y, x, tau
@@ -219,7 +300,7 @@ inline void loadArrayWithData(PyArrayObject* numpyArray,
     }
     else {
         // pretty simple -- it's already formatted right.
-        if(!(samplesThisFrame == (dims[0]*dims[1]))) throw std::runtime_error("Frame data dimensions don't match frame metadata");
+        if(!(samplesThisFrame == uint64_t(dims[0]*dims[1]))) throw std::runtime_error("Frame data dimensions don't match frame metadata");
         // now that we're sure, just write the data into the data pointer!
         // willing to eat a small slowdown for compactness, instead of reading
         // directly into the numpy array ptr, we'll add to the ptr.
@@ -239,6 +320,30 @@ inline void loadArrayWithData(PyArrayObject* numpyArray,
             data_ptr[shifted_px] += frameReads[px];
         }
     }
+};
+
+inline void loadArrayWithData(PyArrayObject* numpyArray,
+    SiffParams& params, FrameData& frameData, std::ifstream& siff,
+    bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL) {
+    
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+
+    // TODO: put the bool flags into the SiffParams struct.
+    uint16_t* data_ptr = (uint16_t *) PyArray_DATA(numpyArray);
+    npy_intp* dims = PyArray_DIMS(numpyArray);
+    
+    siff.clear();
+    siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
+    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
+    siff.clear();
+
+    frameData.siffCompress ?
+            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple, terminalBin) : 
+            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple, terminalBin);
+    // it's only ever called on siffs so I don't need the if/else
 };
 
 inline void loadArrayWithSummedArrivalTimes(
@@ -426,7 +531,7 @@ inline void log_p(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         if ( !(isinf(logp) || isnan(logp)) ) conf_ptr[this_px] += logp;
     }
 
-    for (uint64_t px = 0; px<dims[0]*dims[1]; px++) {
+    for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px];
         lifetime_ptr[px] -= tauo;
     }
@@ -449,7 +554,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     }
 
     // Lifetime by pixel
-    for (uint64_t px = 0; px<dims[0]*dims[1]; px++) {
+    for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
         lifetime_ptr[px] -= tauo;
         conf_ptr[px] /= intensity_ptr[px]; // nan the bad ones
@@ -547,7 +652,7 @@ inline PyObject* readVectorToNumpyTuple(std::vector<uint64_t>& photonReadsTogeth
     return outTuple;
 }
 
-inline PyObject* normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
+inline void normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
     // divide the summed lifetime bins by the number of photons, subtract the offset
     PyArrayObject* lifetimeArray = (PyArrayObject*) PyTuple_GetItem(FlimTup, Py_ssize_t(0));
     double_t* lifetime_ptr = (double_t *) PyArray_DATA(lifetimeArray);
@@ -556,7 +661,7 @@ inline PyObject* normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
     PyArrayObject* intensityArray = (PyArrayObject*) PyTuple_GetItem(FlimTup, Py_ssize_t(1));
     uint16_t* intensity_ptr = (uint16_t *) PyArray_DATA(intensityArray);
     // Lifetime by pixel
-    for (uint64_t px = 0; px<dims[0]*dims[1]; px++) {
+    for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
         lifetime_ptr[px] -= tauo;
     }

@@ -152,7 +152,7 @@ PyObject* frameDataToDict(FrameData& frameData){
 template <class T>
 PyObject* VectorToList(std::vector<T> vec) {
     PyObject* list = PyList_New(vec.size());
-    for(int idx = 0; idx < vec.size(); idx++){
+    for(uint64_t idx = 0; idx < vec.size(); idx++){
         PyList_SetItem(list, idx, Py_BuildValue("K",vec[idx]));
     }
     return list;

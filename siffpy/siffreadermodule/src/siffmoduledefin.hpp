@@ -4,15 +4,15 @@
 
 // KEYWORD ARGS BY FUNCTION
 
-#define GET_FRAMES_KEYWORDS (char*[]){"frames", "type", "flim", "registration", NULL}
+#define GET_FRAMES_KEYWORDS (const char*[]){"frames", "type", "flim", "registration", "discard_bins", NULL}
 
-#define GET_FRAMES_METADATA_KEYWORDS (char*[]){"frames", NULL}
+#define GET_FRAMES_METADATA_KEYWORDS (const char*[]){"frames", NULL}
 
-#define POOL_FRAMES_KEYWORDS (char*[]){"pool_lists", "type", "flim", "registration", NULL}
+#define POOL_FRAMES_KEYWORDS (const char*[]){"pool_lists", "type", "flim", "registration", "discard_bins", NULL}
 
-#define FLIM_MAP_KEYWORDS (char*[]){"params","frames", "confidence_metric", "registration","sizeSafe", NULL}
+#define FLIM_MAP_KEYWORDS (const char*[]){"params","frames", "confidence_metric", "registration","sizeSafe", "discard_bins", NULL}
 
-#define GET_HISTOGRAM_KEYWORDS (char*[]){"frames", NULL}
+#define GET_HISTOGRAM_KEYWORDS (const char*[]){"frames", NULL}
 
 
 // DOCSTRING DEFS
@@ -74,7 +74,8 @@
     "If list, returns a list of single frame numpy arrays. If an ndarray, returns a full (time by color by z by x by y by tau) array, "\
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"\
     "\tflim (optional, BOOL): \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"\
-    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."
+    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."\
+    "\tdiscard_bins (optional, int): arrival bin (IN UNITS OF BIN) beyond which to discard photons"
 
 #define GET_METADATA_DOCSTRING \
     "get_metadata(frames : list[int] = [])\n"\
@@ -95,7 +96,8 @@
     "If list, returns a list of single frame numpy arrays. If an ndarray, returns a full (time by color by z by x by y by tau) array,"\
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"\
     "\tflim (optional, BOOL): return a tau axis containing arrival time (irrelevant if file is not a .siff)\n"\
-    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."
+    "\tregistration (optional, dict): a registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."\
+    "\tdiscard_bins (optional, int): arrival bin (IN UNITS OF BIN) beyond which to discard photons"
 
 #define FLIM_MAP_DOCSTRING \
     "flim_map(params : siffutils.FLIMParams, framelist : list[list[int]] = None, confidence_metric : string = 'chi_sq')\n"\
@@ -116,7 +118,8 @@
     "\t(flimmap, intensity, chi_sq)\n"\
     "\t\tflimmap: list of np.ndarrays containing the empirical lifetime for each pixel (UNITS OF HISTOGRAM BINS).\n"\
     "\t\tintensity: list of np.ndarrays containing the number of photons used to compute the lifetime in each pixel.\n"\
-    "\t\tconfidence: list of np.ndarrays reporting the confidence metric for each pixel under the assumption in FLIMParams."
+    "\t\tconfidence: list of np.ndarrays reporting the confidence metric for each pixel under the assumption in FLIMParams."\
+    "\tdiscard_bins (optional, int): arrival bin (IN UNITS OF BIN) beyond which to discard photons"
 
 #define GET_HISTOGRAM_DOCSTRING \
     "get_histogram(frames : list[int] = None)-> np.ndarray \n"\

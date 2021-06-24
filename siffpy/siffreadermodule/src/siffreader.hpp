@@ -21,7 +21,7 @@ class SiffReader
     private:
         std::ifstream siff; // the .siff file, a very delicately wrapped tiff
         std::ofstream debugger; // file for debug logging.
-        std::chrono::high_resolution_clock debug_clock = std::chrono::high_resolution_clock();
+        std::chrono::high_resolution_clock debug_clock;
         std::string filename; // the name of the file
         SiffParams params; // fixed TIFF parameters
 
@@ -36,6 +36,7 @@ class SiffReader
         PyArrayObject* frameAsNumpy(uint64_t IFD, bool flim, PyObject* shift_tuple = NULL); // returns an ndarray object 
         
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
+        void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList); // internal method to get metadata for one frame
         void singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray); // add this frame's arrival times to the 1-d array numpyArray
         
@@ -55,7 +56,9 @@ class SiffReader
         
         int openFile(const char* filename);
         
-        PyObject* retrieveFrames(uint64_t frames[]=NULL, uint64_t framesN=0, bool flim = false, PyObject* registrationDict = NULL);
+        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim);
+        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict);
+        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
 
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric

@@ -85,13 +85,16 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
     PyObject *type = NULL;
     bool flim = false;
     PyObject* registrationDict = NULL;
+    PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!pO!:get_frames", GET_FRAMES_KEYWORDS,
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!pO!O:get_frames", const_cast<char**>(GET_FRAMES_KEYWORDS),
         &PyList_Type, &frames_list,
         &PyType_Type, &type,
         &flim,
-        &PyDict_Type, &registrationDict)
+        &PyDict_Type, &registrationDict,
+        &discard_bins
+        )
     ) {
         PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
@@ -107,7 +110,6 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
         Py_DECREF(registrationDict);
         registrationDict = PyDict_New();
     }
-
     else {
         uint64_t framesArray[PyList_Size(frames_list)];
         for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
@@ -130,8 +132,18 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
         }
         uint64_t framesN = PyList_Size(frames_list);
         try{
-            PyObject* frames = Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
-            return frames;
+            if (discard_bins) {
+                if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
+                    return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
+                }
+                else {
+                    uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
+                    return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict, terminalBin);
+                }
+            }
+            else{
+                return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
+            }
         }
         catch(...) {
             PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
@@ -145,7 +157,10 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
     PyObject *frames_list = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_frames_metadata", GET_FRAMES_METADATA_KEYWORDS, &PyList_Type, &frames_list)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_frames_metadata", 
+            const_cast<char**>(GET_FRAMES_METADATA_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
         return NULL;
     }
 
@@ -177,14 +192,17 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
     PyObject* type = NULL;
     bool flim = false;
     PyObject* registrationDict = NULL;
+    PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!:pool_frames", 
-        POOL_FRAMES_KEYWORDS,
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!O:pool_frames", 
+        const_cast<char**>(POOL_FRAMES_KEYWORDS),
         &PyList_Type, &listOfFramesListed,
         &PyType_Type, &type,
         &flim,
-        &PyDict_Type, &registrationDict)
+        &PyDict_Type, &registrationDict,
+        &discard_bins
+        )
     ) {
         return NULL;
     }
@@ -232,7 +250,20 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
 
 
     try{
-        return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
+        if (discard_bins) {
+            if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
+                return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
+            }
+            else {
+                uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
+                PyErr_SetString(PyExc_NotImplementedError, "Discarding photon counts not yet implemented.");
+                return NULL;
+                // TODO: IMPLEMENT
+            }
+        }
+        else{
+            return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
+        }
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
@@ -249,13 +280,15 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     char* conf_measure;
     uint16_t conf_measure_length = 0;
     PyObject* registrationDict = NULL;
+    PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!p:flim_map", FLIM_MAP_KEYWORDS,
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!pO:flim_map", const_cast<char**>(FLIM_MAP_KEYWORDS),
         &FLIMParams,
         &PyList_Type,&listOfFramesListed,
         &conf_measure, &conf_measure_length,
-        &PyDict_Type, &registrationDict
+        &PyDict_Type, &registrationDict,
+        &discard_bins
         )) {
         return NULL;
     }
@@ -336,7 +369,21 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     }
 
     try{
-        return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+        if (discard_bins) {
+            if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
+                return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+            }
+            else {
+                uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
+                PyErr_SetString(PyExc_NotImplementedError, "Discarding photon counts not yet implemented.");
+                return NULL;
+                //
+                // TODO: IMPLEMENT
+            }
+        }
+        else{
+            return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+        }
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
@@ -348,7 +395,7 @@ static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, P
     PyObject* frames = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", GET_HISTOGRAM_KEYWORDS, &PyList_Type, &frames)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", const_cast<char**>(GET_HISTOGRAM_KEYWORDS), &PyList_Type, &frames)) {
         return NULL;
     }
 
