@@ -234,7 +234,9 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
         ])
 
-    def get_frames(self, frames: list[int] = None, flim : bool = False, registration_dict = None) -> list[np.ndarray]:
+    def get_frames(self, frames: list[int] = None, flim : bool = False, 
+        registration_dict : dict = None, discard_bins : int = None
+        ) -> list[np.ndarray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 
@@ -256,11 +258,22 @@ class SiffReader(object):
 
             Each frame requested returned as a numpy array (either 2d or 3d).
         """
-
-        if registration_dict is None:
-            return siffreader.get_frames(frames = frames, flim = flim)
+        if discard_bins is None:
+            if registration_dict is None:
+                return siffreader.get_frames(frames = frames, flim = flim)
+            else:
+                return siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
         else:
-            return siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
+            # arg checking
+            if not isinstance(discard_bins, int):
+                return self.get_frames(frames, flim, registration_dict)
+            else:
+                if registration_dict is None:
+                    return siffreader.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
+                else:
+                    return siffreader.get_frames(frames = frames, flim = flim, 
+                                                registration = registration_dict, 
+                                                discard_bins = discard_bins)
 
     def sum_across_time(self, timespan : int = 1, 
         timepoint_start : int = 0, timepoint_end : int = None,
@@ -603,7 +616,12 @@ class SiffReader(object):
             
             np.array(list_of_arrays).reshape(reshaped_dims)
 
-    def pool_frames(self, flim : bool = False, registration : dict = None, ret_type : type = list 
+    def pool_frames(self, 
+        framelist : list[list[int]], 
+        flim : bool = False,
+        registration : dict = None,
+        ret_type : type = list,
+        discard_bins = None
         ) -> list[np.ndarray]:
         """
         Wraps siffreader.pool_frames
@@ -613,7 +631,15 @@ class SiffReader(object):
 
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
+        if discard_bins is None:
+            list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
+        else:
+            if not isinstance(discard_bins, int):
+                return self.pool_frames(framelist, flim, registration, ret_type)
+            else:
+                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, 
+                    registration = registration, discard_bins = discard_bins 
+                )
 
         if ret_type == list:
             return list_of_arrays

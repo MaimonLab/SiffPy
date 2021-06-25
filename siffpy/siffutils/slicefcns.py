@@ -22,10 +22,15 @@ def framelist_by_slice(n_slices : int, fps : int, colors : list, color_channel :
     for slice_idx in range(n_slices):
         slice_offset = slice_idx * fps * n_colors # frames into volume before this slice begins
         slice_offset += color_channel
+
+        # HACKY CORRECTION!!!
+        slice_offset -= n_colors*(fps > 1) # shift every frame index back by one frame if there are multiple frames perslice
+
         slice_list = [] # all frames in this z plane
         for frame_num in range(fps):
             fn = frame_num * n_colors # 1 for each frame in the same slice
             slice_list += list(range(slice_offset+fn, n_frames, frames_per_volume))
+            slice_list = list(filter(lambda x: x>=0,slice_list)) # only needed for that -1 issue
 
         frame_list.append(slice_list)        
     

@@ -23,7 +23,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.3.3',
+       version = '0.3.4',
        install_requires = [
            'numpy',
        ],
@@ -32,5 +32,13 @@ setup (name = 'siffpy',
        ],
        description = 'Python package for reading and processing .siffs and ScanImage .tiffs',
        ext_modules = [siffmodule],
-       packages = setuptools.find_packages()
+       packages = setuptools.find_packages(),
+       license='GPL-3',
+       classifiers=[
+        'Natural Language :: English',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: Implementation :: CPython',
+        ],
+        author_email='thornquist@rockefeller.edu',
+        author='Stephen Thornquist'
        )

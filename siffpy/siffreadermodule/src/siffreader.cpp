@@ -308,6 +308,62 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* reg
     }
 }
 
+PyObject* SiffReader::poolFrames(PyObject* listOfLists, uint64_t terminalBins,
+    bool flim, PyObject* registrationDict) {
+    // Pools all frames into one summed element by reading one at a time
+    // and then appending them together. Considerably less memory intensive
+    // than reading them all into NumPy arrays first and THEN pooling.
+    // Permits multiple lists of lists, returning a single numpy array
+    // for each sublist.
+    
+    if (!params.issiff) return poolFrames(listOfLists, flim, registrationDict);
+
+    try{
+        PyObject* returnedList = PyList_New(Py_ssize_t(0));
+        // iterate through each list of frame indices
+        for(Py_ssize_t idx(0); idx < PyList_Size(listOfLists); idx++) {
+            // one merged numpy array for all of them. TODO: size checking!!
+            // need to ensure they all have compatible dimensions -- for now
+            // I just assume it, but as this expands to support mROI...
+
+            // already ensured these were all PyLongs
+            PyObject* listOfFrames = PyList_GetItem(listOfLists, idx);
+            
+            if(PyList_Size(listOfFrames)==0) { // empty list, you silly goose.
+                PyList_Append(returnedList,Py_None);
+                Py_DECREF(Py_None);
+            }
+            // get the first frame requested.
+
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,0));
+            PyArrayObject* firstFrame = 
+                frameAsNumpy(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], terminalBins, flim, shift_tuple);
+
+            // fuse in more if they asked for it.
+            if(PyList_Size(listOfFrames) > Py_ssize_t(1)) {
+                // more than one frame in the list
+                for(Py_ssize_t frameIdx(1); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
+                    PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,frameIdx)); 
+                    fuseFrames(
+                        firstFrame, // template fused onto
+                        params.allIFDs[ PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx)) ], // next frame to add
+                        flim, // what style to fuse it onto
+                        shift_tuple // registration shift
+                    ); 
+                }
+            }
+            
+            PyList_Append(returnedList, (PyObject*) firstFrame); // ADDS a reference
+            Py_DECREF(firstFrame); // prevent memory leaks on this object
+        }
+        return returnedList;
+    }
+    catch(std::exception& e) {
+        errstring = std::string("Error in pool frames: ") + e.what();
+        throw e;
+    }
+}
+
 PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict) {
     // For no confidence measure
     try{
@@ -658,6 +714,37 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* s
     return numpyArray;
 }
 
+PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, uint64_t terminalBins, bool flim, PyObject* shift_tuple) {
+    // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
+    // Identical to above, except returns numpyArray instead of appending it to a list
+
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+
+    FrameData frameData = getTagData(thisIFD, params, siff);
+    
+    // create a new numpy array of dimensions:
+    // (y, x, tau)
+    //const int ND = 2;
+    const int ND = 2 + (params.issiff && flim); // number of dimensions
+    npy_intp dims[ND];
+    uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
+
+    dims[0] = frameData.imageLength;
+    dims[1] = frameData.imageWidth;
+    if (params.issiff & flim) dims[2] = tau_dim;
+
+    PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
+        ND,
+        dims,
+        NPY_UINT16, 
+        0 // C order, i.e. last index increases fastest
+    );
+
+    loadArrayWithData(numpyArray, params, frameData, siff, flim, terminalBins, shift_tuple);
+    
+    return numpyArray;
+}
+
 void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
@@ -768,6 +855,16 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
 
     loadArrayWithData(fuseFrame, params, frameData, siff, flim, shift_tuple);
+}
+
+void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, uint64_t terminalBins, PyObject* shift_tuple) {
+    
+    FrameData frameData = getTagData(nextIFD, params, siff);
+
+    siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
+    if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    loadArrayWithData(fuseFrame, params, frameData, siff, flim, terminalBins, shift_tuple);
 }
 
 void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple) {

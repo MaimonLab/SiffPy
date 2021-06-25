@@ -34,7 +34,8 @@ class SiffReader
         void discernFrames();   // quickly runs through the file to identify all frames and their IFDs
         
         PyArrayObject* frameAsNumpy(uint64_t IFD, bool flim, PyObject* shift_tuple = NULL); // returns an ndarray object 
-        
+        PyArrayObject* frameAsNumpy(uint64_t IFD, uint64_t terminalBins, bool flim, PyObject* shift_tuple = NULL); // returns an ndarray object 
+
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL); // internal method called in loops to get each frame and point to the next
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList); // internal method to get metadata for one frame
@@ -44,6 +45,8 @@ class SiffReader
         void fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple = NULL); // takes existing FlimTuple and merges in a new frame's data
         
         void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple = NULL); // takes a source frame and the address of the frame to fuse in
+        void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, uint64_t terminalBins, PyObject* shift_tuple = NULL); // takes a source frame and the address of the frame to fuse in
+        
         void fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple = NULL); // takes a vector of photon reads and adds the next frame's reads to it.
         uint64_t nextIFD;
         uint64_t getFollowingIFD(uint64_t currIFD);
@@ -59,7 +62,9 @@ class SiffReader
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
+        
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
+        PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, bool flim = false, PyObject* registrationDict = NULL);
 
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq

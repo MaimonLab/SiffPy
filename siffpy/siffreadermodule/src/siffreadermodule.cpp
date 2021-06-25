@@ -256,9 +256,7 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
             }
             else {
                 uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                PyErr_SetString(PyExc_NotImplementedError, "Discarding photon counts not yet implemented.");
-                return NULL;
-                // TODO: IMPLEMENT
+                return Sf.poolFrames(listOfFramesListed, terminalBin, flim, registrationDict);
             }
         }
         else{

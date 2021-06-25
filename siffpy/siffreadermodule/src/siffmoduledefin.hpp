@@ -27,8 +27,8 @@
     "close():\n"\
         "\tCloses an open file.\n"\
     "get_file_header():\n"\
-        "\tReturns header data that applies across the file."\
-    "get_frames(frames=[], type=list, flim=False, registration = None):\n"\
+        "\tReturns header data that applies across the file.\n"\
+    "get_frames(frames=[], type=list, flim=False, registration = None, discard_bins = None):\n"\
         "\tReturns frames as a list of numpy arrays.\n"\
     "get_frame_metadata(frames=[]):\n"\
         "\tReturns frame metadata.\n"\

@@ -422,6 +422,16 @@ def regularize_all_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : f
     """
     from numpy.linalg import solve
 
+    # Warn the user if they're applying a dangerous elasticity ratio. But don't prevent it.
+    if np.abs(np.sqrt(np.abs(3-len(tuples))) - sigma) < 0.5:
+        warnings.warn(
+                f"""USING SINGULAR VALUE FOR ELASTIC REGULARIZATION PARAMETER
+                ( SIGMA IS WITHIN 0.5 OF SQRT(NUM_SLICES - 3) ).
+                You used sigma = {sigma} for {len(tuples)} slices. 
+                EXPECT WEIRD RESULTS."
+                """
+            )
+
     s = (3+sigma**2)*np.diag(np.ones(len(tuples)))
     trans_mat = s - 1
 
