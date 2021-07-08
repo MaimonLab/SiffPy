@@ -133,7 +133,7 @@ void SiffReader::discernFrames() {
     // and stores all the IFDs for quick lookup.
     uint64_t nextIFD = params.firstIFDAddress;
     uint64_t currIFD = 0;
-    while(nextIFD && !(currIFD == nextIFD)) {
+    while((nextIFD>0) && !(currIFD == nextIFD)) {
         // iterates through all the IFDs until it gets to the end
         siff.seekg(nextIFD); // go there first
         if(!(siff.good()||suppress_warnings)) throw std::runtime_error("Failed to reach IDF during load. Possible corrupt frame?");
@@ -147,7 +147,7 @@ void SiffReader::discernFrames() {
 
         siff.read((char*)&nextIFD, params.bytesPerPointer);
     }
-    if(params.allIFDs.back() == 0) params.allIFDs.pop_back(); // this is for the case that the last IFD is not 0ULL
+    if(params.allIFDs.back() == 0) params.allIFDs.pop_back(); // this is for the case that the last IFD is 0ULL
     params.numFrames = params.allIFDs.size();
     siff.clear(); // get rid of failbits
 }

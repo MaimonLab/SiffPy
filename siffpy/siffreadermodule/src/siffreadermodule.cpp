@@ -247,8 +247,7 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
             }
         }
     }
-
-
+    
     try{
         if (discard_bins) {
             if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {

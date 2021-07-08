@@ -9,7 +9,7 @@
 double mono_exp(uint16_t x, double tau, double sigma, double tauo) {
     // TODO: NOT QUITE RIGHT, USES EDGE INSTEAD OF INTEGRATING BIN
     double_t gauss_coeff = (1.0/(2.0*tau)) * exp(pow(sigma,2.0)/(2.0*pow(tau,2.0)));
-    double_t normalization = erfc( -(tau * (x-tauo) + pow(sigma,2.0))/ (sqrt(2.0)*sigma*tau) );
+    double_t normalization = erfc( -(tau * (x-tauo) - pow(sigma,2.0))/ (sqrt(2.0)*sigma*tau) );
     double_t exp_dist = exp(-(x-tauo)/tau);
 
     if (x > tauo) return gauss_coeff * normalization * exp_dist;

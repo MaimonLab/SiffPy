@@ -5,6 +5,7 @@
 *.dict
 *.ref
 *.DS_Store
+*.roi
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

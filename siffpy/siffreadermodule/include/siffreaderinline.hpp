@@ -546,7 +546,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     // we'll need the intensity pointer first anyways, so let's just get that
     for (uint64_t readNum = 0; readNum < reads.size(); readNum++) {
         uint64_t read = reads[readNum];
-        uint64_t this_px = U64TOY(read)*dims[1] + U64TOX(read);
+        uint64_t this_px = U64TOY(read)*dims[1] + U64TOX(read); // frame has already been registered by here
         uint16_t arrival = U64TOTAU(read);
         
         lifetime_ptr[this_px] += arrival;
@@ -558,6 +558,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
         lifetime_ptr[px] -= tauo;
         conf_ptr[px] /= intensity_ptr[px]; // nan the bad ones
+        conf_ptr[px] += intensity_ptr[px]; // for the iterative procedure, start as if all observed are 0.
     }
 
     // Now re-read the arrival time, knowing the expected value for each histogram bin per pixel
@@ -570,13 +571,14 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     std::sort(reads.begin(), reads.end());
     uint16_t obs = 0;
     uint64_t lastRead = reads[0];
+
     for (uint64_t readNum = 1; readNum < reads.size(); readNum++) {
         uint64_t read = reads[readNum];
         uint64_t this_px = U64TOY(read)*dims[1] + U64TOX(read);
         uint16_t arrival = U64TOTAU(read);
         obs = obs*(read==lastRead) + 1;
         double_t expected = intensity_ptr[this_px]*arrival_p[arrival];
-        conf_ptr[this_px] += ((2*obs+1)/expected) - 2; // dChi-sq/dObserved
+        conf_ptr[this_px] += ((2*obs-1)/expected) - 2; // dChi-sq/dObserved
     }
     // still debating whether there's a better, faster way
 }

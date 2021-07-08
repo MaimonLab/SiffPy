@@ -30,12 +30,12 @@ FLIM_AKAR = {
                 {'FRAC' : 0.3633, 'TAU' : 39.8358}
             ],
             'CHISQ' : 0.0,
-            'T_O' : 20,
+            'T_O' : 30,
             'IRF' :
                 {
                     'DIST' : 'GAUSSIAN',
                     'PARAMS' : {
-                        'SIGMA' : 4
+                        'SIGMA' : 8.0
                     }
                 }
         }

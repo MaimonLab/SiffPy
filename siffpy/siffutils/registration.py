@@ -75,13 +75,13 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
 
     """
 
-    nimg_init = min(len(frames)/10, 200)
+    nimg_init = min(int(len(frames)/10), 200)
     if 'nimg_init' in kwargs:
         nimg_init = kwargs['nimg_init']
         if not isinstance(nimg_init, int):
             warnings.warn("Suite2p alignment arg 'nimg_init' is not of type int. "
                           "Using default value instead.")
-            nimg_init = min(len(frames/10),200)
+            nimg_init = min(int(len(frames/10)),200)
         if nimg_init > len(frames):
             warnings.warn("Suite2p alignment arg 'nimg_init' is greater than number "
                           f"of frames being aligned. Defaulting to {len(frames)}.")
@@ -291,6 +291,11 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
         For prettier output formatting in a notebook or script. Pass the tqdm.tqdm object.
 
+    regularize_sigma (optional) : float
+
+        Strength of the initial values from phase correlation vs. coupling to adjacent frames.
+        Higher values mean stronger trust of the phase correlation.
+
     RETURNS
     -------
 
@@ -324,7 +329,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
             use_tqdm = True
             pbar : tqdm.tqdm = kwargs['tqdm']
     
-    regularize_sigma = 1.0
+    regularize_sigma = 2.0
     if 'regularize_sigma' in kwargs:
         if isinstance(kwargs['regularize_sigma'], float):
             regularize_sigma = kwargs['regularize_sigma']
@@ -378,6 +383,9 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
 
     ysize,xsize = frames_np[0].shape
+
+    # rebuild the reference images for storage.
+    ref_im = build_reference_image(frames, **kwargs)
 
     roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
 
