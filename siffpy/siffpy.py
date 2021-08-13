@@ -251,7 +251,7 @@ class SiffReader(object):
         reference = reference.lower() # case insensitive
 
         if reference == "epoch":
-            return np.array([frame['epoch'] 
+            return np.array([int(frame['epoch']*1e9) #convert to nanoseconds 
                 for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
             ])
         
