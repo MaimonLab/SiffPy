@@ -57,19 +57,26 @@ class FLIMParams(object):
     SCT March 28 2021, rainy day in Maywood NJ
     """
 
-    def __init__(self, param_dict = None):
+    def __init__(self, param_dict : dict = None, use_noise : bool = False):
         if param_dict is None:
             self.Ncomponents = None
             self.Exp_params = []
             self.IRF = {}
             self.T_O = 0
             self.CHI_SQD = np.nan
+            if use_noise:
+                self.noise = 0.0
         else:
             self.Ncomponents = param_dict['NCOMPONENTS']
             self.Exp_params = param_dict['EXPPARAMS']
             self.IRF = param_dict['IRF']
             self.T_O = param_dict['T_O']
             self.CHI_SQD = param_dict['CHISQ']
+            if 'NOISE' in param_dict:
+                self.noise = param_dict['NOISE']
+            else:
+                if use_noise:
+                    self.noise = 0.0
 
     @classmethod
     def from_tuple(cls, param_tuple : tuple):
@@ -90,31 +97,46 @@ class FLIMParams(object):
         }
         return cls(param_dict=params_dict)
 
+    def allow_noise(self):
+        self.noise = 0.0 # creates the attr if it does not exist already
 
     def __str__(self):
         return self.param_dict().__str__()
 
-    def chi_sq(self, data : np.ndarray, use_params : bool = None) -> float:
+    def chi_sq(self, data : np.ndarray, params : tuple = None, use_noise : bool = False) -> float:
         """
         Computes the chi-squared statistic of the
         input data "data" using the fit parameters
         in this class.
         TODO: USE THE WRAPAROUND
         """
-        if use_params is None:
+        if params is None:
             params = self.param_tuple()
-        else:
-            params = use_params
 
         arrival_p = np.zeros(data.shape) # incrementally updated by each component
-        for component in range(self.Ncomponents):
-            arrival_p += params[2*component] * \
-                monoexponential_prob(
-                    np.arange(arrival_p.shape[0])-params[-2], # arrival time shifted by t_o
-                    params[2*component + 1], # this component's tau value
-                    params[-1] # the IRF width
-                )
+
+        if use_noise:
+            for component in range(self.Ncomponents):
+                arrival_p += params[2*component] * \
+                    monoexponential_prob(
+                        np.arange(arrival_p.shape[0])-params[-3], # arrival time shifted by t_o
+                        params[2*component + 1], # this component's tau value
+                        params[-2] # the IRF width
+                    )
+        else:
+            for component in range(self.Ncomponents):
+                arrival_p += params[2*component] * \
+                    monoexponential_prob(
+                        np.arange(arrival_p.shape[0])-params[-2], # arrival time shifted by t_o
+                        params[2*component + 1], # this component's tau value
+                        params[-1] # the IRF width
+                    )
         
+        if use_noise:
+            arrival_p *= (1.0-params[-1])
+            arrival_p += params[-1]/arrival_p.shape[0]
+            
+
         total_photons = np.sum(data)
         chi_sq = ((data - total_photons*arrival_p)**2)/(total_photons*arrival_p)
 
@@ -122,9 +144,6 @@ class FLIMParams(object):
         
         true_chisq = np.nansum(chi_sq)
 
-        if use_params is None:
-            self.CHI_SQD = true_chisq
-        
         return true_chisq
 
     def fit_data(self, data : np.ndarray, num_components : int = 2, x0 : tuple = None , metric = None) -> None:
@@ -162,14 +181,22 @@ class FLIMParams(object):
 
         self.Ncomponents = num_components
 
+        if hasattr(self, 'noise'):
+            use_noise = True
+        else:
+            use_noise = False
+
         if metric is None:
-            objective = lambda x: self.chi_sq(data, use_params=x)
+            objective = lambda x: self.chi_sq(data, params=x, use_noise = use_noise)
 
         else:
             objective = lambda x: metric(data, x)
 
         if x0 is None:
-            x0 = (0.5,120,0.5,40,20,4) # seems to generally behave well
+            if use_noise:
+                x0 = (0.5,120,0.5,40,20,4,0.1)
+            else:
+                x0 = (0.5,120,0.5,40,20,4) # seems to generally behave well
 
         fit_obj = minimize(objective, x0, method='trust-constr',
                constraints=generate_linear_constraints_trust(self.param_dict()),
@@ -179,10 +206,15 @@ class FLIMParams(object):
 
         self.Exp_params = [{'FRAC': fit_tuple[2*comp], 'TAU':fit_tuple[2*comp+1]} for comp in range(self.Ncomponents)]
 
-        self.T_O = fit_tuple[-2]
-        self.IRF = {'DIST':'GAUSSIAN', 'PARAMS': {'SIGMA':fit_tuple[-1]}}
+        if use_noise:
+            self.T_O = fit_tuple[-3]
+            self.IRF = {'DIST':'GAUSSIAN', 'PARAMS': {'SIGMA':fit_tuple[-2]}}
+            self.noise = fit_tuple[-1]
+        else:
+            self.T_O = fit_tuple[-2]
+            self.IRF = {'DIST':'GAUSSIAN', 'PARAMS': {'SIGMA':fit_tuple[-1]}}
 
-        self.CHI_SQD = self.chi_sq(data)
+        self.CHI_SQD = self.chi_sq(data, use_noise=use_noise)
 
         return fit_obj
 
@@ -198,6 +230,7 @@ class FLIMParams(object):
         tau_n
         tau_o (double) the offset of the laser pulse relative to the first bin
         tau_g (double) the width of the estimated instrument response Gaussian
+        noise (double) the ratio of noise photons to total photons
         """
 
         param_tuple = []
@@ -205,6 +238,8 @@ class FLIMParams(object):
             param_tuple.extend([self.Exp_params[comp]['FRAC'],self.Exp_params[comp]['TAU']])
         param_tuple.append(self.T_O)
         param_tuple.append(self.IRF['PARAMS']['SIGMA'])
+        if hasattr(self, 'noise'):
+            param_tuple.append(self.noise)
         return tuple(param_tuple)
 
     def param_dict(self) -> dict:
@@ -227,6 +262,7 @@ class FLIMParams(object):
                                 SIGMA -- (double) inferred width of the Gaussian spread (in units of HISTOGRAM BINS)
                         TODO: Add more
                     PARAMS -- (dict) dictionary of IRF parameter fits
+                NOISE -- (float, optional) ratio of signal photons to noise photons
         """
 
         params_dict = {
@@ -234,8 +270,12 @@ class FLIMParams(object):
             'EXPPARAMS' : self.Exp_params,
             'CHISQ' : self.CHI_SQD,
             'T_O' : self.T_O,
-            'IRF' : self.IRF
+            'IRF' : self.IRF,
         }
+
+        if hasattr(self, 'noise'):
+            params_dict['NOISE'] = self.noise
+
         return params_dict
 
     def p_dist(self, x_range : np.ndarray, **kwargs) -> np.ndarray:
@@ -261,28 +301,35 @@ class FLIMParams(object):
         if len(x_range.shape) > 1:
             raise Exception("x_range must be one dimensional")
 
-        params = self.param_tuple()
+        params = self.param_dict()
 
         arrival_p = np.zeros(x_range.shape) # incrementally updated by each component
-        for component in range(self.Ncomponents):
-            arrival_p += params[2*component] * \
+        for component in range(params['NCOMPONENTS']):
+            exp_param = params['EXPPARAMS'][component]
+            arrival_p += exp_param['FRAC'] * \
                 monoexponential_prob(
-                    x_range-params[-2], # arrival time shifted by t_o
-                    params[2*component + 1], # this component's tau value
-                    params[-1], # the IRF width
+                    x_range-params['T_O'], # arrival time shifted by t_o
+                    exp_param['TAU'], # this component's tau value
+                    params['IRF']['PARAMS']['SIGMA'], # the IRF width
                     **kwargs
                 )
+        if 'NOISE' in params:
+            arrival_p *= 1.0 - params['NOISE']
+            arrival_p += params['NOISE']/arrival_p.shape[0]
+
         return arrival_p
 
 
 
 ### LOCAL FUNCTIONS
 
-def generate_bounds(params):
+def generate_bounds(params : dict):
     """
     All params > 0
     
     fracs < 1
+
+    noise < 1
     
     Param order:
     frac_1
@@ -291,7 +338,8 @@ def generate_bounds(params):
     frac_n
     tau_n
     t_o
-    sigma
+    sigma  
+    noise (if present)
     """
     lower_bounds_frac = [0 for x in range(params['NCOMPONENTS'])]
     lower_bounds_tau = [0 for x in range(params['NCOMPONENTS'])]
@@ -304,14 +352,21 @@ def generate_bounds(params):
     upper_bounds_tau = [np.inf for x in range(params['NCOMPONENTS'])]
     
     ub = [val for pair in zip(upper_bounds_frac, upper_bounds_tau) for val in pair]
-    ub.append(np.inf)
-    ub.append(np.inf)
+    ub.append(np.inf) # tau_o
+    ub.append(np.inf) # sigma
+
+    if 'NOISE' in params:
+        lb.append(0.0)
+        ub.append(1.0)
     
     return Bounds(lb, ub)
 
-def generate_linear_constraints_trust(params):
+def generate_linear_constraints_trust(params : dict):
     """ Only one linear constraint, sum of fracs == 1"""
-    lin_op = np.zeros((2*params['NCOMPONENTS']+2))
+    if 'NOISE' in params:
+        lin_op = np.zeros((2*params['NCOMPONENTS']+3))
+    else:
+        lin_op = np.zeros((2*params['NCOMPONENTS']+2))
     
     for comp in range(params['NCOMPONENTS']):
         lin_op[params['NCOMPONENTS']*comp] = 1

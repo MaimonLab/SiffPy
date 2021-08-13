@@ -28,7 +28,7 @@ int SiffReader::openFile(const char* _filename) {
         // First make sure we can open it at all.
         if(siff.is_open()) {
             if (filename == _filename) {
-                errstring = std::string("This file is already open. Was that an accident?");
+                errstring = std::string("\n\nThis file is already open. Was that an accident?\n");
                 return -2;
             }
             siff.close();
@@ -135,7 +135,7 @@ void SiffReader::discernFrames() {
     uint64_t currIFD = 0;
     while((nextIFD>0) && !(currIFD == nextIFD)) {
         // iterates through all the IFDs until it gets to the end
-        siff.seekg(nextIFD); // go there first
+        siff.seekg(nextIFD, siff.beg); // go there first
         if(!(siff.good()||suppress_warnings)) throw std::runtime_error("Failed to reach IDF during load. Possible corrupt frame?");
         currIFD = nextIFD;
         params.allIFDs.push_back(currIFD);
@@ -748,8 +748,8 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, uint64_t terminalBins,
 void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
-    siff.clear();
-    siff.seekg(thisIFD, std::ios::beg); // go there first
+    // siff.clear();
+    siff.seekg(thisIFD, siff.beg); // go there first
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Siff unable to open frame. Likely error in preceding processing.");
     
     uint64_t numTags; // number of tags in this directory before the real metadata
@@ -760,16 +760,105 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
         frameData.tagList = PyList_New(Py_ssize_t(0));
     }
 
-    char tagBuffer[params.bytesPerTag];
+    char thisTag[params.bytesPerTag];
+    // tag parsing TODO: SHOULD BE INLINED SOMEWHERE ELSE
     for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
-        siff.read(tagBuffer, params.bytesPerTag);
+        siff.read(thisTag, params.bytesPerTag);
         // append info to frameData, defined in framedatastruct.hpp
-        parseTags(tagBuffer,frameData,params);//
-        PyObject* tempVal = Py_BuildValue("y#",tagBuffer, Py_ssize_t(params.bytesPerTag));
+        
+        uint16_t tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
+        // figure out the number of bytes needed to read the data correctly
+        uint16_t datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
+        uint16_t contentChars = datatypeToCharCount(datatype); // defined in sifdefin
+
+        if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
+        // TODO: DO THIS RIGHT. I ALREADY KNOW THEY ALL ONLY USE A SINGLE TAG VALUE HERE BUT I SHOULD
+        // MAKE THIS WORK FOR _ALL_ TIFFS
+        
+        // convert to a single value
+        
+        uint64_t contentVals = 0;
+        // 8 + 4*bigtiff corresponds to the 4 bytes of identifier + the 4 bytes for number of values in tag (or 8 if bigtiff)
+        for(int16_t charnum = (contentChars-1); 0<=charnum; charnum--) {
+            contentVals <<= 8;
+            contentVals += (thisTag[charnum + 8 + 4*params.bigtiff] & 0xFF); // gotta be honest... I don't understand why the  & 0xFF is necessary. Cut me some slack I learned C 2 months ago.
+        }
+        
+        // now correct the typing if it's wrong
+        switch(tagID){
+            case IMAGEWIDTH:
+                frameData.imageWidth = contentVals;
+                break;
+            case IMAGELENGTH:
+                frameData.imageLength = contentVals;
+                break;
+            case BITSPERSAMPLE:
+                frameData.bitsPerSample = (uint16_t) contentVals;
+                if (params.issiff) frameData.bitsPerSample = 64; // this is a given... for now.
+                break;
+            case COMPRESSION:
+                frameData.compression = (uint16_t) contentVals;
+                break;
+            case PHOTOMETRIC_INTERPRETATION:
+                frameData.photometric = (uint16_t) contentVals;
+                break;
+            case IMAGEDESCRIPTION:
+                frameData.endOfIFD = contentVals;
+                break;
+            case STRIPOFFSETS:
+                frameData.dataStripAddress = contentVals;
+                break;
+            case ORIENTATION:
+                frameData.orientation = (uint16_t) contentVals;
+                break;
+            case SAMPLESPERPIXEL:
+                frameData.samplesPerPixel = (uint16_t) contentVals;
+                break;
+            case ROWSPERSTRIP:
+                frameData.rowsPerStrip = contentVals;
+                break;
+            case STRIPBYTECOUNTS:
+                frameData.stripByteCounts = contentVals;
+                break;
+            case XRESOLUTION:
+                frameData.xResolution = contentVals;
+                break;
+            case YRESOLUTION:
+                frameData.yResolution = contentVals;
+                break;
+            case PLANARCONFIGURATION:
+                frameData.planarConfig = (uint16_t) contentVals;
+                break;
+            case RESOLUTIONUNIT:
+                frameData.resUnit = (uint16_t) contentVals;
+                break;
+            case SOFTWAREPACKAGE:
+                frameData.NVFD_address = contentVals;
+                break;
+            case ARTIST:
+                frameData.ROI_address = contentVals;
+                break;
+            case SAMPLEFORMAT:
+                frameData.sampleFormat = (uint16_t) contentVals;
+                break;
+            case SIFFTAG:
+                frameData.siffCompress = (bool) contentVals;
+                break;
+            default:
+                if (params.suppress_warnings) break;
+                PyErr_WarnEx(PyExc_RuntimeWarning,
+                    (std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID) +  "\n" +
+                    std::string("To suppress this warning in the future, call siffreader.suppress_warnings()")).c_str(),
+                    Py_ssize_t(1)
+                );
+                //throw std::runtime_error(std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID));
+        }
+        siff.clear();
+        PyObject* tempVal = Py_BuildValue("y#",thisTag, Py_ssize_t(params.bytesPerTag));
         PyList_Append(frameData.tagList, tempVal);
         Py_DECREF(tempVal); // Append adds a reference
     }
-    siff.clear();
+
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
     if(!debug && (frameData.dataStripAddress < frameData.endOfIFD)) throw std::runtime_error("Negative description length -- error parsing tags?");
     
@@ -779,11 +868,9 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
         frameData.dataStripAddress - frameData.endOfIFD;
 
     frameData.stringlength = description_length;
-    siff.seekg(frameData.endOfIFD, std::ios::beg);
-    siff.clear();
+    siff.seekg(frameData.endOfIFD, siff.beg);
     char metaString[description_length];
     siff.read(metaString, description_length);
-    siff.clear();
     frameData.frameMetaData = std::string(metaString);
     PyObject* frameDict = frameDataToDict(frameData);
     PyList_Append(metaDictList, frameDict); // append adds a reference

@@ -69,6 +69,7 @@ class SiffReader(object):
         self.flim = flim
         self.registrationDict = None
         self.reference_frames = None
+        self.debug = False
 
     def __del__(self):
         """ Close file before being destroyed """
@@ -110,7 +111,10 @@ class SiffReader(object):
 
         hd = siffreader.get_file_header()
         self.file_header =  siffutils.header_data_to_nvfd(hd)
-
+        
+        if self.debug:
+            print("Header read")
+        
         self.im_params = siffutils.most_important_header_data(self.file_header)
         self.im_params['NUM_FRAMES'] = siffreader.num_frames() # TODO fix the bug in this that gives 1 frame too many sometimes!!
 
@@ -131,18 +135,18 @@ class SiffReader(object):
             with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
                 reg_dict = pickle.load(dict_file)
             if isinstance(reg_dict, dict):
-                warnings.warn("Found a registration dictionary for this image and importing it.")
+                warnings.warn("\n\nFound a registration dictionary for this image and importing it.\n")
                 self.registrationDict = reg_dict
             else:
-                warnings.warn("Putative registration dict for this file is not of type dict.")
+                warnings.warn("\n\nPutative registration dict for this file is not of type dict.\n")
         if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
             with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
                 ref_ims = pickle.load(images_list)
             if isinstance(ref_ims, list):
-                warnings.warn("Found a reference image list for this file and importing it.")
+                warnings.warn("\n\nFound a reference image list for this file and importing it.\n")
                 self.reference_frames = ref_ims
             else:
-                warnings.warn("Putative reference images object for this file is not of type list.", stacklevel=2)
+                warnings.warn("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
             
     def close(self) -> None:
         """ Closes opened file """
@@ -201,8 +205,8 @@ class SiffReader(object):
         else:
             if timepoint_end > int(self.im_params['NUM_FRAMES']/timestep_size):
                 warnings.warn(
-                    "timepoint_end greater than total number of frames.\n"+
-                    "Using maximum number of complete timepoints in image instead."
+                    "\ntimepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead.\n"
                 )
                 timepoint_end = int(self.im_params['NUM_FRAMES']/timestep_size) # hope float arithmetic won't bite me in the ass here
             
@@ -217,7 +221,7 @@ class SiffReader(object):
             for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=framelist))
         ])
     
-    def get_time(self, frames : list[int] = None) -> np.ndarray:
+    def get_time(self, frames : list[int] = None, reference : str = "experiment") -> np.ndarray:
         """
         Gets the recorded time (in seconds) of the frame(s) numbered in list frames
 
@@ -225,6 +229,13 @@ class SiffReader(object):
         ------
         frames (optional, list):
             If not provided, retrieves time value of ALL frames.
+
+        reference (optional, str):
+            Referenced to start of the experiment, or referenced to epoch time.
+            TODO: ACTUALLY IMPLEMENT
+            Possible values:
+                experiment - referenced to experiment
+                epoch      - referenced to epoch
 
         RETURN VALUES
         -------------
@@ -235,11 +246,21 @@ class SiffReader(object):
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
         if frames is None:
-            frames = list(np.range(self.im_params['NUM_FRAMES']))
+            frames = list(range(self.im_params['NUM_FRAMES']))
 
-        return np.array([frame['frameTimestamps_sec']
-            for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
-        ])
+        reference = reference.lower() # case insensitive
+
+        if reference == "epoch":
+            return np.array([frame['epoch'] 
+                for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            ])
+        
+        if reference == "experiment":
+            return np.array([frame['frameTimestamps_sec']
+                for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            ])
+        else:
+            ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
 
     def get_frames(self, frames: list[int] = None, flim : bool = False, 
         registration_dict : dict = None, discard_bins : int = None
@@ -281,6 +302,11 @@ class SiffReader(object):
                     return siffreader.get_frames(frames = frames, flim = flim, 
                                                 registration = registration_dict, 
                                                 discard_bins = discard_bins)
+
+    def get_frames_metadata(self, frames : list[int] = None):
+        if frames is None:
+            frames = list(np.range(self.im_params['NUM_FRAMES']))
+        return siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
 
     def sum_across_time(self, timespan : int = 1, rolling : bool = False,
         timepoint_start : int = 0, timepoint_end : int = None,
@@ -380,8 +406,8 @@ class SiffReader(object):
         else:
             if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
                 warnings.warn(
-                    "timepoint_end greater than total number of frames.\n"+
-                    "Using maximum number of complete timepoints in image instead."
+                    "\ntimepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead.\n"
                 )
                 timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
             
@@ -545,8 +571,8 @@ class SiffReader(object):
         else:
             if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
                 warnings.warn(
-                    "timepoint_end greater than total number of frames.\n"+
-                    "Using maximum number of complete timepoints in image instead."
+                    "\ntimepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead.\n"
                 )
                 timepoint_end = int(self.im_params['NUM_FRAMES']/timestep_size) # hope float arithmetic won't bite me in the ass here
             
@@ -816,9 +842,9 @@ class SiffReader(object):
             elastic_slice = 0.0
         if elastic_slice > 0.0:
             if np.abs(elastic_slice - np.sqrt(self.im_params['NUM_SLICES']-3)) < 0.3:
-                warnings.warn("ELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
+                warnings.warn("\n\nELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
                               f"\nYOU USED {elastic_slice}"
-                              f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD"
+                              f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD\n"
                              )
                 elastic_slice = elastic_slice+1.0
             simultaneous_frames = self.framelist_by_time(color_channel=color_channel)
@@ -900,6 +926,11 @@ class SiffReader(object):
         """
         raise NotImplementedError()
 
+    def set_debug(self, debug : bool):
+        """ 
+        Toggles debug features of the SiffReader class on and off.
+        """
+        self.debug = debug
 
 
 #########
@@ -976,7 +1007,7 @@ def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, init
     params.fit_data(photon_arrivals,num_components=num_components, x0=params.param_tuple())
     return params
 
-def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : list[str] = None) -> list[FLIMParams]:
+def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : list[str] = None, use_noise : bool = False) -> list[FLIMParams]:
     """
     params = siffpy.fit_exp(numpy_array, num_components=2)
 
@@ -1001,6 +1032,10 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
 
         List of fluorophores, in same order as color channels. By default, is None.
         Used for initial conditions in fitting the exponentials. I doubt it's critical.
+
+    use_noise (bool, optional):
+
+        Whether or not to put noise in the FLIMParameter fit by default
     
     RETURN VALUES
     -------------
@@ -1039,11 +1074,11 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
 
     for idx in range(len(fluorophores)):
         if not (fluorophores[idx] in availables):
-            warnings.warn("Proposed fluorophore %s not in known fluorophore list. Using default paramss instead" % (fluorophores[idx]))
+            warnings.warn("\n\nProposed fluorophore %s not in known fluorophore list. Using default params instead\n" % (fluorophores[idx]))
             fluorophores[idx] = None
 
     list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]
-    list_of_flimparams = [FLIMParams(param_dict = this_dict) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
+    list_of_flimparams = [FLIMParams(param_dict = this_dict, use_noise = use_noise) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
     fluorophores_dict_list = [FlimP.param_dict() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
 
     if n_colors>1:

@@ -48,8 +48,16 @@ def most_important_header_data(header_dict):
     im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
     im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
     im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
-    im_params["PICOSECONDS_PER_BIN"] = 10*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
-    im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
+    try:
+        im_params["PICOSECONDS_PER_BIN"] = 10*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
+        im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
+    except:
+        warnings.warn(
+            """
+            File lacks header data relating to PicoQuant MultiHarps -- this may be a non-FLIM
+            ScanImage build. FLIM-dependent code may not work for these images!!
+            """
+        )
 
     return im_params
 

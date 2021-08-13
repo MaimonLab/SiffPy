@@ -20,7 +20,7 @@ Should work if you simply run `python setup.py install` in your conda environmen
 - Open a terminal and navigate to where you'd like to copy the SiffPy files with `cd` (e.g. `cd ~/Downloads`).
 - Clone the repo a location of your choosing with `git clone https://github.com/maimonlab/SiffPy`
 - Enter the newly created directory with `cd SiffPy`.
-- Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I intend to integrate `suite2p` registration into this code, so to be compatible with that I recommend using `>3.9`.
+- Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I've been using `>3.9` with `futures` but none of that seems essential.
 - Type `python setup.py install`.
 
 If you don't have numpy, it will complain during install and tell you to install `numpy` first (rather than downloading it yourself). To do so, you can either install it with `pip` by typing `pip install numpy` or with `conda` by typing `conda install -c anaconda numpy`. Uses only basic `numpy` includes, so version won't matter. 

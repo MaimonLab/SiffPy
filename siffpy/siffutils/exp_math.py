@@ -128,7 +128,4 @@ def monoexponential_prob(x_range, tau, tau_g, cut_negatives = True):
     else:
         p_out = gauss_coeff * normalization * exp_dist
     
-    #rev_norm = special.erfc( -(-tau*x_range + tau_g**2)/ (np.sqrt(2)*tau_g*tau))
-
-    #p_out += normalization*gauss_coeff*(x_range < 0)
     return p_out
