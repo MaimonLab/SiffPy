@@ -1,9 +1,15 @@
 # Utils for getting frames that are related in the slice dimension, be it sharing a slice or across slices
 import numpy as np
+from .imparams import ImParams
 
-def framelist_by_slice(n_slices : int, fps : int, colors : list, color_channel : int, n_frames : int) -> list[list[int]]:
+def framelist_by_slice(im_params : ImParams, color_channel : int) -> list[list[int]]:
     """ List of lists, each sublist containing the frames indices that share a z slice """
     
+    n_slices = im_params['NUM_SLICES']
+    fps = im_params['FRAMES_PER_SLICE']
+    colors = im_params['COLORS']
+    n_frames = im_params['NUM_FRAMES']
+
     if isinstance(colors, list):
         n_colors = len(colors)
     else:
@@ -36,9 +42,14 @@ def framelist_by_slice(n_slices : int, fps : int, colors : list, color_channel :
     
     return [frame_list[n] for n in range(len(frame_list))]
 
-def framelist_by_timepoint(n_slices : int, fps : int, colors : list, color_channel : int, n_frames : int)->list[list[int]]:
+def framelist_by_timepoint(im_params : ImParams, color_channel : int)->list[list[int]]:
     """ List of lists, each containing frames that share a timepoint"""
     
+    n_slices = im_params['NUM_SLICES']
+    fps = im_params['FRAMES_PER_SLICE']
+    colors = im_params['COLORS']
+    n_frames = im_params['NUM_FRAMES']
+
     if isinstance(colors, list):
         n_colors = len(colors)
     else:
@@ -57,3 +68,18 @@ def framelist_by_timepoint(n_slices : int, fps : int, colors : list, color_chann
     all_frames = all_frames.reshape(int(n_frames/frames_per_volume), n_slices * fps, n_colors)
     return all_frames[:,:,color_channel].tolist()
 
+def framelist_by_color(im_params : ImParams, color_channel : int)->list:
+    "List of all frames that share a color, regardless of slice"
+
+    colors = im_params['COLORS']
+    n_frames = im_params['NUM_FRAMES']
+    
+    if isinstance(colors, list):
+        n_colors = len(colors)
+    else:
+        n_colors = 1
+
+    if color_channel > n_colors:
+        raise ValueError("Color channel specified larger than number of colors acquired")
+
+    return list(range(color_channel, n_frames, n_colors))

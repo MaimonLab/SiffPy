@@ -251,7 +251,7 @@ class SiffReader(object):
         reference = reference.lower() # case insensitive
 
         if reference == "epoch":
-            return np.array([int(frame['epoch']*1e9) #convert to nanoseconds 
+            return np.array([int(frame['epoch']) # WARNING, OLD VERSIONS USED SECONDS NOT NANOSECONDS 
                 for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
             ])
         
@@ -723,12 +723,8 @@ class SiffReader(object):
             Returns a list of lists of ints, each sublist corresponding all frames across time for one z slice
             and one color channel.
         """
-        # quick reference to image parameters
-        n_slices = self.im_params['NUM_SLICES']
-        fps = self.im_params['FRAMES_PER_SLICE']
-        colors = self.im_params['COLORS']
         
-        return siffutils.framelist_by_slice(n_slices, fps, colors, color_channel,self.im_params['NUM_FRAMES'])
+        return siffutils.framelist_by_slice(self.im_params, color_channel)
         
     def framelist_by_time(self, color_channel : int = None)->list[list[int]]:
         """
@@ -750,11 +746,7 @@ class SiffReader(object):
             and one color channel.
         """
         
-        n_slices = self.im_params['NUM_SLICES']
-        fps = self.im_params['FRAMES_PER_SLICE']
-        colors = self.im_params['COLORS']
-        
-        return siffutils.slicefcns.framelist_by_timepoint(n_slices, fps, colors, color_channel, self.im_params['NUM_FRAMES'])
+        return siffutils.framelist_by_timepoint(self.im_params, color_channel)
 
     def registration_dict(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
         elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:

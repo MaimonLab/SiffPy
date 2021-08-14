@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from ..siffpy import SiffReader
+from .. import siffutils
 
 class FictracLog():
     """
@@ -48,7 +49,11 @@ class FictracLog():
         Goes through the frames in the file opened by the siffreader
         and identifies which frames in the FicTrac data are most
         closely aligned to it in time. Appends these as a column
-        to self.dataframe
+        to self.dataframe.
+
+        Color channel specification is useful because then you can directly
+        reference the frame number you want (instead of later having)
+        to shift by the number of colors in the image
         """
         if not siffreader.opened:
             raise AssertionError(
@@ -58,15 +63,27 @@ class FictracLog():
         if not hasattr(self, 'dataframe'):
             raise Exception("No pandas Fictrac dataframe assigned.")
 
-        if not (color_channel==0):
-            raise NotImplementedError("Haven't implemented a setup for specifying color channel")
-
         if 'uses_seconds' in kwargs:
             # Undocumented kwarg for data from before the epoch value used seconds
             if kwargs['uses_seconds']:
-                im_stamps_epoch = np.array(siffreader.get_time(reference = "epoch"))*1e9 # list of timestamps
+                im_stamps_epoch = np.array(
+                    siffreader.get_time(
+                        frames = siffutils.framelist_by_color(siffreader.im_params, color_channel), 
+                        reference = "epoch"
+                    )
+                )*1e9 # list of timestamps
         else:
-            im_stamps_epoch = np.array(siffreader.get_time(reference = "epoch"))
+            im_stamps_epoch = np.array(
+                siffreader.get_time(
+                    frames = siffutils.framelist_by_color(siffreader.im_params, color_channel), 
+                    reference = "epoch"
+                )
+            )
         
-        self.dataframe['aligned_imaging_frame'] = pd.Series([np.searchsorted(im_stamps_epoch, fic_time) for fic_time in self.dataframe['timestamp']])
+        self.dataframe['aligned_imaging_frame'] = \
+            pd.Series([
+                np.searchsorted(im_stamps_epoch, fic_time)
+                for fic_time in self.dataframe['timestamp']
+                ]
+            )
         

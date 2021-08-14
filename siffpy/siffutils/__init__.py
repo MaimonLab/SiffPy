@@ -8,6 +8,7 @@ from .registration import *
 from .matlab_to_python import *
 from .fluorophore_inits import available_fluorophores
 from .slicefcns import *
+from .imparams import ImParams
 
 # types to cast strings to when looked up
 frame_meta_lookup_cast ={
@@ -59,7 +60,7 @@ def most_important_header_data(header_dict):
             """
         )
 
-    return im_params
+    return ImParams(im_params)
 
 def get_color_ax(numpy_array):
     """
@@ -73,14 +74,21 @@ def get_color_ax(numpy_array):
 
 ### Dealing with framewise metadata
 
-def line_to_dict_val(line):
+def line_to_dict_val(line : str) -> str:
     splitline = line.split(' = ')
     if splitline[0] in frame_meta_lookup_cast:
         return frame_meta_lookup_cast[splitline[0]](splitline[1])
     
-def single_frame_metadata_to_dict(frame):
+def single_frame_metadata_to_dict(frame : dict) -> dict:
+    """
+    Each list item returned by siffreader.get_frame_metadata
+    is a dict, one entry in which corresponds to the string
+    of metadata that is written to each IFD about that frame
+    (e.g. timestamps). This plucks out that string, parses each
+    line, and returns it a dict with just those pieces of metadata
+    """
     return {line.split(' = ')[0]:line_to_dict_val(line) for line in frame['Frame metadata'].split('\n') if len(line.split(' = '))>0}
 
-def frame_metadata_to_dict(metadata):
+def frame_metadata_to_dict(metadata : list[dict]) -> list[dict]:
     """ Returns a list of metadata dicts from a list of siffreader metadata returns """
     return [single_frame_metadata_to_dict(frame) for frame in metadata]
