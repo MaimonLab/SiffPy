@@ -3,7 +3,7 @@ from siffpy.siffutils import registration
 import siffreader
 import numpy as np
 import tkinter as tk
-import warnings, os, pickle
+import logging, os, pickle
 
 from . import siffutils
 from .siffutils.exp_math import *
@@ -135,24 +135,64 @@ class SiffReader(object):
             with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
                 reg_dict = pickle.load(dict_file)
             if isinstance(reg_dict, dict):
-                warnings.warn("\n\nFound a registration dictionary for this image and importing it.\n")
+                logging.warning("\n\nFound a registration dictionary for this image and importing it.\n")
                 self.registrationDict = reg_dict
             else:
-                warnings.warn("\n\nPutative registration dict for this file is not of type dict.\n")
+                logging.warning("\n\nPutative registration dict for this file is not of type dict.\n")
         if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
             with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
                 ref_ims = pickle.load(images_list)
             if isinstance(ref_ims, list):
-                warnings.warn("\n\nFound a reference image list for this file and importing it.\n")
+                logging.warning("\n\nFound a reference image list for this file and importing it.\n")
                 self.reference_frames = ref_ims
             else:
-                warnings.warn("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
+                logging.warning("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
             
     def close(self) -> None:
         """ Closes opened file """
         siffreader.close()
         self.opened = False
         self.filename = ''
+
+    def assign_registration_dict(self, path : str = None):
+        """
+        Assign a .dict file, overrides the automatically opened one.
+
+        If no path is provided, looks for one with the same name as the opened filename
+        """
+        if path is None:
+            if os.path.exists(os.path.splitext(self.filename)[0] + ".dict"):
+                path = os.path.splitext(self.filename)[0] + ".dict"
+
+        if not os.path.splitext(path)[-1] == '.dict':
+            raise TypeError("File must be of extension .dict")
+        
+        with open(path, 'rb') as dict_file:
+            reg_dict = pickle.load(dict_file)
+        if isinstance(reg_dict, dict):
+            self.registrationDict = reg_dict
+        else:
+            logging.warning("\n\nPutative registration dict for this file is not of type dict.\n")
+
+    def load_reference_frames(self, path : str = None):
+        """
+        Assign a .ref file, overrides the automatically opened one.
+
+        If no path is provided, looks for one with the same name as the opened filename
+        """
+        if path is None:
+            if os.path.exists(os.path.splitext(self.filename)[0] + ".ref"):
+                path = os.path.splitext(self.filename)[0] + ".ref"
+
+        if not os.path.splitext(path)[-1] == '.ref':
+            raise TypeError("File must be of extension .ref")
+        
+        with open(path, 'rb') as images_list:
+            ref_ims = pickle.load(images_list)
+        if isinstance(ref_ims, list):
+            self.reference_frames = ref_ims
+        else:
+            logging.warning("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
 
     def t_axis(self, timepoint_start : int = 0, timepoint_end : int = None, reference_z : int = 0) -> np.ndarray:
         """
@@ -204,7 +244,7 @@ class SiffReader(object):
             frame_end = self.im_params['NUM_FRAMES']
         else:
             if timepoint_end > int(self.im_params['NUM_FRAMES']/timestep_size):
-                warnings.warn(
+                logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
@@ -251,7 +291,7 @@ class SiffReader(object):
         reference = reference.lower() # case insensitive
 
         if reference == "epoch":
-            return np.array([int(frame['epoch']) # WARNING, OLD VERSIONS USED SECONDS NOT NANOSECONDS 
+            return np.array([frame['epoch'] # WARNING, OLD VERSIONS USED SECONDS NOT NANOSECONDS 
                 for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
             ])
         
@@ -405,7 +445,7 @@ class SiffReader(object):
             frame_end = self.im_params['NUM_FRAMES']
         else:
             if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
-                warnings.warn(
+                logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
@@ -570,7 +610,7 @@ class SiffReader(object):
             frame_end = self.im_params['NUM_FRAMES']
         else:
             if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
-                warnings.warn(
+                logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
@@ -787,7 +827,7 @@ class SiffReader(object):
 
         save_dict_name (optional) : string
             
-            What to name the saved registration dict
+            What to name the saved pickled registration dict. Defaults to filename.dict
 
         Other kwargs are as in siffutils.registration.register_frames
 
@@ -834,7 +874,7 @@ class SiffReader(object):
             elastic_slice = 0.0
         if elastic_slice > 0.0:
             if np.abs(elastic_slice - np.sqrt(self.im_params['NUM_SLICES']-3)) < 0.3:
-                warnings.warn("\n\nELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
+                logging.warning("\n\nELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
                               f"\nYOU USED {elastic_slice}"
                               f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD\n"
                              )
@@ -1066,7 +1106,7 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
 
     for idx in range(len(fluorophores)):
         if not (fluorophores[idx] in availables):
-            warnings.warn("\n\nProposed fluorophore %s not in known fluorophore list. Using default params instead\n" % (fluorophores[idx]))
+            logging.warning("\n\nProposed fluorophore %s not in known fluorophore list. Using default params instead\n" % (fluorophores[idx]))
             fluorophores[idx] = None
 
     list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]

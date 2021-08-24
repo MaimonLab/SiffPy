@@ -1,7 +1,9 @@
 """
 A few tools for reading .siff and .tiff files from ScanImage that should be tucked away.
 
+Began
 SCT March 28 2021, still rainy in Maywood
+
 """
 
 from .registration import *
@@ -18,6 +20,8 @@ frame_meta_lookup_cast ={
     'epoch' : float
 }
 
+MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 2. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
+
 def most_important_header_data(header_dict):
     """ Returns a dict of the most important data.
     KEYS are strings, VALUES as defined below.
@@ -26,7 +30,10 @@ def most_important_header_data(header_dict):
 
     RETURNS
     -------
-    IM_PARAMS (dict):
+    siffutils.imparams.ImParams:
+
+        Attributes:
+        ----------
         NUM_SLICES -- (int)
         FRAMES_PER_SLICE -- (int)
         STEP_SIZE -- (float)
@@ -49,8 +56,9 @@ def most_important_header_data(header_dict):
     im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
     im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
     im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
+    im_params["IMAGING_FOV"] = matrix_to_listlist(header_dict['SI.hRoiManager.imagingFovUm'])
     try:
-        im_params["PICOSECONDS_PER_BIN"] = 10*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
+        im_params["PICOSECONDS_PER_BIN"] = MULTIHARP_BASE_RES*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
         im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
     except:
         warnings.warn(

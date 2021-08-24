@@ -33,7 +33,7 @@ def vector_to_list(vector, ret_type=float):
         return ret_type(vector)
     except:
         pass
-        
+    
     betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",vector)
     if not betwixt_brackets:
         return None
@@ -48,6 +48,29 @@ def vector_to_list(vector, ret_type=float):
         return [ret_type(element) for element in col_split]
     else:
         return [ret_type(element) for element in row_split]
+
+def matrix_to_listlist(matrix, ret_type = float) -> list[list]:
+    try:
+        return ret_type(matrix)
+    except:
+        pass
+    
+    betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",matrix)
+    if not betwixt_brackets:
+        return None
+    if len(betwixt_brackets) > 1:
+        warnings.warn("Ambiguous string. Using first matching vector.")
+    col_split = betwixt_brackets[0].split(';')
+    row_split = betwixt_brackets[0].split(' ')
+
+    if (len(col_split) > 1) and (len(row_split) > 1):
+        return [[ret_type(element) for element in column.split(" ")] for column in col_split]
+    # if it's just a vector, use the vector parser
+    else:
+        return vector_to_list(matrix, ret_type)
+    
+
+
 
 def header_data_to_nvfd(hd):
     return {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}

@@ -4,9 +4,10 @@
 *.ipynb
 *.dict
 *.ref
-*.DS_Store
+*.DS_Store*
 *.roi
 *.csv
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

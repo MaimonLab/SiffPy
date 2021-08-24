@@ -1,2 +1,2 @@
-# Code for dealing with fictrac output
 from .sifftrac import *
+from .tracplot import TracPlot

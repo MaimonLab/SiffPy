@@ -14,6 +14,7 @@ OPTIONAL_PARAMS = {
     'YSIZE' : int,
     'XRESOLUTION' : float,
     'YRESOLUTION' : float,
+    'IMAGING_FOV' : list,
     'ZOOM' : float, 
     'PICOSECONDS_PER_BIN' : int,
     'NUM_BINS' : int,
@@ -31,7 +32,13 @@ class ImParams():
     intuitive to people (myself included).
     """
     def __init__(self, param_dict : dict):
+        """
         
+        Initialized by reading in a param dict straight out of ScanImage,
+        computes a few other useful parameters too.
+
+        """
+
         for key in CORE_PARAMS:
             if not (key in param_dict) or (key.lower() in param_dict):
                 raise KeyError(f"Input param dictionary is incomplete. Lacks {key}")
@@ -40,6 +47,13 @@ class ImParams():
         for key in OPTIONAL_PARAMS:
             if (key in param_dict) or (key.lower() in param_dict):
                 setattr(self, key.lower(), param_dict[key])
+
+        try:
+            n_colors = len(self.colors)
+        except:
+            n_colors = 1
+
+        self.frames_per_volume = self.num_slices * self.frames_per_slice * n_colors
 
     def __getitem__(self, key : str) -> None:
         if hasattr(self, key.lower()):
@@ -58,3 +72,9 @@ class ImParams():
 
     def values(self):
         return [getattr(self, key) for key in self.__dict__.keys()]
+
+    def __repr__(self) -> str:
+        retstr = "Image parameters: \n"
+        for key in self.__dict__:
+            retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n"
+        return retstr
