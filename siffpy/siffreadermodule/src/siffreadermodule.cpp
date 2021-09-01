@@ -275,7 +275,7 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     PyObject* FLIMParams = NULL;
     PyObject* listOfFramesListed = NULL;
     char* conf_measure;
-    uint16_t conf_measure_length = 0;
+    Py_ssize_t conf_measure_length = Py_ssize_t(0);
     PyObject* registrationDict = NULL;
     PyObject* discard_bins = NULL;
 

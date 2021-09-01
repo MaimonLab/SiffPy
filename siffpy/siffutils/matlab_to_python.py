@@ -9,7 +9,7 @@ SCT March 27, 2021
 import re
 import warnings
 
-def vector_to_list(vector, ret_type=float):
+def vector_to_list(vector, vec_num : int = 0, ret_type=float):
     """
     list = vector_to_list(vector, type=float)
 
@@ -19,6 +19,9 @@ def vector_to_list(vector, ret_type=float):
     ------
     vector (string):
         String version of a MATLAB vector, e.g. '[1;2]' or '[1,5,5]'
+
+    vec_num (int, optional):
+        Which vector element to use.
 
     type (optional):
         type of numbers (int, float)
@@ -37,10 +40,10 @@ def vector_to_list(vector, ret_type=float):
     betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",vector)
     if not betwixt_brackets:
         return None
-    if len(betwixt_brackets) > 1:
+    if len(betwixt_brackets) > 1 and vec_num == 0:
         warnings.warn("Ambiguous string. Using first matching vector.")
-    col_split = betwixt_brackets[0].split(';')
-    row_split = betwixt_brackets[0].split(' ')
+    col_split = betwixt_brackets[vec_num].split(';')
+    row_split = betwixt_brackets[vec_num].split(' ')
 
     if (len(col_split) > 1) and (len(row_split) > 1):
         raise ValueError("Input string could not be parsed into a row vector or column vector.")
@@ -49,7 +52,10 @@ def vector_to_list(vector, ret_type=float):
     else:
         return [ret_type(element) for element in row_split]
 
-def matrix_to_listlist(matrix, ret_type = float) -> list[list]:
+def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> list[list]:
+    """
+    Converts the string representation of a MATLAB matrix into a list of lists
+    """
     try:
         return ret_type(matrix)
     except:
@@ -58,10 +64,10 @@ def matrix_to_listlist(matrix, ret_type = float) -> list[list]:
     betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",matrix)
     if not betwixt_brackets:
         return None
-    if len(betwixt_brackets) > 1:
+    if len(betwixt_brackets) > 1 and vec_num == 0:
         warnings.warn("Ambiguous string. Using first matching vector.")
-    col_split = betwixt_brackets[0].split(';')
-    row_split = betwixt_brackets[0].split(' ')
+    col_split = betwixt_brackets[vec_num].split(';')
+    row_split = betwixt_brackets[vec_num].split(' ')
 
     if (len(col_split) > 1) and (len(row_split) > 1):
         return [[ret_type(element) for element in column.split(" ")] for column in col_split]
@@ -69,9 +75,6 @@ def matrix_to_listlist(matrix, ret_type = float) -> list[list]:
     else:
         return vector_to_list(matrix, ret_type)
     
-
-
-
 def header_data_to_nvfd(hd):
     return {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}
 

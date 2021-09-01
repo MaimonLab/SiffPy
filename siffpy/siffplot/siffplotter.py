@@ -1,4 +1,4 @@
-import functools
+import functools, re
 
 import holoviews as hv
 from holoviews import opts
@@ -77,7 +77,7 @@ class SiffPlotter():
         ref_holomap.opts(xlim = (0, self.siffreader.im_params.xsize), ylim = (0, self.siffreader.im_params.ysize))
         return ref_holomap
 
-    def get_roi_reference_layouts(self, merge : bool = True) -> dict[int, dict]:
+    def get_roi_reference_layouts(self, merge : bool = True, polygon_shape : str = 'polygons', **kwargs) -> dict[int, dict]:
         """
         Returns a dict of dicts, the structure of which is as follows:
 
@@ -89,6 +89,21 @@ class SiffPlotter():
                 }
             for z_index in range(num_slices)
         }
+
+        KEYWORD ARGUMENTS
+        -----------------
+
+        merge : bool (default True)
+
+            Adds a merged Holoviews Layout object that contains all the reference planes in one Layout,
+            each with their own Bokeh toolbar. The key in the returned dict is 'merged', not an int
+
+        polygon_shape : str (default is 'polygons')
+
+            Shape of the ROIs being drawn. Options are:
+                polygons
+                rectangles
+                ellipses
         """
         if not hasattr(self, 'reference_frames'):
             self.reference_frames = self.reference_frames_to_holomap()
@@ -96,12 +111,22 @@ class SiffPlotter():
         # this is kind of a silly construction, but I think it's
         # more clear to spell everything out little bit by little bit
         # this way. 
-
-        polydict = {
-            zidx:
-            hv.Polygons([])
-            for zidx in range(self.siffreader.im_params.num_slices)
-        }
+        if re.match(r'polygon[s]?', polygon_shape, re.IGNORECASE):
+            drawdict = {
+                zidx:
+                hv.Polygons([])
+                for zidx in range(self.siffreader.im_params.num_slices)
+            }
+        elif re.match(r'rectangle[s]?', polygon_shape, re.IGNORECASE):
+            drawdict = {
+                zidx:
+                hv.Rectangles([])
+                for zidx in range(self.siffreader.im_params.num_slices)
+            }
+        elif re.match(r'ellipse[s]?', polygon_shape, re.IGNORECASE):
+            raise NotImplementedError("Ellipse keyword argument not yet implemented (not a native Hv/Bokeh drawer)")
+        else:
+            raise ValueError(f"Invalid optional argument for polygon_shape:\n\t{polygon_shape}")
 
         annotators = {
             zidx :
@@ -111,7 +136,7 @@ class SiffPlotter():
 
         annotator_layouts = {
             zidx:
-            annotator(self.reference_frames[zidx] * polydict[zidx]).opts(
+            annotator(self.reference_frames[zidx] * drawdict[zidx]).opts(
                 hv.opts.Table(width=0), # hide the annotation table
                 hv.opts.Layout(merge_tools=False) # don't share the tools
             )
@@ -137,15 +162,17 @@ class SiffPlotter():
 
         return self.annotation_dict
 
-    def draw_rois(self):
-        self.get_roi_reference_layouts()
+    def draw_rois(self, **kwargs):
+        self.get_roi_reference_layouts(**kwargs)
         return self.annotation_dict['merged']
 
     def extract_rois(self, region : str, method_name : str = None, *args, **kwargs) -> None:
         """
         Extract ROIs -- uses a different method for each anatomical region.
         ROIs are stored in a class attribute. Must have drawn at least one
-        manual ROI on at least one image produced by 
+        manual ROI on at least one image stored in the SiffPlotter's annotation dict.
+
+        To learn more about 
 
         Parameters
         ----------
@@ -165,9 +192,7 @@ class SiffPlotter():
 
         """
         if not(
-                (region.lower() in PROTOCEREBRAL_BRIDGE) or 
-                (region.lower() in FAN_SHAPED_BODY) or 
-                (region.lower() in ELLIPSOID_BODY)
+                roi_protocols.str_in_list(region, FAN_SHAPED_BODY + ELLIPSOID_BODY + PROTOCEREBRAL_BRIDGE)
             ):
             raise ValueError(f"Region ID {region} not recognized")
 
@@ -177,38 +202,17 @@ class SiffPlotter():
             ):
             raise AssertionError("Siffplotter object has no hand-annotated ROIs")
 
-        if region.lower() in PROTOCEREBRAL_BRIDGE:
-            self.region = "Protocerebral bridge"
-            self.rois = roi_protocols.pb_rois(
-                method_name,
-                self.siffreader.reference_frames,
-                self.annotation_dict,
-                **kwargs
-            )
-
-        if region.lower() in FAN_SHAPED_BODY:
-            self.region = "Fan-shaped body"
-            self.rois = roi_protocols.fb_rois(
-                method_name,
-                self.siffreader.reference_frames,
-                self.annotation_dict,
-                **kwargs
-            )
-
-        if region.lower() in ELLIPSOID_BODY:
-            self.region = "Ellipsoid body"
-            self.rois = roi_protocols.eb_rois(
-                method_name,
-                self.siffreader.reference_frames,
-                self.annotation_dict,
-                **kwargs
-            )
+        self.region = roi_protocols.region_name_proper(region)
+        self.rois = roi_protocols.roi_protocol(
+            region,
+            method_name,
+            self.siffreader.reference_frames,
+            self.annotation_dict,
+            **kwargs
+        )
         
         if self.rois is None:
             raise RuntimeError("No rois extracted -- check method used, images provided, etc.")
-
-        
-
 
 
 ELLIPSOID_BODY = [

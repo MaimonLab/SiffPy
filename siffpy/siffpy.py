@@ -60,13 +60,15 @@ class SiffReader(object):
 
     """
 
-    def __init__(self, flim : bool = True):
+    def __init__(self, filename : str = None):
         self.file_header = {}
         self.im_params = {}
         self.ROI_group_data = {}
         self.opened = False
-        self.filename = ''
-        self.flim = flim
+        if filename is None:
+            self.filename = ''
+        else:
+            self.open(filename)
         self.registrationDict = None
         self.reference_frames = None
         self.debug = False
@@ -76,17 +78,24 @@ class SiffReader(object):
         self.close()
 
     def __str__(self):
-        ret_string = ""
+        ret_string = "SIFFREADER object:\n\n"
         if self.opened:
             ret_string += "Open file: "
             ret_string += self.filename
+            ret_string += "\n"
         else:
-            ret_string += "Inactive siffreader"
+            ret_string += "Inactive siffreader\n"
+        if hasattr(self, "im_params"):
+            ret_string += self.im_params.__repr__()
+        if hasattr(self, "registrationDict"):
+            ret_string += "Registration dict loaded\n"
+        if hasattr(self, "reference_frames"):
+            ret_string += "Reference images loaded\n"
         return ret_string
     
     def __repr__(self):
         # TODO
-        return "__repr__ print statement not yet implemented"
+        return self.__str__()
 
     def open(self, filename: str = None) -> None:
         """
@@ -135,18 +144,18 @@ class SiffReader(object):
             with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
                 reg_dict = pickle.load(dict_file)
             if isinstance(reg_dict, dict):
-                logging.warning("\n\nFound a registration dictionary for this image and importing it.\n")
+                logging.warning("\n\n\tFound a registration dictionary for this image and importing it.\n")
                 self.registrationDict = reg_dict
             else:
-                logging.warning("\n\nPutative registration dict for this file is not of type dict.\n")
+                logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
         if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
             with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
                 ref_ims = pickle.load(images_list)
             if isinstance(ref_ims, list):
-                logging.warning("\n\nFound a reference image list for this file and importing it.\n")
+                logging.warning("\n\n\tFound a reference image list for this file and importing it.\n")
                 self.reference_frames = ref_ims
             else:
-                logging.warning("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
+                logging.warning("\n\n\tPutative reference images object for this file is not of type list.\n", stacklevel=2)
             
     def close(self) -> None:
         """ Closes opened file """
@@ -172,7 +181,7 @@ class SiffReader(object):
         if isinstance(reg_dict, dict):
             self.registrationDict = reg_dict
         else:
-            logging.warning("\n\nPutative registration dict for this file is not of type dict.\n")
+            logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
 
     def load_reference_frames(self, path : str = None):
         """
