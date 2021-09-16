@@ -1,4 +1,4 @@
-import functools, re
+import functools, re, os
 
 import holoviews as hv
 from holoviews import opts
@@ -213,6 +213,37 @@ class SiffPlotter():
         
         if self.rois is None:
             raise RuntimeError("No rois extracted -- check method used, images provided, etc.")
+
+    def save_rois(self, path : str = None):
+        """
+        Saves the rois stored in the self.rois attribute. The default path is in the directory with
+        the .siff file.
+
+        Arguments
+        ---------
+        
+        path : str (optional)
+
+            Where to save the ROIs.
+        """
+        if self.rois is None:
+            raise RuntimeError("SiffPlotter object has no rois stored")
+        
+        if path is None:
+            if not self.siffreader.opened:
+                raise RuntimeError("Siffreader has no open file, and no alternative path was provided.")
+            path = os.path.dirname(self.siffreader.filename)
+
+        try:
+            # if rois is an iterable, save each roi.
+            iter(self.rois)
+            for roi in self.rois:
+                roi.save(path)
+        except TypeError:
+            # else, just save the one.
+            self.rois.save(path)
+        except Exception as e:
+            raise e
 
 
 ELLIPSOID_BODY = [

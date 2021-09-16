@@ -39,7 +39,7 @@ class LogToPlot(FictracLog):
                 'image_time', # kdims
                 [ # vdims
                     ('integrated_position_lab_0','X'),
-                    ('integrated_position_lab_1','Y')
+                    ('integrated_position_lab_1','Y'),
                 ]
             )
             self.tdim = 'image_time'

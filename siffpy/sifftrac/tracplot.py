@@ -2,17 +2,18 @@
 #TODO: This
 from __future__ import annotations
 import typing
-
-from numpy import add
-from .sifftrac import FictracLog
-from .logtoplot import LogToPlot
 from typing import Union
 from itertools import chain
+
 import holoviews as hv
 from holoviews import opts
 hv.extension('bokeh')
 
-class TracPlot():
+from numpy import add
+from .sifftrac import FictracLog
+from .logtoplot import LogToPlot
+
+class TrajPlot():
     """
     
     Uses HoloViews for interactive display of FicTrac trajectories,
@@ -101,29 +102,29 @@ class TracPlot():
         """
         return self.__multiple_plots() and self.__overlaid_plots()
 
-    def __add__(self, other : TracPlot)-> TracPlot:
+    def __add__(self, other : TrajPlot)-> TrajPlot:
         """
         Overloaded to combine plots as separate subplots and append two lists of trajectories
         """
-        if not isinstance(other, TracPlot):
+        if not isinstance(other, TrajPlot):
             return NotImplemented
 
-        NewTracPlot = TracPlot(FLog = self.logs + other.logs)       
+        NewTrajPlot = TrajPlot(FLog = self.logs + other.logs)       
 
-        # If either of them has a figure, the new TracPlot should too
+        # If either of them has a figure, the new TrajPlot should too
         if not(self.figure is None and other.figure is None):
             # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
             if self.figure is None:
-                NewTracPlot.figure = other.figure
+                NewTrajPlot.figure = other.figure
             elif other.figure is None:
-                NewTracPlot.figure = self.figure
+                NewTrajPlot.figure = self.figure
             else:
-                NewTracPlot.figure = self.figure + other.figure
+                NewTrajPlot.figure = self.figure + other.figure
         
-        return NewTracPlot
+        return NewTrajPlot
         
-    def __iadd__(self, other : TracPlot)->TracPlot:
-        if not isinstance(other, TracPlot):
+    def __iadd__(self, other : TrajPlot)->TrajPlot:
+        if not isinstance(other, TrajPlot):
             return NotImplemented
 
         self.logs.extend(other.logs)
@@ -131,7 +132,7 @@ class TracPlot():
         if not self.figure is None:
             # If we have a figure, we should update it (in-place)
             if other.figure is None:
-                # If the other TracPlot has no figure but this one does, we should make it!
+                # If the other TrajPlot has no figure but this one does, we should make it!
                 # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
                 self.figure += other.plot_path()
             else:
@@ -140,16 +141,16 @@ class TracPlot():
         return self
 
 
-    def __imul__(self, other: TracPlot)->TracPlot:
-        if not isinstance(other, TracPlot):
+    def __imul__(self, other: TrajPlot)->TrajPlot:
+        if not isinstance(other, TrajPlot):
             return NotImplemented
 
         if self.__multiplexed_plots() and other.__multiplexed_plots():
-            raise TypeError("Operator *= is unsupported for two TracPlots with multiplexed figures " +
+            raise TypeError("Operator *= is unsupported for two TrajPlots with multiplexed figures " +
             "(i.e. figures that both overlay and compose FictracLog plots)")
         
         if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
-            raise TypeError("Unsupported operator *= for two TracPlots with Layout-type figures")
+            raise TypeError("Unsupported operator *= for two TrajPlots with Layout-type figures")
 
         # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
         if len(self.logs) == 1:
@@ -160,7 +161,7 @@ class TracPlot():
         if not self.figure is None:
             # If we have a figure, we should update it (in-place)
             if other.figure is None:
-                # If the other TracPlot has no figure but this one does, we should make it!
+                # If the other TrajPlot has no figure but this one does, we should make it!
                 # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
                 self.figure *= other.plot_path()
             else:
@@ -168,44 +169,44 @@ class TracPlot():
         return self
         
 
-    def __mul__(self, other : TracPlot)->TracPlot:
+    def __mul__(self, other : TrajPlot)->TrajPlot:
         """
         Overloaded to overlay plots and pool trajectories in a list
         """
-        if not isinstance(other, TracPlot):
+        if not isinstance(other, TrajPlot):
             return NotImplemented
         
         if self.__multiplexed_plots() and other.__multiplexed_plots():
-            raise TypeError("Operator * is unsupported for two TracPlots with multiplexed figures " +
+            raise TypeError("Operator * is unsupported for two TrajPlots with multiplexed figures " +
             "(i.e. figures that both overlay and compose FictracLog plots)")
         
         if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
-            raise TypeError("Unsupported operator * for two TracPlots with Layout-type figures")
+            raise TypeError("Unsupported operator * for two TrajPlots with Layout-type figures")
         
         # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
         if len(self.logs) == 1:
             f_list = list(map(lambda x: x + self.logs[0], other.logs))
         else:
             f_list = list(map(lambda x: x + other.logs[0], self.logs))
-        NewTracPlot = TracPlot(FLog = f_list)
+        NewTrajPlot = TrajPlot(FLog = f_list)
 
-        # If either of them has a figure, the new TracPlot should too
+        # If either of them has a figure, the new TrajPlot should too
         if not(self.figure is None and other.figure is None):
             # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
             if self.figure is None:
-                NewTracPlot.figure = other.figure
+                NewTrajPlot.figure = other.figure
             elif other.figure is None:
-                NewTracPlot.figure = self.figure
+                NewTrajPlot.figure = self.figure
             else:
-                NewTracPlot.figure = self.figure * other.figure
+                NewTrajPlot.figure = self.figure * other.figure
         
-        return NewTracPlot
+        return NewTrajPlot
 
-    def __rmul__(self, other : TracPlot)->TracPlot:
+    def __rmul__(self, other : TrajPlot)->TrajPlot:
         """
-        Shouldn't ever happen except when multiplied by a non TracPlot, so we'll always return NotImplemented
+        Shouldn't ever happen except when multiplied by a non TrajPlot, so we'll always return NotImplemented
         """
-        if not isinstance(other, TracPlot):
+        if not isinstance(other, TrajPlot):
             return NotImplemented
         raise NotImplementedError()
 

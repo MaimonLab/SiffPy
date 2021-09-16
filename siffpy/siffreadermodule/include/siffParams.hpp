@@ -30,7 +30,7 @@ struct SiffParams{
     std::string headerstring; // the header string
     std::string ROI_string; // the ROI string
 
-
+    uint64_t fileSize;
     uint64_t numROIs; // number of ROIs (not implemented yet)
     uint64_t numFrames; // number of frames
     uint64_t numTimepoints; // number of timepoints (degenerate, = numFrames/(numROIs*numZStacks*numColors))

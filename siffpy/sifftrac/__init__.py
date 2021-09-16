@@ -1,2 +1,2 @@
 from .sifftrac import *
-from .tracplot import TracPlot
+from .tracplot import TrajPlot

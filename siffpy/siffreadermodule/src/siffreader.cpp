@@ -17,7 +17,7 @@
 SiffReader::SiffReader(){
     suppress_errors = false; 
     suppress_warnings = false;
-    debug = true;
+    debug = false;
     debug_clock = std::chrono::high_resolution_clock();
 }
 
@@ -36,6 +36,12 @@ int SiffReader::openFile(const char* _filename) {
         }
         siff.open(_filename, std::ios::binary | std::ios::in);
         if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
+        
+        // Get the file size:
+        siff.seekg(0, siff.end);
+        params.fileSize = siff.tellg();
+        siff.seekg(0, siff.beg);
+        
         // Now check that it's a siff file.
         
         // Gotta know the endianness
@@ -133,10 +139,23 @@ void SiffReader::discernFrames() {
     // and stores all the IFDs for quick lookup.
     uint64_t nextIFD = params.firstIFDAddress;
     uint64_t currIFD = 0;
-    while((nextIFD>0) && !(currIFD == nextIFD)) {
+    while(nextIFD>0) {
         // iterates through all the IFDs until it gets to the end
+        if (nextIFD == params.fileSize) break;
         siff.seekg(nextIFD, siff.beg); // go there first
-        if(!(siff.good()||suppress_warnings)) throw std::runtime_error("Failed to reach IDF during load. Possible corrupt frame?");
+        if (siff.eof()) {
+            break;
+        }
+        if(!siff.good()) {
+            errstring = std::string("Failed to reach IDF during load. Possible corrupt frame? Run in debug for more info.");
+            if (debug){
+                errstring += std::string("\nFile state: ") + std::to_string(siff.rdstate());
+                errstring += std::string("\nFrame number: " + std::to_string(params.allIFDs.size()));
+                errstring += std::string("\nIFD :\n\t") + std::to_string(nextIFD);
+                errstring += std::string("\nFull file size:\n\t" + std::to_string(params.fileSize));
+            }
+            throw std::runtime_error(errstring);
+        }
         currIFD = nextIFD;
         params.allIFDs.push_back(currIFD);
 
@@ -145,11 +164,13 @@ void SiffReader::discernFrames() {
 
         siff.seekg(numTags*params.bytesPerTag,std::ios::cur); // skip the tags
 
-        siff.read((char*)&nextIFD, params.bytesPerPointer);
+        siff.read((char*)&nextIFD, params.bytesPerPointer);        
     }
-    if(params.allIFDs.back() == 0) params.allIFDs.pop_back(); // this is for the case that the last IFD is 0ULL
+    while(params.allIFDs.back() == 0) {
+        params.allIFDs.pop_back(); // this is for the case that the last IFD is 0ULL
+    }
     params.numFrames = params.allIFDs.size();
-    siff.clear(); // get rid of failbits
+    //siff.clear(); // get rid of failbits
 }
 
 

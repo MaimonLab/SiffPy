@@ -8,7 +8,7 @@ def framelist_by_slice(im_params : ImParams, color_channel : int) -> list[list[i
     n_slices = im_params['NUM_SLICES']
     fps = im_params['FRAMES_PER_SLICE']
     colors = im_params['COLORS']
-    n_frames = im_params['NUM_FRAMES'] - 1
+    n_frames = im_params['NUM_FRAMES']
 
     if isinstance(colors, list):
         n_colors = len(colors)
@@ -48,7 +48,7 @@ def framelist_by_timepoint(im_params : ImParams, color_channel : int)->list[list
     n_slices = im_params['NUM_SLICES']
     fps = im_params['FRAMES_PER_SLICE']
     colors = im_params['COLORS']
-    n_frames = im_params['NUM_FRAMES'] - 1
+    n_frames = im_params['NUM_FRAMES']
 
     if isinstance(colors, list):
         n_colors = len(colors)

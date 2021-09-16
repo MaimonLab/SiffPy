@@ -135,7 +135,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
 def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
-                       subpx : bool = False, phase_corr : bool = False, blur : bool = True,
+                       subpx : bool = False, phase_corr : bool = False, blur_phase : bool = False, blur_px : bool = True,
                        blur_size = None, ref_Fourier_normed : bool = False, regularize_sigma : float = 2.0
                        ) -> tuple[np.ndarray, tuple[int, int]]:
     """
@@ -164,9 +164,13 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
 
         The phase correlation plot itself
 
-    blur (optional) : bool
+    blur_phase (optional) : bool
 
         Blur the phase correlation before taking the max (useful for noisy images)
+
+    blur_px (optional) : bool
+
+        Blurs correlation in the pixel domain, not in the Fourier domain
 
     blur_size (optional) : float
 
@@ -208,14 +212,26 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
     im2 = np.conjugate(im2)
     im2 /= np.abs(im2)
 
-    pcorr = np.abs(fft.ifft2(ref*im2))
+    phase_product = ref*im2
 
-    if blur: # for when the phasecorr map is messy and you get a surprisingly large alignment shift
+    if blur_phase: # for when the phasecorr map is messy and you get a surprisingly large alignment shift
         if blur_size is None:
-            blur_size = float(min(pcorr.shape)/100.0)
+            blur_size = float(min(phase_product.shape)/30.0)
         
-        pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size,mode='wrap')
-    
+        xx, yy = np.meshgrid(np.arange(im.shape[0]), np.arange(im.shape[1]))
+        gauss = np.exp(-(xx/blur_size)**2)*np.exp(-(yy/blur_size))
+        gauss /= np.sum(gauss)
+        phase_product *= gauss
+        #phase_product = scipy.ndimage.gaussian_filter(phase_product, sigma=blur_size, mode='wrap')
+
+    pcorr = np.abs(fft.ifft2(phase_product))
+
+    if blur_px:
+        if blur_size is None:
+            blur_size = float(min(phase_product.shape)/30.0)
+        
+        pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size, mode='wrap')
+
     offset = np.argmax(pcorr) # the index at which the inverse FFT of the product is maximum
 
     (dy,dx) = np.unravel_index(offset, ref.shape)

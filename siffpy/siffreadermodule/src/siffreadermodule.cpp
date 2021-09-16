@@ -118,6 +118,11 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
                 PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
                 return NULL;
             }
+            uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
+            if (frameNum >= Sf.numFrames()) {
+                PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
+                return NULL;
+            }
             framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
 
             // if this isn't in the registration dict, shift by (0,0)
@@ -178,6 +183,12 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
                 PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
                 return NULL;
             }
+            
+            uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
+            if (frameNum >= Sf.numFrames()) {
+                PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
+                return NULL;
+            }
             framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
         }
         uint64_t framesN = PyList_Size(frames_list);
@@ -233,6 +244,11 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
             PyObject* element = PyList_GET_ITEM(item, subidx);
             if(!PyLong_Check(element)) {
                 PyErr_SetString(PyExc_TypeError, "All elements of sublists in pool_list must be of type int.");
+                return NULL;
+            }
+
+            if (PyLong_AsUnsignedLongLong(element) >= Sf.numFrames()) {
+                PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
                 return NULL;
             }
 
@@ -458,7 +474,6 @@ static PyObject* siffreader_num_frames(PyObject* self, PyObject *args){
     }
     return PyLong_FromUnsignedLongLong(ret_val);
 }
-
 
 static PyObject* siffreader_debug(PyObject* self, PyObject *args){
     // Returns number of frames in file

@@ -1,5 +1,6 @@
-import itertools
+from ..extern.pairwise import pairwise
 
+import abc, pickle, logging
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
@@ -22,6 +23,26 @@ class ROI():
     polygon : hv.element.path.Polygons
 
         A polygon representing the bounds of the ROI
+
+    image : np.ndarray
+
+        A template image used for masking (really anything with the right dims).
+
+    ......
+    Methods
+    -------
+
+    center()->(center_x, center_y)
+
+        Returns the mean coordinates of the polygon, if not overwritten by an inheriting class
+
+    mask(image)->masked_array
+
+        Returns a numpy array that is True where the array is contained by the polygon of the ROI
+
+    opts(*args, **kwargs)
+
+        Applys the holoviews opts supplied to the ROI's polygon
 
 
     """
@@ -49,6 +70,20 @@ class ROI():
         if image is None and hasattr(self,'image'):
             image = self.image
 
+        # Very easy to accidentally pass in the HoloViews object instead.
+        if isinstance(image, hv.Element):
+            logging.warning(f"Provided image is of type {type(image)}, not a numpy array. Attempting to convert.")
+            if not isinstance(image, hv.element.Raster):
+                raise ValueError("Incompatible type of HoloViews object (must be a raster, not vectorized).")
+            try:
+                image = np.ones(
+                    (
+                        np.max(image.data['x']) - np.min(image.data['x']) + 1,
+                        np.max(image.data['y']) - np.min(image.data['y']) + 1
+                    ), dtype=np.uint8)
+            except Exception as e:
+                raise ValueError(f"Incompatible HoloViews object.\nException:\n\t{e}")
+
         poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
        
         xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.shape])
@@ -61,9 +96,58 @@ class ROI():
         
         return grid
 
+    def draw_midline(self):
+        """ TODO """
+        raise NotImplementedError()
+
     def opts(self, *args, **kwargs)->None:
         """ Wraps the self.polygon's opts """
         self.polygon.opts(*args, **kwargs)
+
+    def save(self, path)->None:
+        """
+        Saves the ROIs as .roi files. These files are just a pickled
+        version of the actual ROI object. ROI name is mangled with 
+        unique attributes about the ROI so that no two will overlap
+        by using the same name.
+        """
+        file_name = path + self.__class__.__name__ 
+        file_name += str(self.polygon.__hash__())
+        with open(file_name + ".roi",'wb') as roi_file:
+            pickle.dump(self, roi_file)
+
+
+
+class Midline():
+    """
+    Midlines are a common structure I'm finding myself using.
+    Thought it would make sense to turn it into a class.
+
+    Attributes
+    ----------
+    t : np.ndarray
+
+        Parameterization of the midline
+
+    fmap : function
+
+        Takes self.t to the midline structure. Probably a holoviews.elements.paths.Path in the end?
+    """
+    def __init__(self, source_roi : ROI, point_count : int = 360, fmap = None):
+        self.source_roi = source_roi
+        self.t = np.linspace(0,2*np.pi, point_count)
+        self.fmap = fmap
+
+    def fit(self, cost) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_masks(self) -> None:
+        """
+        Haven't decided, should this have a definition in the base class?
+        Or should I make this an abstract method?
+        """
+        raise NotImplementedError()
 
 class Ellipse(ROI):
     """
@@ -95,12 +179,23 @@ class Ellipse(ROI):
     Methods
     ------------
 
+    center()->(center_x, center_y)
+
+        If the center polygon is defined, returns the center of that polygon, rather than the main ellipse.
+
     compute midline() -> None
 
         Creates self attribute midline that is designed to be
         between the center of the ellipse and its outline
 
-    segment
+    segment(n_segments) -> None
+
+        Creates the attribute 'wedges' as a list of length n_segments. Each wedge is
+        a WedgeROI, evenly dividing the ellipse into n_segment pieces.
+
+    get_roi_masks(image) -> list[np.ndarray]
+
+        Returns a list (or np.ndarray) of the masks for all wedge parameters (if they exist)
 
     """
     def __init__(
@@ -111,6 +206,7 @@ class Ellipse(ROI):
             slice_idx : int = None,
             **kwargs
         ):
+
         if not isinstance(polygon, hv.element.path.Ellipse):
             raise ValueError("Ellipse ROI must be initialized with an Ellipse polygon")
         super().__init__(polygon, **kwargs)
@@ -131,7 +227,7 @@ class Ellipse(ROI):
         """
         Computes the midline of the Ellipse, stores it in the attribute midline
         """
-        raise NotImplementedError()
+        self.midline = self.RingMidline(self)
 
     def segment(self, n_segments : int)->None:
         """ Creates an attribute wedges, a list of WedgeROIs corresponding to segments """
@@ -161,7 +257,7 @@ class Ellipse(ROI):
             for boundaries in zip(tuple(pairwise(dividing_lines)),tuple(pairwise(angles)))
         ]
 
-    def get_roi_masks(self, n_segments : int = 16, image : np.ndarray = None)->list:
+    def get_roi_masks(self, n_segments : int = 16, image : np.ndarray = None, rettype = list)->list[np.ndarray]:
         if image is None and not hasattr(self,'image'):
             raise ValueError("No template image provided!")
         if image is None:
@@ -169,7 +265,12 @@ class Ellipse(ROI):
 
         if not hasattr(self, 'wedges'):
             self.segment(n_segments)
-        return [wedge.mask(image=image) for wedge in self.wedges]
+
+        if rettype == list:
+            return [wedge.mask(image=image) for wedge in self.wedges]
+        if rettype == np.ndarray:
+            return np.array([wedge.mask(image=image) for wedge in self.wedges])
+        raise ValueError(f"Argument rettype is {rettype}. rettype must be either list or np.ndarray")
 
     class WedgeROI(ROI):
         """
@@ -208,29 +309,46 @@ class Ellipse(ROI):
                 }
             )
 
+    class RingMidline(Midline):
+        """
+        A ring-shaped midline specific for the ellipsoid body.
 
-class Midline():
-    """
-    Midlines are a common structure I'm finding myself using.
-    Thought it would make sense to turn it into a class.
+        Simple to parameterize, so might be able to avoid all the gradient mess.
+        """
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            c_x, c_y = self.source_roi.center()
+            ellipse = self.source_roi.polygon
+            offset = ellipse.orientation
+            angles = self.t / (2*np.pi)
+            self.path = hv.Path(
+                { # halfway between the center and the boundary of the outer ellipse
+                    'x':[
+                        0.5*(c_x + ellipse.x + 
+                            (
+                                (ellipse.width/2)*np.cos(offset)*np.cos(angle) - 
+                                (ellipse.height/2)*np.sin(offset)*np.sin(angle)
+                            )
+                            )
+                        for angle in angles
+                    ],
+                    
+                    'y':[
+                        0.5*(c_y + ellipse.y + 
+                            (
+                                (ellipse.width/2)*np.sin(offset)*np.cos(angle) + 
+                                (ellipse.height/2)*np.cos(offset)*np.sin(angle)
+                            )
+                            ) 
+                        for angle in angles
+                    ]
+                }
+            )
+        
+        def get_masks(self)->None:
+            """
+            TODO
+            """
+            pass
 
-    Attributes
-    ----------
-    t : np.ndarray
 
-        Parameterization of the midline
-
-    fmap : function
-
-        Takes self.t to the midline structure. Probably a holoviews.elements.paths.Path in the end?
-    """
-    def __init__(self, point_count : int = 360, fmap = None):
-        self.t = np.linspace(0,2*np.pi, point_count)
-        self.fmap = fmap
-
-# Itertools recipe
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-    a, b = itertools.tee(iterable)
-    next(b, None)
-    return zip(a, b)
