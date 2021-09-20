@@ -485,6 +485,34 @@ static PyObject* siffreader_debug(PyObject* self, PyObject *args){
     Py_RETURN_NONE;
 }
 
+static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject *kwargs) {
+    // Converts the open .siff file to a .tiff file and saves it in the location specified
+    // (or next to the original, if no argument is provided).
+    char* savepath;
+    Py_ssize_t savepath_len = Py_ssize_t(0);
+
+    if(
+        !PyArg_ParseTupleAndKeywords(args, kwargs, "|s#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
+        &savepath, &savepath_len
+        ))
+        {
+            return NULL;
+    }
+    try{
+        if (savepath_len > 0) {
+            Sf.siffToTiff(savepath);
+        }
+        else {
+            Sf.siffToTiff();
+        }
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef SiffreaderMethods[] = {
 // Array of the methods and corresponding docstrings
         {"open", siffreader_open, METH_VARARGS,OPEN_DOCSTRING},
@@ -500,8 +528,8 @@ static PyMethodDef SiffreaderMethods[] = {
         {"report_warnings", siffreader_report_warnings, METH_VARARGS, REPORT_WARNINGS_DOCSTRING},
         {"num_frames", siffreader_num_frames, METH_VARARGS, NUM_FRAMES_DOCSTRING},
         {"debug", siffreader_debug, METH_VARARGS, DEBUG_DOCSTRING},
+        {"siff_to_tiff",(PyCFunction) siffreader_sifftotiff, METH_VARARGS|METH_KEYWORDS, SIFF_TO_TIFF_DOCSTRING},
         {NULL, NULL, 0, NULL}        /* Sentinel */
-
 };
 
 static struct PyModuleDef siffreadermodule = {

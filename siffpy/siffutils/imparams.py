@@ -78,3 +78,16 @@ class ImParams():
         for key in self.__dict__:
             retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n"
         return retstr
+
+    def array_shape(self) -> tuple[int]:
+        """ Returns the shape that an array would be in standard order """
+        n_colors = 1
+        if hasattr(self.colors, '__len__'):
+            n_colors = len(self.colors)
+        return (
+            int(self.num_frames/(self.frames_per_volume * n_colors)), # t
+            self.num_slices, # z
+            n_colors,
+            self.ysize,
+            self.xsize
+        )

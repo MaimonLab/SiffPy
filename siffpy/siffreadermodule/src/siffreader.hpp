@@ -76,9 +76,12 @@ class SiffReader
         std::string getNVFD();
         std::string getROIstring();
         
-        const char* getErrString();
+        void siffToTiff();
+        void siffToTiff(std::string savename);
         
         void closeFile();
+
+        const char* getErrString();
 
         // HEADER FUNCTION DEFS. BAD PRACTICE BUT LESS CLUTTERED.
         void suppressWarnings(bool suppress) {suppress_warnings = suppress; params.suppress_warnings = suppress;};

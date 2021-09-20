@@ -312,7 +312,8 @@ class SiffReader(object):
             ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
 
     def get_frames(self, frames: list[int] = None, flim : bool = False, 
-        registration_dict : dict = None, discard_bins : int = None
+        registration_dict : dict = None, discard_bins : int = None,
+        ret_type : type = list
         ) -> list[np.ndarray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -329,6 +330,19 @@ class SiffReader(object):
 
             Whether or not the returned np.ndarrays are 3d or 2d.
 
+        registration_dict (optional) : dict
+
+            Registration dictionary, if used
+
+        discard_bins (optional) : int
+
+            Arrival time bin beyond which to discard photons (if arrival times were measured).
+
+        ret_type (optional) : type
+
+            Type of returned PyObject. Default is list, if np.ndarray, will return an np.ndarray
+            reshaped in order t, z, c, y, x, <tau> ("standard" order)
+
         RETURN VALUES
         -------------
         list[np.ndarray] 
@@ -337,20 +351,33 @@ class SiffReader(object):
         """
         if discard_bins is None:
             if registration_dict is None:
-                return siffreader.get_frames(frames = frames, flim = flim)
+                framelist = siffreader.get_frames(frames = frames, flim = flim)
             else:
-                return siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
+                framelist = siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
         else:
             # arg checking
             if not isinstance(discard_bins, int):
-                return self.get_frames(frames, flim, registration_dict)
+                framelist = self.get_frames(frames, flim, registration_dict)
             else:
                 if registration_dict is None:
-                    return siffreader.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
+                    framelist = siffreader.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
                 else:
-                    return siffreader.get_frames(frames = frames, flim = flim, 
+                    framelist = siffreader.get_frames(frames = frames, flim = flim, 
                                                 registration = registration_dict, 
                                                 discard_bins = discard_bins)
+
+        if ret_type == list:
+            return framelist
+
+        if ret_type == np.ndarray:
+            if self.im_params.frames_per_slice > 1:
+                raise NotImplementedError(
+                    "Array reshape hasn't been implemented if frames per slice > 1" +
+                    "\nHaven't decided how to deal with the non-C-or-Fortan-style ordering yet."
+                    )
+            return np.array(framelist).reshape(self.im_params.array_shape())
+
+        raise ValueError(f"Invalid ret_type argument {ret_type}")
 
     def get_frames_metadata(self, frames : list[int] = None):
         if frames is None:

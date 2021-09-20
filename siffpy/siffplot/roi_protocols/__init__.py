@@ -1,4 +1,5 @@
 import re
+import logging
 
 from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge
 
@@ -20,6 +21,7 @@ def region_name_proper(region : str = None) -> str:
     return "Unknown"
 
 def roi_protocol(region : str = None, method_name : str = None, *args, **kwargs):
+    """ Calls the appropriate protocol for the region specified """
     if str_in_list(region,PROTOCEREBRAL_BRIDGE):
         return pb_rois(
             method_name,
@@ -47,6 +49,10 @@ def eb_rois(method_name : str = None, *args, **kwargs):
     """ Allows region-specific default info """
     if method_name is None:
         method_name = "fit_ellipse"
+        logging.warn(
+            f"Using default ROI method '{method_name}'for ellipsoid body." +
+            "For a list of alternatives, call siffplot.roi_protocols.ROI_extraction_methods()"
+            )
 
     if not callable(getattr(ellipsoid_body, method_name)):
         raise ValueError(f"Ellipsoid body ROI fitting method {method_name} does not exist!")
@@ -57,6 +63,10 @@ def eb_rois(method_name : str = None, *args, **kwargs):
 def fb_rois(method_name : str = None, *args, **kwargs):
     """ Allows region-specific default info """
     if method_name is None:
+        logging.warn(
+            f"Using default ROI method '{method_name}'for fan-shaped body." +
+            "For a list of alternatives, call siffplot.roi_protocols.ROI_extraction_methods()"
+        )
         raise NotImplementedError()
 
     if not callable(getattr(fan_shaped_body, method_name)):
@@ -68,6 +78,10 @@ def fb_rois(method_name : str = None, *args, **kwargs):
 def pb_rois(method_name : str = None, *args, **kwargs):
     """ Allows region-specific default info """
     if method_name is None:
+        logging.warn(
+            f"Using default ROI method '{method_name}'for protocerebral bridge." +
+            "For a list of alternatives, call siffplot.roi_protocols.ROI_extraction_methods()"
+        )
         raise NotImplementedError()
 
     if not callable(getattr(protocerebral_bridge, method_name)):
@@ -78,7 +92,7 @@ def pb_rois(method_name : str = None, *args, **kwargs):
 
 def ROI_extraction_methods() -> list[str]:
     """ TODO: RETURN LIST OF METHODS AVAILABLE FOR EACH ROI TYPE """
-    return [""]
+    raise NotImplementedError()
 
 def str_in_list(string : str, target_list : list) -> bool:
     """ Cleaner one-liner """

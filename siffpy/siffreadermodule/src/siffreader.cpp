@@ -992,3 +992,47 @@ void SiffReader::reset() {
     params = SiffParams();
     filename = std::string();
 }
+
+// Same filename as open file
+void SiffReader::siffToTiff() {
+    if (!siff.is_open()) {
+        errstring += "No open file!";
+        throw std::runtime_error("");
+    }
+
+    std::ofstream tiff(
+        filename.substr(0, filename.find_last_of(".")) + ".tiff",
+        std::ios::out | std::ios::binary
+    );
+
+    try{
+        siff_to_tiff(siff, tiff);
+        tiff.close();
+    }
+    catch(std::exception& e) {
+        tiff.close();
+        errstring += "Error converting to tiff:\n";
+        errstring += e.what();
+        throw std::runtime_error("");
+    }
+}
+
+// Specified filename.
+void SiffReader::siffToTiff(std::string savepath) {
+    if (!siff.is_open()) {
+        errstring += "No open file!";
+        throw std::runtime_error("");
+    }
+
+    std::ofstream tiff(savepath+".tiff", std::ios::out | std::ios::binary);
+    try {
+        siff_to_tiff(siff,tiff);
+        tiff.close();
+    }
+    catch(std::exception& e) {
+        tiff.close();
+        errstring += "Error converting to tiff:\n";
+        errstring += e.what();
+        throw std::runtime_error("");
+    }
+}

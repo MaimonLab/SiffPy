@@ -756,4 +756,11 @@ inline void normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
     }
 }
 
+// Converts a siff file to a tiff file
+void siff_to_tiff(std::ifstream& siff, std::ofstream& tiff) {
+
+    throw std::runtime_error("Siff to tiff not yet implemented");
+
+}
+
 #endif
