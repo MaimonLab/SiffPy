@@ -52,6 +52,8 @@ int SiffReader::openFile(const char* _filename) {
         if ((strcmp(endian,BIGENDIAN) !=0) && (strcmp(endian,LITTLEENDIAN) != 0)) throw std::runtime_error("Could not deduce endian. May not be .siff/.tiff file. First two bytes (should be II or MM): "+std::string(endian));
         params.little = (strcmp(endian,LITTLEENDIAN) == 0); // true if little, false if big.
 
+        delete[] endian;
+
         // temporary solution: if endian-ness doesn't match, give up.
         uint16_t i = 1; // the uint16_t 1 is 0x01 in big endian, 0x10 in little endian
         char* c = (char*)&i;
@@ -804,7 +806,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
             contentVals <<= 8;
             contentVals += (thisTag[charnum + 8 + 4*params.bigtiff] & 0xFF); // gotta be honest... I don't understand why the  & 0xFF is necessary. Cut me some slack I learned C 2 months ago.
         }
-        
+
         // now correct the typing if it's wrong
         switch(tagID){
             case IMAGEWIDTH:
@@ -875,10 +877,14 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
                 //throw std::runtime_error(std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID));
         }
         siff.clear();
-        PyObject* tempVal = Py_BuildValue("y#",thisTag, Py_ssize_t(params.bytesPerTag));
-        PyList_Append(frameData.tagList, tempVal);
-        Py_DECREF(tempVal); // Append adds a reference
+        
+        if (debug) {
+            PyObject* tempVal = Py_BuildValue("y#",thisTag, Py_ssize_t(params.bytesPerTag));
+            PyList_Append(frameData.tagList, tempVal);
+            Py_DECREF(tempVal); // Append adds a reference
+        }
     }
+
 
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
     if(!debug && (frameData.dataStripAddress < frameData.endOfIFD)) throw std::runtime_error("Negative description length -- error parsing tags?");
@@ -1006,7 +1012,7 @@ void SiffReader::siffToTiff() {
     );
 
     try{
-        siff_to_tiff(siff, tiff);
+        siff_to_tiff(siff, tiff, params);
         tiff.close();
     }
     catch(std::exception& e) {
@@ -1026,7 +1032,7 @@ void SiffReader::siffToTiff(std::string savepath) {
 
     std::ofstream tiff(savepath+".tiff", std::ios::out | std::ios::binary);
     try {
-        siff_to_tiff(siff,tiff);
+        siff_to_tiff(siff,tiff, params);
         tiff.close();
     }
     catch(std::exception& e) {

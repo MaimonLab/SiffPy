@@ -191,11 +191,6 @@ class SiffPlotter():
         None
 
         """
-        if not(
-                roi_protocols.str_in_list(region, FAN_SHAPED_BODY + ELLIPSOID_BODY + PROTOCEREBRAL_BRIDGE)
-            ):
-            raise ValueError(f"Region ID {region} not recognized")
-
         if not (
                 hasattr(self, 'annotation_dict') and
                 any([len(x['annotator'].annotated.data) for x in self.annotation_dict.values() if isinstance(x,dict)])
@@ -244,26 +239,3 @@ class SiffPlotter():
             self.rois.save(path)
         except Exception as e:
             raise e
-
-
-ELLIPSOID_BODY = [
-    'eb',
-    'ellipsoid body',
-    'ellipsoid'
-]
-
-FAN_SHAPED_BODY = [
-    'fb',
-    'fsb',
-    'fan-shaped body',
-    'fan shaped body',
-    'fan'
-]
-
-PROTOCEREBRAL_BRIDGE = [
-    'pb',
-    'pcb',
-    'protocerebral bridge',
-    'bridge'
-]
-    

@@ -375,7 +375,12 @@ class SiffReader(object):
                     "Array reshape hasn't been implemented if frames per slice > 1" +
                     "\nHaven't decided how to deal with the non-C-or-Fortan-style ordering yet."
                     )
-            return np.array(framelist).reshape(self.im_params.array_shape())
+
+            raise NotImplementedError("Haven't decided how to work out which slices / colors etc should be included")
+            #stackshape = list(self.im_params.array_shape())
+
+            #stackshape[0] = len(frames)/(stackshape[1]*stackshape[2])
+            #return np.array(framelist).reshape(tuple(stackshape))
 
         raise ValueError(f"Invalid ret_type argument {ret_type}")
 
@@ -387,7 +392,7 @@ class SiffReader(object):
     def sum_across_time(self, timespan : int = 1, rolling : bool = False,
         timepoint_start : int = 0, timepoint_end : int = None,
         z_list : list[int] = None, color_list : list[int] = None,
-        flim : bool = False, ret_type : type = list, registration : dict = None,
+        flim : bool = False, ret_type : type = list, registration_dict : dict = None,
         discard_bins = None
         ) -> np.ndarray:
         """
@@ -528,10 +533,10 @@ class SiffReader(object):
 
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znc0, znc1, T1: ...
-        if registration is None:
+        if registration_dict is None:
             list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
         else:
-            list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration, discard_bins = discard_bins)
+            list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration_dict, discard_bins = discard_bins)
 
         if ret_type == np.ndarray:
             ## NOT YET IMPLEMENTED IN "STANDARD ORDER"

@@ -103,6 +103,12 @@ class FLIMParams(object):
     def __str__(self):
         return self.param_dict().__str__()
 
+    def __repr__(self):
+        retstr = "FLIM parameters: \n"
+        for key,val in self.param_dict().items():
+            retstr += "\t" + str(key) + " : " + str(val) + "\n"
+        return retstr
+
     def chi_sq(self, data : np.ndarray, params : tuple = None, use_noise : bool = False) -> float:
         """
         Computes the chi-squared statistic of the

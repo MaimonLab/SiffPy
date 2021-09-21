@@ -192,7 +192,13 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
             framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
         }
         uint64_t framesN = PyList_Size(frames_list);
-        return Sf.readMetaData(framesArray, framesN);
+        try{
+            return Sf.readMetaData(framesArray, framesN);
+        }
+        catch(std::exception& e){
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            return NULL;
+        }
     }
     
 }

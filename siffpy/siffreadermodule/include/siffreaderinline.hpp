@@ -756,11 +756,69 @@ inline void normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
     }
 }
 
+// Saves a frame from a siff file into a frame in a tiff file
+inline void siff_to_tiff_frame(std::ifstream& siff, std::ofstream& tiff, SiffParams params, uint64_t siffIFDAddress) {
+    // Go to IFD
+    siff.clear();
+    siff.seekg(siffIFDAddress, siff.beg);
+
+    uint64_t numTags; // Tags in the siff frame
+    siff.read((char*) &numTags, params.bytesPerNumTags);
+    tiff.write((char*) &numTags, params.bytesPerNumTags);
+
+    char tagData[params.bytesPerTag * numTags]; // read them all at once
+    siff.read(tagData, params.bytesPerTag * numTags);
+    tiff.write(tagData, params.bytesPerTag * numTags);
+
+    // Now we should actually parse that data
+    FrameData thisFrameData = getTagData(siffIFDAddress, params, siff);
+
+
+    // Write when the next IFD will be
+    uint64_t nextIFD = thisFrameData.endOfIFD +
+        thisFrameData.stringlength +
+        sizeof(uint16_t)*thisFrameData.imageWidth*thisFrameData.imageLength;
+    
+    tiff.write((char*) &nextIFD, sizeof(uint64_t));
+
+    siff.seekg(thisFrameData.endOfIFD, siff.beg);
+    char descriptionString[thisFrameData.stringlength];
+    siff.read(descriptionString, thisFrameData.stringlength);
+    tiff.write(descriptionString, thisFrameData.stringlength);
+
+    // The rest of the data is parsed differently if it's a siffcompress
+    // or not.
+
+    uint16_t pxWiseData[thisFrameData.imageWidth * thisFrameData.imageLength];
+
+    tiff.write((char*) &pxWiseData[0], thisFrameData.imageLength * thisFrameData.imageWidth);
+}
+
 // Converts a siff file to a tiff file
-void siff_to_tiff(std::ifstream& siff, std::ofstream& tiff) {
+void siff_to_tiff(std::ifstream& siff, std::ofstream& tiff, SiffParams params) {
 
     throw std::runtime_error("Siff to tiff not yet implemented");
+    // Haven't made this endian proof yet. 
+    // So check that your endian matches the file's
+    uint16_t test = 1;
+    char* bytewise = (char*) &test; // first address is 0 in big endian, 1 in little endian
+    if (! (( (bool) bytewise) == params.little) ) throw std::runtime_error("Incompatible endians. Let me know that this is an issue, and I'll fix it -- SCT");
 
+    // First, copy over the main data. Everything before the first IFD
+    // is the same!
+    siff.clear();
+    siff.seekg(0, siff.beg);
+    tiff.clear();
+    tiff.seekp(0,tiff.beg);
+
+    char init[params.firstIFDAddress];
+    siff.read(init, params.firstIFDAddress);
+    tiff.write(init, params.firstIFDAddress);
+
+    // Now go through the frames and convert each to a tiff.
+    for (uint64_t IFD_idx = 0; IFD_idx < params.allIFDs.size(); IFD_idx++) {
+        siff_to_tiff_frame(siff, tiff, params, params.allIFDs[IFD_idx]);
+    }
 }
 
 #endif

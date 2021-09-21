@@ -1,7 +1,7 @@
 import re
 import logging
 
-from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge
+from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli
 
 # Default method for each brain region of interest
 # Written this way so I can use the same names for
@@ -18,7 +18,10 @@ def region_name_proper(region : str = None) -> str:
     if str_in_list(region, ELLIPSOID_BODY):
         return "Ellipsoid body"
 
-    return "Unknown"
+    if str_in_list(region, NODULI):
+        return "Noduli"
+
+    raise ValueError(f"Region name {region} unknown")
 
 def roi_protocol(region : str = None, method_name : str = None, *args, **kwargs):
     """ Calls the appropriate protocol for the region specified """
@@ -38,6 +41,13 @@ def roi_protocol(region : str = None, method_name : str = None, *args, **kwargs)
 
     if str_in_list(region,ELLIPSOID_BODY):
         return eb_rois(
+            method_name,
+            *args,
+            **kwargs
+        )
+    
+    if str_in_list(region, NODULI):
+        return noduli_rois(
             method_name,
             *args,
             **kwargs
@@ -90,6 +100,21 @@ def pb_rois(method_name : str = None, *args, **kwargs):
     fit_method = getattr(protocerebral_bridge, method_name)
     return fit_method(*args, **kwargs)
 
+def noduli_rois(method_name : str = None, *args, **kwargs):
+    """ Allows region-specific default info """
+    if method_name is None:
+        logging.warn(
+            f"Using default ROI method '{method_name}'for noduli." +
+            "For a list of alternatives, call siffplot.roi_protocols.ROI_extraction_methods()"
+        )
+        raise NotImplementedError()
+
+    if not callable(getattr(noduli, method_name)):
+        raise ValueError(f"Noduli ROI fitting method {method_name} does not exist!")
+    
+    fit_method = getattr(noduli, method_name)
+    return fit_method(*args, **kwargs)
+
 def ROI_extraction_methods() -> list[str]:
     """ TODO: RETURN LIST OF METHODS AVAILABLE FOR EACH ROI TYPE """
     raise NotImplementedError()
@@ -117,4 +142,11 @@ PROTOCEREBRAL_BRIDGE = [
     'pcb',
     'protocerebral bridge',
     'bridge'
+]
+
+NODULI = [
+    'no',
+    'noduli',
+    'nodulus',
+    'nod'
 ]

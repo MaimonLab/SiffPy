@@ -48,7 +48,7 @@
         "\tIf file is open, reports the total number of frames.\n"\
     "debug():\n"\
         "\tEnables siffreadermodule debugging log."\
-    "sifftotiff():\n"\
+    "sifftotiff(savepath = None):\n"\
         "\tConverts a .siff file to a .tiff file, discarding arrival time information, if relevant."
 
 

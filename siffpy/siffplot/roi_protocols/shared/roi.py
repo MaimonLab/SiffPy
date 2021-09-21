@@ -3,6 +3,7 @@ from ..extern.pairwise import pairwise
 import abc, pickle, logging
 import numpy as np
 import holoviews as hv
+import colorcet
 from matplotlib.path import Path as mplPath
 
 __all__ = [
@@ -257,6 +258,13 @@ class Ellipse(ROI):
             for boundaries in zip(tuple(pairwise(dividing_lines)),tuple(pairwise(angles)))
         ]
 
+        colorwheel = colorcet.colorwheel
+
+        idx = 0
+        for wedge in self.wedges:
+            wedge.opts(fill_color = colorwheel[idx * int(len(colorwheel)/len(self.wedges))])
+            idx += 1
+
     def get_roi_masks(self, n_segments : int = 16, image : np.ndarray = None, rettype = list)->list[np.ndarray]:
         if image is None and not hasattr(self,'image'):
             raise ValueError("No template image provided!")
@@ -308,6 +316,7 @@ class Ellipse(ROI):
                         list(reversed(bounding_paths[-1].data[0]['y']))
                 }
             )
+
 
     class RingMidline(Midline):
         """
