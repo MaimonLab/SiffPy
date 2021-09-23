@@ -4,6 +4,7 @@ import numpy as np
 import holoviews as hv
 from ..extern.smallest_circle import make_circle
 from .roi import *
+from .ellipse import *
 
 def polygon_area(x_coords : np.ndarray, y_coords : np.ndarray) -> float:
     """ Shoelace method to compute area"""

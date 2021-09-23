@@ -1,5 +1,5 @@
 # I know it's not Pythonic. Sue me. I want to type check stuff because I can be forgetful.
-import warnings
+import logging
 
 def x_across_time_TYPECHECK(
         num_slices, z_list,
@@ -10,7 +10,7 @@ def x_across_time_TYPECHECK(
     # make them iterables if they're not, make sure they're reasonable numbers
     if isinstance(z_list, int):
         if z_list > num_slices - 1:
-            warnings.warn("Provided a z plane number larger than number of slices. Producing list of all planes",
+            logging.warn("Provided a z plane number larger than number of slices. Producing list of all planes",
                 stacklevel=2
             )
             z_list = list(range(num_slices))
@@ -27,7 +27,7 @@ def x_across_time_TYPECHECK(
 
     if isinstance(color_list, int):
         if color_list > num_colors - 1:
-            warnings.warn("Provided a color index greater than that available. Using all channels.",
+            logging.warn("Provided a color index greater than that available. Using all channels.",
                 stacklevel=2
             )
             color_list = list(range(num_colors))
@@ -47,7 +47,7 @@ def x_across_time_TYPECHECK(
         color_list = list(range(num_colors))
 
     if len(z_list) > num_slices:
-        warnings.warn("Length of z_list is greater than the number of planes in a stack.\n" +
+        logging.warn("Length of z_list is greater than the number of planes in a stack.\n" +
             "Defaulting to full volume (%s slices)" %num_slices,
             stacklevel=2
         )

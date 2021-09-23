@@ -1,5 +1,6 @@
-import functools, re, os
+import functools, re, os, pickle, logging
 
+import numpy as np
 import holoviews as hv
 from holoviews import opts
 hv.extension('bokeh')
@@ -41,7 +42,7 @@ class SiffPlotter():
     """
 
     def __init__(self, siffreader : SiffReader, *args, **kwargs):
-        self.siffreader = siffreader
+        self.siffreader : SiffReader = siffreader
 
         if 'opts' in kwargs:
             if not isinstance(kwargs['opts'], (list, tuple)):
@@ -49,7 +50,12 @@ class SiffPlotter():
             self.local_opts = kwargs['opts']
 
         if self.siffreader.opened:
-            self.reference_frames = self.reference_frames_to_holomap()
+            self.reference_frames : hv.HoloMap = self.reference_frames_to_holomap()
+
+        if any([file.endswith('.roi') for file in os.listdir(os.path.dirname(self.siffreader.filename))]):
+            logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
+            self.load_rois(path = os.path.dirname(self.siffreader.filename))
+
 
     @apply_opts
     def reference_frames_to_holomap(self)->hv.HoloMap:
@@ -76,6 +82,8 @@ class SiffPlotter():
         # hard limits
         ref_holomap.opts(xlim = (0, self.siffreader.im_params.xsize), ylim = (0, self.siffreader.im_params.ysize))
         return ref_holomap
+
+### ROI
 
     def get_roi_reference_layouts(self, merge : bool = True, polygon_shape : str = 'polygons', **kwargs) -> dict[int, dict]:
         """
@@ -166,6 +174,10 @@ class SiffPlotter():
         self.get_roi_reference_layouts(**kwargs)
         return self.annotation_dict['merged']
 
+    def roi_to_layout(self):
+        l = hv.Layout
+
+
     def extract_rois(self, region : str, method_name : str = None, *args, **kwargs) -> None:
         """
         Extract ROIs -- uses a different method for each anatomical region.
@@ -229,6 +241,8 @@ class SiffPlotter():
                 raise RuntimeError("Siffreader has no open file, and no alternative path was provided.")
             path = os.path.dirname(self.siffreader.filename)
 
+        path = os.path.join(path, os.path.splitext(os.path.basename(self.siffreader.filename))[0])
+
         try:
             # if rois is an iterable, save each roi.
             iter(self.rois)
@@ -239,3 +253,33 @@ class SiffPlotter():
             self.rois.save(path)
         except Exception as e:
             raise e
+
+    def load_rois(self, path : str = None):
+        """
+        Loads rois stored at location 'path'. If no path is specified, then
+        it looks for .roi files matching the file name
+        """
+
+        if path is None:
+            path = os.path.join(
+                os.path.dirname(self.siffreader.filename),
+                os.path.splitext(os.path.basename(self.siffreader.filename))[0]
+            )
+        
+        roi_files = [os.path.join(path,file) for file in os.listdir(path) if file.endswith('.roi')]
+
+        if len(roi_files) > 1:
+            # needs an iterable
+            self.rois = []
+            for roi in roi_files:
+                with open(roi, 'rb') as curr_file:
+                    self.rois.append(pickle.load(curr_file))
+        else:
+            with open(roi_files[0], 'rb') as roi_file:
+                self.rois = pickle.load(roi_file)
+                
+### HEATMAP
+    @apply_opts
+    def make_heatmap(self, transform_function, **kwargs) -> hv.HoloMap:
+        """ Takes a function to apply to the data """
+        pass

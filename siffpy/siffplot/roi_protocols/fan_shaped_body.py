@@ -1,6 +1,6 @@
 # Code for ROI extraction from the fan-shaped body after manual input
 
-from .shared import *
+from .rois import *
 
 
 def dummy_method(*args, **kwargs):

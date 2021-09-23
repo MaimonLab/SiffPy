@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 import os, logging
-from ..siffpy import SiffReader
-from .. import siffutils
-from .ballparams import BallParams
+
+from ...siffpy import SiffReader
+from ..utils.ballparams import BallParams
+from ... import siffutils
 
 SEC_TO_NANO = 1e9
 

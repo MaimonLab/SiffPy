@@ -477,13 +477,13 @@ class SiffReader(object):
 
         fps = self.im_params['FRAMES_PER_SLICE']
 
-        timestep_size = num_slices*num_colors*fps # how many frames constitute a volume timepoint
+        timestep_size = int(self.im_params.frames_per_volume) # how many frames constitute a volume timepoint
 
         # figure out the start and stop points we're analyzing.
-        frame_start = timepoint_start * timestep_size
+        frame_start = int(timepoint_start * timestep_size)
         
         if timepoint_end is None:
-            frame_end = self.im_params['NUM_FRAMES']
+            frame_end = self.im_params['NUM_FRAMES'] - self.im_params.num_frames%self.im_params.frames_per_volume
         else:
             if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
                 logging.warning(
@@ -492,7 +492,9 @@ class SiffReader(object):
                 )
                 timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
             
-            frame_end = timepoint_end * timestep_size
+            frame_end = timepoint_end * timestep_size - self.im_params.num_frames%self.im_params.frames_per_volume
+
+        frame_end = int(frame_end)
 
         ##### the real stuff
 

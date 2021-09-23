@@ -1,6 +1,6 @@
 # Code for ROI extraction from the noduli after manual input
 
-from .shared import *
+from .rois import *
 
 def hemispheres(reference_frames : list, annotation_dict : dict, *args, **kwargs) -> hv.element.path.Polygons:
     """

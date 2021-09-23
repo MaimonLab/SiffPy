@@ -1,5 +1,5 @@
 import holoviews as hv
-from .sifftrac import FictracLog
+from .fictraclog import FictracLog
 
 class LogToPlot(FictracLog):
     """

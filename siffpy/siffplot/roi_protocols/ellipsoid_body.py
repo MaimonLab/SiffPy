@@ -3,7 +3,7 @@ import logging
 
 import holoviews as hv
 
-from .shared import *
+from .rois import *
 from .extern.smallest_circle import *
 # Code for ROI extraction from the ellipsoid body after manual input
 

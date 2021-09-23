@@ -10,10 +10,10 @@ from holoviews import opts
 hv.extension('bokeh')
 
 from numpy import add
-from .sifftrac import FictracLog
-from .logtoplot import LogToPlot
+from ..log_interpreter.fictraclog import FictracLog
+from ..log_interpreter.logtoplot import LogToPlot
 
-class TrajPlot():
+class TracPlotter():
     """
     
     Uses HoloViews for interactive display of FicTrac trajectories,
@@ -53,7 +53,129 @@ class TrajPlot():
 
         raise TypeError(f"Argument FLog is not of type FictracLog or a list of lists FictracLog elements")
 
-    def plot_path(self, scalebar : float = None, **kwargs):
+    def __multiple_plots(self)->bool:
+        return len(self.logs)>1
+
+    def __overlaid_plots(self)->bool:
+        return any(map(lambda x: len(x) > 1,self.logs)) 
+
+    def __multiplexed_plots(self) -> bool:
+        """
+        Returns true if this structure both overlays and combines plots already.
+        """
+        return self.__multiple_plots() and self.__overlaid_plots()
+
+    def __add__(self, other : TracPlotter)-> TracPlotter:
+        """
+        Overloaded to combine plots as separate subplots and append two lists of trajectories
+        """
+        if not isinstance(other, TracPlotter):
+            return NotImplemented
+
+        NewTracPlotter = TracPlotter(FLog = self.logs + other.logs)       
+
+        # If either of them has a figure, the new TracPlot should too
+        if not(self.figure is None and other.figure is None):
+            # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
+            if self.figure is None:
+                NewTracPlotter.figure = other.figure
+            elif other.figure is None:
+                NewTracPlotter.figure = self.figure
+            else:
+                NewTracPlotter.figure = self.figure + other.figure
+        
+        return NewTracPlotter
+        
+    def __iadd__(self, other : TracPlotter)->TracPlotter:
+        if not isinstance(other, TracPlotter):
+            return NotImplemented
+
+        self.logs.extend(other.logs)
+        
+        if not self.figure is None:
+            # If we have a figure, we should update it (in-place)
+            if other.figure is None:
+                # If the other TracPlotter has no figure but this one does, we should make it!
+                # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
+                self.figure += other.plot()
+            else:
+                self.figure += other.figure
+        
+        return self
+
+
+    def __imul__(self, other: TracPlotter)->TracPlotter:
+        if not isinstance(other, TracPlotter):
+            return NotImplemented
+
+        if self.__multiplexed_plots() and other.__multiplexed_plots():
+            raise TypeError("Operator *= is unsupported for two TracPlotters with multiplexed figures " +
+            "(i.e. figures that both overlay and compose FictracLog plots)")
+        
+        if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
+            raise TypeError("Unsupported operator *= for two TracPlotters with Layout-type figures")
+
+        # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
+        if len(self.logs) == 1:
+            self.logs = list(map(lambda x: x + self.logs[0], other.logs))
+        else:
+            self.logs = list(map(lambda x: x + other.logs[0], self.logs))
+
+        if not self.figure is None:
+            # If we have a figure, we should update it (in-place)
+            if other.figure is None:
+                # If the other TracPlotter has no figure but this one does, we should make it!
+                # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
+                self.figure *= other.plot()
+            else:
+                self.figure *= other.figure
+        return self
+        
+
+    def __mul__(self, other : TracPlotter)->TracPlotter:
+        """
+        Overloaded to overlay plots and pool trajectories in a list
+        """
+        if not isinstance(other, TracPlotter):
+            return NotImplemented
+        
+        if self.__multiplexed_plots() and other.__multiplexed_plots():
+            raise TypeError("Operator * is unsupported for two TracPlotters with multiplexed figures " +
+            "(i.e. figures that both overlay and compose FictracLog plots)")
+        
+        if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
+            raise TypeError("Unsupported operator * for two TracPlotters with Layout-type figures")
+        
+        # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
+        if len(self.logs) == 1:
+            f_list = list(map(lambda x: x + self.logs[0], other.logs))
+        else:
+            f_list = list(map(lambda x: x + other.logs[0], self.logs))
+        NewTracPlotter = TracPlotter(FLog = f_list)
+
+        # If either of them has a figure, the new TracPlotter should too
+        if not(self.figure is None and other.figure is None):
+            # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
+            if self.figure is None:
+                NewTracPlotter.figure = other.figure
+            elif other.figure is None:
+                NewTracPlotter.figure = self.figure
+            else:
+                NewTracPlotter.figure = self.figure * other.figure
+        
+        return NewTracPlotter
+
+    def __rmul__(self, other : TracPlotter)->TracPlotter:
+        """
+        Shouldn't ever happen except when multiplied by a non TracPlotter, so we'll always return NotImplemented.
+
+        May need to be adjusted.
+        """
+        if not isinstance(other, TracPlotter):
+            return NotImplemented
+        raise NotImplementedError()
+
+    def plot(self, scalebar : float = None, **kwargs):
         """
 
         Produce a Holoviews Path object for the fly's trajectory,
@@ -74,155 +196,26 @@ class TrajPlot():
         figure : hv.Layout or hv.Overlay
 
         """
-        if self.__multiple_plots():
+        if self._TracPlotter__multiple_plots():
             self.figure = hv.Layout()
             for sublist in self.logs:
                 overlay = hv.Overlay()
                 for log in sublist:
-                    overlay *= single_plot(log, **kwargs)
+                    overlay *= self.single_plot(log, **kwargs)
                 overlay = add_scalebar(overlay, scalebar = scalebar)
                 self.figure += overlay
         else:
             self.figure = hv.Overlay()
             for log in self.logs[0]:
-                self.figure *= single_plot(log, **kwargs)
+                self.figure *= self.single_plot(log, **kwargs)
             self.figure = add_scalebar(self.figure, scalebar = scalebar)
         
         return self.figure
 
-    def __multiple_plots(self)->bool:
-        return len(self.logs)>1
+    def single_plot(self, log, *args, **kwargs) -> hv.Element:
+        raise NotImplementedError("This method must be implemented separately in each derived class")
 
-    def __overlaid_plots(self)->bool:
-        return any(map(lambda x: len(x) > 1,self.logs)) 
-
-    def __multiplexed_plots(self) -> bool:
-        """
-        Returns true if this structure both overlays and combines plots already.
-        """
-        return self.__multiple_plots() and self.__overlaid_plots()
-
-    def __add__(self, other : TrajPlot)-> TrajPlot:
-        """
-        Overloaded to combine plots as separate subplots and append two lists of trajectories
-        """
-        if not isinstance(other, TrajPlot):
-            return NotImplemented
-
-        NewTrajPlot = TrajPlot(FLog = self.logs + other.logs)       
-
-        # If either of them has a figure, the new TrajPlot should too
-        if not(self.figure is None and other.figure is None):
-            # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
-            if self.figure is None:
-                NewTrajPlot.figure = other.figure
-            elif other.figure is None:
-                NewTrajPlot.figure = self.figure
-            else:
-                NewTrajPlot.figure = self.figure + other.figure
-        
-        return NewTrajPlot
-        
-    def __iadd__(self, other : TrajPlot)->TrajPlot:
-        if not isinstance(other, TrajPlot):
-            return NotImplemented
-
-        self.logs.extend(other.logs)
-        
-        if not self.figure is None:
-            # If we have a figure, we should update it (in-place)
-            if other.figure is None:
-                # If the other TrajPlot has no figure but this one does, we should make it!
-                # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
-                self.figure += other.plot_path()
-            else:
-                self.figure += other.figure
-        
-        return self
-
-
-    def __imul__(self, other: TrajPlot)->TrajPlot:
-        if not isinstance(other, TrajPlot):
-            return NotImplemented
-
-        if self.__multiplexed_plots() and other.__multiplexed_plots():
-            raise TypeError("Operator *= is unsupported for two TrajPlots with multiplexed figures " +
-            "(i.e. figures that both overlay and compose FictracLog plots)")
-        
-        if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
-            raise TypeError("Unsupported operator *= for two TrajPlots with Layout-type figures")
-
-        # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
-        if len(self.logs) == 1:
-            self.logs = list(map(lambda x: x + self.logs[0], other.logs))
-        else:
-            self.logs = list(map(lambda x: x + other.logs[0], self.logs))
-
-        if not self.figure is None:
-            # If we have a figure, we should update it (in-place)
-            if other.figure is None:
-                # If the other TrajPlot has no figure but this one does, we should make it!
-                # TODO: Make this inherit the in-place plot modifications -- why else combine in place?
-                self.figure *= other.plot_path()
-            else:
-                self.figure *= other.figure
-        return self
-        
-
-    def __mul__(self, other : TrajPlot)->TrajPlot:
-        """
-        Overloaded to overlay plots and pool trajectories in a list
-        """
-        if not isinstance(other, TrajPlot):
-            return NotImplemented
-        
-        if self.__multiplexed_plots() and other.__multiplexed_plots():
-            raise TypeError("Operator * is unsupported for two TrajPlots with multiplexed figures " +
-            "(i.e. figures that both overlay and compose FictracLog plots)")
-        
-        if isinstance(self.figure,hv.core.layout.Layout) and isinstance(other.figure, hv.core.layout.Layout):
-            raise TypeError("Unsupported operator * for two TrajPlots with Layout-type figures")
-        
-        # Take the (potentially overlay) element in the 1-element log list and add it to all the longer one
-        if len(self.logs) == 1:
-            f_list = list(map(lambda x: x + self.logs[0], other.logs))
-        else:
-            f_list = list(map(lambda x: x + other.logs[0], self.logs))
-        NewTrajPlot = TrajPlot(FLog = f_list)
-
-        # If either of them has a figure, the new TrajPlot should too
-        if not(self.figure is None and other.figure is None):
-            # Combine their figures Holoviews style, so that this figure inherits modifications made to the others
-            if self.figure is None:
-                NewTrajPlot.figure = other.figure
-            elif other.figure is None:
-                NewTrajPlot.figure = self.figure
-            else:
-                NewTrajPlot.figure = self.figure * other.figure
-        
-        return NewTrajPlot
-
-    def __rmul__(self, other : TrajPlot)->TrajPlot:
-        """
-        Shouldn't ever happen except when multiplied by a non TrajPlot, so we'll always return NotImplemented
-        """
-        if not isinstance(other, TrajPlot):
-            return NotImplemented
-        raise NotImplementedError()
-
-def single_plot(log : LogToPlot, **kwargs)->hv.element.path.Path:
-    """ Produces a path element for a single FictracLog """
-    this_path = log.dataset.to(
-                    hv.Path,
-                    ['integrated_position_lab_0',
-                    'integrated_position_lab_1'],
-                    vdims = log.tdim
-                )
-        
-    if not kwargs is None:
-        this_path.opts(**kwargs)
-
-    return this_path
+    
 
 def add_scalebar(fig : Union[hv.Layout, hv.Overlay], scalebar : float = None):
     if not scalebar is None:
