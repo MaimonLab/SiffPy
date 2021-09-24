@@ -19,7 +19,7 @@ file, `SiffReader.siff`. The front-facing methods can:
 
 ## SiffReader methods (Python module)
 
-You can interact with the `SiffReader` class through the `siffreader` Python module. At import, this module initializes a `SiffReader` which you then can interact with. That means that there's a single global (static) `SiffReader` within the interpreter, and so it has memory of function calls made previously (e.g. to change settings).
+You can interact with the `SiffReader` class through the `siffreader` Python module. At import, this module initializes a `SiffReader` which you then can interact with. __That means that there's a single global (static) `SiffReader` within the interpreter__, and so it has memory of function calls made previously (e.g. to change settings, or which file is being read). 
 
 For more information, and probably more up to date than the README, try 
 ```
