@@ -1,6 +1,5 @@
 # parameters describing a fictrac ball
 
-
 DEFAULT_PARAMS = {
     'radius'   : 3,
     'units'    : 'mm',

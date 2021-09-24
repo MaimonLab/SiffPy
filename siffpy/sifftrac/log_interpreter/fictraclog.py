@@ -113,7 +113,7 @@ class FictracLog():
         framelist = siffutils.framelist_by_color(siffreader.im_params, color_channel) 
 
         if 'uses_seconds' in kwargs:
-            # Undocumented kwarg for data from before the epoch value used seconds
+            # Undocumented kwarg for data from before the epoch value used nanoseconds
             if kwargs['uses_seconds']:
                 im_stamps_epoch = np.array(
                     siffreader.get_time(
@@ -219,11 +219,13 @@ class FictracLog():
         if name == 'dataframe':
             logging.warning("""
 
-            ONLY DEEP COPIES OF THE FICTRAC DATAFRAME ARE RETURNED FOR EXTERNAL USE.
+            ONLY DEEP COPIES OF THE FICTRAC DATAFRAME ARE RETURNED FOR EXTERNAL USE.\n\n
             THIS IS BECAUSE THE FICTRACLOG CLASS PERFORMS MOST OPERATIONS INPLACE
             SO THE RETURNED DATAFRAME WOULD OTHERWISE BE VERY LIKELY TO CHANGE
-            AND I DON'T WANT THAT TO BE A SURPRISE! IF YOU WANT A COPY THAT CONTINUES TO POINT
-            TO THE SAME DATA USE THE GET_DATAFRAME_COPY METHOD.
+            AND I DON'T WANT THAT TO BE A SURPRISE!
+            \n\nIF YOU WANT A COPY THAT CONTINUES TO POINT
+            TO THE SAME DATA USE THE GET_DATAFRAME_REFERENCE METHOD. OTHERWISE USE GET_DATAFRAME_COPY
+            TO MAKE THIS EXPLICIT.
             
             """
             )
@@ -231,15 +233,18 @@ class FictracLog():
         else:
             return super().__getattribute__(name)
 
+    def get_dataframe_reference(self) -> pd.DataFrame:
+        return self._dataframe
+
     def get_dataframe_copy(self) -> pd.DataFrame:
         """
-        Returns a reference copy of the internal dataframe.
+        Returns a copy of the internal dataframe.
         
         Overrode the __getattr__ and made this an explicit method
         to avoid suprises when this class adjusts the dataframe in place.
         """
         if hasattr(self,'_dataframe'):
-            return self._dataframe.copy(deep=False)
+            return self._dataframe.copy(deep=True)
         else:
             raise AttributeError("Dataframe attribute does not exist.")
 

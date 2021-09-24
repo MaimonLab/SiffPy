@@ -7,6 +7,7 @@ class TrajectoryPlotter(TracPlotter):
     def __init__(self, *args, **kwargs):
         super(TrajectoryPlotter, self).__init__(*args, **kwargs)
 
+    @apply_opts
     def single_plot(self, log : LogToPlot, **kwargs)-> hv.element.path.Path:
         """ 
         

@@ -11,6 +11,7 @@ class HeadingPlotter(TracPlotter):
     def __init__(self, *args, **kwargs):
         super(HeadingPlotter, self).__init__(*args, **kwargs)
 
+    @apply_opts
     def single_plot(self, log : LogToPlot, offset : float = 0, scalebar : float = None, **kwargs) -> hv.element.path.Path:
         """
         
@@ -34,7 +35,7 @@ class HeadingPlotter(TracPlotter):
 
         t = log._dataframe['image_time']
 
-        wrapped_heading = log._dataframe['integrated_heading_lab']
+        wrapped_heading = log.get_dataframe_copy()['integrated_heading_lab'] # get the copy if you're modifying
         wrapped_heading -= offset
         wrapped_heading = wrapped_heading % (2*np.pi)
 

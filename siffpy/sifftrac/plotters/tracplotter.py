@@ -1,9 +1,7 @@
 # Code for plotting trajectories
 #TODO: This
 from __future__ import annotations
-import typing
 from typing import Union
-from itertools import chain
 
 import holoviews as hv
 from holoviews import opts
@@ -12,6 +10,26 @@ hv.extension('bokeh')
 from numpy import add
 from ..log_interpreter.fictraclog import FictracLog
 from ..log_interpreter.logtoplot import LogToPlot
+
+
+def apply_opts(func):
+    """
+    Decorator function to apply a TracPlotter's
+    'local_opts' attribute to methods which return
+    objects that might want them. Allows this object
+    to supercede applied defaults, because this gets
+    called with every new plot.
+    """
+    def local_opts(*args, **kwargs):
+        if hasattr(args[0],'local_opts'):
+            try:
+                opts = args[0].local_opts # get the local_opts param from self
+                return func(*args, **kwargs).opts(opts)
+            except Exception as e:
+                raise RuntimeError(f"Error applying local opts!:\n{e}")
+        else:
+            return func(*args,**kwargs)
+    return local_opts
 
 class TracPlotter():
     """
@@ -23,9 +41,11 @@ class TracPlotter():
     
     """
 
-    def __init__(self, FLog : Union[FictracLog,list[FictracLog], list[list[FictracLog]]]):
+    def __init__(self, FLog : Union[FictracLog,list[FictracLog], list[list[FictracLog]]], opts : dict = None):
         
         self.figure = None
+        if not opts is None:
+            self.local_opts = opts
 
         if isinstance(FLog, FictracLog):
             self.logs = [[LogToPlot(FictracLog=FLog)]]
@@ -52,6 +72,8 @@ class TracPlotter():
                 return
 
         raise TypeError(f"Argument FLog is not of type FictracLog or a list of lists FictracLog elements")
+
+    ### COMBINING PLOTS FUNCTIONALITY
 
     def __multiple_plots(self)->bool:
         return len(self.logs)>1
@@ -175,6 +197,9 @@ class TracPlotter():
             return NotImplemented
         raise NotImplementedError()
 
+    ### PLOTTING FUNCTIONALITY
+
+    @apply_opts
     def plot(self, scalebar : float = None, **kwargs):
         """
 
@@ -216,7 +241,7 @@ class TracPlotter():
         raise NotImplementedError("This method must be implemented separately in each derived class")
 
     
-
+## LOCAL SHARED FCNS
 def add_scalebar(fig : Union[hv.Layout, hv.Overlay], scalebar : float = None):
     if not scalebar is None:
         scalebar = float(scalebar)

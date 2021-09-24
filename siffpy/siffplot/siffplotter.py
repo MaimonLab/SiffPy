@@ -1,3 +1,11 @@
+"""
+Class and functions relating to the SiffPlotter, a class
+which produces figures, pre or post analysis, of fluorescence
+data stored in .siff and .tiff files that can be read by the
+SiffReader class of the main siffpy module
+
+SCT 09/23/2021
+"""
 import functools, re, os, pickle, logging
 
 import numpy as np
@@ -7,6 +15,7 @@ hv.extension('bokeh')
 
 from ..siffpy import SiffReader
 from . import roi_protocols
+from .utils import *
 
 def apply_opts(func):
     """
@@ -16,15 +25,15 @@ def apply_opts(func):
     to supercede applied defaults, because this gets
     called with every new plot.
     """
-    def local_opts(*args):
+    def local_opts(*args, **kwargs):
         if hasattr(args[0],'local_opts'):
             try:
                 opts = args[0].local_opts # get the local_opts param from self
-                return func(*args).opts(opts)
+                return func(*args, **kwargs).opts(opts)
             except:
-                pass # worth a try
+                return func(*args, **kwargs)
         else:
-            return func(*args)
+            return func(*args, **kwargs)
     return local_opts
 
 class SiffPlotter():
@@ -48,13 +57,33 @@ class SiffPlotter():
             if not isinstance(kwargs['opts'], (list, tuple)):
                 TypeError("Argument opts only accepts tuples or lists -- something that can be unpacked")
             self.local_opts = kwargs['opts']
+        else:
+            # Default opts
+            self.local_opts = hv.opts(
+                hv.opts.Image(
+                    cmap='viridis',
+                    invert_yaxis=True,
+                    width=self.siffreader.im_params.xsize,
+                    height=self.siffreader.im_params.ysize,
+                    #hooks = [bounds_hook]
+                ),
+                hv.opts.HeatMap(hooks = [arial_hook]),
+                hv.opts.Polygons(fill_alpha=0.15),
+                hv.opts.Curve(hooks = [font_hook])
+            )
 
         if self.siffreader.opened:
             self.reference_frames : hv.HoloMap = self.reference_frames_to_holomap()
 
-        if any([file.endswith('.roi') for file in os.listdir(os.path.dirname(self.siffreader.filename))]):
-            logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
-            self.load_rois(path = os.path.dirname(self.siffreader.filename))
+        directory_with_file_name = os.path.join(
+            os.path.dirname(self.siffreader.filename),
+            os.path.splitext(self.siffreader.filename)[0]
+        )
+
+        if os.path.exists(directory_with_file_name):
+            if any([file.endswith('.roi') for file in os.listdir(directory_with_file_name)]):
+                logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
+                self.load_rois(path = directory_with_file_name)
 
 
     @apply_opts
@@ -66,6 +95,7 @@ class SiffPlotter():
         viewing each of them
         """
         if not hasattr(self.siffreader, 'reference_frames'):
+            logging.warn("No reference frames stored in siffreader")
             return None
         
         self.ref_ds = hv.Dataset(
@@ -80,7 +110,7 @@ class SiffPlotter():
 
         ref_holomap = self.ref_ds.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
         # hard limits
-        ref_holomap.opts(xlim = (0, self.siffreader.im_params.xsize), ylim = (0, self.siffreader.im_params.ysize))
+        ref_holomap = ref_holomap.opts(xlim = (0, self.siffreader.im_params.xsize), ylim = (0, self.siffreader.im_params.ysize))
         return ref_holomap
 
 ### ROI

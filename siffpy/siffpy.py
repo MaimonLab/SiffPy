@@ -2,7 +2,6 @@ from siffpy.siffutils.typecheck import x_across_time_TYPECHECK
 from siffpy.siffutils import registration
 import siffreader
 import numpy as np
-import tkinter as tk
 import logging, os, pickle
 
 from . import siffutils
@@ -252,12 +251,12 @@ class SiffReader(object):
         if timepoint_end is None:
             frame_end = self.im_params['NUM_FRAMES']
         else:
-            if timepoint_end > int(self.im_params['NUM_FRAMES']/timestep_size):
+            if timepoint_end > self.im_params['NUM_FRAMES']//timestep_size:
                 logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
-                timepoint_end = int(self.im_params['NUM_FRAMES']/timestep_size) # hope float arithmetic won't bite me in the ass here
+                timepoint_end = self.im_params['NUM_FRAMES']//timestep_size
             
             frame_end = timepoint_end * timestep_size
 
