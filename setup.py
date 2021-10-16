@@ -36,7 +36,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.3.5',
+       version = '0.3.6',
        install_requires = [
            'numpy',
            'scipy'

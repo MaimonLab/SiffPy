@@ -6,6 +6,12 @@ from ..extern.smallest_circle import make_circle
 from .roi import *
 from .ellipse import *
 
+__all__ = [
+    'polygon_area',
+    'fit_ellipse_to_poly',
+    'get_largest_polygon'
+]
+
 def polygon_area(x_coords : np.ndarray, y_coords : np.ndarray) -> float:
     """ Shoelace method to compute area"""
     return 0.5*np.abs(
@@ -77,10 +83,16 @@ def fit_ellipse_to_poly(poly : hv.element.path.Polygons, method : str = 'lsq', c
 
     raise ValueError(f"Invalid method for ellipse fitting {method}")
 
-def get_largest_polygon(annotation_dict : dict, slice_idx : int = None) -> tuple[hv.element.path.Polygons,int, int]:
+def get_largest_polygon(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """
-    Expects an annotation dict, and returns the largest polygon in it + from which slice it came
+    Expects an annotation dict, and returns the largest polygon in it + from which slice it came. n_polygons is the number of polygons to return.
+    If >1, returns a LIST of tuples, with the 1st tuple being the largest polygon, the next being the next largest polygon, etc. If there
+    are fewer polygons than requested, will raise an exception.
     """
+    if n_polygons > 1:
+        return get_largest_polygons(annotation_dict, slice_idx, n_polygons) # private method for returning more than one. This is me being
+        # lazy to avoid a rewrite
+
     if slice_idx is None:
         largest_poly = {
             slice_idx : max([polygon_area(p['x'],p['y']) for p in annotation_dict[slice_idx]['annotator'].annotated.data])
@@ -98,3 +110,26 @@ def get_largest_polygon(annotation_dict : dict, slice_idx : int = None) -> tuple
         slice_idx,
         roi_idx
     )
+
+def get_largest_polygons(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> list[tuple[hv.element.path.Polygons, int, int]]:
+    """
+    Private method for returning more than one polygon, in order of size. 
+    """
+
+    if slice_idx is None:
+        # Not Pythonic, who cares
+        poly_list = []
+        for slice_idx in annotation_dict.keys():
+            poly_list += [
+                (
+                    polygon_area(p['x'],p['y']),
+                    slice_idx
+                )
+                for p in annotation_dict[slice_idx]['annotator'].annotated.data
+                if isinstance(slice_idx, int) and len(annotation_dict[slice_idx]['annotator'].annotated.data) # ignore the 'merged' key
+            ] # iterate through polygons, store in list
+        # now we have a list of tuples that track each polygon
+
+    top_rois = []
+    raise NotImplementedError("I haven't finished implementing this yet")
+    return top_rois

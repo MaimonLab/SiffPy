@@ -109,8 +109,8 @@ class SiffReader(object):
         NONE
         """
         if filename is None:
-            filename = tk.filedialog.askopenfilename(filetypes = (("ScanImage tiffs","*.tiff"),("ScanImage FLIM Format (siff)","*.siff")))
-
+            raise NotImplementedError("Dialog to navigate to file not yet implemented")
+            
         if self.opened and not (filename == self.filename):
             siffreader.close()
 

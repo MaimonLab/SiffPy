@@ -95,7 +95,10 @@ class SiffPlotter():
         viewing each of them
         """
         if not hasattr(self.siffreader, 'reference_frames'):
-            logging.warn("No reference frames stored in siffreader")
+            logging.warning("No reference frames stored in siffreader")
+            return None
+        if self.siffreader.reference_frames is None:
+            logging.warning("No reference frames stored in siffreader")
             return None
         
         self.ref_ds = hv.Dataset(
@@ -110,10 +113,13 @@ class SiffPlotter():
 
         ref_holomap = self.ref_ds.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
         # hard limits
-        ref_holomap = ref_holomap.opts(xlim = (0, self.siffreader.im_params.xsize), ylim = (0, self.siffreader.im_params.ysize))
+        ref_holomap = ref_holomap.opts(
+            xlim = (0, self.siffreader.im_params.xsize),
+            ylim = (0, self.siffreader.im_params.ysize)
+        )
         return ref_holomap
 
-### ROI
+    ### ROI
 
     def get_roi_reference_layouts(self, merge : bool = True, polygon_shape : str = 'polygons', **kwargs) -> dict[int, dict]:
         """
@@ -152,13 +158,13 @@ class SiffPlotter():
         if re.match(r'polygon[s]?', polygon_shape, re.IGNORECASE):
             drawdict = {
                 zidx:
-                hv.Polygons([])
+                    hv.Polygons([])
                 for zidx in range(self.siffreader.im_params.num_slices)
             }
         elif re.match(r'rectangle[s]?', polygon_shape, re.IGNORECASE):
             drawdict = {
                 zidx:
-                hv.Rectangles([])
+                    hv.Rectangles([])
                 for zidx in range(self.siffreader.im_params.num_slices)
             }
         elif re.match(r'ellipse[s]?', polygon_shape, re.IGNORECASE):
@@ -168,16 +174,16 @@ class SiffPlotter():
 
         annotators = {
             zidx :
-            hv.annotate.instance()
+                hv.annotate.instance()
             for zidx in range(self.siffreader.im_params.num_slices)
         }
 
         annotator_layouts = {
             zidx:
-            annotator(self.reference_frames[zidx] * drawdict[zidx]).opts(
-                hv.opts.Table(width=0), # hide the annotation table
-                hv.opts.Layout(merge_tools=False) # don't share the tools
-            )
+                annotator(self.reference_frames[zidx] * drawdict[zidx]).opts(
+                    hv.opts.Table(width=0), # hide the annotation table
+                    hv.opts.Layout(merge_tools=False) # don't share the tools
+                )
             for zidx, annotator in annotators.items()
         }
 
@@ -190,6 +196,7 @@ class SiffPlotter():
         }
 
         if merge:
+            # Merges into a single layout with toolbars for each holoviews element
             def merge_plots(a, b):
                 if isinstance(a, dict):
                     return (a['layout'] + b['layout']).opts(merge_tools = False)
@@ -201,12 +208,27 @@ class SiffPlotter():
         return self.annotation_dict
 
     def draw_rois(self, **kwargs):
-        self.get_roi_reference_layouts(**kwargs)
+        """
+        Returns a hv.Layout element that
+        enables drawing and editing polygons
+        on each of the reference frames for the
+        opened .siff file. When the appropriate
+        annotation has been performed, you can
+        call extract_rois (or anything else that
+        depends on the annotation).
+
+        Accepts all keyword arguments of get_roi_reference_layouts.
+        """
+        self.get_roi_reference_layouts(merge = True, **kwargs)
         return self.annotation_dict['merged']
 
     def roi_to_layout(self):
-        l = hv.Layout
-
+        """
+        Should've written a docstring.
+        Can't remember what this was supposed to be for.
+        But I suspect I'll want it later.
+        """
+        raise NotImplementedError("")
 
     def extract_rois(self, region : str, method_name : str = None, *args, **kwargs) -> None:
         """
@@ -308,7 +330,7 @@ class SiffPlotter():
             with open(roi_files[0], 'rb') as roi_file:
                 self.rois = pickle.load(roi_file)
                 
-### HEATMAP
+    ### HEATMAP
     @apply_opts
     def make_heatmap(self, transform_function, **kwargs) -> hv.HoloMap:
         """ Takes a function to apply to the data """

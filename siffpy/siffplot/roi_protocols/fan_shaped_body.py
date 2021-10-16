@@ -1,7 +1,6 @@
 # Code for ROI extraction from the fan-shaped body after manual input
 
-from .rois import *
-
+from . import rois
 
 def dummy_method(*args, **kwargs):
     print("I'm just a placeholder!")

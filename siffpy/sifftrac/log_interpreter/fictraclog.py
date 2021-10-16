@@ -234,6 +234,10 @@ class FictracLog():
             return super().__getattribute__(name)
 
     def get_dataframe_reference(self) -> pd.DataFrame:
+        """
+        Returns a reference to the internal dataframe to allow
+        in-place modifications.
+        """
         return self._dataframe
 
     def get_dataframe_copy(self) -> pd.DataFrame:
@@ -242,6 +246,8 @@ class FictracLog():
         
         Overrode the __getattr__ and made this an explicit method
         to avoid suprises when this class adjusts the dataframe in place.
+
+        To get a reference to the dataframe, use get_dataframe_reference.
         """
         if hasattr(self,'_dataframe'):
             return self._dataframe.copy(deep=True)

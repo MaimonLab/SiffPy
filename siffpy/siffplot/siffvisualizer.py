@@ -30,12 +30,20 @@ class SiffVisualizer():
     def __init__(self, siffreader : SiffReader):
         self.siffreader = siffreader
         self.visual = None
+        self.image_opts = {
+            'yaxis' : None,
+            'xaxis' : None,
+            'cmap' : 'greys_r',
+            'clim' : (0,1)
+        }
 
     def view_frames(self, z_planes : list[int] = None, color : int = 0, **kwargs) -> hv.DynamicMap:
         """
         Returns a dynamic map object that permits visualization
         of individual timepoints across z-planes, or restricting
         z-plane.
+
+        Adjusting the SiffVisualizer's image_opts attribute's keys will change how this is plotted.
 
         Arguments
         ---------
@@ -66,13 +74,6 @@ class SiffVisualizer():
         else:
             color = list(color)
 
-        IM_OPTS = {
-            'yaxis' : None,
-            'xaxis' : None,
-            'cmap' : 'greys_r',
-            'clim' : (0,1)
-        }
-
         def show_frames(t_val, pool_width):
             frames = self.siffreader.sum_across_time(
                 timepoint_start = t_val,
@@ -83,17 +84,20 @@ class SiffVisualizer():
                 registration_dict = self.siffreader.registrationDict
             )
             
-            images = [hv.Image(frames[j]).opts(**IM_OPTS) for j in range(1,len(frames))]
+            images = [hv.Image(frames[j]).opts(**(self.image_opts)) for j in range(1,len(frames))]
             
-            return sum(images, hv.Image(frames[0]).opts(**IM_OPTS)).cols(int(np.sqrt(len(z_planes)))+1)
+            return sum(images, hv.Image(frames[0]).opts(**(self.image_opts))).cols(int(np.sqrt(len(z_planes)))+1)
 
         hv.output(widget_location='top') # may start doing this with panel at some point in the future?
 
         dm : hv.DynamicMap = hv.DynamicMap(show_frames, kdims = ['timepoint', 'pool_width'])
         dm = dm.redim.range(
-            timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume),
+            timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume - 1),
             pool_width=(1,20)
         )
         dm = dm.redim.type(timepoint=int, pool_width = int).redim.step(timepoint=1, pool_width = 1)
 
-        return dm
+        self.visual = dm
+        return self.visual
+
+    

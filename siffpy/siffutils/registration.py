@@ -4,6 +4,7 @@ from numpy.core.numeric import rollaxis
 import siffreader
 import warnings, random, scipy
 import scipy.ndimage
+from .circle_fcns import *
 
 def build_reference_image(frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
     """
@@ -407,21 +408,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
     return (reg_dict, roll_d_array, ref_im)
 
-def circ_d(x : float, y : float, rollover : float)->float:
-    """Wrapped-around distance between x and y"""
-    return ((x-y + rollover/2) % rollover) - rollover/2
-
-def re_circ(x : float, rollover : float) -> float:
-    """ Takes de-circularized data and reverts it to circularized """
-    return (x + rollover) % rollover
-
-def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: float, rollover_x : float)->float:
-    """ Distance between two rollovers """
-    d_y = circ_d(roll1[0],roll2[0],rollover_y)
-    d_x = circ_d(roll1[1],roll2[1],rollover_x)
-    return np.sqrt(d_x**2 + d_y**2)
-
-def regularize_adjacent_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : float = 2.0) -> list[tuple]:
+def regularize_adjacent_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : float = 2.0) -> list[tuple]:
     """
     Take a list of tuples, pretend adjacent ones are coupled by springs and to their original values.
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
@@ -436,9 +423,16 @@ def regularize_adjacent_tuples(tuples : list[tuple], xdim : int, ydim: int, sigm
 
     yz = spsolve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[0], 0, ydim) for roll_point in tuples]))
     xz = spsolve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[1], 0, xdim) for roll_point in tuples]))
-    return [ ( int(re_circ(yz[k], ydim)) , int(re_circ(xz[k], xdim))  ) for k in range(len(yz)) ]
+    
+    return [
+        (
+            int(re_circ(yz[k], ydim)),
+            int(re_circ(xz[k], xdim))
+        )
+        for k in range(len(yz))
+    ]
 
-def regularize_all_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : float = 2.0) -> list[tuple]:
+def regularize_all_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : float = 2.0) -> list[tuple]:
     """
     Take a list of tuples, pretend they're ALL coupled by springs and to their original values.
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
@@ -461,4 +455,11 @@ def regularize_all_tuples(tuples : list[tuple], xdim : int, ydim: int, sigma : f
 
     yz = solve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[0], 0, ydim) for roll_point in tuples]))
     xz = solve(trans_mat,(sigma**2)*np.array([circ_d(roll_point[1], 0, xdim) for roll_point in tuples]))
-    return [ ( int(re_circ(yz[k], ydim)) , int(re_circ(xz[k], xdim))  ) for k in range(len(yz)) ]
+    
+    return [
+        (
+            int(re_circ(yz[k], ydim)),
+            int(re_circ(xz[k], xdim))
+        ) 
+        for k in range(len(yz))
+    ]

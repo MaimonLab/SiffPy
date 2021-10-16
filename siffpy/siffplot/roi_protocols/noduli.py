@@ -1,6 +1,7 @@
 # Code for ROI extraction from the noduli after manual input
 
-from .rois import *
+from . import rois
+import holoviews as hv
 
 def hemispheres(reference_frames : list, annotation_dict : dict, *args, **kwargs) -> hv.element.path.Polygons:
     """
@@ -13,10 +14,11 @@ def hemispheres(reference_frames : list, annotation_dict : dict, *args, **kwargs
             slice_idx = kwargs['slice_idx']
         del kwargs['slice_idx']
     
-    largest_polygon, slice_idx, roi_idx = get_largest_polygon(annotation_dict, slice_idx = slice_idx)
-
     if len(annotation_dict[slice_idx]['annotator'].annotated.data) <2:
         raise ValueError("Fewer than two ROIs provided")
+
+    poly_list = rois.get_largest_polygon(annotation_dict, slice_idx = slice_idx, n_polygons = 2)
+
 
     raise NotImplementedError("Not finished method")
 

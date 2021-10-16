@@ -10,6 +10,7 @@ from .registration import *
 from .matlab_to_python import *
 from .fluorophore_inits import available_fluorophores
 from .slicefcns import *
+from .circle_fcns import *
 from .imparams import ImParams
 
 # types to cast strings to when looked up

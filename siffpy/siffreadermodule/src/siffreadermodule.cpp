@@ -59,7 +59,6 @@ static PyObject* siffreader_open(PyObject *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-
 static PyObject* siffreader_close(PyObject *self, PyObject *args) {
     // simple: returns the file header data
 

@@ -3,8 +3,8 @@ import logging
 
 import holoviews as hv
 
-from .rois import *
-from .extern.smallest_circle import *
+from . import rois
+from .extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
 def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs) -> hv.element.path.Polygons:
@@ -29,14 +29,15 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs
     Additional kwargs are passed to the Ellipse's opts function
 
     """
+
     slice_idx = None
     if 'slice_idx' in kwargs:
         if isinstance(kwargs['slice_idx'], int):
             slice_idx = kwargs['slice_idx']
         del kwargs['slice_idx']
     
-    largest_polygon, slice_idx, roi_idx = get_largest_polygon(annotation_dict, slice_idx = slice_idx)
-    ellip = fit_ellipse_to_poly(largest_polygon, method = 'lsq')
+    largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon(annotation_dict, slice_idx = slice_idx)
+    ellip = rois.fit_ellipse_to_poly(largest_polygon, method = 'lsq')
 
     center_x, center_y = ellip.x, ellip.y
     center_poly = None
@@ -54,7 +55,7 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs
                     # Go through all polygons, find the one with a center closest to the largest polygon
                     centers = []
                     for poly in annotation_dict[slice_idx]['annotator'].annotated.data:
-                        (c_x, c_y, _) = make_circle(list(zip(poly['x'],poly['y'])))
+                        (c_x, c_y, _) = smallest_circle.make_circle(list(zip(poly['x'],poly['y'])))
                         centers.append((c_x,c_y))
                     
                     dists = len(centers)*[np.nan]
@@ -77,12 +78,9 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs
             # was not in kwargs
             logging.warning("Additional polygons detected with no kwarg 'extra_rois'. Ignoring polygons")
     
-    return Ellipse(
+    return rois.Ellipse(
         ellip.opts(**kwargs),
         source_polygon = largest_polygon,
         center_poly = center_poly,
         slice_idx = slice_idx
     )
-
-def dummy_method(*args, **kwargs):
-    print("I'm just a placeholder!")

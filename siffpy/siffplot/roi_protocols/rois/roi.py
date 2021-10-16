@@ -3,7 +3,6 @@ from ..extern.pairwise import pairwise
 import abc, pickle, logging, os
 import numpy as np
 import holoviews as hv
-import colorcet
 from matplotlib.path import Path as mplPath
 
 class ROI():

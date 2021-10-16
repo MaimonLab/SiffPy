@@ -50,7 +50,7 @@ class HeadingPlotter(TracPlotter):
                     'x':t[(start+1):end],
                     'y': (wrapped_heading[(start+1):end])
                 }
-                for start, end in pairwise(np.where(np.abs(np.diff(wrapped_heading))>=np.pi)[0])
+                for start, end in pairwise(np.where(np.abs(np.diff(wrapped_heading))>=np.pi)[0]) # segments whenever the rotation is of magnitude > np.pi
             ]
         ).opts(**OPTS_DICT)
         
