@@ -209,15 +209,15 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
         ref /= np.abs(ref)
 
     # Take the normalized complex conjugate of the Fourier transform of im
-    im2 = fft.fft2(im)
-    im2 = np.conjugate(im2)
-    im2 /= np.abs(im2)
+    im_fft = fft.fft2(im)
+    im_fft = np.conjugate(im_fft)
+    im_fft /= np.abs(im_fft)
 
-    phase_product = ref*im2
+    phase_product = ref*im_fft
 
     if blur_phase: # for when the phasecorr map is messy and you get a surprisingly large alignment shift
         if blur_size is None:
-            blur_size = float(min(phase_product.shape)/30.0)
+            blur_size = float(min(phase_product.shape)/30.0) # maybe there's a more principled way?
         
         xx, yy = np.meshgrid(np.arange(im.shape[0]), np.arange(im.shape[1]))
         gauss = np.exp(-(xx/blur_size)**2)*np.exp(-(yy/blur_size))

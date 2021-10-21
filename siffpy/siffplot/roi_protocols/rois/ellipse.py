@@ -121,6 +121,7 @@ class Ellipse(ROI):
         else:
             raise ValueError(f"Argument 'viewed_from' is {viewed_from}, must be 'anterior' or 'posterior'")
             
+        self.perspective = viewed_from
         offset = ell.orientation
 
         dividing_lines = [
@@ -197,6 +198,23 @@ class Ellipse(ROI):
         
         raise RuntimeError("Visualization not defined for current ")
 
+    def __repr__(self)->str:
+        """
+        A few summary values
+        """
+        ret_str = "ROI of class Ellipse\n\n"
+        ret_str += f"\tCentered at {self.center()}\n"
+        ret_str += f"\tRestricted to slice(s) {self.slice_idx}\n"
+        if hasattr(self, 'wedges'):
+            ret_str += f"\tSegmented into {len(self.wedges)} wedges\n"
+        if hasattr(self,'perspective'):
+            ret_str += f"\tViewed from {self.perspective} direction\n"
+        if hasattr(self,'midline'):
+            ret_str += f"Midline defined as\n"
+        ret_str += f"Custom plotting options: {self.plotting_opts}\n"
+
+        return ret_str
+
     class WedgeROI(ROI):
         """
         Local class for ellipsoid body wedges. Very simple
@@ -236,6 +254,18 @@ class Ellipse(ROI):
         
         def visualize(self):
             return self.polygon.opts(**self.plotting_opts)
+
+        def __repr__(self):
+            """
+            An ellipse's wedge.
+            """
+            ret_str = "ROI of class Wedge of an Ellipse\n\n"
+            ret_str += f"\tCentered at {self.center()}\n"
+            ret_str += f"\tOccupies angles in range {self.bounding_angles}\n"
+            ret_str += f"Custom plotting options: {self.plotting_opts}\n"
+
+            return ret_str
+
 
 
     class RingMidline(Midline):

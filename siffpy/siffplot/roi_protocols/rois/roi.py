@@ -124,6 +124,12 @@ class ROI():
         with open(file_name + ".roi",'wb') as roi_file:
             pickle.dump(self, roi_file)
 
+    def __repr__(self)->str:
+        """
+        Pretty summary of an ROI
+        """
+        return f"ROI superclass"
+
 
 
 class Midline():

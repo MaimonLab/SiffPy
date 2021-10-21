@@ -6,7 +6,8 @@ The central classes are the `FicTracLog` and the `TracPlotter`.
 
 Plotters inherit from the `TracPlotter`, which interfaces with the `FicTracLog`,
 to plot and combine different types of data in the `FicTracLog`. Most override
-shared methods of the `TracPlotter` class, e.g. `plot`. 
+shared methods of the `TracPlotter` class, e.g. `plot`. At least so far, expects @tmohren's 
+universal_fictrac_logger framework, so be careful about how your dataframes are parsed! 
 
 ## FicTracLog
 
