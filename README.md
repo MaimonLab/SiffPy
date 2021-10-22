@@ -48,6 +48,11 @@ The primary object in `SiffPy` is the `SiffReader` class, which is usually impor
 
 There are several submodules, each specializing in different tasks. Each has its own README.md file that explains more. Or... it will. I'll get around to it.
 
+Each submodule is intended to function *in isolation and independent from* every other submodule, 
+(though all rely on the `SiffReader`),
+so there are a few functions repeated in their respective
+`utils` directories. This is 1) to avoid circular dependencies, 2) so that if one submodule is broken by an update, others need not fail.
+
 ### SiffPlot
 
 This submodule handles visualization of data from .siff files. It relies on `Bokeh` and `HoloViews`, so you'll need to install those if you don't have them.
@@ -61,6 +66,12 @@ between FicTrac data and SiffReader data. This also relies on `Bokeh` and `HoloV
 
 This submodule handles functionality related to FLIM data, such as multiexponential fitting, and
 functionality related to image processing, such as image registration.
+
+### SiffMath
+
+This submodule analyzes traces, sometimes produced by other modules (like the `SiffTrac` headings) and returns array-like objects.
+Haven't decided, but it's plausible the plotter submodules might use this? I don't intend it to perform plotting itself, and so
+will function even without `Holoviews` and `Bokeh` (at time of writing, Oct 21, 2021).
 
 ### Handling data
 

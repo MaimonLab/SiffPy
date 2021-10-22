@@ -44,15 +44,7 @@ class HeadingPlotter(TracPlotter):
         else:
             OPTS_DICT = DEFAULT_OPTS
 
-        return hv.Path(
-            [
-                {
-                    'x':t[(start+1):end],
-                    'y': (wrapped_heading[(start+1):end])
-                }
-                for start, end in pairwise(np.where(np.abs(np.diff(wrapped_heading))>=np.pi)[0]) # segments whenever the rotation is of magnitude > np.pi
-            ]
-        ).opts(**OPTS_DICT)
+        return hv.Path(split_headings_to_dict(t, wrapped_heading)).opts(**OPTS_DICT)
         
 
 
