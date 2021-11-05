@@ -212,6 +212,69 @@ class FictracLog():
             
         self._dataframe.reset_index(drop=True, inplace=True)
 
+    def downsample_to_imaging(self, method : str = 'downsample', groupby : str = 'volume')->pd.DataFrame:
+        """
+        RETURNS (does not store!!) a downsampled dataframe according to the method provided.
+
+        Arguments
+        --------
+
+        method : str
+
+            How to perform the downsampling. Available options:
+
+                - 'downsample'          : takes the point nearest in time to each image frame
+                - 'average' or 'mean'   : takes the average of all points between the correspond image frame and the next
+
+        groupby : str
+            
+            Whether to return a sample for every volume or for every individual frame. Options:
+
+                - 'volume' : one row for every volume
+                - 'frame'  : one row for every frame
+
+        """
+        if not hasattr(self,'siffreader'):
+            raise RuntimeError("FictracLog not linked to an image file")
+
+        if not 'image_time' in self._dataframe.columns:
+            print("Aligning to image time")
+            self.align_to_image_time(self.siffreader)
+
+        if not 'aligned_imaging_frame' in self._dataframe.columns:
+            self.align_to_imaging_data(self.siffreader)
+
+        if not groupby in ['volume', 'frame']:
+            raise ValueError(f"Invalid groupby {groupby}. Must be either 'volume' or 'frame'.")
+
+        if method == 'mean':
+            method = 'average'
+
+        if not method in ['average','downsample']:
+            raise ValueError(f"Invalid method of downsampling data '{method}'. Consult help(sifftrac.log_interpreter.fictraclog.FictracLog.downsample_to_imaging)")
+
+        
+        copied_df = self.get_dataframe_copy()
+
+        new_frame_indices = np.insert(np.where(np.diff(copied_df['aligned_imaging_frame']))[0]+1,0,0) # first index of each new imaging frame
+
+        if groupby == 'frame':
+            if method == 'downsample':
+                return copied_df.iloc[new_frame_indices]
+            
+            if method == 'average':
+                return copied_df.groupby('aligned_imaging_frame').mean()
+
+        if groupby == 'volume':
+            copied_df['aligned_volume'] = copied_df['aligned_imaging_frame']//self.siffreader.im_params.frames_per_volume
+            if method == 'downsample':
+                new_volume_indices = np.insert(np.where(np.diff(copied_df['aligned_volume']))[0]+1,0,0) # first index of each new volume
+                return copied_df.iloc[new_volume_indices]
+            if method == 'average':
+                return copied_df.groupby('aligned_volume').mean()
+        
+        raise RuntimeError("Unanticipated error in source code argument checking, slipped through the cracks.")
+        
     def __getattr__(self, name: str) -> object:
         """
         For safe copying of dataframes, FORCES you to copy.

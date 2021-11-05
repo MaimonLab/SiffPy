@@ -11,6 +11,7 @@ from typing import Iterable
 import holoviews as hv
 hv.extension('bokeh')
 import numpy as np
+import functools, operator
 
 from ..siffpy import SiffReader
 
@@ -36,7 +37,8 @@ class SiffVisualizer():
             'yaxis' : None,
             'xaxis' : None,
             'cmap' : 'greys_r',
-            'clim' : (0,1)
+            'clim' : (0,1),
+            'invert_yaxis' : False,
         }
         self.loaded_frames = False
 
@@ -115,9 +117,9 @@ class SiffVisualizer():
             else:
                 frames = [self.frames[t_val*self.siffreader.frames_per_volume + k] for k in range(len(z_planes))]
 
-            images = [hv.Image(frames[j]).opts(**(self.image_opts)) for j in range(1,len(frames))]
+            images = [hv.Image(frames[j]).opts(**(self.image_opts)) for j in range(0,len(frames))]
             
-            return sum(images, hv.Image(frames[0]).opts(**(self.image_opts))).cols(int(np.sqrt(len(z_planes)))+1)
+            return functools.reduce(operator.add, images).cols(int(np.sqrt(len(z_planes)))+1)
 
         hv.output(widget_location='top') # may start doing this with panel at some point in the future?
         

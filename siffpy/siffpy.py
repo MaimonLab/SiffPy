@@ -831,7 +831,7 @@ class SiffReader(object):
         return siffutils.framelist_by_timepoint(self.im_params, color_channel)
 
     def registration_dict(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
-        elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:
+        align_zplanes : bool = False, elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 
@@ -860,6 +860,10 @@ class SiffReader(object):
         save (optional) : bool
 
             Whether or not to save the dict. Name will be as TODO
+
+        align_zplanes (optional) : bool
+
+            Whether or not to align each z plane to the others.
         
         elastic_slice (optional) : float
 
@@ -883,6 +887,8 @@ class SiffReader(object):
 
                 Can be passed directory to siffreader functionality that takes a registrationDict.
         """
+
+        logging.warn("\n\n \t Don't forget to fix the zplane alignment!!")
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 
@@ -932,6 +938,27 @@ class SiffReader(object):
                 )
                 for frame_idx in range(len(framelist)):
                     reg_dict[framelist[frame_idx]] = regularized[frame_idx]                    
+
+        # Now align the reference frames so that all z planes are consistent, and shift all
+        # planes by that amount
+        if align_zplanes:
+            logging.warn("Using the new align-stack-reference-frames feature. Double check to be sure it didn't mess things up!")
+
+            refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg])
+            
+            slicewise = self.framelist_by_slice()
+            for z in range(len(slicewise)):
+                slicewise_reg[z] = (
+                    slicewise_reg[z][0],
+                    slicewise_reg[z][1],
+                    np.roll(slicewise_reg[z][2],refshift[z]) # roll the reference frames before they're saved
+                )
+                for frame in slicewise[z]:
+                    reg_dict[frame] = ( # shift all the registration tuples
+                            int((reg_dict[frame][0] + refshift[z][0])%self.im_params.ysize),
+                            int((reg_dict[frame][1] + refshift[z][1])%self.im_params.xsize)
+                        )
+
 
         # Apply to contemporaneous color channels if there are some
         if isinstance(self.im_params['COLORS'], list):

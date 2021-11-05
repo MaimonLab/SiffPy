@@ -11,6 +11,9 @@ class HeadingPlotter(TracPlotter):
     def __init__(self, *args, **kwargs):
         super(HeadingPlotter, self).__init__(*args, **kwargs)
 
+    def wrap_heading(self, log : LogToPlot):
+        pass
+
     @apply_opts
     def single_plot(self, log : LogToPlot, offset : float = 0, scalebar : float = None, **kwargs) -> hv.element.path.Path:
         """

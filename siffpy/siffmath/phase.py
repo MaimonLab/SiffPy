@@ -31,10 +31,18 @@ def pva(vector_timeseries : np.ndarray, error_estimate : bool = False, filter_fc
 
             Available options (and arguments):
 
-                - 'lowpass' : 
+                - 'lowpass' : NOT YET IMPLEMENTED
+
     """
     if error_estimate:
         raise NotImplementedError("Error estimation has not yet been implemented")
+
+
+    # First normalize each row
+    sorted_vals = np.sort(vector_timeseries,axis=1)
+    min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
+    max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
+    vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
 
     raw_phase = np.angle(
         np.matmul(

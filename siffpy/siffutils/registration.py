@@ -114,7 +114,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
                     )
                   )
     
-    # find the few frame most correlated with the mean of these
+    # find the few frames most correlated with the mean of these
 
     mean_img = np.nanmean(init_frames,axis=0)
     mean_subbed  = (init_frames - mean_img)**2
@@ -141,7 +141,10 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
                        ) -> tuple[np.ndarray, tuple[int, int]]:
     """
     Aligns an input image "im" to a reference image "ref". Uses the shift maximizing phase-correlation,
-    but only the max integer-level pixel shift. TODO: Maybe add subpixel shifts?
+    but only the max integer-level pixel shift. Operates on one plane at a time -- you then align each plane to one
+    another by adding a constant offset to all the frames discerned from the references.
+
+    TODO: Maybe add subpixel shifts?
 
     INPUTS
     ------
@@ -248,10 +251,73 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
     # default
     return (np.roll(im, (dy,dx), axis=(0,1)), (dy,dx))
 
+def align_references(reference_frames : list[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> list[tuple[int,int]]:
+    """
+    Takes a list of reference frames, aligns each to its adjacent planes. Returns a list of tuples
+    corresponding to how each slice's frames should be shifted.
+
+    Arguments
+    ---------
+
+    reference_frames : list[np.ndarray]
+
+        List of images that are the reference for each 
+
+    phase_blur : float (optional)
+
+        How much to blur the phase correlation. The larger the number, the lower-pass the frequency content used for alignment.
+
+    regularize_sigma : float (optional)
+
+        How much to regularize the alignment across planes. Higher values mean stronger trust of the phase correlation, lower
+        values mean to regress towards a shift of (0,0)
+
+    ignore_first : bool (optional)
+
+        Whether to ignore the first plane. Generally if you use the piezo-z you should do that.
+
+    Returns
+    -------
+
+    shift_tuples : list[tuple[int,int]]
+
+        One tuple for each frame with the y shift and x shift of the reference frame to align them all in z
+    """
+
+    ffts = np.fft.fft2(reference_frames)
+    if ignore_first:
+        ffts = np.fft.fft2([reference_frames[z] for z in range(1,len(reference_frames))])
+    ffts /= np.abs(ffts)
+
+    one_slice_pcorr = ffts * np.roll(np.conjugate(ffts),1, axis=0) # correlation offset by one slice
+    relative_offsets = (np.array([ # list of tuples relative to one another. Element 0 = offset between 0 and 1. Element 1 = offset between 1 and 2
+        np.unravel_index(
+            np.argmax(
+                scipy.ndimage.gaussian_filter(
+                    np.abs(np.fft.ifft2(one_slice_pcorr[z])),
+                    sigma=phase_blur,
+                    mode='wrap'
+                )
+            ),
+            ffts[0].shape
+        )
+        for z in range(ffts.shape[0])
+    ]) + (tuple(t//2 for t in ffts[0].shape))) % (ffts[0].shape) - (tuple(t//2 for t in ffts[0].shape)) # zero it
+
+    relative_offsets -= np.mean(relative_offsets,axis=0).astype(int) # minimize the total motion
+
+    relative_offsets = relative_offsets % (ffts[0].shape)# unzero
+    if ignore_first:
+       return [(0,0)] + [tuple(offset) for offset in relative_offsets] 
+    return [tuple(offset) for offset in relative_offsets]
+
+
 def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.ndarray]:
     """
     Registers the frames described by the list of indices in the input
-    argument frames.
+    argument frames. This is for a single slice. To register multiple slices
+    to one another, I register each slice independently and then align their
+    reference frames (and use that to add a constant offset to each).
 
     Returns a tuple containing the registration dictionary, an array 
     of the distance between successive frames, and the reference image

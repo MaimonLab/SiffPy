@@ -133,6 +133,52 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
                     )
                 );
             }
+            
+            // Now typecheck the registration dict item
+            // If it's not a tuple of PyLongs, replace it
+            // with a tuple of PyLongs made by attemping to cast
+            // the elements to one and replacing the tuple.
+            
+            try {
+                PyObject* shiftTuple = PyDict_GetItem(registrationDict, item);
+                if (!PyTuple_Check(shiftTuple)) {
+                    PyErr_SetString(
+                        PyExc_TypeError,
+                        (
+                            std::string("Registration dictionary element for frame ") + 
+                            std::to_string(PyLong_AsLongLong(item)) +
+                            std::string(" is not a tuple.")
+                        ).c_str()
+                    );
+                    return NULL;
+                }
+                Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
+                for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
+                    PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
+                    if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
+                        PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
+                        if (result == NULL) {
+                            PyErr_SetString(
+                                PyExc_TypeError,
+                                (
+                                    std::string("Registration dictionary element for frame ") + 
+                                    std::to_string(PyLong_AsLongLong(item)) +
+                                    std::string(" cannot be cast to type int.")
+                                ).c_str()
+                            );
+                            return NULL;
+                        }
+                        PyTuple_SetItem(shiftTuple, tupIdx, result);
+                    }
+                }
+            }
+            catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                    (std::string("Failure to access registration dictionary element for frame ") +
+                    std::to_string(PyLong_AsLongLong(item))).c_str()
+                );
+                return NULL;
+            }
         }
         uint64_t framesN = PyList_Size(frames_list);
         try{
@@ -266,6 +312,52 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
                     )
                 );
             }
+
+            // Now typecheck the registration dict item
+            // If it's not a tuple of PyLongs, replace it
+            // with a tuple of PyLongs made by attemping to cast
+            // the elements to one and replacing the tuple.
+            
+            try {
+                PyObject* shiftTuple = PyDict_GetItem(registrationDict, element);
+                if (!PyTuple_Check(shiftTuple)) {
+                    PyErr_SetString(
+                        PyExc_TypeError,
+                        (
+                            std::string("Registration dictionary element for frame ") + 
+                            std::to_string(PyLong_AsLongLong(element)) +
+                            std::string(" is not a tuple.")
+                        ).c_str()
+                    );
+                    return NULL;
+                }
+                Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
+                for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
+                    PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
+                    if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
+                        PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
+                        if (result == NULL) {
+                            PyErr_SetString(
+                                PyExc_TypeError,
+                                (
+                                    std::string("Registration dictionary element for frame ") + 
+                                    std::to_string(PyLong_AsLongLong(element)) +
+                                    std::string(" cannot be cast to type int.")
+                                ).c_str()
+                            );
+                            return NULL;
+                        }
+                        PyTuple_SetItem(shiftTuple, tupIdx, result);
+                    }
+                }
+            }
+            catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                    (std::string("Failure to access registration dictionary element for frame ") +
+                    std::to_string(PyLong_AsLongLong(element))).c_str()
+                );
+                return NULL;
+            }
         }
     }
     
@@ -382,6 +474,52 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
                         PyLong_FromLong(0)
                     )
                 );
+            }
+
+            // Now typecheck the registration dict item
+            // If it's not a tuple of PyLongs, replace it
+            // with a tuple of PyLongs made by attemping to cast
+            // the elements to one and replacing the tuple.
+            
+            try {
+                PyObject* shiftTuple = PyDict_GetItem(registrationDict, element);
+                if (!PyTuple_Check(shiftTuple)) {
+                    PyErr_SetString(
+                        PyExc_TypeError,
+                        (
+                            std::string("Registration dictionary element for frame ") + 
+                            std::to_string(PyLong_AsLongLong(element)) +
+                            std::string(" is not a tuple.")
+                        ).c_str()
+                    );
+                    return NULL;
+                }
+                Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
+                for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
+                    PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
+                    if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
+                        PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
+                        if (result == NULL) {
+                            PyErr_SetString(
+                                PyExc_TypeError,
+                                (
+                                    std::string("Registration dictionary element for frame ") + 
+                                    std::to_string(PyLong_AsLongLong(element)) +
+                                    std::string(" cannot be cast to type int.")
+                                ).c_str()
+                            );
+                            return NULL;
+                        }
+                        PyTuple_SetItem(shiftTuple, tupIdx, result);
+                    }
+                }
+            }
+            catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                    (std::string("Failure to access registration dictionary element for frame ") +
+                    std::to_string(PyLong_AsLongLong(element))).c_str()
+                );
+                return NULL;
             }
         }
     }
