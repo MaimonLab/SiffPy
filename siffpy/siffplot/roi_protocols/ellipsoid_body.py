@@ -82,5 +82,6 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs
         ellip.opts(**kwargs),
         source_polygon = largest_polygon,
         center_poly = center_poly,
-        slice_idx = slice_idx
+        slice_idx = slice_idx,
+        image = rois.annotation_dict_to_numpy(annotation_dict,slice_idx)
     )

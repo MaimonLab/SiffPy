@@ -5,6 +5,7 @@ import holoviews as hv
 from ..extern.smallest_circle import make_circle
 from .roi import *
 from .ellipse import *
+from .fan import *
 
 __all__ = [
     'polygon_area',
@@ -133,3 +134,7 @@ def get_largest_polygons(annotation_dict : dict, slice_idx : int = None, n_polyg
     top_rois = []
     raise NotImplementedError("I haven't finished implementing this yet")
     return top_rois
+
+def annotation_dict_to_numpy(annotation_dict : dict, slice_idx : int) -> np.ndarray:
+    """ Returns the numpy array underlying the image in a single frame of an annotation dict"""
+    return annotation_dict[slice_idx]['layout']['DynamicMap'].I.data[()].Image.I.data['Intensity'] # yeah, I know...

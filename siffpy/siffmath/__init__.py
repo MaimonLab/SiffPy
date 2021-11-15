@@ -1,7 +1,9 @@
+from typing import Type
 import numpy as np
 import inspect, textwrap
 
 from . import phase
+from .fluorescence import *
 
 def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estimate = False, **kwargs)->np.ndarray:
     """

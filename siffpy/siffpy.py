@@ -59,6 +59,7 @@ class SiffReader(object):
 
     """
 
+### INIT AND DUNDER METHODS
     def __init__(self, filename : str = None):
         self.file_header = {}
         self.im_params = {}
@@ -162,6 +163,7 @@ class SiffReader(object):
         self.opened = False
         self.filename = ''
 
+### LOADING SAVED RELEVANT DATA METHODS
     def assign_registration_dict(self, path : str = None):
         """
         Assign a .dict file, overrides the automatically opened one.
@@ -201,6 +203,121 @@ class SiffReader(object):
             self.reference_frames = ref_ims
         else:
             logging.warning("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
+
+### TIME AXIS METHODS
+    def t_axis(self, timepoint_start : int = 0, timepoint_end : int = None, reference_z : int = 0) -> np.ndarray:
+        """
+        Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
+        to acquisition start.
+
+        INPUTS
+        ------
+        
+        timepoint_start (optional, int):
+            Index of time point to start at. Note this is in units of
+            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
+            If no argument is given, this is treated as 0
+        
+        timepoint_end (optional, int):
+            Index of time point to end at. Note Note this is in units of
+            TIMEPOINTS so this goes by step sizes of num_slices * num_colors!
+            If no argument is given, this is the end of the file.
+
+        reference_z (optional, int):
+            Picks the timepoint of a single slice in a z stack and only returns
+            that corresponding value. Means nothing if imaging is a single plane.
+            If no argument is given, assumes the first slice
+
+        RETURN VALUES
+        -------
+        timepoints (1-d ndarray):
+            Time point of the requested frames, relative to beginning of the
+            image acquisition. Size will be:
+                (timepoint_end - timepoint_start)*num_slices
+            unless reference_z is used.
+        """
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        num_slices = self.im_params['NUM_SLICES']
+        
+        num_colors = 1
+        if self.im_params is list:
+            num_colors = len(self.im_params['COLORS'])
+
+        fps = self.im_params['FRAMES_PER_SLICE']
+        
+        timestep_size = num_slices*num_colors*fps # how many frames constitute a timepoint
+        
+        # figure out the start and stop points we're analyzing.
+        frame_start = timepoint_start * timestep_size
+        
+        if timepoint_end is None:
+            frame_end = self.im_params['NUM_FRAMES']
+        else:
+            if timepoint_end > self.im_params['NUM_FRAMES']//timestep_size:
+                logging.warning(
+                    "\ntimepoint_end greater than total number of frames.\n"+
+                    "Using maximum number of complete timepoints in image instead.\n"
+                )
+                timepoint_end = self.im_params['NUM_FRAMES']//timestep_size
+            
+            frame_end = timepoint_end * timestep_size
+
+        # now convert to a list of all the frames whose metadata we want
+        framelist = [frame for frame in range(frame_start, frame_end) 
+            if (((frame-frame_start) % timestep_size) == (num_colors*reference_z))
+        ]
+        
+        return np.array([frame['frameTimestamps_sec']
+            for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=framelist))
+        ])
+    
+    def get_time(self, frames : list[int] = None, reference : str = "experiment") -> np.ndarray:
+        """
+        Gets the recorded time (in seconds) of the frame(s) numbered in list frames
+
+        INPUTS
+        ------
+        frames (optional, list):
+            If not provided, retrieves time value of ALL frames.
+
+        reference (optional, str):
+            Referenced to start of the experiment, or referenced to epoch time.
+            TODO: ACTUALLY IMPLEMENT
+            Possible values:
+                experiment - referenced to experiment
+                epoch      - referenced to epoch
+
+        RETURN VALUES
+        -------------
+        time (np.ndarray):
+            Ordered like the list in frames (or in order from 0 to end if frames is None).
+            Time into acquisition of frames (in seconds)
+        """
+        if not self.opened:
+            raise RuntimeError("No open .siff or .tiff")
+        if frames is None:
+            frames = list(range(self.im_params['NUM_FRAMES']))
+
+        reference = reference.lower() # case insensitive
+
+        if reference == "epoch":
+            return np.array([frame['epoch'] # WARNING, OLD VERSIONS USED SECONDS NOT NANOSECONDS 
+                for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            ])
+        
+        if reference == "experiment":
+            return np.array([frame['frameTimestamps_sec']
+                for frame in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            ])
+        else:
+            ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
+
+### METADATA METHODS
+    def get_frames_metadata(self, frames : list[int] = None):
+        if frames is None:
+            frames = list(np.range(self.im_params['NUM_FRAMES']))
+        return siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
 
     def t_axis(self, timepoint_start : int = 0, timepoint_end : int = None, reference_z : int = 0) -> np.ndarray:
         """
@@ -310,6 +427,7 @@ class SiffReader(object):
         else:
             ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
 
+### IMAGE INTENSITY METHODS
     def get_frames(self, frames: list[int] = None, flim : bool = False, 
         registration_dict : dict = None, discard_bins : int = None,
         ret_type : type = list
@@ -382,11 +500,6 @@ class SiffReader(object):
             #return np.array(framelist).reshape(tuple(stackshape))
 
         raise ValueError(f"Invalid ret_type argument {ret_type}")
-
-    def get_frames_metadata(self, frames : list[int] = None):
-        if frames is None:
-            frames = list(np.range(self.im_params['NUM_FRAMES']))
-        return siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
 
     def sum_across_time(self, timespan : int = 1, rolling : bool = False,
         timepoint_start : int = 0, timepoint_end : int = None,
@@ -544,6 +657,79 @@ class SiffReader(object):
             return np.array(list_of_arrays)
         else:
             return list_of_arrays
+
+    def pool_frames(self, 
+            framelist : list[list[int]], 
+            flim : bool = False,
+            registration : dict = None,
+            ret_type : type = list,
+            discard_bins = None
+        ) -> list[np.ndarray]:
+        """
+        Wraps siffreader.pool_frames
+        TODO: Docstring.
+        """
+            
+
+        # ordered by time changing slowest, then z, then color, e.g.
+        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
+        if discard_bins is None:
+            if registration is None:
+               list_of_arrays = siffreader.pool_frames(framelist, flim=flim) 
+            else:
+                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
+        else:
+            if not isinstance(discard_bins, int):
+                if registration is None:
+                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
+                else:
+                    return self.pool_frames(framelist, flim, registration, ret_type)
+            else:
+                if registration is None:
+                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
+                else:
+                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, 
+                        registration = registration, discard_bins = discard_bins 
+                    )
+
+        if ret_type == list:
+            return list_of_arrays
+
+        if ret_type == np.ndarray:
+            ## NOT YET IMPLEMENTED
+            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
+
+            frameshape = list_of_arrays[0].shape
+
+            if flim:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
+            else:
+                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
+            
+            np.array(list_of_arrays).reshape(reshaped_dims)
+
+### FLIM METHODS
+    def get_histogram(self, frames: list[int] = None) -> np.ndarray:
+        """
+        Get just the arrival times of photons in the list frames.
+
+        Note: uses FRAME numbers, not timepoints. So you will mix color channels
+        if you're not careful.
+        
+        INPUTS
+        -----
+        frames (optional, list of ints):
+
+            Frames to get arrival times of. If NONE, collects from all frames.
+
+        RETURN VALUES
+        -------------
+        histogram (np.ndarray):
+            1 dimensional histogram of arrival times
+        """
+        if frames is None:
+            return siffreader.get_histogram()
+        return siffreader.get_histogram(frames=frames)
 
     def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, rolling : bool = False,
             timepoint_start : int = 0, timepoint_end : int = None,
@@ -714,78 +900,7 @@ class SiffReader(object):
         else:
             return list_of_arrays
 
-    def pool_frames(self, 
-            framelist : list[list[int]], 
-            flim : bool = False,
-            registration : dict = None,
-            ret_type : type = list,
-            discard_bins = None
-        ) -> list[np.ndarray]:
-        """
-        Wraps siffreader.pool_frames
-        TODO: Docstring.
-        """
-            
-
-        # ordered by time changing slowest, then z, then color, e.g.
-        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        if discard_bins is None:
-            if registration is None:
-               list_of_arrays = siffreader.pool_frames(framelist, flim=flim) 
-            else:
-                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
-        else:
-            if not isinstance(discard_bins, int):
-                if registration is None:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
-                else:
-                    return self.pool_frames(framelist, flim, registration, ret_type)
-            else:
-                if registration is None:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
-                else:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, 
-                        registration = registration, discard_bins = discard_bins 
-                    )
-
-        if ret_type == list:
-            return list_of_arrays
-
-        if ret_type == np.ndarray:
-            ## NOT YET IMPLEMENTED
-            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
-
-            frameshape = list_of_arrays[0].shape
-
-            if flim:
-                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1],frameshape[2])
-            else:
-                reshaped_dims = (-1, len(z_list),len(color_list),frameshape[0],frameshape[1])
-            
-            np.array(list_of_arrays).reshape(reshaped_dims)
-
-    def get_histogram(self, frames: list[int] = None) -> np.ndarray:
-        """
-        Get just the arrival times of photons in the list frames.
-
-        Note: uses FRAME numbers, not timepoints. So you will mix color channels
-        if you're not careful.
-        
-        INPUTS
-        -----
-        frames (optional, list of ints):
-
-            Frames to get arrival times of. If NONE, collects from all frames.
-
-        RETURN VALUES
-        -------------
-        histogram (np.ndarray):
-            1 dimensional histogram of arrival times
-        """
-        if frames is None:
-            return siffreader.get_histogram()
-        return siffreader.get_histogram(frames=frames)
-
+### ORGANIZATIONAL METHODS
     def framelist_by_slice(self, color_channel : int = None) -> list[list[int]]:
         """
         Return a list of lists of the frames in the image corresponding to each z slice (but only one color channel)
@@ -830,6 +945,46 @@ class SiffReader(object):
         
         return siffutils.framelist_by_timepoint(self.im_params, color_channel)
 
+    def frames_to_single_array(self, frames=None):
+        """
+        TODO: IMPLEMENT
+        Retrieves the frames in the list frames and uses the information retrieved from the header
+        to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
+        rather than returning a list of numpy arrays
+
+        INPUTS
+        ------
+        frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
+        """
+        raise NotImplementedError()
+
+    def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
+        """
+        TODO: IMPLEMENT
+        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
+        Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
+
+        INPUTS
+        ----------
+        numpy_array: (ndarray)
+
+        map_list: (list) List of any subset of the strings:
+            "time"
+            "z"
+            "color"
+            "y"
+            "x"
+            "tau"
+            to make it clear which indices correspond to which dimension.
+            If the input array has fewer dimensions than 6, that's fine.
+
+        RETURN VALUES
+        ----------
+        reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
+        """
+        raise NotImplementedError()
+
+### REGISTRATION METHODS
     def registration_dict(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
         align_zplanes : bool = False, elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:
         """
@@ -898,7 +1053,7 @@ class SiffReader(object):
         frames_list = self.framelist_by_slice(color_channel=color_channel)
         from .siffutils.registration import register_frames
         try:
-            if __IPYTHON__: # check if we're running in a notebook
+            if __IPYTHON__: # check if we're running in a notebook. One of the nice things about an interpreted language!
                 import tqdm
                 pbar = tqdm.tqdm(frames_list)
                 slicewise_reg =[register_frames(slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
@@ -944,7 +1099,12 @@ class SiffReader(object):
         if align_zplanes:
             logging.warn("Using the new align-stack-reference-frames feature. Double check to be sure it didn't mess things up!")
 
-            refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg])
+            # Hidden keyword argument:
+            # ignore_first can be invoked here
+            if 'ignore_first' in kwargs:
+                refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg], ignore_first = bool(kwargs['ignore_first']))
+            else:
+                refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg])
             
             slicewise = self.framelist_by_slice()
             for z in range(len(slicewise)):
@@ -988,51 +1148,33 @@ class SiffReader(object):
 
         return reg_dict
 
-    def frames_to_single_array(self, frames=None):
+    def align_reference_frames(self, ignore_first : bool = True, overwrite = True, **kwargs):
         """
-        TODO: IMPLEMENT
-        Retrieves the frames in the list frames and uses the information retrieved from the header
-        to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
-        rather than returning a list of numpy arrays
+        Used to align reference frames (and shift the registration dictionary)
+        after registration has already been performed without the align_zplanes
+        option. Overwrites saved dicts if they exist by default, can be adjusted
+        with the parameter overwrite.
 
-        INPUTS
-        ------
-        frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
-        """
-        raise NotImplementedError()
+        Arguments
+        ---------
+        
+        ignore_first : bool (optional)
 
-    def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
-        """
-        TODO: IMPLEMENT
-        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
-        Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
+            Whether or not to ignore the first z plane during alignment. Usually this contains
+            a lot of artifacts due to the piezo flyback, so it's set to True by default
 
-        INPUTS
-        ----------
-        numpy_array: (ndarray)
+        overwrite : bool (optional)
 
-        map_list: (list) List of any subset of the strings:
-            "time"
-            "z"
-            "color"
-            "y"
-            "x"
-            "tau"
-            to make it clear which indices correspond to which dimension.
-            If the input array has fewer dimensions than 6, that's fine.
-
-        RETURN VALUES
-        ----------
-        reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
+            Whether or not overwrite any existing registration dictionary.
         """
         raise NotImplementedError()
 
+### DEBUG METHODS   
     def set_debug(self, debug : bool):
         """ 
         Toggles debug features of the SiffReader class on and off.
         """
         self.debug = debug
-
 
 #########
 #########

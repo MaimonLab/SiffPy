@@ -56,10 +56,10 @@ def ROI_extraction_methods() -> dict[str, list[str]]:
 
     {
         'region A' : [
-                        'method_1',
-                        'method_2',
+                        'method_1A',
+                        'method_2A',
                         ...,
-                        'method_n'
+                        'method_nA'
                     ],
         'region B' : [
                         'method_1B',
@@ -137,7 +137,7 @@ REGIONS = {
         {
             'alias_list'  : FAN_SHAPED_BODY,
             'module'      : fan_shaped_body,
-            'default_fcn' : 'dummy_method'
+            'default_fcn' : 'outline_fan'
         },
     
     'Protocerebral bridge' : 

@@ -14,6 +14,46 @@ sp = SiffPlotter(sr)
 
 where `sr` is a `SiffReader` object.
 
+The `SiffPlotter` is the main form for interacting with and creating ROIs for analysis. It has a few core methods that will be covered here.
+For all other functionality, you can use the documentation for `SiffPlotter` provided by `help(siffpy.siffplot.SiffPlotter)`
+
+### draw_rois
+
+`draw_rois()` returns a `hv.HoloMap` object that can be used to select regions of interest on the reference frames of the associated `siffreader`.
+If the `siffreader` does not have any reference frames, i.e. if registration has not been performed, it will throw an error. This is because
+there is no "prototypical" frame to use as a reference for drawing ROIs, not because I want to require you to perform registration, so if you'd like
+to perform a hasty registration you can just use the average frames for each slice or ScanImage mROI with
+`siffreader.registration_dict(reference_method='average')` (including any other `*arg` and `**kwarg` arguments you might want to provide, as
+annotated in `siffpy.registration_dict`'s docstring, accessible with `help(siffpy.registration_dict)`).
+
+Once you have reference frames for your `siffreader`, you can simply call `draw_rois()` from the associated `SiffPlotter` and it will return a 
+`hv.Layout` of composed reference frames. Each has its own toolbar with `PolyDraw` and `PolyEdit` tool from `Bokeh` that can be used to
+select a region or multiple regions of interest. Depend on what types of ROI(s) you want, the type and number of polygons will be different
+(see `extract_rois` documentation for more information).
+
+### extract_rois
+
+`extract_rois(region_name, method_name, *args, **kwargs)` returns `None` but creates a list of `siffpy.siffplot.roi_protocols.rois.ROI` elements
+(or, really, subclasses of such) and stores them in the `SiffPlotter` attribute `rois`. `region_name` and `method_name` are both strings that are
+obligate arguments, though `None` may be provided for `method_name` and the default for `region_name` will be used. Region names, and their
+corresponding available methods, can be found with `siffpy.siffplot.ROI_extraction_methods()`, which prints a string documenting each
+possible region and their corresponding methods. Every method takes the `annotation_dict` from `draw_rois` and the `reference_frames` from
+the `siffreader` as obligate arguments, but that's handling within the `extract_rois` code. More interestingly, each method will typically
+also permit keyword arguments bespoke to that particular method. Those can be provided to `extract_rois` as `**kwargs`, which are all passed
+directly to the method. After the polygons highlighted in `draw_rois` have been used to create an ROI or ROI objects, they can be accessed in
+the `SiffPlotter` attribute `rois`, e.g. to pass to `select_points`.
+
+### select_points
+
+`select_points(roi)` returns a `hv.Overlay` that show the main polygon object of a `siffpy.siffplot.roi_protocols.rois.ROI` class, overlaid
+on its reference frame (if available), and allows selection of points on the polygon. A single click will add the nearest vertex of the polygon, and
+a double click will remove the nearest selected vertex of the polygon. These points are associated with that ROI and will be stored when the ROI
+is saved, and can be used for subsequent processing.
+
+## ROIs
+
+`ROI` objects are used by the `siffplot` tools to select, analyze, or emphasize particular components of particular frames of `.siff` data.
+
 ## SiffVisualizer
 
 The `SiffVisualizer` is used to show frames read by a `SiffReader`. It also requires a `SiffReader` for initialization as follows:

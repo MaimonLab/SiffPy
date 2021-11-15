@@ -131,7 +131,6 @@ class ROI():
         return f"ROI superclass"
 
 
-
 class Midline():
     """
     Midlines are a common structure I'm finding myself using.

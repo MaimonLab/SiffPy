@@ -11,7 +11,7 @@ universal_fictrac_logger framework, so be careful about how your dataframes are 
 
 ## FicTracLog
 
-## TracPlottter
+## TracPlotter
 
 # Individual plotter classes
 

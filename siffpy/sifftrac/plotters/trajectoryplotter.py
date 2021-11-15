@@ -1,4 +1,5 @@
 import holoviews as hv
+import numpy as np
 
 from .tracplotter import *
 
@@ -21,7 +22,20 @@ class TrajectoryPlotter(TracPlotter):
                         'integrated_position_lab_1'],
                         vdims = log.tdim
                     )
-            
+        
+        square = True
+        if 'square' in kwargs:
+            square = kwargs['square']
+        
+        if square:
+            bounds = (
+                np.min(log.dataset['integrated_position_lab_0']),
+                np.max(log.dataset['integrated_position_lab_0']),
+                np.min(log.dataset['integrated_position_lab_1']),
+                np.max(log.dataset['integrated_position_lab_1'])
+            )
+            square_bounds = (np.min(bounds), np.max(bounds))
+            this_path = this_path.opts(xlim=square_bounds,ylim=square_bounds)
         if not kwargs is None:
             this_path.opts(**kwargs)
 

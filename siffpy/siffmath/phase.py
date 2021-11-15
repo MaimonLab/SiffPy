@@ -58,7 +58,6 @@ def pva(vector_timeseries : np.ndarray, error_estimate : bool = False, filter_fc
 
     if type(filter_fcn) == str:
 
-
         raise ValueError(f"No filter function implemented by the name {filter_fcn}.")
     
     raise ValueError(f"filter_fcn argument {filter_fcn} is neither a callable function nor a string!")
