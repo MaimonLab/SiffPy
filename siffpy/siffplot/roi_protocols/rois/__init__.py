@@ -1,7 +1,9 @@
 # Shared code for ROI extraction
 
 import numpy as np
+import matplotlib
 import holoviews as hv
+
 from ..extern.smallest_circle import make_circle
 from .roi import *
 from .ellipse import *
@@ -12,6 +14,51 @@ __all__ = [
     'fit_ellipse_to_poly',
     'get_largest_polygon'
 ]
+
+def contains_points(polygon, points)->np.ndarray:
+    """
+    Returns an array of bools reflecting whether
+    each of an array of points is contained in a polygon
+    """
+
+    mplPath = matplotlib.path.Path(
+        np.array(
+            [
+                polygon.data[0]['x'],
+                polygon.data[0]['y']
+            ]
+        ).T
+    )
+
+    # in case it's an iterable but not array
+    points = np.array(points)
+    if len(points.shape) == 1:
+        points = [points] # need to be 2d!
+
+    return mplPath.contains_points(points)
+
+def point_to_line_distance(point, endpoints):
+    """
+    Endpoints is a pair of points
+    Uses formula at https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+    """
+    return np.abs(
+        (endpoints[1][0] - endpoints[0][0]) * (endpoints[0][1] - point[1]) - # (x2-x1)(y1-y0)
+        (endpoints[0][0] - point[0]) * (endpoints[1][1] - endpoints[0][1]) # (x1-x0)(y2-y1)
+    )/np.sqrt(
+        (endpoints[1][0]-endpoints[0][0])**2 +
+        (endpoints[1][1]-endpoints[0][1])**2
+    )
+
+def point_to_polygon_distance(point, polygon):
+    """
+    Iterates point_to_line_distance across all pairs of edges in a polygon.
+    Returns the smallest one.
+    """
+    to_points = list(zip(polygon.data[0]['x'],polygon.data[0]['y']))
+    segment_endpts = list(pairwise(to_points)) + [(to_points[-1],to_points[0])]
+
+    return np.nanmin([point_to_line_distance(point,ept) for ept in segment_endpts])
 
 def polygon_area(x_coords : np.ndarray, y_coords : np.ndarray) -> float:
     """ Shoelace method to compute area"""
@@ -86,8 +133,10 @@ def fit_ellipse_to_poly(poly : hv.element.path.Polygons, method : str = 'lsq', c
 
 def get_largest_polygon(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """
-    Expects an annotation dict, and returns the largest polygon in it + from which slice it came. n_polygons is the number of polygons to return.
-    If >1, returns a LIST of tuples, with the 1st tuple being the largest polygon, the next being the next largest polygon, etc. If there
+    Expects an annotation dict, and returns the largest polygon in it
+    + from which slice it came. n_polygons is the number of polygons to return.
+    If >1, returns a LIST of tuples, with the 1st tuple being the largest polygon, 
+    the next being the next largest polygon, etc. If there
     are fewer polygons than requested, will raise an exception.
     """
     if n_polygons > 1:

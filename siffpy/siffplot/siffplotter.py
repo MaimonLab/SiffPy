@@ -40,7 +40,8 @@ def apply_opts(func):
 
 class SiffPlotter():
     """
-    TODO: DOCSTRING
+    The core SiffPlotter object. Contains and tracks ROIs, annotations, and has
+    methods for producing and modifying those.
 
     KWARGS
     ------
@@ -292,6 +293,7 @@ class SiffPlotter():
         # Create two streams into one DynamicMap
         tap_stream = hv.streams.SingleTap(transient=True , x=None, y = None)        
         dtap_stream = hv.streams.DoubleTap(rename={'x': 'x2', 'y': 'y2'}, transient=True, x=None, y=None)
+            
         tap_dmap = hv.DynamicMap(tap_fn, streams=[tap_stream, dtap_stream]).opts(fill_color="#FF0000", size=10)
 
         if hasattr(roi, 'slice_idx'):
@@ -352,6 +354,8 @@ class SiffPlotter():
                     self.rois.append(rois)
                 else:
                     self.rois += rois
+            else:
+                self.rois = [self.rois, rois]
         else:
             if not type(rois) is list:
                 self.rois = [rois]
@@ -383,16 +387,14 @@ class SiffPlotter():
 
         path = os.path.join(path, os.path.splitext(os.path.basename(self.siffreader.filename))[0])
 
-        try:
-            # if rois is an iterable, save each roi.
-            iter(self.rois)
+        if hasattr(self.rois,'__iter__'):
             for roi in self.rois:
                 roi.save(path)
-        except TypeError:
+        elif not (self.rois is None):
             # else, just save the one.
             self.rois.save(path)
-        except Exception as e:
-            raise e
+        else:
+            raise AttributeError("No attribute rois defined for this SiffPlotter.")
 
     def load_rois(self, path : str = None):
         """
@@ -408,16 +410,31 @@ class SiffPlotter():
         
         roi_files = [os.path.join(path,file) for file in os.listdir(path) if file.endswith('.roi')]
 
-        if len(roi_files) > 1:
-            # needs an iterable
-            self.rois = []
-            for roi in roi_files:
-                with open(roi, 'rb') as curr_file:
+        self.rois = []
+        for roi in roi_files:
+            with open(roi, 'rb') as curr_file:
+                if type(self.rois) is list:
                     self.rois.append(pickle.load(curr_file))
+                elif type(self.rois) is rois.ROI:
+                    self.rois = list(self.rois) + [pickle.load(curr_file)]
+                else:
+                    self.rois = [pickle.load(curr_file)]
+
+    def __getattribute__(self, name: str):
+        """
+        To make it easier to access when there's only one ROI
+        (there's something gross about having to have a bunch of [0]
+        sitting around in your code)
+        """
+        if name == 'rois':
+            roi_ref = object.__getattribute__(self, name)
+            if type(roi_ref) is list:
+                if len(roi_ref) == 1:
+                    return roi_ref[0]
+            return roi_ref
         else:
-            with open(roi_files[0], 'rb') as roi_file:
-                self.rois = pickle.load(roi_file)
-                
+            return object.__getattribute__(self, name)
+
     ### HEATMAP
     @apply_opts
     def make_heatmap(self, transform_function, **kwargs) -> hv.HoloMap:

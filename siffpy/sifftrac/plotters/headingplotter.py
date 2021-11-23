@@ -4,6 +4,7 @@ from typing import Type
 import holoviews as hv
 import numpy as np
 import logging
+from scipy.stats import circmean
 
 from .tracplotter import *
 from ..utils.fcns import *
@@ -64,6 +65,28 @@ class HeadingPlotter(TracPlotter):
         wrapped_heading = log.get_dataframe_copy()['integrated_heading_lab'] # get the copy if you're modifying
         wrapped_heading -= offset
         return wrapped_heading % (2*np.pi)
+
+    def fit_offset(self, phase, **kwargs) -> float:
+        """
+        Takes a numpy array of estimated phase (1-dimensional), computes the best aligned
+        phase offset between it and heading, and stores that in this HeadingPlotter.
+
+        Takes kwargs of FictracLog.downsample_to_imaging to determine how to align the heading to the phase data.
+
+        Returns
+        -------
+
+        offset : float
+
+            The phase offset between the heading and the phase estimate. This is the number that should be added to
+            the phase estimate to match the heading (or, alternatively, subtracted from the heading to match phase).
+
+        """
+        downsampled_heading = self.logs[0][0].downsample_to_imaging(**kwargs)['integrated_heading_lab']
+        self.offset = circmean( downsampled_heading - phase )
+        return self.offset
+
+
 
     @apply_opts
     def single_plot(self, log : LogToPlot, offset : float = None, scalebar : float = None, **kwargs) -> hv.element.path.Path:

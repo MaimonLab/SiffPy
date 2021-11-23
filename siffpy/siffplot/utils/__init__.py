@@ -39,7 +39,10 @@ def select_on_tap(pt_array, tapped_points, x, y, x2, y2):
         tapped_points.pop(idx)
         return hv.Points(tapped_points)
     
-    return hv.Points([])
+    if not tapped_points:
+        return hv.Points([])
+    else:
+        return hv.Points(tapped_points)
 
 def split_headings_to_dict(x_var : np.ndarray, y_var : np.ndarray, xlabel : str ='x', ylabel : str ='y')->list[dict]:
     """

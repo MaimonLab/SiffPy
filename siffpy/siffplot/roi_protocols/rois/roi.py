@@ -101,9 +101,39 @@ class ROI():
         """
         pass
 
-    def draw_midline(self):
-        """ TODO """
-        raise NotImplementedError()
+    def find_midline(self):
+        """
+        The most primitive midline for an ROI takes two
+        previously selected points and draws a line to connect
+        them. This is the default midline, and what is returned
+        for any ROI which does not define a midline function itself.
+        """
+        logging.warn("""\n\n
+            WARNING:\n\tThis is the SUPERCLASS ROI find_midline method.\n
+            \tThis means whatever ROI class you're using has not overwritten\n
+            \tthe simple linear fit between two endpoints method. Be aware!\n\n
+            """)
+
+        if not hasattr(self,'selected_points'):
+            raise AttributeError("No points selected for drawing a midline.")
+        
+        if len(self.selected_points) < 2:
+            raise AttributeError("Need at least two selected points to draw a midline.")
+
+        if len(self.selected_points) > 2:
+            logging.warn("More than two selected points. Using only the last two.")
+
+        endpts = (self.selected_points[-2], self.selected_points[-1])
+        
+        def straight_line(endpts, t):
+            T = t[-1] - t[0]
+            return (
+                endpts[0][0] + (t/T)*(endpts[1][0]-endpts[0][0]),
+                endpts[0][1] + (t/T)*(endpts[1][1]-endpts[0][1])
+                ) 
+        
+        self.midline = Midline(self, fmap = lambda t: straight_line(endpts,t))
+        return self.midline
 
     def opts(self, *args, **kwargs)->None:
         """ Wraps the self.polygon's opts """
@@ -140,11 +170,24 @@ class Midline():
     ----------
     t : np.ndarray
 
-        Parameterization of the midline
+        Parameterization of the midline, numpy array running from 0 to 2*np.pi
 
     fmap : function
 
-        Takes self.t to the midline structure. Probably a holoviews.elements.paths.Path in the end?
+        Takes self.t to the midline structure. Should return a list or tuple
+        of length two, each containing 'x's or 'y's, one for every value of t.
+        So it should accept a numpy array
+
+    Methods
+    -------
+    fit() : 
+
+        Not yet implemented
+
+    draw(no_overlay = False) :
+
+        Returns a hv.Path that traces the midline. If no_overlay is True, then returns
+        just the path. Otherwise returns an hv.Overlay
     """
     def __init__(self, source_roi : ROI, point_count : int = 360, fmap = None):
         self.source_roi = source_roi
@@ -153,6 +196,28 @@ class Midline():
 
     def fit(self, cost) -> None:
         raise NotImplementedError()
+
+    def draw(self, no_overlay = False)->hv.element.path.Path:
+        pts = self.fmap(self.t)
+        if no_overlay:
+            return hv.Path(
+            (pts[0],
+            pts[1],
+            self.t)
+        )
+        try:
+            return self.source_roi.visualize() * hv.Path(
+                (pts[0],
+                pts[1],
+                self.t)
+            )
+        except:
+            # Perhaps visualize is not defined for this ROI class
+            return self.source_roi.visualize() * hv.Path(
+                (pts[0],
+                pts[1],
+                self.t)
+            )
 
     @abc.abstractmethod
     def get_masks(self) -> None:

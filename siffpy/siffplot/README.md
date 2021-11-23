@@ -1,7 +1,9 @@
 # SIFFPLOT
 
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend. The primary class for analysis is the `SiffPlotter`,
-while the primary class for viewing images is the `SiffVisualizer`.
+while the primary class for viewing images is the `SiffVisualizer`. Other classes may inherit from these two, and those classes
+can be initialized with any other version of the same parent class to attain their attributes while still performing their
+own unique functionality (see below.)
 
 ## SiffPlotter
 
@@ -83,3 +85,40 @@ which will take much longer up front but resolves the other issues. However, thi
 which adjusts how many successive frames are merged.
 TODO: Update this to enable flexible `pool_frames` in loaded frames
 
+# DERIVED CLASSES
+
+These are classes which subclass the above few core classes and extend them to allow specialized analyses, plots, etc. without cluttering
+up the scope of the primary classes.
+
+## SiffPlotters
+
+### PhasePlotter
+
+The `PhasePlotter` extends the `SiffPlotter` and uses its segmented `ROI` objects to construct estimates of a "phase" of the signal,
+which can generally be understood as the complex phase component of the 1D discrete Fourier transform of the segmented ROIs. The
+functions of this `SiffPlotter` subclass generally take an `ROI` as an optional argument, and if none is provided will search to
+see if they already have an `ROI` attribute. These functions can only apply to `ROI` subclasses with a `subROIs` attribute, which
+many classes will link to a custom defined internal class (see, for example, the `Ellipse` class and its `wedges` attribute).
+If no such `ROI` is provided or accessible, these methods will raise `Exception`s
+
+## ROIs
+
+Each type of ROI is designed for a special anatomical region and contains functions that align with what I expect to be relevant
+to those regions in particular. Many contain subROI classes, generally used to segment a region (e.g. wedges of the ellipsoid body).
+
+### Ellipse
+
+The `Ellipse` `ROI` is initialized with a polygon, corresponding to an approximation of its outline. This single polygon will be fit with
+an ellipse, or if the argument `center_polygon` is provided (as is an option in the `ellipsoid_body` module's fitting method `fit_ellipse`),
+a separate polygon will be fit to the center and the two together will help define the outer ellipse.
+
+An ellipse can be segmented with the method `ellipse.segment(n_segments)`, creating `n_segment` `Wedge` `ROI` objects, stored as a list
+in the attribute name `wedges` of the `Ellipse`.
+
+#### Wedges
+
+### Fan
+
+
+
+## SiffVisualizers

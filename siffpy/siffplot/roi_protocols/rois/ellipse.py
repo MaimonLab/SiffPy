@@ -1,3 +1,4 @@
+from typing import Any
 import holoviews as hv
 import numpy as np
 import colorcet
@@ -196,7 +197,17 @@ class Ellipse(ROI):
             poly *= self.polygon.opts(**self.plotting_opts)
             return poly
         
-        raise RuntimeError("Visualization not defined for current ")
+        # if not, just return the outline.
+        return self.polygon.opts(**self.plotting_opts)
+
+    def __getattr__(self, attr)->Any:
+        if attr is 'subROIs':
+            if hasattr(self,'wedges'):
+                return self.wedges
+        else:
+            return object().__getattribute__(self, attr)
+            
+        
 
     def __repr__(self)->str:
         """
@@ -267,7 +278,6 @@ class Ellipse(ROI):
             return ret_str
 
 
-
     class RingMidline(Midline):
         """
         A ring-shaped midline specific for the ellipsoid body.
@@ -304,6 +314,9 @@ class Ellipse(ROI):
                 }
             )
         
+        def draw(self):
+            return self.path
+
         def get_masks(self)->None:
             """
             TODO

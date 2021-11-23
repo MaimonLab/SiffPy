@@ -2,6 +2,7 @@
 #TODO: This
 from __future__ import annotations
 from typing import Union
+import os, pickle
 
 import holoviews as hv
 from holoviews import opts
@@ -125,7 +126,6 @@ class TracPlotter():
         
         return self
 
-
     def __imul__(self, other: TracPlotter)->TracPlotter:
         if not isinstance(other, TracPlotter):
             return NotImplemented
@@ -153,7 +153,6 @@ class TracPlotter():
                 self.figure *= other.figure
         return self
         
-
     def __mul__(self, other : TracPlotter)->TracPlotter:
         """
         Overloaded to overlay plots and pool trajectories in a list
@@ -240,6 +239,36 @@ class TracPlotter():
     def single_plot(self, log, *args, **kwargs) -> hv.Element:
         raise NotImplementedError("This method must be implemented separately in each derived class")
 
+    def save(self, path : str = None)->None:
+        """
+        Stores the object used to create these plots.
+
+        By default, saves it next to the location of the first log.
+
+        Arguments
+        ---------
+        
+        path : str (optional)
+
+            Where to save the .plotter file.
+        """
+        if path is None:
+            path = os.path.split(self.logs[0][0].filename)[0]
+        if not os.path.exists(path):
+            os.makedirs(path)
+        file_name = os.path.join(path,self.__class__.__name__)
+        # Build a unique ID for this specific plotter's set of logs
+        if hasattr(self.logs,'__len__'):
+            for logbundle in self.logs:
+                if type(logbundle )is list:
+                    for log in logbundle:
+                        file_name += "_" + str(self.log.filename.__hash__())
+                else:
+                    file_name += "_" + str(self.log.filename.__hash__())
+        else:
+            file_name += "_" + str(self.log.filename.__hash__())
+        with open(file_name + ".plotter",'wb') as plotter_file:
+            pickle.dump(self, plotter_file)
     
 ## LOCAL SHARED FCNS
 def add_scalebar(fig : Union[hv.Layout, hv.Overlay], scalebar : float = None):

@@ -7,24 +7,29 @@ from . import rois
 from .extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
-def fit_ellipse(reference_frames : list, annotation_dict : dict, *args, **kwargs) -> hv.element.path.Polygons:
+def fit_ellipse(reference_frames : list, annotation_dict : dict,
+    *args, **kwargs) -> hv.element.path.Polygons:
     """
-    Fits the largest polygon drawn in the annotators to an ellipse, and uses that as the
-    outside of the ellipsoid body estimate.
+    Fits the largest polygon drawn in the annotators to an ellipse, 
+    and uses that as the outside of the ellipsoid body estimate.
 
     Keyword args
     ------------
     slice_idx : int
 
-        Takes the largest polygon only from within the slice index labeled 'slice_idx', rather
+        Takes the largest polygon only from within
+        the slice index labeled 'slice_idx', rather
         than the largest polygon across all slices.
 
     extra_rois : str
 
-        A string that explains what any ROIs other than the largest might be useful for. Current options:
+        A string that explains what any ROIs other than
+        the largest might be useful for. Current options:
 
-            - Center : Finds the extra ROI "most likely" to be the center of the ellipse, and uses it to reshape the
-            fit polygon. Currently, that ROI is just the smallest other one... Not even constrained to be fully contained.
+            - Center : Finds the extra ROI "most likely" to 
+            be the center of the ellipse, and uses it to reshape the
+            fit polygon. Currently, that ROI is just the smallest 
+            other one... Not even constrained to be fully contained.
 
     Additional kwargs are passed to the Ellipse's opts function
 

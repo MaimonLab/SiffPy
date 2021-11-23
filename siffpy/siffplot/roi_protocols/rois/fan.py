@@ -66,12 +66,15 @@ class Fan(ROI):
             # look out for this?
             self.long_axis = None
 
-    def draw_midline(self)->None:
+    def visualize(self)->hv.Element:
+        return self.polygon.opts(**self.plotting_opts)
+
+    def find_midline(self)->None:
         """
-        Draws a midline through the fan-shaped body if at least two points
+        Returns a midline through the fan-shaped body if at least two points
         are defined on the edge of the ROI. Uses ??? method
         """
-        if not hasattr('selected_points'):
+        if not hasattr(self, 'selected_points'):
             raise AttributeError(f"No points selected on ROI \n{self}")
 
         if len(self.selected_points) > 2:
@@ -80,7 +83,6 @@ class Fan(ROI):
         if len(self.selected_points) < 2:
             raise RuntimeError(f"Fewer than two points defined on ROI:\n{self}")
 
-        
 
         raise NotImplementedError()
 
