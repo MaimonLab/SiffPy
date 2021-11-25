@@ -160,6 +160,20 @@ class ROI():
         """
         return f"ROI superclass"
 
+class subROI(ROI):
+    """
+    A subclass of the ROI designed solely to indicate
+    to analysis functions that this type of ROI is a segment
+    or cluster of a larger ROI, e.g. for HeatMap type
+    plotting outputs.
+
+    So far, no custom functionality other than it being
+    a subclass identifiable with isinstance.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+
+
 
 class Midline():
     """

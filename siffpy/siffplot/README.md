@@ -103,8 +103,13 @@ If no such `ROI` is provided or accessible, these methods will raise `Exception`
 
 ## ROIs
 
-Each type of ROI is designed for a special anatomical region and contains functions that align with what I expect to be relevant
-to those regions in particular. Many contain subROI classes, generally used to segment a region (e.g. wedges of the ellipsoid body).
+Each type of `ROI` is designed for a special anatomical region and contains functions that align with what I expect to be relevant
+to those regions in particular. Many contain `subROI` classes, generally used to segment a region (e.g. wedges of the ellipsoid body).
+Most ROI classes, as a result, implement a customized `__getattr__` call so that each will return a special internal attribute
+when the attribute `subROIs` is requested, while still having an informative name for the attribute in each class (again using the
+`Wedge` `subROI` class, the `Ellipse` `ROI` subclass assigns itself an attribute `ellipse.wedges` when the method `segment` is called.
+But if you try to get `subROIs` from an `Ellipse`, it will also return the `wedges` attribute). This is so that `subROIs` can be used
+as a common interface to all of the functions that might want to use the various types of `subROI` classes.
 
 ### Ellipse
 

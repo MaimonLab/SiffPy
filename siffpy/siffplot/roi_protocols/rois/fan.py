@@ -1,3 +1,4 @@
+from typing import Any
 import holoviews as hv
 import numpy as np
 import colorcet
@@ -69,6 +70,16 @@ class Fan(ROI):
     def visualize(self)->hv.Element:
         return self.polygon.opts(**self.plotting_opts)
 
+    def segment(self, n_segments : int)->None:
+        """
+        Divides the fan in to n_segments of 'equal width', 
+        defined as...
+
+        Stores segments as .columns, which are a subROI class
+        TODO: implement
+        """
+        raise NotImplementedError()
+
     def find_midline(self)->None:
         """
         Returns a midline through the fan-shaped body if at least two points
@@ -85,6 +96,17 @@ class Fan(ROI):
 
 
         raise NotImplementedError()
+
+    def __getattr__(self, attr)->Any:
+        """
+        Custom subROI call to return columns
+        as the subROI
+        """
+        if attr is 'subROIs':
+            if hasattr(self,'columns'):
+                return self.columns
+        else:
+            return object.__getattribute__(self, attr)
 
     def __repr__(self)->str:
         """
@@ -109,3 +131,4 @@ class Fan(ROI):
         """
         def __init__(self, *args, **kwargs):
             super().__init__(*args,**kwargs)
+            raise NotImplementedError()

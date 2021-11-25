@@ -238,7 +238,7 @@ class SiffPlotter():
 
         return self.annotation_dict
 
-    def draw_rois(self, **kwargs)->hv.Layout:
+    def draw_rois(self, keep_old : bool = False, **kwargs)->hv.Layout:
         """
         Returns a hv.Layout element that
         enables drawing and editing polygons
@@ -248,9 +248,40 @@ class SiffPlotter():
         call extract_rois (or anything else that
         depends on the annotation).
 
+        Arguments
+        ---------
+
+        keep_old : bool (optional)
+
+            If True, retains other ROIs already drawn for this
+            SiffPlotter object, as well as any new ones drawn
+            here (which means they'll also get fed into the 
+            extract_rois call). Default is False.
+
         Accepts all keyword arguments of get_roi_reference_layouts.
+
+        Returns
+        -------
+
+        self.annotation_dict['merged'] : holoviews.Layout
+
+            A pointer to the SiffPlotter's merged annotation Layout
+            that shows all the reference frames fused together into
+            a single layout, accompanied by Holoviews Annotator
+            objects to track, for example, added polygons.
         """
-        self.get_roi_reference_layouts(merge = True, **kwargs)
+        # If there is no annotation_dict or merged
+        # version, then override whatever the kwarg
+        # is telling you to do.
+        if not hasattr(self, 'annotation_dict'):
+            keep_old = False
+        else:
+            if not 'merged' in self.annotation_dict:
+                keep_old = False
+        
+        if not keep_old:
+            self.get_roi_reference_layouts(merge = True, **kwargs)
+        
         return self.annotation_dict['merged']
 
     def select_points(self, roi : rois.ROI , **kwargs)->hv.Overlay:
@@ -308,7 +339,7 @@ class SiffPlotter():
         """
         raise NotImplementedError("")
 
-    def extract_rois(self, region : str, method_name : str = None, *args, **kwargs) -> None:
+    def extract_rois(self, region : str, *args, method_name : str = None, overwrite : bool = False, **kwargs) -> None:
         """
         Extract ROIs -- uses a different method for each anatomical region.
         ROIs are stored in a class attribute. Must have drawn at least one
@@ -326,6 +357,10 @@ class SiffPlotter():
         method_name : str (optional)
 
             Which ROI extraction method to use. For a list, call siffplot.ROI_fitting_methods()
+
+        overwrite : bool (optional)
+
+            If set to True, overwrites self.rois rather than appending to it. Default is False.
         
         Returns
         -------
@@ -348,6 +383,14 @@ class SiffPlotter():
             **kwargs
         )
         
+        if overwrite:
+            # overwrites the current set
+            if not type(rois) is list:
+                self.rois = [rois]
+            else:
+                self.rois = rois
+            return
+
         if hasattr(self, 'rois'):
             if type(self.rois) is list:
                 if not type(rois) is list:

@@ -25,11 +25,15 @@ __all__ = [
     "roi_masked_fluorescence"
 ]
 
-def dFoF(roi : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,axis=1))->np.ndarray:
+def dFoF(fluorescence : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,axis=1))->np.ndarray:
     """
     
-    Takes a numpy array and returns a dF/F trace across the rows -- i.e. each row is normalized independently
+    Takes a numpy array and returns a dF/F0 trace across the rows -- i.e. each row is normalized independently
     of the others. Returns a version of the function (F - F0)/F0, where F0 is computed as below
+
+    fluorescence : np.ndarray
+
+        The data constituting the F in dF/F0
 
     normalized : bool (optional)
 
@@ -43,11 +47,11 @@ def dFoF(roi : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,a
         just a number or an array of numbers.
     
     """
-    if not type(roi) == np.ndarray:
-        roi = np.array(roi)
+    if not type(fluorescence) == np.ndarray:
+        fluorescence = np.array(fluorescence)
     
     if callable(Fo):
-        F0 = Fo(roi)
+        F0 = Fo(fluorescence)
     elif type(Fo) is np.ndarray or float:
         F0 = Fo
     else:
@@ -56,7 +60,7 @@ def dFoF(roi : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,a
         except:
             raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
 
-    unnormalized = ((roi.T - F0)/F0).T
+    unnormalized = ((fluorescence.T - F0)/F0).T
     
     if normalized:
         sorted_vals = np.sort(unnormalized,axis=1)
@@ -66,8 +70,22 @@ def dFoF(roi : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,a
     
     return unnormalized
 
-def roi_masked_fluorescence_numpy(fluorescence : np.ndarray, rois : list[np.ndarray]):
-    raise NotImplementedError()
+def roi_masked_fluorescence_numpy(frames : np.ndarray, rois : list[np.ndarray]):
+    """
+    Takes an array of frames organized as a k-dimensional numpy array with the
+    last three dimensions being ('time', 'y', 'x') and converts them into an k-2
+    dimensional array, with the final two dimensions of 'frames' compressed against
+    the masks in rois.
+    """
+    rois = np.array(rois)
+    return np.sum(
+            np.tensordot(
+                frames,
+                rois.T,
+                axes=2
+            ),
+            axis = (-2,-1)
+        )
 
 if holoviews:
     def roi_masked_fluorescence(fluorescence : np.ndarray, rois : list[ROI]) -> list[np.ndarray]:
@@ -82,7 +100,7 @@ if holoviews:
         -------
         
         """
-        raise NotImplementedError()
+        return roi_masked_fluorescence_numpy(fluorescence, [roi.mask() for roi in rois])
 else:
     def roi_masked_fluorescence(fluorescence : np.ndarray, rois: list[np.ndarray]) -> list[np.ndarray]:
         """

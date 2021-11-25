@@ -466,6 +466,8 @@ class SiffReader(object):
 
             Each frame requested returned as a numpy array (either 2d or 3d).
         """
+        if frames is None:
+            frames = list(range(self.im_params.num_frames))
         if discard_bins is None:
             if registration_dict is None:
                 framelist = siffreader.get_frames(frames = frames, flim = flim)
@@ -511,7 +513,7 @@ class SiffReader(object):
         Sums adjacent frames in time of width "timespan" and returns a
         list of numpy arrays in standard form (or a single numpy array).
 
-        TODO: IMPLEMENT RET_TYPE
+        TODO: IMPLEMENT RET_TYPE IN "STANDARD ORDER"
 
         INPUTS
         ------
@@ -636,7 +638,7 @@ class SiffReader(object):
                 for vol_idx in range(timestep_size):
                     if vol_idx in viable_indices: # ignore undesired frames
                         probe_lists[vol_idx].append(volume_start + vol_idx)
-                if ((volume_start-frame_start) > 0) and \
+                if ((volume_start-frame_start) >= 0) and \
                 ((volume_start-frame_start)/timestep_size)%timespan == 0: ## timespan number of volumes
                     
                     for slicelist in probe_lists:

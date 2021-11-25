@@ -3,7 +3,7 @@ import holoviews as hv
 import numpy as np
 import colorcet
 
-from .roi import ROI, Midline
+from .roi import ROI, Midline, subROI
 from ..extern.pairwise import pairwise
 
 EB_OFFSET = (1/2) * np.pi # EPG going to left of each PB (when viewed from posterior) is the first ROI
@@ -135,11 +135,15 @@ class Ellipse(ROI):
             for angle in angles
         ]
 
+        image = None
+        if hasattr(self,'image'):
+            image = self.image
         self.wedges = [
             self.WedgeROI(
                 boundaries[0],
                 boundaries[1],
-                ell
+                ell,
+                image=image
             )
             for boundaries in zip(tuple(pairwise(dividing_lines)),tuple(pairwise(angles)))
         ]
@@ -205,9 +209,7 @@ class Ellipse(ROI):
             if hasattr(self,'wedges'):
                 return self.wedges
         else:
-            return object().__getattribute__(self, attr)
-            
-        
+            return object.__getattribute__(self, attr)
 
     def __repr__(self)->str:
         """
@@ -226,7 +228,7 @@ class Ellipse(ROI):
 
         return ret_str
 
-    class WedgeROI(ROI):
+    class WedgeROI(subROI):
         """
         Local class for ellipsoid body wedges. Very simple
         """
