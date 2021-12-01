@@ -108,7 +108,7 @@ class SiffVisualizer():
             if not self.loaded_frames:
                 frames = self.siffreader.sum_across_time(
                     timepoint_start = t_val,
-                    timepoint_end = (t_val+1) + pool_width,
+                    timepoint_end = t_val + pool_width,
                     timespan = pool_width,
                     z_list = z_planes,
                     color_list = color,
@@ -126,14 +126,14 @@ class SiffVisualizer():
         if loaded_frames:
             dm : hv.DynamicMap = hv.DynamicMap(lambda t: show_frames(t,0), kdims = ['timepoint'])
             dm = dm.redim.range(
-                timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume - 1)
+                timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume)
             )
             dm = dm.redim.type(timepoint=int).redim.step(timepoint=1)
 
         else:
             dm : hv.DynamicMap = hv.DynamicMap(show_frames, kdims = ['timepoint', 'pool_width'])
             dm = dm.redim.range(
-                timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume - 1),
+                timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume),
                 pool_width=(1,20)
             )
             dm = dm.redim.type(timepoint=int, pool_width = int).redim.step(timepoint=1, pool_width = 1)

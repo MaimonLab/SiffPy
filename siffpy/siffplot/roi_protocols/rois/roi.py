@@ -84,7 +84,7 @@ class ROI():
 
         poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
        
-        xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.shape])
+        xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.T.shape])
         x, y = xx.flatten(), yy.flatten()
 
         rasterpoints = np.vstack((x,y)).T
@@ -107,6 +107,10 @@ class ROI():
         previously selected points and draws a line to connect
         them. This is the default midline, and what is returned
         for any ROI which does not define a midline function itself.
+
+        If there are no selected points, I intend to make this default
+        to the 'find the points farthest from the boundary which best
+        span the structure' method, but I haven't implemented that yet.
         """
         logging.warn("""\n\n
             WARNING:\n\tThis is the SUPERCLASS ROI find_midline method.\n
@@ -130,7 +134,7 @@ class ROI():
             return (
                 endpts[0][0] + (t/T)*(endpts[1][0]-endpts[0][0]),
                 endpts[0][1] + (t/T)*(endpts[1][1]-endpts[0][1])
-                ) 
+            ) 
         
         self.midline = Midline(self, fmap = lambda t: straight_line(endpts,t))
         return self.midline
@@ -160,6 +164,22 @@ class ROI():
         """
         return f"ROI superclass"
 
+    def __getitem__(self, key):
+        """
+        This is for when ROIs are treated
+        like lists even if they aren't one.
+        This is to make all code able to handle
+        either the case where it assumes there's
+        only one ROI referenced by a SiffPlotter
+        or the case where it assumes
+        there are several.
+        """
+        if key == 0:
+            return self
+        else:
+            raise TypeError("'ROI' object is not subscriptable (except with 0 to return itself)")
+
+
 class subROI(ROI):
     """
     A subclass of the ROI designed solely to indicate
@@ -171,7 +191,7 @@ class subROI(ROI):
     a subclass identifiable with isinstance.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        ROI.__init__(self, *args, **kwargs)
 
 
 
@@ -234,7 +254,7 @@ class Midline():
             )
 
     @abc.abstractmethod
-    def get_masks(self) -> None:
+    def mask(self) -> None:
         """
         Haven't decided, should this have a definition in the base class?
         Or should I make this an abstract method?

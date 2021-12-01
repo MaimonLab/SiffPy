@@ -105,6 +105,8 @@ class Fan(ROI):
         if attr is 'subROIs':
             if hasattr(self,'columns'):
                 return self.columns
+            else:
+                raise AttributeError(f"No columns attribute assigned for Fan")
         else:
             return object.__getattribute__(self, attr)
 

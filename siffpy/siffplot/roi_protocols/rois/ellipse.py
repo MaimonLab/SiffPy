@@ -139,7 +139,7 @@ class Ellipse(ROI):
         if hasattr(self,'image'):
             image = self.image
         self.wedges = [
-            self.WedgeROI(
+            Ellipse.WedgeROI(
                 boundaries[0],
                 boundaries[1],
                 ell,
@@ -319,7 +319,7 @@ class Ellipse(ROI):
         def draw(self):
             return self.path
 
-        def get_masks(self)->None:
+        def mask(self)->None:
             """
             TODO
             """
