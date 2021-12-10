@@ -1,6 +1,10 @@
 # SIFFPLOT
 
-Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend. The primary class for analysis is the `SiffPlotter`,
+Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
+`napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
+`HoloViews` and `Bokeh`, by contrast, are required imports.
+
+The primary class for analysis is the `SiffPlotter`,
 while the primary class for viewing images is the `SiffVisualizer`. Other classes may inherit from these two, and those classes
 can be initialized with any other version of the same parent class to attain their attributes while still performing their
 own unique functionality (see below.)

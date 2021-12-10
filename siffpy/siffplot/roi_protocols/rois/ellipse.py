@@ -86,6 +86,12 @@ class Ellipse(ROI):
     def compute_midline(self)->None:
         """
         Computes the midline of the Ellipse, stores it in the attribute midline
+
+        Returns
+        -------
+
+        None
+
         """
         self.midline = self.RingMidline(self)
 
@@ -125,6 +131,10 @@ class Ellipse(ROI):
         self.perspective = viewed_from
         offset = ell.orientation
 
+        # Go 360/n_segments degrees around the ellipse
+        # And draw a dividing line at the end
+        # The WedgeROI will build an ROI out of the sector
+        # of the ellipse between its input line boundaries
         dividing_lines = [
             hv.Path(
                 {
@@ -205,7 +215,7 @@ class Ellipse(ROI):
         return self.polygon.opts(**self.plotting_opts)
 
     def __getattr__(self, attr)->Any:
-        if attr is 'subROIs':
+        if attr == 'subROIs':
             if hasattr(self,'wedges'):
                 return self.wedges
         else:
@@ -231,6 +241,25 @@ class Ellipse(ROI):
     class WedgeROI(subROI):
         """
         Local class for ellipsoid body wedges. Very simple
+
+        Takes two lines and an ellipse, with the lines defining
+        the edges of the sector the WedgeROI occupies. Then it
+        returns a subROI whose polygon is approximately the interior
+        of the Ellipse in between the two dividing line segments.
+
+        Unique attributes
+        -----------------
+
+        bounding_paths : tuple[hv.element.Path] 
+
+            The edges of the wedge that divide the
+            ellipse into segments
+
+        bounding_angles : tuple[float]
+
+            The angular value along the outer contour
+            of the ellipse that correspond to the edge
+            bounding_paths
         """
         def __init__(self,
                 bounding_paths : tuple[hv.element.Path],

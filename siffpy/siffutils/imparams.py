@@ -1,6 +1,9 @@
 # Im_params object, ensures the existence of all the
 # relevant data, makes a simple object to pass around
 
+from typing import Any
+
+
 CORE_PARAMS = {
     'NUM_SLICES' : int,
     'FRAMES_PER_SLICE' : int,
@@ -53,7 +56,12 @@ class ImParams():
         except:
             n_colors = 1
 
-        self.frames_per_volume = self.num_slices * self.frames_per_slice * n_colors
+        try:
+            self.frames_per_volume = self.num_slices * self.frames_per_slice * n_colors
+            self.num_volumes = self.num_frames // self.frames_per_volume
+            print("defined")
+        except AttributeError: # then some of the above params were not defined.
+            pass
 
     def __getitem__(self, key : str) -> None:
         if hasattr(self, key.lower()):
@@ -78,6 +86,55 @@ class ImParams():
         for key in self.__dict__:
             retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n"
         return retstr
+
+    def __getattr__(self, key : str) -> Any:
+        """
+        These are dependents that might change
+        but typically don't. I felt like it
+        made more sense to compute them on
+        getattr instead of defining them in 
+        init. Maybe not actually that smart
+        """
+        if key == 'num_colors':
+            if hasattr(self.colors, '__len__'):
+                return len(self.colors)
+            else:
+                return 1
+        if key == 'num_volumes':
+            return self.num_frames // (self.frames_per_volume)
+        if key == 'shape':
+            return (self.ysize, self.xsize)
+        if key == 'volume':
+            if self.frames_per_slice == 1:
+                return (self.num_slices, self.num_colors, self.ysize, self.xsize)
+            else:
+                return (
+                    self.num_slices,
+                    self.frames_per_slice,
+                    self.num_colors,
+                    self.ysize,
+                    self.xsize
+                )
+        if key == 'stack':
+            if self.frames_per_slice == 1:
+                return (
+                    self.num_frames // (self.frames_per_volume),
+                    self.num_slices, 
+                    self.num_colors,
+                    self.ysize,
+                    self.xsize
+                )
+            else:
+                return ( # extra dimension for each repeat of each slice
+                    self.num_frames // (self.frames_per_volume),
+                    self.num_slices,
+                    self.frames_per_slice, 
+                    self.num_colors,
+                    self.ysize,
+                    self.xsize
+                ) 
+        else:
+            raise AttributeError
 
     def array_shape(self) -> tuple[int]:
         """ Returns the shape that an array would be in standard order """

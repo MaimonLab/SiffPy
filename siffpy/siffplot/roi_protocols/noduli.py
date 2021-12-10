@@ -3,10 +3,12 @@
 from . import rois
 import holoviews as hv
 
-def hemispheres(reference_frames : list, annotation_dict : dict, *args, **kwargs) -> hv.element.path.Polygons:
+def hemispheres(reference_frames : list, polygon_source : dict, *args, **kwargs) -> hv.element.path.Polygons:
     """
     Just takes the ROIs in the left and right hemispheres.
     """
+    if type(polygon_source) is dict: # use holoviews
+        annotation_dict = polygon_source
 
     slice_idx = None
     if 'slice_idx' in kwargs:
@@ -17,7 +19,7 @@ def hemispheres(reference_frames : list, annotation_dict : dict, *args, **kwargs
     if len(annotation_dict[slice_idx]['annotator'].annotated.data) <2:
         raise ValueError("Fewer than two ROIs provided")
 
-    poly_list = rois.get_largest_polygon(annotation_dict, slice_idx = slice_idx, n_polygons = 2)
+    poly_list = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx, n_polygons = 2)
 
 
     raise NotImplementedError("Not finished method")

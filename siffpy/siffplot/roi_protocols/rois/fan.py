@@ -70,10 +70,20 @@ class Fan(ROI):
     def visualize(self)->hv.Element:
         return self.polygon.opts(**self.plotting_opts)
 
-    def segment(self, n_segments : int)->None:
+    def segment(self, n_segments : int, viewed_from : str = 'anterior')->None:
         """
         Divides the fan in to n_segments of 'equal width', 
         defined as...
+
+        viewed_from : str (optional)
+
+            Whether we're viewing from the anterior perspective (roi indexing should rotate counterclockwise)
+            or posterior perspective (roi indixing should rotate clockwise) to match standard lab perspective.
+
+            Options:
+                
+                'anterior'
+                'posterior'
 
         Stores segments as .columns, which are a subROI class
         TODO: implement
@@ -102,7 +112,7 @@ class Fan(ROI):
         Custom subROI call to return columns
         as the subROI
         """
-        if attr is 'subROIs':
+        if attr == 'subROIs':
             if hasattr(self,'columns'):
                 return self.columns
             else:
@@ -117,8 +127,8 @@ class Fan(ROI):
         ret_str = "ROI of class Fan\n\n"
         ret_str += f"\tCentered at {self.center()}\n"
         ret_str += f"\tRestricted to slice(s) {self.slice_idx}\n"
-        if hasattr(self, 'wedges'):
-            ret_str += f"\tSegmented into {len(self.wedges)} wedges\n"
+        if hasattr(self, 'columns'):
+            ret_str += f"\tSegmented into {len(self.columns)} columns\n"
         if hasattr(self,'perspective'):
             ret_str += f"\tViewed from {self.perspective} direction\n"
         if hasattr(self,'midline'):

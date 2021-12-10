@@ -7,7 +7,7 @@ from . import rois
 from .extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
-def fit_ellipse(reference_frames : list, annotation_dict : dict,
+def fit_ellipse(reference_frames : list, polygon_source : dict,
     *args, **kwargs) -> hv.element.path.Polygons:
     """
     Fits the largest polygon drawn in the annotators to an ellipse, 
@@ -34,6 +34,10 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict,
     Additional kwargs are passed to the Ellipse's opts function
 
     """
+    if type(polygon_source) is dict:
+        annotation_dict = polygon_source
+    else:
+        raise NotImplementedError()
 
     slice_idx = None
     if 'slice_idx' in kwargs:
@@ -41,7 +45,7 @@ def fit_ellipse(reference_frames : list, annotation_dict : dict,
             slice_idx = kwargs['slice_idx']
         del kwargs['slice_idx']
     
-    largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon(annotation_dict, slice_idx = slice_idx)
+    largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx)
     ellip = rois.fit_ellipse_to_poly(largest_polygon, method = 'lsq')
 
     center_x, center_y = ellip.x, ellip.y

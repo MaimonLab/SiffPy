@@ -131,7 +131,7 @@ def fit_ellipse_to_poly(poly : hv.element.path.Polygons, method : str = 'lsq', c
 
     raise ValueError(f"Invalid method for ellipse fitting {method}")
 
-def get_largest_polygon(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> tuple[hv.element.path.Polygons,int, int]:
+def get_largest_polygon_hv(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """
     Expects an annotation dict, and returns the largest polygon in it
     + from which slice it came. n_polygons is the number of polygons to return.
@@ -140,7 +140,7 @@ def get_largest_polygon(annotation_dict : dict, slice_idx : int = None, n_polygo
     are fewer polygons than requested, will raise an exception.
     """
     if n_polygons > 1:
-        return get_largest_polygons(annotation_dict, slice_idx, n_polygons) # private method for returning more than one. This is me being
+        return _get_largest_polygons_hv(annotation_dict, slice_idx, n_polygons) # private method for returning more than one. This is me being
         # lazy to avoid a rewrite
 
     if slice_idx is None:
@@ -161,7 +161,7 @@ def get_largest_polygon(annotation_dict : dict, slice_idx : int = None, n_polygo
         roi_idx
     )
 
-def get_largest_polygons(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> list[tuple[hv.element.path.Polygons, int, int]]:
+def _get_largest_polygons_hv(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> list[tuple[hv.element.path.Polygons, int, int]]:
     """
     Private method for returning more than one polygon, in order of size. 
     """

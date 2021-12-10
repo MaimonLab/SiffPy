@@ -11,14 +11,25 @@ from typing import Iterable
 import holoviews as hv
 hv.extension('bokeh')
 import numpy as np
-import functools, operator
+import functools, operator, logging
 
 from ..siffpy import SiffReader
+
+NAPARI = False
+try:
+    import napari
+    import dask
+    from .napari_viewers import FrameViewer
+    NAPARI = True
+except ImportError:
+    pass # the only acceptable error, otherwise throw
+
 
 class SiffVisualizer():
     """
     A class that permits visualization of fluorescence
-    or FLIM images using HoloViews DynamicMap objects.
+    or FLIM images using HoloViews DynamicMap objects
+    or napari.
 
     This allows dynamically reading data from disk and
     displaying it as collections of images. My intention
@@ -28,9 +39,8 @@ class SiffVisualizer():
     SiffPlotter.
     
 
-
     """
-    def __init__(self, siffreader : SiffReader):
+    def __init__(self, siffreader : SiffReader, backend : str = 'napari'):
         self.siffreader = siffreader
         self.visual = None
         self.image_opts = {
@@ -41,8 +51,30 @@ class SiffVisualizer():
             'invert_yaxis' : False,
         }
         self.loaded_frames = False
+        if not backend in ['napari', 'holoviews']:
+            if NAPARI:
+                logging.warn(f"Invalid backend argument {backend}. Defaulting to napari.")
+                backend = 'napari'
+            else:
+                logging.warn(f"Invalid backend argument {backend}. Defaulting to holoviews.")
+                backend = 'holoviews'
+        self.backend = backend
 
-    def view_frames(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs) -> hv.DynamicMap:
+    def view_frames(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs):
+        """
+        Function used to visualize data provided. Calls appropriate backend viewing functions. If backend is
+        HoloViews, returns a DynamicMap object that allows scrolling through timepoints across z planes.
+        
+        If backend is napari, returns a napari viewer object.
+        """
+        if self.backend == 'holoviews':
+            return self.view_frames_hv(z_planes = z_planes, color = color, load_frames = load_frames, **kwargs)
+        if self.backend == 'napari':
+            return self.view_frames_napari(z_planes = z_planes, color = color, load_frames = load_frames, **kwargs)
+        raise AttributeError("Specified backend is not valid.")
+
+
+    def view_frames_hv(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs) -> hv.DynamicMap:
         """
         Returns a dynamic map object that permits visualization
         of individual timepoints across z-planes, or restricting
@@ -140,4 +172,33 @@ class SiffVisualizer():
         self.visual = dm
         return self.visual
 
+    def view_frames_napari(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs):
+        """
+        Returns a napari Viewer object loaded with frames to image
+
+        Arguments
+        ---------
+
+        z_planes : list[int] (optional)
+
+            Which z-planes to show, 0-indexed. Defaults to all.
+
+        color : int or list[int] (optional)
+
+            Which color to show. 0 (first channel) by default.
+
+        load_frames : bool (optional)
+
+            Pre-load all of the frames (takes longer to return and occupies a large chunk of RAM,
+            but then it's free from the SiffReader object and can be used while that's busy).
+
+        NOTE: If load_frames is used, you'll need to pre-determine the pool_width by adding the
+        kwarg pool_width (type int). Default is 1.
+
+        Returns
+        -------
+        v : napari.Viewer
+        """
+
+        return FrameViewer(self.siffreader, load_frames = load_frames)
     
