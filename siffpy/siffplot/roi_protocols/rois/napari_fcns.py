@@ -10,11 +10,14 @@ image interactions.
 
 SCT 12/11/2021
 """
-from napari.layers.base.base import no_op
 import numpy as np
 import napari
 from napari.layers.shapes import Shapes
 import holoviews as hv
+
+__all__ = [
+    'get_largest_polygon_napari'
+]
 
 def _polygon_area(x_coords : np.ndarray, y_coords : np.ndarray) -> float:
     """ Shoelace method to compute area"""

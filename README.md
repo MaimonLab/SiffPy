@@ -41,12 +41,24 @@ considering what source a photon is likely to have arrived from using FLIM.
 and by the `sifftrac` submodules, which (while written in `holoviews`) rely on a `bokeh` backend. This is optional so that if you want to use your own plotting
 procedures, you're not forced to install a bunch of other libraries to your virtualenv.
 
+- If you don't have `napari` it will also *warn* you during install, but will not prevent installation. At the time of writing, all `siffplot` functionality
+*can* use `napari` and will *default* to `napari` if it's available, but will not complain if it cannot import `napari`. It will simply fall back to `holoviews`
+and `bokeh` and function just fine. Still, `napari` is probably a better experience, and I may not always support both implementations forever, so it's
+probably wiser to install `napari` (I just know some might not like it because it can be a bit of a headache when notebooks get involved).
+
+- If you don't have `dask` it will also *warn* you, but this is only used for some `napari` functionality, so even if you're planning on using `napari`,
+you may be able to get away without `dask` for some use cases. Still, this package is pretty useful for anything you might want to plot or analyse
+dynamically, rather than importing the full array (many of these are hundreds of thousands of images, coming out to tens of GB of RAM). This is
+another *strongly encouraged* type install.
+
 
 ## Using SiffPy
 
 The primary object in `SiffPy` is the `SiffReader` class, which is usually imported with `from siffpy import SiffReader` at the start of a notebook. A `SiffReader` object handles I/O with a .siff or .tiff file to keep track of important file-specific variables as well as implements much of the boilerplate sort of code.
 
-There are several submodules, each specializing in different tasks. Each has its own README.md file that explains more. Or... it will. I'll get around to it.
+There are several submodules, each specializing in different tasks. Each has its own README.md file that explains more. Or... it will.
+Most things are at least partly documented in the README files, and just about everything has fairly fleshed out docstrings.
+I'll get around to ensuring everything is documented well soon though.
 
 Each submodule is intended to function *in isolation and independent from* every other submodule, 
 (though all rely on the `SiffReader`),
@@ -55,7 +67,11 @@ so there are a few functions repeated in their respective
 
 ### SiffPlot
 
-This submodule handles visualization of data from .siff files. It relies on `Bokeh` and `HoloViews`, so you'll need to install those if you don't have them.
+This submodule handles visualization of data from .siff files. It relies on `Bokeh` and `HoloViews`, so you'll need to install those if you don't have them
+if you plan to use this module. It has nicer and more flexible functionality if you use `napari`, so I recommend installing that (alongside `dask`). Because
+`siffplot` is focused on image data, `napari` being a native image handler, rather than generic data visualization package, makes it function nicely here.
+
+All of these are available on `conda` or `PyPI`.
 
 ### SiffTrac
 
@@ -73,11 +89,11 @@ This submodule analyzes traces, sometimes produced by other modules (like the `S
 Haven't decided, but it's plausible the plotter submodules might use this? I don't intend it to perform plotting itself, and so
 will function even without `Holoviews` and `Bokeh` (at time of writing, Oct 21, 2021).
 
-### Handling data
+## Handling data
 
 FLIM data is mostly naturally stored in sparse arrays: most pixels are not important, most histogram bins do not have many entries. But once you start building 512 by 512 pixel arrays, each of which have a FLIM measurement depth of 1024 bins, the array sizes get large quickly (one frame of this size would be 536 MB... acquiring at 30 Hz would give you a 16GB array for every one second of imaging). Most of SiffPy's functionality is performed lazily, avoiding loading arrays into memory unless some pixelwise relationship between several arrays is really needed. The `siffreader` C++ module mostly takes a `frames` or `frameslists` argument that allows pooling of frames by index, and the `siffpy` Python API does its best to hide all the nitty-gritty of that process from the user.
 
-### More direct access to the data
+## More direct access to the data
 
 The `siffreader` module contains lower-level access to the data, allowing you to directly get numpy arrays from .siff and .tiff files. To learn more, type `import siffreader; help(siffreader)` in your Python interpreter or in a Jupyter notebook.
 
@@ -94,18 +110,23 @@ own reader. The structure is as follows (TODO!!!).
 ### Reading individual frames.
 Note that each individual IFD, and corresponding frame, has an additional tag, with the tag ID 907, called SiffCompress.
 The SiffCompress flag is one byte, really one bit, reflecting whether that frame uses the compressed siff format or not.
+It's a one byte tag because I expect that the future may hold other .siff formats, e.g. sparse count data (the standard
+.siff tag but without arrival time data, so twice as compact, that lapses into .tiff storage when that becomes more
+efficient), but probably not up to 255 of them.
 
 __Uncompressed__
 
 An uncompressed siff stores every photon in 8 bytes, with the 2 largest bytes giving the y coordinate, next 2
 largest giving the x coordinate, and 4 smallest bytes giving the photon arrival time. So the 8 bytes
 `00000000` `00000110` `00000000` `00111011` `00000000` `00000000` `00000000` `11111111` would refer to a photon arriving in the 255th time bin in the pixel
-with y coordinate 6 and x coordinate 59.
+with y coordinate 6 and x coordinate 59. At present, only reading and writing with little endian is supported.
+Yes, I know this is bad. It's a small tweak to the code to make it both-endian compatible and I will do it before
+releasing publicly.
 
 __Compressed__
 
 A compressed siff stores every photon in 2 bytes, corresponding _only_ to the arrival time. This caps the number of
-arrival bins permitted at 65535, which with the current finest resolution of the TimeHarp 150 means 327 nanoseconds.
+arrival bins permitted at 65535, which with the current finest resolution of the MultiHarp 150 (5 picoseconds) means 327 nanoseconds.
 This is much longer than the time between 80 MHz laser pulses (12.5 nanoseconds) but puts a hard cap on the rep rate
 of reduction by pulsepicking using this format, with that cap being 3.05 MHz. The pixel identity of each photon read
 is stored at the start of the frame, with essentially what a normal tiff file would contain: a y-size-times-x-size element
