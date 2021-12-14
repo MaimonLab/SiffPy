@@ -72,7 +72,7 @@ class FrameViewer(napari.Viewer):
             **kwargs
         ):
 
-        super(FrameViewer, self).__init__(*args, **kwargs, title = 'Frame viewer', axis_labels = ('Time', 'Z', 'Color', 'Y', 'X'))
+        super(FrameViewer, self).__init__(*args, **kwargs, title = 'Frame viewer', axis_labels = ['Time', 'Z', 'Color', 'Y', 'X'])
 
         if load_frames:
             logging.warn("Loading all frames. This might take a while...\n")
@@ -122,7 +122,7 @@ class FrameViewer(napari.Viewer):
         
         self.add_image(
             data=stack,
-            name='Raw images',
+            name='Raw images (one FOV)',
             multiscale=False,
             channel_axis=2,
             contrast_limits = [0,1],

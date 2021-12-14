@@ -36,7 +36,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.4.1',
+       version = '0.5.0',
        install_requires = [
            'numpy',
            'scipy'
@@ -63,3 +63,18 @@ try:
     import bokeh
 except ImportError as error:
     logging.warning(f"{bcolors.WARNING}\nWARNING:\n\tInstalled without HoloViews or Bokeh. Plotting functionality may fail until those are installed.{bcolors.ENDC}")
+
+try:
+    import napari
+except ImportError as error:
+    logging.warning(f"{bcolors.WARNING}\nWARNING:\n\tInstalled without napari." +
+    " All functionality should be present, but napari can provide a more pleasant" + 
+    "experience for interacting with image data. Try to install it (ideally with pip)"+
+    f" using the command 'pip install napari'. Has a tendency to break with conda.{bcolors.ENDC}")
+
+try:
+    import dask
+except ImportError as error:
+    logging.warning(f"{bcolors.WARNING}\nWARNING:\n\tInstalled without dask." +
+    " Some napari plotting functionality will fail (anything relying on delayed " +
+    f"evaluation. Install with conda or pip.{bcolors.ENDC}")

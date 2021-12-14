@@ -17,7 +17,9 @@ inherited_params = [
     'local_opts',
     'siffreader',
     'reference_frames',
-    'rois'
+    'rois',
+    'viewers',
+    'use_napari'
 ]
 
 class PhasePlotter(SiffPlotter):

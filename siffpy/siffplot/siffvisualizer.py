@@ -38,6 +38,8 @@ class SiffVisualizer():
     and allow visualization of features highlighted by the
     SiffPlotter.
     
+    The SiffVisualizer object is an interface for the
+    underlying plotting libraries, not a plotter itself.
 
     """
     def __init__(self, siffreader : SiffReader, backend : str = 'napari'):
@@ -197,8 +199,13 @@ class SiffVisualizer():
 
         Returns
         -------
-        v : napari.Viewer
-        """
+        v : siffpy.siffplot.napari_viewers.FrameViewer
 
-        return FrameViewer(self.siffreader, load_frames = load_frames)
-    
+            A FrameViewer that subclasses the napari.Viewer
+            class to match typical functionality for viewing
+            individual frames of image data.
+        """
+        
+        self.visual = FrameViewer(self.siffreader, load_frames = load_frames)
+        
+        return self.visual

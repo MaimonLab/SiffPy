@@ -34,63 +34,75 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     Additional kwargs are passed to the Ellipse's opts function
 
     """
-    if type(polygon_source) is dict:
-        annotation_dict = polygon_source
-    else:
-        raise NotImplementedError()
-
     slice_idx = None
     if 'slice_idx' in kwargs:
         if isinstance(kwargs['slice_idx'], int):
             slice_idx = kwargs['slice_idx']
         del kwargs['slice_idx']
     
-    largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx)
+    using_holoviews = True
+    if not (type(polygon_source) is dict):
+        using_holoviews = False
+
+    if using_holoviews:
+        annotation_dict = polygon_source
+        largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx)
+        source_image = rois.annotation_dict_to_numpy(annotation_dict,slice_idx)
+    else:
+        largest_polygon, slice_idx, roi_idx = rois.get_largest_polygon_napari(polygon_source, shape_layer_name = 'ROI shapes', slice_idx = slice_idx)
+        reference_frame_layer = next(filter(lambda x: x.name == 'Reference frames', polygon_source.layers)) # get the layer with the reference frames
+        source_image = reference_frame_layer.data[slice_idx, :, :]
+
     ellip = rois.fit_ellipse_to_poly(largest_polygon, method = 'lsq')
 
     center_x, center_y = ellip.x, ellip.y
     center_poly = None
 
-    if len(annotation_dict[slice_idx]['annotator'].annotated.data) > 1:
-        # there may be other ROIs here with additional information
-        if 'extra_rois' in kwargs:
-            if not isinstance(kwargs['extra_rois'],str):
-                logging.warning(f"""
-                    \n\n\tVALUE ERROR: extra_rois argument passed of type {type(kwargs['extra_rois'])}, not {type(str)}. 
-                    Ignoring additional ROIs.
-                """)
-            else:
-                if kwargs['extra_rois'].lower() == 'center':
-                    # Go through all polygons, find the one with a center closest to the largest polygon
-                    centers = []
-                    for poly in annotation_dict[slice_idx]['annotator'].annotated.data:
-                        (c_x, c_y, _) = smallest_circle.make_circle(list(zip(poly['x'],poly['y'])))
-                        centers.append((c_x,c_y))
-                    
-                    dists = len(centers)*[np.nan]
-                    for c_idx in range(len(centers)):
-                        if c_idx == roi_idx:
-                            continue
-                        dists[c_idx] = (centers[c_idx][0] - center_x)**2 + (centers[c_idx][1] - center_y)**2
-                    
-                    nearest_poly_idx = np.nanargmin(dists)
-                    
-                    #reassign the ellipse center to this smallest polygon's center.
-                    center_poly = annotation_dict[slice_idx]['annotator'].annotated.split()[nearest_poly_idx]
-
-                else:
+    if using_holoviews:
+        if len(annotation_dict[slice_idx]['annotator'].annotated.data) > 1:
+            # there may be other ROIs here with additional information
+            if 'extra_rois' in kwargs:
+                if not isinstance(kwargs['extra_rois'],str):
                     logging.warning(f"""
-                        Invalid argument {kwargs['extra_rois']} provided for extra_rois keyword. Ignoring.
+                        \n\n\tVALUE ERROR: extra_rois argument passed of type {type(kwargs['extra_rois'])}, not {type(str)}. 
+                        Ignoring additional ROIs.
                     """)
-            del kwargs['extra_rois']
-        else:
-            # was not in kwargs
-            logging.warning("Additional polygons detected with no kwarg 'extra_rois'. Ignoring polygons")
+                else:
+                    if kwargs['extra_rois'].lower() == 'center':
+                        # Go through all polygons, find the one with a center closest to the largest polygon
+                        centers = []
+                        for poly in annotation_dict[slice_idx]['annotator'].annotated.data:
+                            (c_x, c_y, _) = smallest_circle.make_circle(list(zip(poly['x'],poly['y'])))
+                            centers.append((c_x,c_y))
+                        
+                        dists = len(centers)*[np.nan]
+                        for c_idx in range(len(centers)):
+                            if c_idx == roi_idx:
+                                continue
+                            dists[c_idx] = (centers[c_idx][0] - center_x)**2 + (centers[c_idx][1] - center_y)**2
+                        
+                        nearest_poly_idx = np.nanargmin(dists)
+                        
+                        #reassign the ellipse center to this smallest polygon's center.
+                        center_poly = annotation_dict[slice_idx]['annotator'].annotated.split()[nearest_poly_idx]
+
+                    else:
+                        logging.warning(f"""
+                            Invalid argument {kwargs['extra_rois']} provided for extra_rois keyword. Ignoring.
+                        """)
+                del kwargs['extra_rois']
+            else:
+                # was not in kwargs
+                logging.warning("Additional polygons detected with no kwarg 'extra_rois'. Ignoring polygons")
+    
+    # If you're using napari instead
+    else:
+        raise NotImplementedError("Haven't gotten around to implementing the center ROI stuff in napari.")
     
     return rois.Ellipse(
         ellip.opts(**kwargs),
         source_polygon = largest_polygon,
         center_poly = center_poly,
         slice_idx = slice_idx,
-        image = rois.annotation_dict_to_numpy(annotation_dict,slice_idx)
+        image = source_image
     )

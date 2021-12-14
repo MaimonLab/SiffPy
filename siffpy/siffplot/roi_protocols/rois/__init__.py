@@ -9,6 +9,13 @@ from .roi import *
 from .ellipse import *
 from .fan import *
 
+try:
+    from .napari_fcns import * # only works if napari is installed
+except ImportError:
+    pass
+
+
+
 __all__ = [
     'polygon_area',
     'fit_ellipse_to_poly',
@@ -137,8 +144,33 @@ def get_largest_polygon_hv(annotation_dict : dict, slice_idx : int = None, n_pol
     + from which slice it came. n_polygons is the number of polygons to return.
     If >1, returns a LIST of tuples, with the 1st tuple being the largest polygon, 
     the next being the next largest polygon, etc. If there
-    are fewer polygons than requested, will raise an exception.
+    are fewer polygons than requested, will raise an exception. If slice_idx
+    is a list, will return the largest polygon for EACH slice. If slice_idx
+    is a list AND n_polygons is a list, will return lists of lists.
     """
+
+    # if it's a list, then return a list.
+    if type(slice_idx) is list:
+        ret_list = []
+        for this_slice in slice_idx:
+            if n_polygons == 1:
+                roi_idx = np.argmax([polygon_area(p['x'], p['y']) for p in annotation_dict[this_slice]['annotator'].annotated.data])
+                if roi_idx is None:
+                    raise AssertionError(f"No annotated ROIs in requested image slice indexed as {this_slice}")
+                ret_list.append(
+                        (
+                            annotation_dict[this_slice]['annotator'].annotated.split()[roi_idx], 
+                            this_slice,
+                            roi_idx
+                        )
+                    )
+            else:
+                ret_list.append(
+                       _get_largest_polygons_hv(annotation_dict, this_slice, n_polygons) 
+                    ) 
+        return ret_list
+
+    # if not a list, then return just a single tuple or list of tuples
     if n_polygons > 1:
         return _get_largest_polygons_hv(annotation_dict, slice_idx, n_polygons) # private method for returning more than one. This is me being
         # lazy to avoid a rewrite
@@ -152,7 +184,7 @@ def get_largest_polygon_hv(annotation_dict : dict, slice_idx : int = None, n_pol
         slice_idx = max(largest_poly, key = largest_poly.get)
         # do it again.
         roi_idx = np.argmax([polygon_area(p['x'], p['y']) for p in annotation_dict[slice_idx]['annotator'].annotated.data])
-    else:
+    elif slice_idx is int:
         roi_idx = np.argmax([polygon_area(p['x'], p['y']) for p in annotation_dict[slice_idx]['annotator'].annotated.data]) 
     
     return (
@@ -182,7 +214,6 @@ def _get_largest_polygons_hv(annotation_dict : dict, slice_idx : int = None, n_p
 
     top_rois = []
     raise NotImplementedError("I haven't finished implementing this yet")
-    return top_rois
 
 def annotation_dict_to_numpy(annotation_dict : dict, slice_idx : int) -> np.ndarray:
     """ Returns the numpy array underlying the image in a single frame of an annotation dict"""

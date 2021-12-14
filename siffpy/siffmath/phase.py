@@ -60,7 +60,7 @@ def pva(vector_timeseries : np.ndarray, error_function : Union[Callable,str] = N
     ]
 
     if (not error_function in error_fcns) and not (error_function is None) and not (callable(error_function)):
-        raise ValueError(f"Error function request is not an available option. Available options are:\n{error_fcns}")
+        raise ValueError(f"Error function request is not an available option. Available preset options are:\n{error_fcns}")
 
     # First normalize each row
     sorted_vals = np.sort(vector_timeseries,axis=1)

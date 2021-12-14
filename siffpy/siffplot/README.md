@@ -2,7 +2,11 @@
 
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
-`HoloViews` and `Bokeh`, by contrast, are required imports.
+`HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
+try my best to maintain full functionality for both, at least as long as I'm the primary programmer on this project (SCT).
+
+If the user has `napari` available, all plotter classes will DEFAULT to `napari`, unless the keyword `use_napari` is set to `False`
+on initialization. If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default.
 
 The primary class for analysis is the `SiffPlotter`,
 while the primary class for viewing images is the `SiffVisualizer`. Other classes may inherit from these two, and those classes
@@ -131,3 +135,4 @@ in the attribute name `wedges` of the `Ellipse`.
 
 
 ## SiffVisualizers
+
