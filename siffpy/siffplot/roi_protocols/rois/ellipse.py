@@ -352,4 +352,4 @@ class Ellipse(ROI):
             """
             TODO
             """
-            pass
+            raise NotImplementedError()

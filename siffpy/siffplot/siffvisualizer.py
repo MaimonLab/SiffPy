@@ -7,6 +7,8 @@ though it does permit some adjustment of visualization parameters.
 
 SCT 09/23/2021
 """
+import math
+
 from typing import Iterable
 import holoviews as hv
 hv.extension('bokeh')
@@ -142,7 +144,7 @@ class SiffVisualizer():
             if not self.loaded_frames:
                 frames = self.siffreader.sum_across_time(
                     timepoint_start = t_val,
-                    timepoint_end = t_val + pool_width,
+                    timepoint_end = t_val + pool_width - 1,
                     timespan = pool_width,
                     z_list = z_planes,
                     color_list = color,
@@ -153,7 +155,7 @@ class SiffVisualizer():
 
             images = [hv.Image(frames[j]).opts(**(self.image_opts)) for j in range(0,len(frames))]
             
-            return functools.reduce(operator.add, images).cols(int(np.sqrt(len(z_planes)))+1)
+            return functools.reduce(operator.add, images).cols(math.floor(np.sqrt(len(z_planes)))) # make a Layout by adding each frame
 
         hv.output(widget_location='top') # may start doing this with panel at some point in the future?
         

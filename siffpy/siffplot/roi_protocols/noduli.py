@@ -5,7 +5,8 @@ import holoviews as hv
 
 def hemispheres(reference_frames : list, polygon_source : dict, *args, **kwargs) -> hv.element.path.Polygons:
     """
-    Just takes the ROIs in the left and right hemispheres.
+    Just takes the ROIs in the left and right hemispheres. Returns them as a Blob ROI which is basically
+    the same as a polygon.
     """
     if type(polygon_source) is dict: # use holoviews
         annotation_dict = polygon_source

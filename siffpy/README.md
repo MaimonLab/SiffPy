@@ -25,4 +25,5 @@ simple math functions.
 ## SiffReaderModule
 
 The `C/C++` code underlying direct interactions with the `.siff` filetype. It produces `numpy.ndarray` objects for image data 
-as well as native Python objects for framewise (or experiment-wise) metadata. 
+as well as native Python objects for framewise (or experiment-wise) metadata. This mostly is for reading from the file, but
+there are a few "smart" things it does, like computing pixel-wise empirical lifetimes given a `FLIMParams` object.

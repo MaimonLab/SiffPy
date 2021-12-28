@@ -1,3 +1,5 @@
+import itertools
+
 from siffpy.siffutils.typecheck import x_across_time_TYPECHECK
 from siffpy.siffutils import registration
 import siffreader
@@ -125,7 +127,7 @@ class SiffReader(object):
             print("Header read")
         
         self.im_params = siffutils.most_important_header_data(self.file_header)
-        self.im_params['NUM_FRAMES'] = siffreader.num_frames() # TODO fix the bug in this that gives 1 frame too many sometimes!!
+        self.im_params['NUM_FRAMES'] = siffreader.num_frames()
 
         self.ROI_group_data = siffutils.header_data_to_roi_string(hd)
         self.opened = True
@@ -283,7 +285,7 @@ class SiffReader(object):
 
         reference (optional, str):
             Referenced to start of the experiment, or referenced to epoch time.
-            TODO: ACTUALLY IMPLEMENT
+
             Possible values:
                 experiment - referenced to experiment
                 epoch      - referenced to epoch
@@ -314,10 +316,12 @@ class SiffReader(object):
             ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
 
 ### METADATA METHODS
-    def get_frames_metadata(self, frames : list[int] = None):
+    def get_frames_metadata(self, frames : list[int] = None) -> list[siffutils.FrameMetaData]:
         if frames is None:
-            frames = list(np.range(self.im_params['NUM_FRAMES']))
-        return siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            frames = list(range(self.im_params['NUM_FRAMES']))
+        return [siffutils.FrameMetaData(meta_dict)
+            for meta_dict in siffutils.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+        ]
 
     def t_axis(self, timepoint_start : int = 0, timepoint_end : int = None, reference_z : int = 0) -> np.ndarray:
         """
@@ -397,7 +401,7 @@ class SiffReader(object):
 
         reference (optional, str):
             Referenced to start of the experiment, or referenced to epoch time.
-            TODO: ACTUALLY IMPLEMENT
+
             Possible values:
                 experiment - referenced to experiment
                 epoch      - referenced to epoch
@@ -426,6 +430,14 @@ class SiffReader(object):
             ])
         else:
             ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
+
+    def find_events(self) -> list[siffutils.FrameMetaData]:
+        """
+        Returns a list of metadata objects corresponding to all frames where
+        'events' occured, i.e. in which the Appended Text field is not empty.
+        """
+        return [meta for meta in self.get_frames_metadata() if meta.hasEventTag]
+
 
 ### IMAGE INTENSITY METHODS
     def get_frames(self, frames: list[int] = None, flim : bool = False, 
@@ -507,7 +519,7 @@ class SiffReader(object):
         timepoint_start : int = 0, timepoint_end : int = None,
         z_list : list[int] = None, color_list : list[int] = None,
         flim : bool = False, ret_type : type = list, registration_dict : dict = None,
-        discard_bins = None
+        discard_bins : int = None, masks : list[np.ndarray] = None
         ) -> np.ndarray:
         """
         Sums adjacent frames in time of width "timespan" and returns a
@@ -555,13 +567,26 @@ class SiffReader(object):
             Determines the return type (either a single numpy array or a list of numpy arrays). The default
             option is list, but if you want a numpy array, input numpy.ndarray
 
-        registration (optional, dict):
+        registration (optional): dict
 
             Registration dict for each frame
 
-        discard_bins (optional, int):
+        discard_bins (optional): int
 
             Arrival times, in units of BINS, above which to discard photons
+
+        masks (optional) : list[np.ndarray]
+
+            List of numpy arrays to mask the returned array(s) with. If len(masks) > 1,
+            then rather than returning a list, will return a list of lists. Each element
+            of that list corresponds to the time series of the SUMMED input in each of the
+            masks provided. So the format would be:
+
+                [
+                    [sum_of_mask_1_frame_1, sum_of_mask_1_frame_2, ... ],
+                    [sum_of_mask_2_frame_1, sum_of_mask_2_frame_2, ...],
+                    ...
+                ]                
 
 
         RETURN VALUES
@@ -584,7 +609,7 @@ class SiffReader(object):
         num_slices = self.im_params['NUM_SLICES']
         
         num_colors = 1
-        if isinstance(self.im_params, list):
+        if isinstance(self.im_params['COLORS'], list):
             num_colors = len(self.im_params['COLORS'])
 
         (z_list, flim, color_list) = x_across_time_TYPECHECK(num_slices, z_list, flim, num_colors, color_list)
@@ -597,18 +622,19 @@ class SiffReader(object):
         frame_start = int(timepoint_start * timestep_size)
         
         if timepoint_end is None:
-            frame_end = self.im_params['NUM_FRAMES'] - self.im_params.num_frames%self.im_params.frames_per_volume
+            frame_end = self.im_params['NUM_FRAMES'] - self.im_params.num_frames%self.im_params.frames_per_volume # only goes up to full volumes
         else:
-            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
+            if timepoint_end > self.im_params['NUM_FRAMES']//timestep_size:
                 logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
-                timepoint_end = self.im_params['NUM_FRAMES']/timestep_size # hope float arithmetic won't bite me in the ass here
+                timepoint_end = self.im_params['NUM_FRAMES']//timestep_size
             
-            frame_end = timepoint_end * timestep_size - self.im_params.num_frames%self.im_params.frames_per_volume
+            frame_end = timepoint_end*timestep_size 
+            frame_end -= frame_end%self.im_params.frames_per_volume # subtract off non-full-volumes
 
-        frame_end = int(frame_end)
+        frame_end = int(frame_end) # frame_end is going to be the frame AFTER the last frame we actually DO include
 
         ##### the real stuff
 
@@ -625,54 +651,53 @@ class SiffReader(object):
         viable_indices = [z*num_colors*fps + k*num_colors + c for z in z_list for k in range(fps) for c in color_list]
 
         if rolling:
-            #temporary in case I don't finish this
-            #rolling = False
             for volume_start in range(frame_start,frame_end, timestep_size):
                 for vol_idx in range(timestep_size):
                     if vol_idx in viable_indices: # ignore undesired frames
                         framenum = vol_idx + volume_start # current frame
-                        framelist.append(list(range(framenum, framenum+timestep_size*timespan+1, timespan)))
+                        framelist.append(list(range(framenum, framenum+timestep_size*timespan, timespan)))
         if not rolling:
-            # step from volume to volume, recording lists of frames to pool
-            for volume_start in range(frame_start,frame_end, timestep_size):
-                for vol_idx in range(timestep_size):
-                    if vol_idx in viable_indices: # ignore undesired frames
-                        probe_lists[vol_idx].append(volume_start + vol_idx)
-                if ((volume_start-frame_start) >= 0) and \
-                ((volume_start-frame_start)/timestep_size)%timespan == 0: ## timespan number of volumes
-                    
-                    for slicelist in probe_lists:
-                        if len(slicelist) > 0: # don't append ignored arrays
-                            framelist.append(slicelist)
-                    probe_lists = [[] for idx in range(timestep_size)]
-                
+            # This approach is dumb and not super clever. Sure there's a better way.
+            selected_frames_by_offset = []
+            for offset_idx in viable_indices:
+                 # list all of frames to be imaged, organized by offset_idx
+                target_frames = list(range(frame_start + offset_idx, frame_end, timestep_size))
+                selected_frames_by_offset.append([target_frames[idx:idx+timespan] for idx in range(0,len(target_frames),timespan)])
+            framelist = list(itertools.chain(*list(zip(*selected_frames_by_offset)))) # ugly
 
-        # ordered by time changing slowest, then z, then color, e.g.
-        # T0: z0c0, z0c1, z1c0, z1c1, ... znc0, znc1, T1: ...
-        if registration_dict is None:
-            list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
-        else:
-            list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration_dict, discard_bins = discard_bins)
+        if masks is None:
+            # ordered by time changing slowest, then z, then color, e.g.
+            # T0: z0c0, z0c1, z1c0, z1c1, ... znc0, znc1, T1: ...
+            if registration_dict is None:
+                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
+            else:
+                list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration_dict, discard_bins = discard_bins)
 
-        if ret_type == np.ndarray:
-            ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
-            return np.array(list_of_arrays)
+            if ret_type == np.ndarray:
+                ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
+                return np.array(list_of_arrays)
+            else:
+                return list_of_arrays
         else:
-            return list_of_arrays
+            # TODO
+            raise NotImplementedError("Using ROI masks in sum_across_time not yet implemented!")
 
     def pool_frames(self, 
             framelist : list[list[int]], 
             flim : bool = False,
             registration : dict = None,
             ret_type : type = list,
-            discard_bins = None
+            discard_bins : int = None,
+            masks : list[np.ndarray] = None 
         ) -> list[np.ndarray]:
         """
         Wraps siffreader.pool_frames
         TODO: Docstring.
         """
             
-
+        if not masks is None:
+            # TODO
+            raise NotImplementedError("Haven't implemented masks in pool_frames yet")
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         if discard_bins is None:

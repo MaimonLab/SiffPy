@@ -45,6 +45,9 @@ setup (name = 'siffpy',
            'numpy',
            'scipy'
        ],
+       extras_require = {
+           'viz' : ['holoviews','bokeh','napari']
+       },
        description = 'Python package for reading and processing .siffs and ScanImage .tiffs',
        ext_modules = [siffmodule],
        packages = setuptools.find_packages(),

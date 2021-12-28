@@ -29,17 +29,23 @@ For all other functionality, you can use the documentation for `SiffPlotter` pro
 
 ### draw_rois
 
-`draw_rois()` returns a `hv.HoloMap` object that can be used to select regions of interest on the reference frames of the associated `siffreader`.
+`draw_rois()` functionality, regardless of backend, relies on using the reference frames of the associated `siffreader`.
 If the `siffreader` does not have any reference frames, i.e. if registration has not been performed, it will throw an error. This is because
 there is no "prototypical" frame to use as a reference for drawing ROIs, not because I want to require you to perform registration, so if you'd like
 to perform a hasty registration you can just use the average frames for each slice or ScanImage mROI with
 `siffreader.registration_dict(reference_method='average')` (including any other `*arg` and `**kwarg` arguments you might want to provide, as
 annotated in `siffpy.registration_dict`'s docstring, accessible with `help(siffpy.registration_dict)`).
 
-Once you have reference frames for your `siffreader`, you can simply call `draw_rois()` from the associated `SiffPlotter` and it will return a 
-`hv.Layout` of composed reference frames. Each has its own toolbar with `PolyDraw` and `PolyEdit` tool from `Bokeh` that can be used to
-select a region or multiple regions of interest. Depend on what types of ROI(s) you want, the type and number of polygons will be different
-(see `extract_rois` documentation for more information).
+__(`HoloViews` version)__
+
+`draw_rois()` returns a `hv.HoloMap` object that can be used to select regions of interest on the reference frames of the associated `siffreader`.
+The `hv.HoloMap` is stored in the attribute `annotation_dict` because it uses `HoloViews` `annotator` objects.
+
+__(`napari` version)__
+
+`draw_rois()` creates a `napari.Viewer` object that can be used to draw polygons, lines, and other shapes on the `siffreader`'s reference frames.
+Shapes are drawn on a `napari.shapes.shapes.Shapes` layer with the name `'ROI shapes'` and can be accessed with the `SiffPlotter`'s `viewer` attribute's
+`layers` attribute, a list of the the layers of the `viewer`.
 
 ### extract_rois
 

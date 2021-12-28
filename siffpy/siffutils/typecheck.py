@@ -26,7 +26,7 @@ def x_across_time_TYPECHECK(
         flim = False
 
     if isinstance(color_list, int):
-        if color_list > num_colors - 1:
+        if color_list >= num_colors:
             logging.warn("Provided a color index greater than that available. Using all channels.",
                 stacklevel=2
             )
@@ -35,7 +35,7 @@ def x_across_time_TYPECHECK(
             color_list = [color_list]
     if isinstance(color_list, list):
         for color in color_list:
-            if color > num_colors:
+            if color >= num_colors:
                 color_list.remove(color)
         if not len(color_list):
             raise Exception("No valid color channels provided!")
