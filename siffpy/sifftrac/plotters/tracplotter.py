@@ -6,7 +6,6 @@ import os, pickle
 
 import holoviews as hv
 from holoviews import opts
-hv.extension('bokeh')
 
 from numpy import add
 from ..log_interpreter.fictraclog import FictracLog

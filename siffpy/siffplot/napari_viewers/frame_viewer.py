@@ -2,19 +2,23 @@ import logging
 from typing import Callable, Iterable
 
 import numpy as np
-
-import napari
 from dask import delayed
 import dask.array as da
 
 from ...siffpy import SiffReader
+from .napari_interface import NapariInterface
 
-class FrameViewer(napari.Viewer):
+class FrameViewer(NapariInterface):
     """
-    Subclasses the napari Viewer to
+    Gives access to a napari Viewer to
     create a window with settings optimized
     for interfacing with individual frames
     of a .siff file.
+
+    Behaves very much LIKE a subclass without
+    actually BEING a subclass. All attributes
+    accessed (methods, etc.) first check if they
+    are part of the object itself, then 
 
     Accepts all napari.Viewer args and kwargs
     in addition to custom kwargs as follows:
@@ -68,11 +72,15 @@ class FrameViewer(napari.Viewer):
             siffreader : SiffReader,
             *args,
             load_frames : bool = False,
-            batch_fcn : Callable = None, batch_iter : Iterable = None,
+            batch_fcn : Callable = None,
+            batch_iter : Iterable = None,
+            image_opts : dict = None,
             **kwargs
         ):
 
-        super(FrameViewer, self).__init__(*args, **kwargs, title = 'Frame viewer', axis_labels = ['Time', 'Z', 'Color', 'Y', 'X'])
+        super().__init__(siffreader, *args, **kwargs, title = 'Frame viewer')
+        # dumb bug prevents setting this in the init
+        self.viewer.dims.axis_labels = siffreader.im_params.axis_labels
 
         if load_frames:
             logging.warn("Loading all frames. This might take a while...\n")
@@ -120,11 +128,17 @@ class FrameViewer(napari.Viewer):
 
             stack = da.stack(dask_ars, axis =0)
         
+        contrast = None
+        if not image_opts is None:
+            if 'clim' in image_opts:
+                contrast = image_opts['clim']
+
         self.add_image(
             data=stack,
             name='Raw images (one FOV)',
+            scale = siffreader.im_params.scale,
             multiscale=False,
             channel_axis=2,
-            contrast_limits = [0,1],
+            contrast_limits = contrast,
             rgb = False
             )

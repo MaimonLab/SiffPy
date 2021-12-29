@@ -132,9 +132,9 @@ def _largest_polygon_tuple_from_viable(polys_list, n_polygons : int = 1) -> tupl
     # If there's only one, don't bother returning as a list
     if n_polygons == 1:
         poly_array = polys_list[roi_idxs[-1]]
-        if poly_array.shape[-1] == 2:
+        if poly_array.shape[-1] == 2: # 2 dimensional, not 3d
             ret_slice = None
-        else:
+        else: # otherwise, get the z slice of the first point
             ret_slice = int(poly_array[0][0])
         return (
             hv.Polygons(

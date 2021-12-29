@@ -11,7 +11,6 @@ import math
 
 from typing import Iterable
 import holoviews as hv
-hv.extension('bokeh')
 import numpy as np
 import functools, operator, logging
 
@@ -24,7 +23,9 @@ try:
     from .napari_viewers import FrameViewer
     NAPARI = True
 except ImportError:
-    pass # the only acceptable error, otherwise throw
+    hv.extension('bokeh') # no need to do this unless
+    # we're defaulting to holoviews, just because there
+    # is some headache with napari and hv at the moment.
 
 
 class SiffVisualizer():
@@ -51,7 +52,7 @@ class SiffVisualizer():
             'yaxis' : None,
             'xaxis' : None,
             'cmap' : 'greys_r',
-            'clim' : (0,1),
+            'clim' : None,
             'invert_yaxis' : False,
         }
         self.loaded_frames = False
@@ -208,6 +209,6 @@ class SiffVisualizer():
             individual frames of image data.
         """
         
-        self.visual = FrameViewer(self.siffreader, load_frames = load_frames)
+        self.visual = FrameViewer(self.siffreader, load_frames = load_frames, image_opts = self.image_opts)
         
         return self.visual

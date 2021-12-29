@@ -166,6 +166,20 @@ class Fan(ROI):
         Private method to fit triangles to the Fan.
         """
 
+        # First find the point of intersection
+
+        # start by extracting the bounding paths as hv.Paths
+        paths = [path if type(path) == hv.Path else path[0] for path in self.bounding_paths]
+
+        intersection = intersection_of_two_lines(*paths) # returns (x, y), not (y, x)!
+
+        # Find the angle swept out by the paths (using the dot product)        
+        # find vector pointing from intersect to each path
+        vectors = [vector_pointing_to_path(path, intersection) for path in paths]
+        
+        # Take the dot product of the two, divide by the magnitude of the vectors
+        # that gives cos(angle)
+        swept_angle = np.arccos(np.dot(*vectors) / np.product(np.linalg.norm(vectors,axis=1)))
 
         raise NotImplementedError()
 
@@ -272,3 +286,42 @@ class Fan(ROI):
         def __init__(self, *args, **kwargs):
             super().__init__(*args,**kwargs)
             raise NotImplementedError()
+
+### LOCAL FCNS
+
+def intersection_of_two_lines(path1 : hv.Path, path2: hv.Path)->tuple[float, float]:
+    """
+    Uses the same shorthand as
+    https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+    to find intersection from two points on each line
+    """
+
+    # x coords of points on paths
+    x1, x2 = path1.data[0]['x']
+    x3, x4 = path2.data[0]['x']
+
+    # y coords of points on paths
+    y1, y2 = path1.data[0]['y']
+    y3, y4 = path2.data[0]['y']
+
+    # x coord of intercept
+    px = (x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4 - y3*x4)
+    py = (x1*y2 - y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4)
+
+    # common denominator for below
+    D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+    px /= D
+    py /= D
+
+    return (px, py)
+
+def vector_pointing_to_path(path : hv.Path, point : tuple[float,float]) -> np.ndarray:
+    """
+    Returns a vector pointing from the point along the path.
+
+    Point must be of form (x,y)!
+    """
+    x_val = path.data[0]['x'][0] # take any point, first for simplicity
+    y_val = path.data[0]['y'][0]
+
+    return np.array([x_val - point[0], y_val - point[1]])

@@ -59,7 +59,6 @@ class ImParams():
         try:
             self.frames_per_volume = self.num_slices * self.frames_per_slice * n_colors
             self.num_volumes = self.num_frames // self.frames_per_volume
-            print("defined")
         except AttributeError: # then some of the above params were not defined.
             pass
 
@@ -105,34 +104,44 @@ class ImParams():
         if key == 'shape':
             return (self.ysize, self.xsize)
         if key == 'volume':
-            if self.frames_per_slice == 1:
-                return (self.num_slices, self.num_colors, self.ysize, self.xsize)
-            else:
-                return (
-                    self.num_slices,
-                    self.frames_per_slice,
-                    self.num_colors,
-                    self.ysize,
-                    self.xsize
-                )
+            ret_list = [self.num_slices]
+            if self.frames_per_slice > 1:
+                ret_list += [self.frames_per_slice]
+            ret_list += [self.num_colors, self.ysize, self.xsize]
+            return tuple(ret_list)
         if key == 'stack':
-            if self.frames_per_slice == 1:
-                return (
-                    self.num_frames // (self.frames_per_volume),
-                    self.num_slices, 
-                    self.num_colors,
-                    self.ysize,
-                    self.xsize
-                )
-            else:
-                return ( # extra dimension for each repeat of each slice
-                    self.num_frames // (self.frames_per_volume),
-                    self.num_slices,
-                    self.frames_per_slice, 
-                    self.num_colors,
-                    self.ysize,
-                    self.xsize
-                ) 
+            ret_list = [self.num_frames // (self.frames_per_volume), self.num_slices]
+            if self.frames_per_slice > 1 :
+                ret_list += [self.frames_per_slice]
+            ret_list += [self.num_colors, self.ysize, self.xsize]
+            return tuple(ret_list)
+        if key == 'scale':
+            # units of microns, except for time.
+            ret_list = [1.0]
+            if not (self.frames_per_slice == 1):
+                raise AttributeError("Scale attribute of im_params not implemented for more than one frame per slice.")
+            if self.num_colors > 1: # otherwise irrelevant
+                ret_list.append(1.0)
+            if self.num_slices > 1: # otherwise irrelevant
+                ret_list.append(self.step_size)
+            if not len(self.imaging_fov) == 4:
+                raise ArithmeticError("Scale for mROI im_params not yet implemented")
+            fov = self.imaging_fov
+            xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
+            yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
+            ret_list.append(yrange/self.ysize)
+            ret_list.append(xrange/self.xsize)
+            return ret_list
+        if key == 'axis_labels':
+            ret_list = ['Time']
+            if self.frames_per_slice > 1:
+                ret_list += ['Sub-slice repeats']
+            if self.num_slices > 1:
+                ret_list += ['Z planes']
+            if self.num_colors > 1:
+                ret_list += ['Color channel']
+            ret_list += ['x', 'y']
+            return ret_list
         else:
             raise AttributeError
 

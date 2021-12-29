@@ -6,7 +6,10 @@ Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or 
 try my best to maintain full functionality for both, at least as long as I'm the primary programmer on this project (SCT).
 
 If the user has `napari` available, all plotter classes will DEFAULT to `napari`, unless the keyword `use_napari` is set to `False`
-on initialization. If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default.
+on initialization. If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default. To use
+options, and to actually visualize the `HoloViews` objects, be sure to call `hv.extension('bokeh')` in a notebook or script. Just
+as a warning, at the time of writing (SCT Dec. 28 2021), the `extension` call doesn't play nicely with `napari` and Notebooks, and
+it makes you have to manually execute individual cells, which is kind of a pain.
 
 The primary class for analysis is the `SiffPlotter`,
 while the primary class for viewing images is the `SiffVisualizer`. Other classes may inherit from these two, and those classes

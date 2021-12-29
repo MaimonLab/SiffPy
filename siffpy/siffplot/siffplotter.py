@@ -8,11 +8,11 @@ SCT 09/23/2021
 """
 import functools, re, os, pickle, logging
 from math import e
+import warnings
 
 import numpy as np
 import holoviews as hv
 from holoviews import opts
-hv.extension('bokeh')
 
 from ..siffpy import SiffReader
 from . import roi_protocols
@@ -24,9 +24,10 @@ NAPARI = False
 try:
     import napari
     import dask
+    from .napari_viewers import *
     NAPARI = True
 except ImportError:
-    pass # the only acceptable error, otherwise throw
+    hv.extension('bokeh')
 
 def apply_opts(func):
     """
@@ -34,7 +35,8 @@ def apply_opts(func):
     'local_opts' attribute to methods which return
     objects that might want them. Allows this object
     to supercede applied defaults, because this gets
-    called with every new plot.
+    called with every new plot. Does nothing if local_opts
+    is not defined.
     """
     def local_opts(*args, **kwargs):
         if hasattr(args[0],'local_opts'):
@@ -52,7 +54,7 @@ class SiffPlotter():
     The core SiffPlotter object. Contains and tracks ROIs, annotations, and has
     methods for producing and modifying those.
 
-    KWARGS
+    HIDDEN KWARGS
     ------
 
     local_opts : iterable
@@ -98,31 +100,35 @@ class SiffPlotter():
     def __init__(self, siffreader : SiffReader, *args, **kwargs):
         self.siffreader : SiffReader = siffreader
 
-        if 'opts' in kwargs:
-            if not isinstance(kwargs['opts'], (list, tuple)):
-                TypeError("Argument opts only accepts tuples or lists -- something that can be unpacked")
-            self.local_opts = kwargs['opts']
-        else:
-            # Default opts
-            self.local_opts = hv.opts(
-                hv.opts.Image(
-                    cmap='viridis',
-                    invert_yaxis=True,
-                    width=self.siffreader.im_params.xsize,
-                    height=self.siffreader.im_params.ysize,
-                    #hooks = [bounds_hook]
-                ),
-                hv.opts.HeatMap(hooks = [arial_hook]),
-                hv.opts.Polygons(fill_alpha=0.15),
-                hv.opts.Curve(hooks = [font_hook])
-            )
-
         # Default to napari unless asked otherwise
         # or if import failed.
         self.use_napari = NAPARI
         if 'use_napari' in kwargs and NAPARI:
             self.use_napari = kwargs['use_napari']
             self.viewers = []
+        if not NAPARI:
+            try:
+                # can only be run if hv.extension(backend) has been executed
+                if 'opts' in kwargs:
+                    if not isinstance(kwargs['opts'], (list, tuple)):
+                        TypeError("Argument opts only accepts tuples or lists -- something that can be unpacked")
+                    self.local_opts = kwargs['opts']
+                else:
+                    # Default opts
+                    self.local_opts = hv.opts(
+                        hv.opts.Image(
+                            cmap='viridis',
+                            invert_yaxis=True,
+                            width=self.siffreader.im_params.xsize,
+                            height=self.siffreader.im_params.ysize,
+                            #hooks = [bounds_hook]
+                        ),
+                        hv.opts.HeatMap(hooks = [arial_hook]),
+                        hv.opts.Polygons(fill_alpha=0.15),
+                        hv.opts.Curve(hooks = [font_hook])
+                    )
+            except AttributeError:
+                warnings.warn("HoloViews not yet initialized, and so local_opts was not defined.")
 
         if self.siffreader.opened:
             self.reference_frames : hv.HoloMap = self.reference_frames_to_holomap()
@@ -165,10 +171,11 @@ class SiffPlotter():
 
         ref_holomap = self.ref_ds.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
         # hard limits
-        ref_holomap = ref_holomap.opts(
-            xlim = (0, self.siffreader.im_params.xsize),
-            ylim = (0, self.siffreader.im_params.ysize)
-        )
+        if hasattr(self,'local_opts'): # avoids initialization issues.
+            ref_holomap = ref_holomap.opts(
+                xlim = (0, self.siffreader.im_params.xsize),
+                ylim = (0, self.siffreader.im_params.ysize)
+            )
         return ref_holomap
 
 ### ROI
@@ -326,14 +333,12 @@ class SiffPlotter():
 
         WARNING: By default, this executes napari.run(), so it WILL
         block the GIL! Don't put this in a pipeline unless
-        you can actively
+        you can actively end the annotation session.
         """
         if not hasattr(self.siffreader, 'reference_frames'):
             raise AssertionError("SiffReader has no registered reference frames.")
 
-        self.viewer = napari.Viewer(title='Annotate ROIs')
-        self.viewer.add_image(data = np.array(self.siffreader.reference_frames),name='Reference frames')
-        self.viewer.add_shapes(face_color="transparent", name="ROI shapes", ndim=3, edge_color='#db544b')
+        self.viewer = ROIViewer(self.siffreader, title='Annotate ROIs')
 
         if run_napari:
             napari.run()
