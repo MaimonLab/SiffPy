@@ -1,11 +1,12 @@
 from functools import reduce
-from siffpy.siffmath import fluorescence
 from typing import Callable, Union
+
 import numpy as np
 import holoviews as hv
-import inspect, operator
+import operator
 
 from ...siffplot.siffplotter import SiffPlotter, apply_opts
+from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
 from ...siffmath import estimate_phase, fluorescence
 
@@ -109,7 +110,7 @@ class PhasePlotter(SiffPlotter):
         if not all(isinstance(roi.subROIs, subROI)):
             raise ValueError("Supposed subROIs (segments, columns, etc.) are not actually of type subROI.")
 
-        # Default behavior
+        # Default behavior, warning this DOES require a well-behaved full on SiffReader
         if fluorescence_method is None:
             fluor = self.siffreader.get_frames() # gets all frames
             return fluorescence.dFoF( # computes normalized dF/F
@@ -243,22 +244,3 @@ class PhasePlotter(SiffPlotter):
 
         wrapped_error = wrapped_error.opts(ylim=bounds)
         return wrapped_error
-        
-### LOCAL
-
-def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[str]:
-    """
-    List of public functions available from fluorescence
-    submodule. Seems a little silly since I can just use
-    the __all__ but this way I can also print the
-    docstrings.
-    """
-    fcns = inspect.getmembers(fluorescence, inspect.isfunction)
-    if print_docstrings:
-        return ["\033[1m" + fcn[0] + ":\n\n\t" + str(inspect.getdoc(fcns[1])) + "\033[0m" for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']] 
-    return [fcn[0] for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']]
-
-
-def fifth_percentile(rois : np.ndarray) -> np.ndarray:
-    sorted_array = np.sort(rois,axis=1)
-    return sorted_array[:, rois.shape[0]//20]

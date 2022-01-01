@@ -7,9 +7,11 @@ import logging
 from .roi import ROI, Midline, subROI
 from ..extern.pairwise import pairwise
 
-class Blob(ROI):
+class Blobs(ROI):
     """
-    Blob-shaped ROI used for the noduli
+    Blob-shaped ROIs used for the noduli.
+    Blobs are boring, and their main feature
+    is their pair of polygons. They do not have a midline!
 
     ........
 
@@ -49,9 +51,41 @@ class Blob(ROI):
             **kwargs
         ):
 
-        if not isinstance(polygon, hv.element.path.Polygons):
-            raise ValueError("Mustache ROI must be initialized with a polygon")
+        if not isinstance(polygon, hv.element.Polygons):
+            raise ValueError("Blobs ROI must be initialized with a polygons object!")
         super().__init__(polygon, **kwargs)
         self.slice_idx = slice_idx
         self.plotting_opts = {}
-        raise NotImplementedError()
+
+    def segment(self, viewed_from : str = 'anterior', **kwargs) -> None:
+        """ n_segments is not a keyword, always produces two """
+        self.hemispheres = [Blobs.Hemisphere(pgon) for pgon in self.polygon.split()]
+        # TODO: USE BOUNDING ANGLES AND ORDER LEFT TO RIGHT
+
+    def visualize(self) -> hv.Element:
+        return self.polygon.opts(**self.plotting_opts)
+
+    def find_midline(self):
+        """ No midline! """
+        raise ValueError("Blob type ROIs do not have a midline!")
+
+    def __getattr__(self, attr)->Any:
+        """
+        Custom subROI call to return hemispheres
+        as the subROI
+        """
+        if attr == 'subROIs':
+            if hasattr(self,'hemispheres'):
+                return self.hemispheres
+            else:
+                raise AttributeError(f"No hemispheres attribute assigned for Blobs")
+        else:
+            return object.__getattribute__(self, attr)
+
+    class Hemisphere(subROI):
+        """ A vanilla ROI, except it's classed as a subROI. Has just a polygon. """
+        def __init__(self,
+                polygon,
+                **kwargs
+            ):
+            super().__init__(self, polygon = polygon, **kwargs)

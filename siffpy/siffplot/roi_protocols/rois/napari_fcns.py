@@ -10,7 +10,7 @@ image interactions.
 
 SCT 12/11/2021
 """
-from typing import Callable
+from typing import Callable, Iterable
 import numpy as np
 import napari
 from napari.layers.shapes import Shapes
@@ -18,7 +18,9 @@ import holoviews as hv
 
 __all__ = [
     'get_largest_lines_napari',
-    'get_largest_polygon_napari'
+    'get_largest_polygon_napari',
+    'holoviews_to_napari_shapes',
+    'napari_shapes_to_holoviews'
 ]
 
 #######################
@@ -86,45 +88,19 @@ def _polygon_area(x_coords : np.ndarray, y_coords : np.ndarray) -> float:
 def _shapes_to_polys(shape_layer : Shapes) -> list[np.ndarray]:
     """
     Takes a napari shapes layer and returns a list of polygons
-
-    Arguments
-    ---------
-
-    shape_layer : napari.layers.shapes.Shapes
-
-        A single Shapes layer.
-
-    Returns
-    -------
-
-    polys : list of numpy.ndarrays
     """
-
     return [shape_layer.data[idx] for idx in range(len(shape_layer.data)) if shape_layer.shape_type[idx] == 'polygon']
 
 def _shapes_to_lines(shape_layer : Shapes) -> list[np.ndarray]:
     """
     Takes a napari shapes layer and returns a list of lines
-
-    Arguments
-    ---------
-
-    shape_layer : napari.layers.shapes.Shapes
-
-        A single Shapes layer.
-
-    Returns
-    -------
-
-    lines : list of numpy.ndarrays
     """ 
-
     return [shape_layer.data[idx] for idx in range(len(shape_layer.data)) if shape_layer.shape_type[idx] == 'line']
 
 def _largest_polygon_tuple_from_viable(polys_list, n_polygons : int = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """
     Returns the appropriate polygon tuple (or list) for get_largest_polygon from a list of viable
-    polygons.
+    polygons as a hv.element.Polygons.
     """
     areas = [_polygon_area(poly[:,-1], poly[:,-2]) for poly in polys_list] # polygon_area(x, y)
     roi_idxs = np.argpartition(np.array(areas), -n_polygons)[-n_polygons:]
@@ -168,7 +144,7 @@ def _largest_lines_tuple_from_viable(
     )->list[hv.element.path.Path, int, int]:
     """
     Extracts the longest lines and returns them as tuples
-    as desired by get_largest_lines
+    with the first element as a hv.element.Path as desired by get_largest_lines
     """
     lengths = [(line[0,-1]-line[1,-1])**2 + (line[0,-2] + line[1,-2])**2 for line in line_list] # ignoring sqrt
     roi_idxs = np.argpartition(np.array(lengths), -n_lines)[-n_lines:]
@@ -215,7 +191,7 @@ def get_largest_lines_napari(
         shape_layer_name : str = 'ROI shapes',
         slice_idx : int = None,
         n_lines = 2
-    ) -> tuple[hv.element.path.Path, int, int]:
+    ) -> tuple[hv.element.Path, int, int]:
     """
     Extracts the longest line type shapes from the given
     napari Viewer and layer. 
@@ -223,7 +199,7 @@ def get_largest_lines_napari(
      # get the layer matching the name expected. Throws an
     # error if no such layer.
     lines_layer = next(filter(lambda x: x.name == shape_layer_name, viewer.layers),None) 
-    if not type(lines_layer) is napari.layers.shapes.shapes.Shapes:
+    if not type(lines_layer) is Shapes:
         raise TypeError(f"Specified layer {shape_layer_name} is not a layer with lines (i.e. ShapesLayer)")
 
     return _slice_idx_parsing(slice_idx, _shapes_to_lines, _largest_lines_tuple_from_viable, n_lines, lines_layer)
@@ -249,7 +225,54 @@ def get_largest_polygon_napari(
     # get the layer matching the name expected. Throws an
     # error if no such layer.
     poly_layer = next(filter(lambda x: x.name == shape_layer_name, viewer.layers),None) 
-    if not type(poly_layer) is napari.layers.shapes.shapes.Shapes:
+    if not type(poly_layer) is Shapes:
         raise TypeError(f"Specified layer {shape_layer_name} is not a layer of polygons (shapes)")
 
     return _slice_idx_parsing(slice_idx, _shapes_to_polys, _largest_polygon_tuple_from_viable, n_polygons, poly_layer)
+
+def holoviews_to_napari_shapes(polygons : Iterable[hv.Element], properties : Iterable[dict] = None)-> Shapes:
+    """
+    Takes a iterable of hv.Elements and transfers them (and/or their contained
+    polygons or other elements, if each element has more than one in it), one by one,
+    into a single napari Shapes layer, which is returned. The properties can be provided
+    or generated for you. By default TODO: FINISH DECIDING WHAT THE DEFAULT WILL DO.
+
+    Parameters
+    ----------
+
+    polygons : Iterable[hv.Elements]
+
+        An iterable of elements, the points of which will each be used to produce new napari Shapes.
+        HoloViews elements are mapped to napari Shapes as follows:
+
+            - Polygons -> Polygons
+            - 
+    """
+    raise NotImplementedError()
+
+def napari_shapes_to_holoviews(shapesLayer : Shapes, inherit_properties = True)-> Iterable[hv.Element]:
+    """
+    Takes a napari Shapes layer and transfers each of its shapes into an iterable
+    of holoviews Elements. The properties can be inherited or default properties can be
+    provided (if inherited, they become opts). By default TODO: FINISH DECIDING WHAT THE DEFAULT WILL DO.
+
+    Parameters
+    ----------
+
+    shapesLayer : napari.layers.Shapes
+
+        A napari Shapes layer whose data elements will be mapped into holoviews Elements.
+        napari Shapes are mapped to holoviews Elements as follows:
+
+            - Polygons -> Polygons
+            - Line -> Paths
+            - Ellipse -> Ellipse
+            - Rectangle -> Rectangle
+    """
+    ret_list = []
+
+    # Iterate through the shapes in the shapes layer and convert
+    # each to a holoviews Element
+    raise NotImplementedError()
+    if len(ret_list) == 0:
+        return None

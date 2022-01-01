@@ -5,6 +5,9 @@ Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or 
 `HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
 try my best to maintain full functionality for both, at least as long as I'm the primary programmer on this project (SCT).
 
+Almost none of this relies on any serious `SiffReader` functionality, and as a result many of the classes can actually be used
+for .tiff files read by a `SiffReader`, or even previously processed `numpy` arrays. TODO: `DummySiffReader` to allow the deception.
+
 If the user has `napari` available, all plotter classes will DEFAULT to `napari`, unless the keyword `use_napari` is set to `False`
 on initialization. If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default. To use
 options, and to actually visualize the `HoloViews` objects, be sure to call `hv.extension('bokeh')` in a notebook or script. Just
@@ -12,9 +15,11 @@ as a warning, at the time of writing (SCT Dec. 28 2021), the `extension` call do
 it makes you have to manually execute individual cells, which is kind of a pain.
 
 The primary class for analysis is the `SiffPlotter`,
-while the primary class for viewing images is the `SiffVisualizer`. Other classes may inherit from these two, and those classes
-can be initialized with any other version of the same parent class to attain their attributes while still performing their
-own unique functionality (see below.)
+while the primary class for viewing image streams is the `SiffVisualizer`.
+Other classes may inherit from these two, and those classes
+can be initialized with any other version of the same parent
+class to attain their attributes while still performing their
+own unique functionality (see below).
 
 ## SiffPlotter
 
@@ -71,7 +76,9 @@ is saved, and can be used for subsequent processing.
 
 ## ROIs
 
-`ROI` objects are used by the `siffplot` tools to select, analyze, or emphasize particular components of particular frames of `.siff` data.
+`ROI` objects are used by the `siffplot` tools to select, analyze, or emphasize particular components of particular frames of `.siff` 
+data. More data can be found below and in the README inside the `roi_protocols` directory. To learn more about available fitting
+methods, call `siffpy.siffplot.ROI_extraction_methods()`.
 
 ## SiffVisualizer
 
@@ -125,22 +132,8 @@ to those regions in particular. Many contain `subROI` classes, generally used to
 Most ROI classes, as a result, implement a customized `__getattr__` call so that each will return a special internal attribute
 when the attribute `subROIs` is requested, while still having an informative name for the attribute in each class (again using the
 `Wedge` `subROI` class, the `Ellipse` `ROI` subclass assigns itself an attribute `ellipse.wedges` when the method `segment` is called.
-But if you try to get `subROIs` from an `Ellipse`, it will also return the `wedges` attribute). This is so that `subROIs` can be used
-as a common interface to all of the functions that might want to use the various types of `subROI` classes.
-
-### Ellipse
-
-The `Ellipse` `ROI` is initialized with a polygon, corresponding to an approximation of its outline. This single polygon will be fit with
-an ellipse, or if the argument `center_polygon` is provided (as is an option in the `ellipsoid_body` module's fitting method `fit_ellipse`),
-a separate polygon will be fit to the center and the two together will help define the outer ellipse.
-
-An ellipse can be segmented with the method `ellipse.segment(n_segments)`, creating `n_segment` `Wedge` `ROI` objects, stored as a list
-in the attribute name `wedges` of the `Ellipse`.
-
-#### Wedges
-
-### Fan
-
+But if you try to get `subROIs` from an `Ellipse`, it will also return the `wedges` attribute). This is so that `subROI`s can be used
+as a common interface to all of the functions that might want to use the various types of `subROI` classes. More on `ROI`s, `subROI`s, and all other things `ROI` related in the `roi_protocols` README file.
 
 
 ## SiffVisualizers

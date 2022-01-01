@@ -55,3 +55,11 @@ class Mustache(ROI):
         self.slice_idx = slice_idx
         self.plotting_opts = {}
         raise NotImplementedError()
+
+    class Glomerulus(subROI):
+        """
+        subROI class for a protocerebral bridge Mustache shape.
+
+        TODO: IMPLEMENT
+        """
+        

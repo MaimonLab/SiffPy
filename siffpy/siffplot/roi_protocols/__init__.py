@@ -151,6 +151,6 @@ REGIONS = {
         {
             'alias_list'  : NODULI,
             'module'      : noduli,
-            'default_fcn' : 'dummy_method'
+            'default_fcn' : 'hemispheres'
         }
 }

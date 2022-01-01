@@ -1,5 +1,12 @@
 # Shared code for ROI extraction
 
+# To future implementers: OPTS should only be applied
+# in the function visualize, which can only be called if
+# holoviews has initialized its extension. This maintains
+# full compatibility with napari and other %gui qt frameworks
+# in Jupyter. The local_opts arguments can be converted into
+# napari properties and so this framework is general to both.
+
 import numpy as np
 import matplotlib
 import holoviews as hv
@@ -8,6 +15,7 @@ from ..extern.smallest_circle import make_circle
 from .roi import *
 from .ellipse import *
 from .fan import *
+from .blob import *
 
 try:
     from .napari_fcns import * # only works if napari is installed

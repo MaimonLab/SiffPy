@@ -325,13 +325,14 @@ class SiffPlotter():
         else:
             return self.draw_rois_hv(keep_old = keep_old, **kwargs)
 
-    def draw_rois_napari(self, run_napari : bool = True, **kwargs)->None:
+    def draw_rois_napari(self, run_napari : bool = False, **kwargs)->None:
         """
         Returns a napari Viewer object that shows
         the reference frames of the .siff file and
         a layer for overlaying drawn polygons and shapes.
 
-        WARNING: By default, this executes napari.run(), so it WILL
+        WARNING: executing napari.run(), if you've started the
+        session in a non-interactive mode, will
         block the GIL! Don't put this in a pipeline unless
         you can actively end the annotation session.
         """
@@ -593,6 +594,18 @@ class SiffPlotter():
                     self.rois = list(self.rois) + [pickle.load(curr_file)]
                 else:
                     self.rois = [pickle.load(curr_file)]
+
+    def visualize(self):
+        """
+        Function for forcing visualization, whether it's through napari or holoviews.
+
+        This way if you're using a script it will still work, rather than waiting on
+        some Jupyter notebook type thing.
+        """
+        if self.use_napari:
+            napari.run()
+        else:
+            hv.extension('bokeh')
 
     def __getattribute__(self, name: str):
         """

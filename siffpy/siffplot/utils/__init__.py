@@ -1,7 +1,13 @@
+"""
+Convenience functions for Plotter type classes
+"""
 from itertools import tee
-import numpy as np
+import inspect
 
+import numpy as np
 import holoviews as hv
+
+from ...siffmath import fluorescence
 
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..., (sn-2, sn-1), (sn-1, sn)"
@@ -163,3 +169,20 @@ def font_hook(plot, elem):
     plot.handles['yaxis'].minor_tick_line_color = None 
     plot.handles['yaxis'].major_tick_line_color = None
     plot.handles['yaxis'].axis_line_color = None
+
+def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[str]:
+    """
+    List of public functions available from fluorescence
+    submodule. Seems a little silly since I can just use
+    the __all__ but this way I can also print the
+    docstrings.
+    """
+    fcns = inspect.getmembers(fluorescence, inspect.isfunction)
+    if print_docstrings:
+        return ["\033[1m" + fcn[0] + ":\n\n\t" + str(inspect.getdoc(fcns[1])) + "\033[0m" for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']] 
+    return [fcn[0] for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']]
+
+
+def fifth_percentile(rois : np.ndarray) -> np.ndarray:
+    sorted_array = np.sort(rois,axis=1)
+    return sorted_array[:, rois.shape[0]//20]

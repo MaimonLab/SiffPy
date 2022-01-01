@@ -52,6 +52,9 @@ class ROI():
         self.plotting_opts = {} # called during visualize
 
     def center(self)->tuple[float,float]:
+        """ Midpoint of the source polygon, or None if the polygon is None. """
+        if self.polygon is None:
+            return None
         return (
             np.mean(self.polygon.data[0]['x']),
             np.mean(self.polygon.data[0]['y']),
@@ -94,12 +97,31 @@ class ROI():
         
         return grid
     
-    @abc.abstractmethod
-    def visualize(self) -> hv.Element:
+    def visualize(self, **kwargs) -> hv.Element:
         """
         Returns a holoviews element to compose for visualization
         """
-        pass
+        # add your own polygon
+        poly = self.polygon.opts(**self.plotting_opts)
+        if hasattr(self, 'subROIs'):
+            
+            SUBOPTS = {
+                'line_color' : 'white',
+                'line_dash'  : 'dashed',
+                'fill_alpha' : 0.3
+            }
+            
+            if 'subopts' in kwargs:
+                # customizable
+                for key, value in kwargs['subopts']:
+                    SUBOPTS[key] = value
+
+            poly *= self.subROIs[0].visualize().opts(**SUBOPTS)
+            for polyidx in range(1,len(self.subROIs)):
+                poly *= self.subROIs[polyidx].visualize().opts(**SUBOPTS)
+
+        # if not, just return the outline.
+        return poly
 
     def find_midline(self):
         """
@@ -191,6 +213,7 @@ class subROI(ROI):
     a subclass identifiable with isinstance.
     """
     def __init__(self, *args, **kwargs):
+        """ Standard ROI init """
         ROI.__init__(self, *args, **kwargs)
 
 

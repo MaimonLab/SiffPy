@@ -2,7 +2,7 @@
 
 from . import rois
 
-def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs):
+def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)-> rois.Fan:
     """
     Takes the largest ROI and assumes it's the outline of the fan-shaped body.
 
@@ -23,6 +23,13 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)
         Which slice or slices to extract an ROI for. If None, will take the ROI
         corresponding to the largest polygon across all slices.
     """
+    ## Outline:
+    #
+    #   Just takes the largest polygon and assumes it's fan shaped.
+    #
+    #   Also looks to see if there's a pair of lines that can be used to guide
+    #   segmentation, and if so adds that info to the Fan object produced.
+    
     slice_idx = None
     if 'slice_idx' in kwargs:
         if isinstance(kwargs['slice_idx'], int):

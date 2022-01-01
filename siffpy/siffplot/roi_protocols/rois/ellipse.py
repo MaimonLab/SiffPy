@@ -163,7 +163,6 @@ class Ellipse(ROI):
         idx = 0
         for wedge in self.wedges:
             wedge.plotting_opts['fill_color'] = colorwheel[idx * int(len(colorwheel)/len(self.wedges))]
-            wedge.opts(fill_color = colorwheel[idx * int(len(colorwheel)/len(self.wedges))])
             idx += 1
 
     def get_roi_masks(self, n_segments : int = 16, image : np.ndarray = None, rettype = list)->list[np.ndarray]:

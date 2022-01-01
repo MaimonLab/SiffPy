@@ -8,7 +8,7 @@ from .extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
 def fit_ellipse(reference_frames : list, polygon_source : dict,
-    *args, **kwargs) -> hv.element.path.Polygons:
+    *args, **kwargs) -> rois.Ellipse:
     """
     Fits the largest polygon drawn in the annotators to an ellipse, 
     and uses that as the outside of the ellipsoid body estimate.
@@ -34,6 +34,14 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     Additional kwargs are passed to the Ellipse's opts function
 
     """
+    ## Outline
+    #
+    #   Search through the annotated polygons (whether in napari or holoviews)
+    #   and identify the largest. Fit it to an ellipse, then use that ellipse to
+    #   produce an Ellipse class. If there are other polygons, and the keyword argument
+    #   is provided, use those other polygons to elaborate on the ellipse (e.g. to highlight the center).
+    #   TODO: IMPLEMENT USING AN ELLIPSE SHAPE IN NAPARI, AND ALSO THE CENTER HOLE ARGUMENT
+    
     slice_idx = None
     if 'slice_idx' in kwargs:
         if isinstance(kwargs['slice_idx'], int):
@@ -97,7 +105,14 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     
     # If you're using napari instead
     else:
-        raise NotImplementedError("Haven't gotten around to implementing the center ROI stuff in napari.")
+        rois.Ellipse(
+            ellip.opts(**kwargs),
+            source_polygon = largest_polygon,
+            center_poly = center_poly,
+            slice_idx = slice_idx,
+            image = source_image
+        )
+        logging.warning("Haven't gotten around to implementing the center ROI stuff in napari.")
     
     return rois.Ellipse(
         ellip.opts(**kwargs),
