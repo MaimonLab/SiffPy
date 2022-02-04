@@ -5,11 +5,20 @@ SCT Sept 17 2021
 */
 #include "../include/flimarray.h"
 
+#define PyFLIMArray_Check(op) PyObject_TypeCheck(op, &FlimArrayType)
+
+
 typedef struct {
     PyObject_HEAD
     PyArrayObject* lifetime; // empirical lifetime, by pixel
     PyArrayObject* intensity; // photon counts, by pixel
-    int dims[NDIMS];            // always 2-dimensional!!
+    int ndims;
+    npy_intp* dimensions; // shape, length ndims
+    /*
+     * Number of bytes to jump to get to the
+     * next element in each dimension
+     */
+    npy_intp *strides;
 } FlimArray;
 
 // Called on deallocation
@@ -38,17 +47,17 @@ static PyMethodDef FlimArray_methods[] = {
     {NULL}  /* Sentinel */
 };
 
-// Defines the attributes
+// Defines the attributes as accessed by Python
 static PyMemberDef FlimArray_members[] = {
     {"intensity"},
     {"lifetime"},
-    {"dims"},
+    {"shape"},
     {NULL}
 };
 
 static PyTypeObject FlimArrayType = { // This is the --type-- object
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "siffpy.FlimArray",
+    .tp_name = "siffreader.FlimArray",
     .tp_doc = FLIMARRAYDOCSTRING, // TODO do this right
     .tp_basicsize = sizeof(FlimArray),
     .tp_itemsize = 0, // MAYBE WRONG

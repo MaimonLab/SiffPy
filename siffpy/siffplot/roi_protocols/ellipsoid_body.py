@@ -41,7 +41,7 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     #   produce an Ellipse class. If there are other polygons, and the keyword argument
     #   is provided, use those other polygons to elaborate on the ellipse (e.g. to highlight the center).
     #   TODO: IMPLEMENT USING AN ELLIPSE SHAPE IN NAPARI, AND ALSO THE CENTER HOLE ARGUMENT
-    
+
     slice_idx = None
     if 'slice_idx' in kwargs:
         if isinstance(kwargs['slice_idx'], int):
@@ -106,11 +106,12 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     # If you're using napari instead
     else:
         rois.Ellipse(
-            ellip.opts(**kwargs),
+            ellip,
             source_polygon = largest_polygon,
             center_poly = center_poly,
             slice_idx = slice_idx,
-            image = source_image
+            image = source_image,
+            name = 'Ellipsoid body'
         )
         logging.warning("Haven't gotten around to implementing the center ROI stuff in napari.")
     
@@ -119,5 +120,6 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
         source_polygon = largest_polygon,
         center_poly = center_poly,
         slice_idx = slice_idx,
-        image = source_image
+        image = source_image,
+        name = 'Ellipsoid body'
     )

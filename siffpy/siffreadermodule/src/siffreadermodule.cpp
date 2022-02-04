@@ -22,8 +22,10 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes, some compiler thing I don't really understand
 #include <numpy/arrayobject.h>
 
-#include "siffreader.hpp"
-#include "siffmoduledefin.hpp"
+#include "../include/siffreader.hpp"
+#include "../include/siffmoduledefin.hpp"
+#include "../include/sifftotiff.hpp"
+#include "../include/flimarray.h"
 
 static SiffReader Sf;
 
@@ -245,7 +247,6 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
             return NULL;
         }
     }
-    
 }
 
 static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObject* kw) {
@@ -631,11 +632,16 @@ static PyObject* siffreader_debug(PyObject* self, PyObject *args){
 static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Converts the open .siff file to a .tiff file and saves it in the location specified
     // (or next to the original, if no argument is provided).
+    
+    char* sourcepath;
+    Py_ssize_t sourcepath_len = Py_ssize_t(0);
+    
     char* savepath;
     Py_ssize_t savepath_len = Py_ssize_t(0);
 
     if(
-        !PyArg_ParseTupleAndKeywords(args, kwargs, "|s#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
+        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
+        &sourcepath, &sourcepath_len,
         &savepath, &savepath_len
         ))
         {
@@ -643,18 +649,22 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     }
     try{
         if (savepath_len > 0) {
-            Sf.siffToTiff(savepath);
+            siff_to_tiff(sourcepath, savepath);
         }
         else {
-            Sf.siffToTiff();
+            siff_to_tiff(sourcepath);
         }
     }
-    catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+    catch(std::exception& e) {
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            e.what()
+        );
         return NULL;
     }
     Py_RETURN_NONE;
 }
+
 
 static PyMethodDef SiffreaderMethods[] = {
 // Array of the methods and corresponding docstrings
@@ -692,5 +702,21 @@ PyMODINIT_FUNC PyInit_siffreader(void) {
 // THE  ONLY NONSTATIC OBJECT
 // executes on initialization
     import_array(); // we use NumPy in here, so I have to run this before creating the module
-    return PyModule_Create(&siffreadermodule);
+
+    PyObject* module;
+    if (PyType_Ready(&FLIMARRAY_TYPE) < 0) return NULL;
+
+    module = PyModule_Create(&siffreadermodule);
+    //siffmodule = PyImport_Import()
+
+    if (module == NULL) return NULL;
+
+    Py_INCREF(&FLIMARRAY_TYPE);
+    if (PyModule_AddObject(module, "FlimArray", (PyObject *) &FLIMARRAY_TYPE) < 0) {
+        Py_DECREF(&FLIMARRAY_TYPE);
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    return module;
 }

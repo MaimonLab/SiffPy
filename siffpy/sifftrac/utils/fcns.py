@@ -48,7 +48,15 @@ def split_headings_to_dict(x_var : np.ndarray, y_var : np.ndarray, xlabel : str 
         ]
 
     """
-    split = [
+
+    first_split_pt = np.where(np.abs(np.diff(y_var))>=np.pi)[0][0]
+
+    split =[
+        {
+            xlabel : x_var[:first_split_pt],
+            ylabel : y_var[:first_split_pt]
+        }
+    ] + [
                 {
                     xlabel : x_var[(start+1):end],
                     ylabel : (y_var[(start+1):end])

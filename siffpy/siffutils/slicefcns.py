@@ -77,7 +77,7 @@ def framelist_by_timepoint(im_params : ImParams, color_channel : int, upper_boun
         return [framenum for framenum in all_frames[:,:,color_channel].tolist() if framenum < upper_bound]
 
 def framelist_by_color(im_params : ImParams, color_channel : int, upper_bound = None)->list:
-    "List of all frames that share a color, regardless of slice"
+    "List of all frames that share a color, regardless of slice. Color channel is indexed from 0!"
 
     colors = im_params['COLORS']
     n_frames = im_params['NUM_FRAMES'] - 1
@@ -87,8 +87,8 @@ def framelist_by_color(im_params : ImParams, color_channel : int, upper_bound = 
     else:
         n_colors = 1
 
-    if color_channel > n_colors:
-        raise ValueError("Color channel specified larger than number of colors acquired")
+    if color_channel >= n_colors:
+        raise ValueError("Color channel specified larger than number of colors acquired. Color channel is indexed from 0!")
 
     if upper_bound is None:
         return list(range(color_channel, n_frames, n_colors))

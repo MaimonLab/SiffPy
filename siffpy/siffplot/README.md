@@ -74,6 +74,13 @@ on its reference frame (if available), and allows selection of points on the pol
 a double click will remove the nearest selected vertex of the polygon. These points are associated with that ROI and will be stored when the ROI
 is saved, and can be used for subsequent processing.
 
+### visualize
+
+`visualize(*args, **kwargs)` is usually implemented as a custom method for each subclass of the `SiffPlotter`. It either returns
+a `HoloViews.Layout` object or it modifies its active `viewer` attribute (if it's using `holoviews` or `napari` as a backend,
+respectively). If the selected backend is not compatible with the `SiffPlotter` subclass's `visualize` method, it will raise
+an `AttributeError` rather than just plotting it anyways.
+
 ## ROIs
 
 `ROI` objects are used by the `siffplot` tools to select, analyze, or emphasize particular components of particular frames of `.siff` 
@@ -116,14 +123,22 @@ up the scope of the primary classes.
 
 ## SiffPlotters
 
+Different `SiffPlotter` subclasses have details that may be elaborated on in TODO: Find a place for this!
+
+### FluorescencePlotter
+
 ### PhasePlotter
 
-The `PhasePlotter` extends the `SiffPlotter` and uses its segmented `ROI` objects to construct estimates of a "phase" of the signal,
+The `PhasePlotter` extends the `FluorescencePlotter` and uses its segmented `ROI` objects to construct estimates of a "phase" of the signal,
 which can generally be understood as the complex phase component of the 1D discrete Fourier transform of the segmented ROIs. The
 functions of this `SiffPlotter` subclass generally take an `ROI` as an optional argument, and if none is provided will search to
 see if they already have an `ROI` attribute. These functions can only apply to `ROI` subclasses with a `subROIs` attribute, which
 many classes will link to a custom defined internal class (see, for example, the `Ellipse` class and its `wedges` attribute).
 If no such `ROI` is provided or accessible, these methods will raise `Exception`s
+
+### HistogramPlotter
+
+This plotter deals specifically with arrival time histograms in `.siff` data.
 
 ## ROIs
 
@@ -134,7 +149,6 @@ when the attribute `subROIs` is requested, while still having an informative nam
 `Wedge` `subROI` class, the `Ellipse` `ROI` subclass assigns itself an attribute `ellipse.wedges` when the method `segment` is called.
 But if you try to get `subROIs` from an `Ellipse`, it will also return the `wedges` attribute). This is so that `subROI`s can be used
 as a common interface to all of the functions that might want to use the various types of `subROI` classes. More on `ROI`s, `subROI`s, and all other things `ROI` related in the `roi_protocols` README file.
-
 
 ## SiffVisualizers
 

@@ -108,7 +108,8 @@ class HeadingPlotter(TracPlotter):
                 (offset, 'Rear'),
                 ((np.pi + offset)%(2*np.pi), 'Front'),
             ],
-            'ylabel' : 'Bar position'
+            'ylabel' : 'Bar position',
+            'xlim' : (0.0, None)
         }
 
         if offset == 0:

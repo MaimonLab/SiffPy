@@ -1,6 +1,6 @@
-from .exp_math import *
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint
+from .exp_math import monoexponential_prob
 
 class FLIMParams(object):
     """
@@ -38,6 +38,10 @@ class FLIMParams(object):
         The temporal offset, in histogram bin units, between the laser pulse and
         the arrival of photons.
 
+    color_chanel : int
+
+        Which color channel this one corresponds to. Defaults to None
+
     Methods
     -------
 
@@ -57,7 +61,7 @@ class FLIMParams(object):
     SCT March 28 2021, rainy day in Maywood NJ
     """
 
-    def __init__(self, param_dict : dict = None, use_noise : bool = False):
+    def __init__(self, param_dict : dict = None, use_noise : bool = False, color_channel : int = None):
         if param_dict is None:
             self.Ncomponents = None
             self.Exp_params = []
@@ -351,8 +355,8 @@ def generate_bounds(params : dict):
     lower_bounds_tau = [0 for x in range(params['NCOMPONENTS'])]
     
     lb = [val for pair in zip(lower_bounds_frac, lower_bounds_tau) for val in pair]
-    lb.append(0.0)
-    lb.append(0.0)
+    lb.append(0.0) # tau_o
+    lb.append(0.0) # sigma
     
     upper_bounds_frac = [1 for x in range(params['NCOMPONENTS'])]
     upper_bounds_tau = [np.inf for x in range(params['NCOMPONENTS'])]

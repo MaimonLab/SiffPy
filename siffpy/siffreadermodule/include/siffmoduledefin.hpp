@@ -14,7 +14,7 @@
 
 #define GET_HISTOGRAM_KEYWORDS (const char*[]){"frames", NULL}
 
-#define SIFF_TO_TIFF_KEYWORDS (const char*[]){"savepath", NULL}
+#define SIFF_TO_TIFF_KEYWORDS (const char*[]){"sourcepath", "savepath", NULL}
 
 
 // DOCSTRING DEFS
@@ -48,8 +48,8 @@
         "\tIf file is open, reports the total number of frames.\n"\
     "debug():\n"\
         "\tEnables siffreadermodule debugging log."\
-    "sifftotiff(savepath = None):\n"\
-        "\tConverts a .siff file to a .tiff file, discarding arrival time information, if relevant."
+    "sifftotiff(sourcepath : str, savepath : str = None):\n"\
+        "\tConverts a .siff file (in sourcepath) to a .tiff file (saved in savepath), discarding arrival time information, if relevant."
 
 
 #define OPEN_DOCSTRING \
@@ -148,11 +148,11 @@
 
 #define DEBUG_DOCSTRING \
     "debug() -> None\n"\
-    "Creates a debug log."
+    "Creates a debug log.\n"
 
 #define SIFF_TO_TIFF_DOCSTRING \
-    "sifftotiff(savename : str = None) -> None\n"\
-    "Converts opened siff file to a tiff file and saves it in location savename"
+    "siff_to_tiff(sourcepath : str, savepath : str = None) -> None\n"\
+    "Converts a siff file located at sourcepath to a tiff file and saves it in location savepath"
 
 
 #endif

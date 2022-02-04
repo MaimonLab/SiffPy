@@ -4,7 +4,7 @@ C and C++ code compiled into a local Python extension module. The code in here i
 
 ## SiffReader class (C++)
 
-Most file I/O is done by a `SiffReader` object in the module (yes, I agree, it was maybe a bad idea to name both the `PyObject` and the `C++` class `SiffReader`, though the idea is that the `Python` class wraps the `C++` class).
+Most file I/O is done by a `SiffReader` object in the module (yes, I agree, it was maybe a bad idea to name both the module and the `C++` class `SiffReader`, though the idea is that the `Python` module wraps the `C++` class).
 
 The `SiffReader` has an `ifstream` object that is opened at the start of a session and which handles all reading of the
 file, `SiffReader.siff`. The front-facing methods can:
@@ -105,7 +105,10 @@ The methods are (at time of writing):
 -    `debug() -> None`
         Enables siffreadermodule debugging log and reporting
 
--    `sifftotiff(savepath : str = None) -> None`
+-    `siff_to_tiff(sourcepath : str, savepath : str = None) -> None`
         Converts the open .siff file to a .tiff file, discarding arrival time information, if relevant. If no path is
         provided, the .tiff is saved in the same location as the .siff.
 
+## FlimArray (Python class)
+
+The `FlimArray` class in the module is a C implementation much like a numpy array. NOT YET IMPLEMENTED (will it ever be?). I think it might be capable of going much faster than a native Python class playing with two numpy arrays

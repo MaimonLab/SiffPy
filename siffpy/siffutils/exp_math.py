@@ -24,6 +24,8 @@ SCT March 27 2021
 
 import numpy as np
 from scipy import special
+import logging
+
 
 def px_chi_sq_exp(photon_arrivals, params):
     """ Returns the chi-squared statistic

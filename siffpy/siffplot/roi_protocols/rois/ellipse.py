@@ -3,7 +3,7 @@ import holoviews as hv
 import numpy as np
 import colorcet
 
-from .roi import ROI, Midline, subROI
+from .roi import ROI, Midline, subROI, apply_image
 from ..extern.pairwise import pairwise
 
 EB_OFFSET = (1/2) * np.pi # EPG going to left of each PB (when viewed from posterior) is the first ROI
@@ -180,6 +180,33 @@ class Ellipse(ROI):
             return np.array([wedge.mask(image=image) for wedge in self.wedges])
         raise ValueError(f"Argument rettype is {rettype}. rettype must be either list or np.ndarray")
 
+    def mask(self, image : np.ndarray = None)->np.ndarray:
+        """Uses the default mask but then subtracts out center polygon if it has one"""
+        grid = super().mask()
+        if self.center_poly is None:
+            return grid
+        if image is None and hasattr(self,'image'):
+            image = self.image
+
+        from matplotlib.path import Path as mplPath
+        
+        if isinstance(self.center_poly,hv.element.Polygons):
+            poly_as_path = mplPath(list(zip(self.center_poly.data[0]['x'],self.center_poly.data[0]['y'])), closed=True)
+        else:
+            poly_as_path = mplPath(self.center_poly.data[0], closed = True) # these are usually stored as arrays
+       
+        xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.T.shape])
+        x, y = xx.flatten(), yy.flatten()
+
+        rasterpoints = np.vstack((x,y)).T
+
+        inner_grid = poly_as_path.contains_points(rasterpoints)
+        inner_grid = inner_grid.reshape(image.shape)
+        grid[inner_grid] = False
+
+        return grid
+
+    @apply_image
     def visualize(self, **kwargs)->hv.Element:
         """
         Kwargs options:

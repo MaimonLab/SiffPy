@@ -1,15 +1,16 @@
 import itertools
-
-from siffpy.siffutils.typecheck import x_across_time_TYPECHECK
-from siffpy.siffutils import registration
-import siffreader
-import numpy as np
 import logging, os, pickle
+from siffpy.siffutils.slicefcns import framelist_by_color
 
+import numpy as np
+
+import siffreader
 from . import siffutils
 from .siffutils.exp_math import *
 from .siffutils.flimparams import FLIMParams
+from .siffutils.flimarray import FlimArray
 from .siffutils.typecheck import *
+from .siffutils import registration
 
 # TODO:
 # __repr__
@@ -67,13 +68,14 @@ class SiffReader(object):
         self.im_params = {}
         self.ROI_group_data = {}
         self.opened = False
+        self.registrationDict = None
+        self.reference_frames = None
+        self.debug = False
+        self.events = None
         if filename is None:
             self.filename = ''
         else:
             self.open(filename)
-        self.registrationDict = None
-        self.reference_frames = None
-        self.debug = False
 
     def __del__(self):
         """ Close file before being destroyed """
@@ -158,7 +160,11 @@ class SiffReader(object):
                 self.reference_frames = ref_ims
             else:
                 logging.warning("\n\n\tPutative reference images object for this file is not of type list.\n", stacklevel=2)
-            
+        
+        events = self.find_events()
+        if len(events):
+            self.events = events
+
     def close(self) -> None:
         """ Closes opened file """
         siffreader.close()
@@ -756,7 +762,42 @@ class SiffReader(object):
         """
         if frames is None:
             return siffreader.get_histogram()
-        return siffreader.get_histogram(frames=frames)
+        return siffreader.get_histogram(frames=frames)[:self.im_params.num_bins]
+
+    def histograms(self, color_channel : 'int|list' = None, frame_endpoints : tuple[int,int] = [None,None]) -> np.ndarray:
+        """
+        Returns a numpy array with arrival time histograms for all elements of the 
+        keyword argument 'color_channel', which may be of type int or of type list (or any iterable).
+        Each is stored on the major axis, so the returned array will be of dimensions:
+        len(color_channel) x number_of_arrival_time_bins. You can define bounds in terms of numbers
+        of frames (FOR THE COLOR CHANNEL, NOT TOTAL IMAGING FRAMES) with the other keyword argument
+        frame_endpoints
+
+        INPUTS
+        ----------
+        color_channel : int or list (default None)
+
+            0 indexed list of color channels you want returned.
+            If None is provided, returns for all color channels.
+
+        frame_endpoints : tuple(int,int) (default (None, None))
+
+            Start and end bounds on the frames from which to collect the histograms.
+        """
+        # I'm sure theres a more Pythonic way... I'm ignoring it
+        # Accept the tuple, and then mutate it internal
+        if type(frame_endpoints is tuple):
+            frame_endpoints = list(frame_endpoints)
+        if frame_endpoints[0] is None:
+            frame_endpoints[0] = 0
+        if frame_endpoints[1] is None:
+            frame_endpoints[1] = int(self.im_params.num_volumes*self.im_params.frames_per_volume/self.im_params.num_colors)
+        if color_channel is None:
+            color_channel = [c-1 for c in self.im_params.colors]
+
+        framelists = [framelist_by_color(self.im_params, c) for c in color_channel]
+        true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
+        return np.array([self.get_histogram(frames) for frames in true_framelists])
 
     def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, rolling : bool = False,
             timepoint_start : int = 0, timepoint_end : int = None,
@@ -765,7 +806,7 @@ class SiffReader(object):
             confidence_metric='chi_sq', discard_bins = None
         )-> np.ndarray:
         """
-        Exactly as in sum_across_time but returns a flimmap instead
+        Exactly as in sum_across_time but returns a FlimArray instead
 
         TODO: IMPLEMENT RET_TYPE
         TODO: IMPLEMENT NONE FOR CONFIDENCE METRIC
@@ -846,32 +887,36 @@ class SiffReader(object):
         if not isinstance(flimfit, FLIMParams):
             raise TypeError("Argument flimfit not of type FLIMParams")
         
+    
         num_slices = self.im_params['NUM_SLICES']
         
         num_colors = 1
-        if isinstance(self.im_params, list):
+        if isinstance(self.im_params['COLORS'], list):
             num_colors = len(self.im_params['COLORS'])
 
         (z_list, _, color_list) = x_across_time_TYPECHECK(num_slices, z_list, None, num_colors, color_list)
 
         fps = self.im_params['FRAMES_PER_SLICE']
 
-        timestep_size = num_slices*num_colors # how many frames constitute a timepoint
+        timestep_size = int(self.im_params.frames_per_volume) # how many frames constitute a volume timepoint
 
         # figure out the start and stop points we're analyzing.
-        frame_start = timepoint_start * timestep_size
+        frame_start = int(timepoint_start * timestep_size)
         
         if timepoint_end is None:
-            frame_end = self.im_params['NUM_FRAMES']
+            frame_end = self.im_params['NUM_FRAMES'] - self.im_params.num_frames%self.im_params.frames_per_volume # only goes up to full volumes
         else:
-            if timepoint_end > self.im_params['NUM_FRAMES']/timestep_size:
+            if timepoint_end > self.im_params['NUM_FRAMES']//timestep_size:
                 logging.warning(
                     "\ntimepoint_end greater than total number of frames.\n"+
                     "Using maximum number of complete timepoints in image instead.\n"
                 )
-                timepoint_end = int(self.im_params['NUM_FRAMES']/timestep_size) # hope float arithmetic won't bite me in the ass here
+                timepoint_end = self.im_params['NUM_FRAMES']//timestep_size
             
-            frame_end = timepoint_end * timestep_size
+            frame_end = timepoint_end*timestep_size 
+            frame_end -= frame_end%self.im_params.frames_per_volume # subtract off non-full-volumes
+
+        frame_end = int(frame_end) # frame_end is going to be the frame AFTER the last frame we actually DO include
 
         ##### the real stuff
 
@@ -888,29 +933,20 @@ class SiffReader(object):
         viable_indices = [z*num_colors*fps + k*num_colors + c for z in z_list for k in range(fps) for c in color_list]
 
         if rolling:
-            #temporary in case I don't finish this
-            #rolling = False
-            # step from volume to volume, recording lists of frames to pool
             for volume_start in range(frame_start,frame_end, timestep_size):
                 for vol_idx in range(timestep_size):
                     if vol_idx in viable_indices: # ignore undesired frames
                         framenum = vol_idx + volume_start # current frame
-                        framelist.append(list(range(framenum, framenum+timestep_size*timespan+1, timespan)))
+                        framelist.append(list(range(framenum, framenum+timestep_size*timespan, timespan)))
         if not rolling:
-            # step from volume to volume, recording lists of frames to pool
-            for volume_start in range(frame_start,frame_end, timestep_size):
-                for vol_idx in range(timestep_size):
-                    if vol_idx in viable_indices: # ignore undesired frames
-                        probe_lists[vol_idx].append(volume_start + vol_idx)
-                if ((volume_start-frame_start) > 0) and \
-                ((volume_start-frame_start)/timestep_size)%timespan == 0: ## timespan number of volumes
-                    
-                    for slicelist in probe_lists:
-                        if len(slicelist) > 0: # don't append ignored arrays
-                            framelist.append(slicelist)
-                    probe_lists = [[] for idx in range(timestep_size)]
-            
-
+            # This approach is dumb and not super clever. Sure there's a better way.
+            selected_frames_by_offset = []
+            for offset_idx in viable_indices:
+                 # list all of frames to be imaged, organized by offset_idx
+                target_frames = list(range(frame_start + offset_idx, frame_end, timestep_size))
+                selected_frames_by_offset.append([target_frames[idx:idx+timespan] for idx in range(0,len(target_frames),timespan)])
+            framelist = list(itertools.chain(*list(zip(*selected_frames_by_offset)))) # ugly
+        
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         if registration is None:
@@ -925,7 +961,7 @@ class SiffReader(object):
             ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
             return np.array(list_of_arrays)
         else:
-            return list_of_arrays
+            return [FlimArray(arr[1], arr[0], FLIMParams=flimfit) for arr in list_of_arrays]
 
 ### ORGANIZATIONAL METHODS
     def framelist_by_slice(self, color_channel : int = None) -> list[list[int]]:
@@ -1164,10 +1200,8 @@ class SiffReader(object):
         self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
 
         if save:
-            save_dict_name = os.path.splitext(self.filename)[0] 
-            if 'save_dict_name' in kwargs:
-                if isinstance(kwargs['save_dict_name'],str):
-                    save_dict_name = kwargs['save_dict_name']
+            if save_dict_name is None:
+                save_dict_name = os.path.splitext(self.filename)[0] 
             with open(save_dict_name + ".dict",'wb') as dict_path:
                 pickle.dump(reg_dict, dict_path)
             with open(save_dict_name + ".ref",'wb') as ref_images_path:
@@ -1215,9 +1249,9 @@ def suppress_warnings() -> None:
 def report_warnings() -> None:
     siffreader.report_warnings()
 
-## Maybe should relocate these to siffutils.exp_math?
-
-def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, initial_fit : dict = None) -> FLIMParams:
+# I don't think this is a natural home for these functions but they rely on multiple siffutils and so they end up with
+# circular imports if I put them in most of those places... To figure out later. TODO
+def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, initial_fit : dict = None, color_channel : int = None, **kwargs) -> FLIMParams:
     """
     Takes row data of arrival times and returns the param dict from an exponential fit.
     TODO: Provide more options to how fitting is done
@@ -1273,30 +1307,35 @@ def channel_exp_fit(photon_arrivals : np.ndarray, num_components : int = 2, init
             }
 
 
-    params = FLIMParams(param_dict=initial_fit)
+    params = FLIMParams(param_dict=initial_fit, color_channel = color_channel, **kwargs)
     params.fit_data(photon_arrivals,num_components=num_components, x0=params.param_tuple())
+    if not params.CHI_SQD > 0:
+        logging.warn("Returned FLIMParams object has a chi-squared of zero, check the fit to be sure!")
     return params
 
-def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : list[str] = None, use_noise : bool = False) -> list[FLIMParams]:
+def fit_exp(histograms : np.ndarray, num_components: 'int|list[int]' = 2, fluorophores : list[str] = None, use_noise : bool = False) -> list[FLIMParams]:
     """
-    params = siffpy.fit_exp(numpy_array, num_components=2)
+    params = siffpy.fit_exp(histograms, num_components=2)
 
 
-    Takes a numpy array with dimensions (time, color, z, y,x,tau) or excluding any dimensions up to (y,x,tau) and
+    Takes a numpy array with dimensions n_colors x num_arrival_time_bins
     returns a color-element list of dicts with fits of the fluorescence emission model for each color channel
 
     INPUTS
     ------
-    numpy_array: (ndarray) An array of data formatted as any of:
-        (time, color, z, y, x, tau)
-        (color, z, y, x, tau)
-        (z, y, x, tau)
-        (y, x, tau)
-        (tau)
+    histograms: (ndarray) An array of data with the following shapes:
+        (num_bins,)
+        (1, num_bins)
+        (n_colors, num_bins)
 
     num_components: 
     
-        (int) Number of exponentials in the fit
+        (int) Number of exponentials in the fit (one color channel)
+        (list) Number of exponentials in each fit (per color channel)
+
+        If there are more color channels than provided in this list (or it's an
+        int with a multidimensional histograms input), they will be filled with
+        the value 2.
 
     fluorophores (list[str] or str):
 
@@ -1315,18 +1354,16 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
         to return the parameters as a tuple or dict.
 
     """
-    # if there's a color axis, identify it first.
-    color_ax = siffutils.get_color_ax(numpy_array)
-
-    # get a tuple that is the index of all dimensions that are neither color nor tau
-    non_color_non_tau_tuple = tuple([x for x in range(numpy_array.ndim-1) if (not x == color_ax)])
-    
-    #compress all non-color axes down to arrival time axis
-    condensed = np.sum(numpy_array,axis=non_color_non_tau_tuple) # color by tau
 
     n_colors = 1
-    if len(condensed.shape)>1:
-        n_colors = condensed.shape[0]
+    if len(histograms.shape)>1:
+        n_colors = histograms.shape[0]
+
+    if n_colors > 1:
+        if not (type(num_components) == list):
+            num_components = [num_components]
+        if len(num_components) < n_colors:
+            num_components += [2]*(n_colors - len(num_components)) # fill with 2s
 
     # type-checking -- HEY I thought this was Python!
     if not (isinstance(fluorophores, list) or isinstance(fluorophores, str)):
@@ -1352,8 +1389,8 @@ def fit_exp(numpy_array : np.ndarray, num_components: int = 2, fluorophores : li
     fluorophores_dict_list = [FlimP.param_dict() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
 
     if n_colors>1:
-        fit_list = [channel_exp_fit( condensed[x,:],num_components, fluorophores_dict_list[x] ) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( histograms[x,:],num_components[x], fluorophores_dict_list[x] , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
     else:
-        fit_list = [channel_exp_fit( condensed,num_components, fluorophores_dict_list[0] )]
+        fit_list = [channel_exp_fit( histograms,num_components, fluorophores_dict_list[0], use_noise = use_noise )]
 
     return fit_list

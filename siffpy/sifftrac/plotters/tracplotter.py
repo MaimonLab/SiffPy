@@ -24,7 +24,7 @@ def apply_opts(func):
         if hasattr(args[0],'local_opts'):
             try:
                 opts = args[0].local_opts # get the local_opts param from self
-                return func(*args, **kwargs).opts(opts)
+                return func(*args, **kwargs).opts(*opts)
             except Exception as e:
                 raise RuntimeError(f"Error applying local opts!:\n{e}")
         else:
@@ -41,37 +41,71 @@ class TracPlotter():
     
     """
 
-    def __init__(self, FLog : Union[FictracLog,list[FictracLog], list[list[FictracLog]]], opts : dict = None):
-        
+    def __init__(self, *args, opts : dict = None):
+        """
+        Two forms of initialization, depending on the arguments provided:
+
+        TracPlotter(fLog : FictracLog (or list of FicTracLogs) , opts : dict = None)
+
+            - Initializes a TracPlotter class from scratch. 
+
+        TracPlotter(tracplotter : TracPlotter class or subclass, opts = None)
+
+            - Initializes a TracPlotter class by inheriting the attributes from another.
+            Attributes increment the references of the other (so the other TracPlotter can be
+            deleted without losing the dat), but they SHARE data, so keep that in mind if you
+            alter one.
+
+        If you initialize with both, it will create a TracPlotter as if from scratch but then ADD
+        the other provided TracPlotter.
+
+        """
+
+        ## Different types of initialization
+
+        # If initializing using fictrac logs
+        if any(map(lambda x: isinstance(x, (FictracLog, list)) , args)):
+            FLog = next(filter(lambda x: isinstance(x, (FictracLog, list)) , args))
+        else:
+            FLog = None
+
         self.figure = None
         if not opts is None:
             self.local_opts = opts
-
-        if isinstance(FLog, FictracLog):
-            self.logs = [[LogToPlot(FictracLog=FLog)]]
-            return
         
-        if isinstance(FLog, list):
-            # If it's a list of FictracLogs, they're intended to be overlaid
-            if all(map(lambda x: isinstance(x, FictracLog), FLog)):
-                self.logs = [[LogToPlot(FictracLog = flog) for flog in FLog]]
+        # Now do whatever instantiation is necessary
+        if not FLog is None:
+            if isinstance(FLog, FictracLog):
+                self.logs = [[LogToPlot(FictracLog=FLog)]]
                 return
             
-            # If it's a list of lists of FictracLogs, then they're supposed
-            # to be plotted separately
-            if all(map(lambda y:
-                all(map(lambda x: isinstance(x, FictracLog),y)),
-                FLog
-            )):
-                self.logs = [
-                    [   
-                        LogToPlot(FictracLog = flog)
-                        for flog in shared_logs
-                    ]   for shared_logs in FLog
-                ]
-                return
+            if isinstance(FLog, list):
+                # If it's a list of FictracLogs, they're intended to be overlaid
+                if all(map(lambda x: isinstance(x, FictracLog), FLog)):
+                    self.logs = [[LogToPlot(FictracLog = flog) for flog in FLog]]
+                    return
+                
+                # If it's a list of lists of FictracLogs, then they're supposed
+                # to be plotted separately
+                if all(map(lambda y:
+                    all(map(lambda x: isinstance(x, FictracLog),y)),
+                    FLog
+                )):
+                    self.logs = [
+                        [   
+                            LogToPlot(FictracLog = flog)
+                            for flog in shared_logs
+                        ]   for shared_logs in FLog
+                    ]
+                    return
 
-        raise TypeError(f"Argument FLog is not of type FictracLog or a list of lists FictracLog elements")
+        # Add to any type of TracPlotter provided
+        if any(map(lambda x: isinstance(x, TracPlotter), args)):
+            self += next(filter(lambda x: isinstance(x, TracPlotter) , args))
+            return
+
+        raise TypeError(f"Did not provide a FictracLog, a list of lists FictracLog elements, or another"
+        " TracPlotter class from which to initialize.")
 
     ### COMBINING PLOTS FUNCTIONALITY
 

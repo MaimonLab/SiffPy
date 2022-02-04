@@ -23,10 +23,11 @@ class bcolors:
 siffmodule = Extension('siffreader',
                     sources = [
                         'siffpy/siffreadermodule/src/siffreadermodule.cpp', 
-                        'siffpy/siffreadermodule/src/siffreader.cpp'
+                        'siffpy/siffreadermodule/src/siffreader.cpp',
+                        'siffpy/siffreadermodule/src/sifftotiff.cpp'
                     ],
                     include_dirs = [
-                        'siffpy/siffreadermodule/include⁩',
+                        'siffpy/siffreadermodule/include',
                         numpy.get_include()
                     ]
                     ,
@@ -36,7 +37,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.5.0',
+       version = '0.5.1',
        install_requires = [
            'numpy',
            'scipy'
@@ -80,4 +81,4 @@ try:
 except ImportError as error:
     logging.warning(f"{bcolors.WARNING}\nWARNING:\n\tInstalled without dask." +
     " Some napari plotting functionality will fail (anything relying on delayed " +
-    f"evaluation. Install with conda or pip.{bcolors.ENDC}")
+    f"evaluation. Install with conda or pip.){bcolors.ENDC}")

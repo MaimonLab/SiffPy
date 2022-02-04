@@ -184,5 +184,6 @@ def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[s
 
 
 def fifth_percentile(rois : np.ndarray) -> np.ndarray:
-    sorted_array = np.sort(rois,axis=1)
-    return sorted_array[:, rois.shape[0]//20]
+    """ Roi-wise 5th percentile value """
+    sorted_array = np.sort(rois,axis=-1)
+    return sorted_array.take( sorted_array.shape[-1] // 20 ,axis=-1)

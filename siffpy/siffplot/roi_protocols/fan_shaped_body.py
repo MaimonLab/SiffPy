@@ -59,11 +59,13 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)
                 largest_polygon,
                 slice_idx = slice_idx,
                 image = source_image,
-                bounding_paths = fan_lines
+                bounding_paths = fan_lines,
+                name='Fan-shaped body'
             )
         else:
             return rois.Fan(
                 largest_polygon,
                 slice_idx = slice_idx,
-                image = source_image
+                image = source_image,
+                name='Fan-shaped body'
             )

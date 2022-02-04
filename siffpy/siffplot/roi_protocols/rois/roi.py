@@ -1,9 +1,30 @@
-from ..extern.pairwise import pairwise
-
 import abc, pickle, logging, os
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
+
+def apply_image(func):
+    """ If the ROI has an image attribute, applies the image """
+    def local_image(*args, **kwargs):
+        if hasattr(args[0],'image'):
+            if isinstance(args[0].image, hv.Image):
+                return args[0].image * func(*args, **kwargs)
+            if isinstance(args[0].image, np.ndarray):
+                imshape = args[0].image.shape
+                image = hv.Image(
+                    {
+                        'x' : np.arange(imshape[0]),
+                        'y' : np.arange(imshape[1]),
+                        'Intensity' : args[0].image
+                    },
+                    vdims=['Intensity']
+                )
+                if hasattr(args[0], 'plotting_opts'):
+                    image = image.opts(**args[0].plotting_opts)
+                return image * func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    return local_image
 
 class ROI():
     """
@@ -20,9 +41,17 @@ class ROI():
 
         A polygon representing the bounds of the ROI
 
-    image : np.ndarray
+    image : np.ndarray (optional)
 
         A template image used for masking (really anything with the right dims).
+
+    name : str (optional)
+
+        A name used for titling plots or for saving the roi
+
+    plotting_opts : dict
+
+        A dictionary that is unpacked like a holoviews opts structure when plotting.
 
     ......
     Methods
@@ -42,12 +71,20 @@ class ROI():
 
 
     """
-    def __init__(self, polygon : hv.element.path.Polygons = None, image : np.ndarray = None):
+    def __init__(self, polygon : hv.element.path.Polygons = None, image : np.ndarray = None, name : str = None):
+        """
+        Defines an ROI whose geometry is determined by the source polygon. Can be associated with
+        an image to plot on top of, and can also be associated with a 'name' for when it's plotted
+        and/or saved.
+        """
         self.polygon = polygon
         
         if not image is None:
             # Leave it undefined otherwise -- I want errors thrown on image methods if there is no image
             self.image = image
+
+        if not name is None:
+            self.name = name
         
         self.plotting_opts = {} # called during visualize
 
@@ -85,7 +122,10 @@ class ROI():
             except Exception as e:
                 raise ValueError(f"Incompatible HoloViews object.\nException:\n\t{e}")
 
-        poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
+        if isinstance(self.polygon,hv.element.Polygons):
+            poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
+        else:
+            poly_as_path = mplPath(self.polygon.data[0], closed = True) # these are usually stored as arrays
        
         xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.T.shape])
         x, y = xx.flatten(), yy.flatten()
@@ -96,7 +136,45 @@ class ROI():
         grid = grid.reshape(image.shape)
         
         return grid
+
+    def get_subroi_masks(self, image : np.ndarray = None, ret_type : type = list) -> list[np.ndarray]:
+        """
+        Returns a list or array (depending on keyword argument ret_type) of the numpy masks of
+        all subROIs of this ROI. If the ROI does not have an assigned 'image' attribute, it can
+        also be provided as a keyword argument with keyword image.
+
+        Arguments
+        ---------
+
+        image : np.ndarray
+
+            A template image that provides the dimensions of the image that the mask needs to be
+            embedded in
+
+        ret_type : type
+
+            Can be any of
+                - list
+                - numpy.ndarray
+                - 'list'
+                - 'array'
+
+        """
+        if not hasattr(self,'subROIs'):
+            raise AttributeError("ROI does not have any assigned subROIs")
+
+        if image is None and not hasattr(self,'image'):
+            raise ValueError("No template image provided!")
+        if image is None:
+            image = self.image
+
+        if ret_type == list or ret_type == 'list':
+            return [subroi.mask(image=image) for subroi in self.subROIs]
+        if ret_type == np.ndarray or ret_type == 'array':
+            return np.array([subroi.mask(image=image) for subroi in self.subROIs])
+        raise ValueError(f"Argument rettype is {ret_type}. rettype must be either list or np.ndarray")
     
+    @apply_image
     def visualize(self, **kwargs) -> hv.Element:
         """
         Returns a holoviews element to compose for visualization
@@ -176,7 +254,10 @@ class ROI():
             os.makedirs(path)
             pass
         file_name = os.path.join(path,self.__class__.__name__)
-        file_name += str(self.polygon.__hash__())
+        if hasattr(self,'name'):
+            file_name += str(self.name)
+        else:
+            file_name += str(self.polygon.__hash__())
         with open(file_name + ".roi",'wb') as roi_file:
             pickle.dump(self, roi_file)
 
@@ -201,6 +282,8 @@ class ROI():
         else:
             raise TypeError("'ROI' object is not subscriptable (except with 0 to return itself)")
 
+    def __iter__(self) :
+        return iter([self])
 
 class subROI(ROI):
     """

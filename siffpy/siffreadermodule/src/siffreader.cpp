@@ -2,7 +2,7 @@
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 
-#include "siffreader.hpp"
+#include "../include/siffreader.hpp"
 
 #include "../include/sifdefin.hpp"
 #include "../include/siffreaderinline.hpp"
@@ -34,7 +34,9 @@ int SiffReader::openFile(const char* _filename) {
             siff.close();
             reset();
         }
+        if (!siff.good()) {siff.clear();}
         siff.open(_filename, std::ios::binary | std::ios::in);
+        if (!siff.good()) {siff.clear();}
         if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
         
         // Get the file size:
@@ -149,7 +151,7 @@ void SiffReader::discernFrames() {
             break;
         }
         if(!siff.good()) {
-            errstring = std::string("Failed to reach IDF during load. Possible corrupt frame? Run in debug for more info.");
+            errstring = std::string("Failed to reach IFD during load. Possible corrupt frame? Run in debug for more info.");
             if (debug){
                 errstring += std::string("\nFile state: ") + std::to_string(siff.rdstate());
                 errstring += std::string("\nFrame number: " + std::to_string(params.allIFDs.size()));
@@ -174,7 +176,7 @@ void SiffReader::discernFrames() {
     params.numFrames = params.allIFDs.size();
     //siff.clear(); // get rid of failbits
 }
-
+ 
 
 void SiffReader::closeFile(){
     if (siff.is_open()) siff.close();
@@ -187,6 +189,7 @@ void SiffReader::closeFile(){
 ///// GET FILE DATA ////////
 ////////////////////////////
 
+// VANILLA
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
     // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
@@ -218,6 +221,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
     }
 }
 
+// REGISTRATION DICT
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
     // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
@@ -247,6 +251,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
     }
 }
 
+// TERMINAL BIN
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], 
     uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
@@ -665,7 +670,6 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
     loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
-    //
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
     
@@ -902,7 +906,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     PyObject* frameDict = frameDataToDict(frameData);
     PyList_Append(metaDictList, frameDict); // append adds a reference
     Py_DECREF(frameDict);
-}
+}//
 
 void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
@@ -997,48 +1001,4 @@ void SiffReader::reset() {
     if (siff.is_open()) siff.close();
     params = SiffParams();
     filename = std::string();
-}
-
-// Same filename as open file
-void SiffReader::siffToTiff() {
-    if (!siff.is_open()) {
-        errstring += "No open file!";
-        throw std::runtime_error("");
-    }
-
-    std::ofstream tiff(
-        filename.substr(0, filename.find_last_of(".")) + ".tiff",
-        std::ios::out | std::ios::binary
-    );
-
-    try{
-        siff_to_tiff(siff, tiff, params);
-        tiff.close();
-    }
-    catch(std::exception& e) {
-        tiff.close();
-        errstring += "Error converting to tiff:\n";
-        errstring += e.what();
-        throw std::runtime_error("");
-    }
-}
-
-// Specified filename.
-void SiffReader::siffToTiff(std::string savepath) {
-    if (!siff.is_open()) {
-        errstring += "No open file!";
-        throw std::runtime_error("");
-    }
-
-    std::ofstream tiff(savepath+".tiff", std::ios::out | std::ios::binary);
-    try {
-        siff_to_tiff(siff,tiff, params);
-        tiff.close();
-    }
-    catch(std::exception& e) {
-        tiff.close();
-        errstring += "Error converting to tiff:\n";
-        errstring += e.what();
-        throw std::runtime_error("");
-    }
 }

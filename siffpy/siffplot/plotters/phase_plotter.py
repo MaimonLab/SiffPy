@@ -5,10 +5,11 @@ import numpy as np
 import holoviews as hv
 import operator
 
-from ...siffplot.siffplotter import SiffPlotter, apply_opts
+from ...siffplot.siffplotter import apply_opts
+from .fluorescence_plotter import FluorescencePlotter
 from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
-from ...siffmath import estimate_phase, fluorescence
+from ...siffmath import estimate_phase
 
 __all__ = [
     'PhasePlotter'
@@ -23,7 +24,7 @@ inherited_params = [
     'use_napari'
 ]
 
-class PhasePlotter(SiffPlotter):
+class PhasePlotter(FluorescencePlotter):
     """
     Extends the SiffPlotter functionality to allow
     analysis of phase information relating to a 
@@ -33,103 +34,11 @@ class PhasePlotter(SiffPlotter):
     the actual analyses performed.
 
     Can be initialized with an existing SiffPlotter
-    to inherit its properties
+    to inherit its properties, just as with a
+    FluorescencePlotter.
 
     ( e.g. phase_p = PhasePlotter(siff_plotter)) )
     """
-
-    def __init__(self, *args, **kwargs):
-        if not any([isinstance(arg,SiffPlotter) for arg in args]):
-            # From scratch
-            super().__init__(self, *args, **kwargs)
-        else:
-            for arg in args:
-                # Iterate until you get to the first SiffPlotter object.
-                if isinstance(arg, SiffPlotter):
-                    plotter = arg
-                    break
-            
-            # inherits parameters from the provided plotter
-            for param in inherited_params:
-                if hasattr(plotter, param):
-                    setattr(self, param, getattr(plotter, param))
-        
-    def compute_vector_timeseries(self, *args, roi : ROI = None, fluorescence_method : Union[str,Callable] = None, **kwargs)-> np.ndarray:
-        """
-        Takes an roi ROI with subROIs and uses it to segment the data
-        linked in the siffreader file into individual ROIs and
-        return some analysis on each ROI. Does not store attribute
-        vector_timeseries in PhasePlotter -- but many other functions
-        that use this one do.
-
-        Arguments
-        ---------
-
-        roi : siffpy.siffplot.roi_protocols.rois.roi.ROI (optional)
-
-            Any ROI subclass that has a 'subROIs' attribute. If none
-            is provided, will look at this SiffPlotter's rois attribute
-            to see if any meet the necessary criteria, and uses the first
-            one of those that it finds.
-
-        fluorescence_method : str or callable (optional)
-
-            Which method to use to compute the vector_timeseries from the
-            frame specifications. Accepts any public function defined in 
-            siffmath.fluorescence. If no argument is provided, defaults
-            to dF/F with F0 defined as the fifth percentile signal in
-            each ROI.
-
-        *args and other kwargs provided are passed directly to the method
-        used to compute the vector_timeseries
-
-        Returns
-        -------
-
-        vector_timeseries : np.ndarray
-
-            Array of shape (number_of_subROIs, number_of_timebins) corresponding
-            to the analysis specified on each of the subROIs of the argument
-            ROI provided.
-        """
-        if roi is None:
-            # See if any of the already stored ROIs work.
-            if self.rois is None:
-                raise AttributeError("No ROIs stored in PhasePlotter.")
-            if not any([hasattr(individual_roi, 'subROIs') for individual_roi in self.rois]):
-                raise AttributeError("No segmented subROIs in any previously stored ROIs.")
-            # Takes the first segmented one if one in particular is not provided!
-            for individual_roi in self.rois:
-                if hasattr(individual_roi, 'subROIs'):
-                    roi = individual_roi
-                    break
-        
-        if not hasattr(roi, 'subROIs'):
-            raise ValueError(f"Provided roi {roi} of type {type(roi)} does not have attribute 'subROIs'.")
-        
-        if not all(isinstance(roi.subROIs, subROI)):
-            raise ValueError("Supposed subROIs (segments, columns, etc.) are not actually of type subROI.")
-
-        # Default behavior, warning this DOES require a well-behaved full on SiffReader
-        if fluorescence_method is None:
-            fluor = self.siffreader.get_frames() # gets all frames
-            return fluorescence.dFoF( # computes normalized dF/F
-                fluorescence.roi_masked_fluorescence(fluor,roi.subROIs), # masks every frame with the subROIs
-                normalized=True, # Normalized from 0-ish to 1-ish.
-                Fo = fifth_percentile # defined locally
-            )
-
-        # Optional alternatives
-        if not callable(fluorescence_method):
-            if not fluorescence_method in string_names_of_fluorescence_fcns():
-                raise ValueError(
-                    "Fluorescence extraction method must either be a callable or a string. Available " +
-                    "string options are functions defined in siffmath.fluorescence. Those are:" +
-                    reduce(operator.add, ["\n\n\t"+name for name in string_names_of_fluorescence_fcns()])
-                )
-            fluorescence_method = getattr(fluorescence,fluorescence_method)
-
-        return fluorescence_method(*args, **kwargs)
 
     def estimate_phase(self, roi : ROI = None, vector_timeseries : np.ndarray = None, phase_method : str = None, **kwargs)->np.ndarray:
         """
@@ -167,6 +76,11 @@ class PhasePlotter(SiffPlotter):
 
         
         raise NotImplementedError()
+
+    def visualize(self) -> hv.Layout:
+        """ Not yet implemented """
+        raise NotImplementedError()
+        return super().visualize()
 
     @apply_opts
     def wrapped_error_plot(x_axis : np.ndarray, central_data : np.ndarray, error : np.ndarray,

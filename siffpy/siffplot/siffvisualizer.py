@@ -52,7 +52,7 @@ class SiffVisualizer():
             'yaxis' : None,
             'xaxis' : None,
             'cmap' : 'greys_r',
-            'clim' : None,
+            'clim' : (None,None),
             'invert_yaxis' : False,
         }
         self.loaded_frames = False
@@ -145,7 +145,7 @@ class SiffVisualizer():
             if not self.loaded_frames:
                 frames = self.siffreader.sum_across_time(
                     timepoint_start = t_val,
-                    timepoint_end = t_val + pool_width - 1,
+                    timepoint_end = t_val + pool_width,
                     timespan = pool_width,
                     z_list = z_planes,
                     color_list = color,
@@ -161,7 +161,7 @@ class SiffVisualizer():
         hv.output(widget_location='top') # may start doing this with panel at some point in the future?
         
         if loaded_frames:
-            dm : hv.DynamicMap = hv.DynamicMap(lambda t: show_frames(t,0), kdims = ['timepoint'])
+            dm : hv.DynamicMap = hv.DynamicMap(lambda t: show_frames(t,1), kdims = ['timepoint'])
             dm = dm.redim.range(
                 timepoint=(0,self.siffreader.im_params.num_frames//self.siffreader.im_params.frames_per_volume)
             )

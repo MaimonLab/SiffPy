@@ -1,5 +1,6 @@
-# Dedicated code for data that is purely fluorescence analysis
-
+"""
+Dedicated code for data that is purely fluorescence analysis
+"""
 import numpy as np
 import logging
 holoviews : bool = False
@@ -25,7 +26,7 @@ __all__ = [
     "roi_masked_fluorescence"
 ]
 
-def dFoF(fluorescence : np.ndarray, normalized : bool = False, Fo = lambda x: np.mean(x,axis=1))->np.ndarray:
+def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = lambda x: np.mean(x,axis=1), **kwargs)->np.ndarray:
     """
     
     Takes a numpy array and returns a dF/F0 trace across the rows -- i.e. each row is normalized independently
@@ -43,15 +44,17 @@ def dFoF(fluorescence : np.ndarray, normalized : bool = False, Fo = lambda x: np
     Fo : callable or np.ndarray (optional)
 
         How to determine the F0 term for a given row. If Fo is callable, the function is applied to the
-        roi numpy array directly (i.e. it's NOT a function that operates on one row). Can also provide
-        just a number or an array of numbers.
+        roi numpy array directly (i.e. it's NOT a function that operates on only one row at a time). 
+        Can also provide just a number or an array of numbers.
+
+    Passes additional args and kwargs to the Fo function, if those args and kwargs are provided.
     
     """
     if not type(fluorescence) == np.ndarray:
         fluorescence = np.array(fluorescence)
     
     if callable(Fo):
-        F0 = Fo(fluorescence)
+        F0 = Fo(fluorescence, *args, **kwargs)
     elif type(Fo) is np.ndarray or float:
         F0 = Fo
     else:
@@ -81,8 +84,8 @@ def roi_masked_fluorescence_numpy(frames : np.ndarray, rois : list[np.ndarray]):
     return np.sum(
             np.tensordot(
                 frames,
-                rois.T,
-                axes=2
+                rois,
+                axes=((-1,-2),(-1,-2))
             ),
             axis = (-2,-1)
         )

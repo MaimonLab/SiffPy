@@ -8,7 +8,6 @@
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
 
-#include "siffParams.hpp"
 #include <numpy/arrayobject.h>
 #include "exp_math.hpp"
 
@@ -16,6 +15,7 @@
 #include "siffParams.hpp"
 #include <stdio.h>
 #include <fstream>
+#include <algorithm>
 
 // for parsing the uint64 format
 #define YMASK ((uint64_t) 1 << 63) - ((uint64_t) 1 << 48) + ((uint64_t) 1 << 63) // that last bit'll getcha
@@ -142,11 +142,10 @@ inline FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& sif
     return frameData;
 }
 
-
+// NOT TERMINAL BIN
 inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
     uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
     {
-    
     // figure out the rigid deformation for registration
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
@@ -154,13 +153,13 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     
     uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
-    if(!flim) { // easy, this data's already stored in the start.
-
-        uint16_t frameReads[samplesThisFrame];
-        siff.read((char*)&frameReads,pixelsInImage * sizeof(uint16_t));
+   
+   if(!flim) { // easy, this data's already stored in the start.
+        uint16_t frameReads[pixelsInImage];
+        siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
         siff.clear();
 
-        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+        for(uint64_t px = 0; px < pixelsInImage; px++) {
             uint64_t shifted_px = ( (((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
             shifted_px += (px % dims[0] + x_shift) % dims[1];
             data_ptr[shifted_px] += frameReads[px];
@@ -170,7 +169,7 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     }
     
     // first get the number of photons for each pixel
-    uint16_t photonCounts[frameData.imageLength * frameData.imageWidth];
+    uint16_t photonCounts[pixelsInImage];
     siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
 
     // now put the arrival time values that are in succession into the right elements of the numpy array.
@@ -190,6 +189,7 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     }
 }
 
+// TERMINAL BIN
 inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
     uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple, uint64_t terminalBin) // uses siffCompress
     { // TODO : FINSIH ME!!!
@@ -204,11 +204,11 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
     if(!flim) { // easy, this data's already stored in the start.
 
-        uint16_t frameReads[samplesThisFrame];
+        uint16_t frameReads[pixelsInImage];
         siff.read((char*)&frameReads,pixelsInImage * sizeof(uint16_t));
         siff.clear();
 
-        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+        for(uint64_t px = 0; px < pixelsInImage; px++) {
             uint64_t shifted_px = ( (((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
             shifted_px += (px % dims[0] + x_shift) % dims[1];
             data_ptr[shifted_px] += frameReads[px];
@@ -482,8 +482,10 @@ inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameDa
     // Can ignore the preceding array listing photons per pixel.
     siff.seekg(frameData.dataStripAddress);
 
+    throw std::runtime_error(std::to_string(frameData.dataStripAddress));
+
     uint16_t readsThisFrame[samplesThisFrame];
-    siff.read((char*)&readsThisFrame,frameData.stripByteCounts);
+    siff.read((char*) readsThisFrame, sizeof(uint16_t)*samplesThisFrame);
     // now put the arrival time values that are in succession into the right elements of the numpy array.
     for (uint64_t photon = 0; photon<samplesThisFrame; photon++) {
         data_ptr[readsThisFrame[photon]]++; // not even needing masking
@@ -494,12 +496,9 @@ inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std
     uint64_t* data_ptr) // every read is a uint64 of y, x, tau
     {
     
-    siff.clear();
     siff.seekg(frameData.dataStripAddress);
-    siff.clear();
     uint64_t frameReads[samplesThisFrame];
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
-    siff.clear();
+    siff.read((char*) frameReads,frameData.stripByteCounts);
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
         // increment the appropriate numpy element
         data_ptr[U64TOTAU(frameReads[photon])]++;
@@ -515,7 +514,7 @@ inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, Fr
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
 
-    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t bytesPerSample = frameData.siffCompress ? 2 : 8;
     uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
     siff.clear();
 
@@ -643,7 +642,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     // Lifetime by pixel
     for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
-        lifetime_ptr[px] -= tauo;
+        lifetime_ptr[px] -= std::min(tauo,lifetime_ptr[px]); // keeps positive
         conf_ptr[px] /= intensity_ptr[px]; // nan the bad ones
         conf_ptr[px] += intensity_ptr[px]; // for the iterative procedure, start as if all observed are 0.
     }
@@ -753,71 +752,6 @@ inline void normalizeAndOffsetFlimTuple(PyObject* FlimTup, double_t tauo){
     for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
         lifetime_ptr[px] -= tauo;
-    }
-}
-
-// Saves a frame from a siff file into a frame in a tiff file
-inline void siff_to_tiff_frame(std::ifstream& siff, std::ofstream& tiff, SiffParams params, uint64_t siffIFDAddress) {
-    // Go to IFD
-    siff.clear();
-    siff.seekg(siffIFDAddress, siff.beg);
-
-    uint64_t numTags; // Tags in the siff frame
-    siff.read((char*) &numTags, params.bytesPerNumTags);
-    tiff.write((char*) &numTags, params.bytesPerNumTags);
-
-    char tagData[params.bytesPerTag * numTags]; // read them all at once
-    siff.read(tagData, params.bytesPerTag * numTags);
-    tiff.write(tagData, params.bytesPerTag * numTags);
-
-    // Now we should actually parse that data
-    FrameData thisFrameData = getTagData(siffIFDAddress, params, siff);
-
-
-    // Write when the next IFD will be
-    uint64_t nextIFD = thisFrameData.endOfIFD +
-        thisFrameData.stringlength +
-        sizeof(uint16_t)*thisFrameData.imageWidth*thisFrameData.imageLength;
-    
-    tiff.write((char*) &nextIFD, sizeof(uint64_t));
-
-    siff.seekg(thisFrameData.endOfIFD, siff.beg);
-    char descriptionString[thisFrameData.stringlength];
-    siff.read(descriptionString, thisFrameData.stringlength);
-    tiff.write(descriptionString, thisFrameData.stringlength);
-
-    // The rest of the data is parsed differently if it's a siffcompress
-    // or not.
-
-    uint16_t pxWiseData[thisFrameData.imageWidth * thisFrameData.imageLength];
-
-    tiff.write((char*) &pxWiseData[0], thisFrameData.imageLength * thisFrameData.imageWidth);
-}
-
-// Converts a siff file to a tiff file
-void siff_to_tiff(std::ifstream& siff, std::ofstream& tiff, SiffParams params) {
-
-    throw std::runtime_error("Siff to tiff not yet implemented");
-    // Haven't made this endian proof yet. 
-    // So check that your endian matches the file's
-    uint16_t test = 1;
-    char* bytewise = (char*) &test; // first address is 0 in big endian, 1 in little endian
-    if (! (( (bool) bytewise) == params.little) ) throw std::runtime_error("Incompatible endians. Let me know that this is an issue, and I'll fix it -- SCT");
-
-    // First, copy over the main data. Everything before the first IFD
-    // is the same!
-    siff.clear();
-    siff.seekg(0, siff.beg);
-    tiff.clear();
-    tiff.seekp(0,tiff.beg);
-
-    char init[params.firstIFDAddress];
-    siff.read(init, params.firstIFDAddress);
-    tiff.write(init, params.firstIFDAddress);
-
-    // Now go through the frames and convert each to a tiff.
-    for (uint64_t IFD_idx = 0; IFD_idx < params.allIFDs.size(); IFD_idx++) {
-        siff_to_tiff_frame(siff, tiff, params, params.allIFDs[IFD_idx]);
     }
 }
 

@@ -230,6 +230,25 @@ def get_largest_polygon_napari(
 
     return _slice_idx_parsing(slice_idx, _shapes_to_polys, _largest_polygon_tuple_from_viable, n_polygons, poly_layer)
 
+def get_largest_ellipse_napari(
+        viewer : napari.Viewer, 
+        shape_layer_name : str = 'ROI shapes',
+        slice_idx : int = None,
+        n_polygons = 1
+    ) -> tuple[hv.element.path.Polygons,int, int]:
+    """
+    Expects a napari Viewer, and returns the largest polygon in the
+    shapes layer(s) named + from which slice it came. n_ellipses is the
+    number of ellipses to return.
+    If >1, returns a LIST of tuples, with the 1st tuple being the largest ellipse, 
+    the next being the next largest polygon, etc. If there
+    are fewer polygons than requested, will raise an exception. 
+
+    Returns as Holoviews polygons, so that the napari import variation
+    issues are resolved.
+    """
+    raise NotImplementedError()
+    
 def holoviews_to_napari_shapes(polygons : Iterable[hv.Element], properties : Iterable[dict] = None)-> Shapes:
     """
     Takes a iterable of hv.Elements and transfers them (and/or their contained

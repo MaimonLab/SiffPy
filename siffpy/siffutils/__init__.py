@@ -16,6 +16,7 @@ from .fluorophore_inits import available_fluorophores
 from .slicefcns import *
 from .circle_fcns import *
 from .imparams import ImParams
+from .flimparams import FLIMParams
 
 # types to cast strings to when looked up
 frame_meta_lookup_cast ={
