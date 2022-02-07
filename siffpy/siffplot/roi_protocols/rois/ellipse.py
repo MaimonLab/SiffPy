@@ -122,9 +122,9 @@ class Ellipse(ROI):
         ell = self.polygon
 
         if viewed_from == 'anterior':
-            angles = np.linspace(EB_OFFSET, EB_OFFSET + 2*np.pi, n_segments+1)
+            angles = np.linspace(EB_OFFSET, EB_OFFSET - 2*np.pi, n_segments+1)
         elif viewed_from == 'posterior':
-            angles = np.linspace(EB_OFFSET , EB_OFFSET - 2*np.pi, n_segments+1)
+            angles = np.linspace(EB_OFFSET , EB_OFFSET + 2*np.pi, n_segments+1)
         else:
             raise ValueError(f"Argument 'viewed_from' is {viewed_from}, must be 'anterior' or 'posterior'")
             

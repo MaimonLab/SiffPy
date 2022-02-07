@@ -53,7 +53,8 @@ class FlimArray():
             return NotImplemented
         
         new_intensity = self.intensity + other.intensity
-        new_lifetime = np.nansum([self.lintensity, other.lintensity],axis=0)/(self.intensity + other.intensity)
+        new_lifetime = np.nansum([self.lintensity, other.lintensity],axis=0)
+        np.divide(new_lifetime, new_intensity, out=new_lifetime)
 
         kwargs = {}
         if hasattr(self, 'confidence') and hasattr(other, 'confidence'):

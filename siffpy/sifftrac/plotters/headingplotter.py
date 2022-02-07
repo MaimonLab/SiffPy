@@ -86,8 +86,6 @@ class HeadingPlotter(TracPlotter):
         self.offset = circmean( downsampled_heading - phase )
         return self.offset
 
-
-
     @apply_opts
     def single_plot(self, log : LogToPlot, offset : float = None, scalebar : float = None, **kwargs) -> hv.element.path.Path:
         """
@@ -121,12 +119,14 @@ class HeadingPlotter(TracPlotter):
         wrapped_heading -= offset
         wrapped_heading = wrapped_heading % (2*np.pi)
 
+        bar_position = 2*np.pi-wrapped_heading
+
         if 'opts' in kwargs:
             OPTS_DICT = kwargs['opts']
         else:
             OPTS_DICT = DEFAULT_OPTS
 
-        return hv.Path(split_headings_to_dict(t, wrapped_heading)).opts(**OPTS_DICT)
+        return hv.Path(split_headings_to_dict(t, bar_position)).opts(**OPTS_DICT)
         
 
 

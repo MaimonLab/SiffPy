@@ -62,6 +62,68 @@ class ImParams():
         except AttributeError: # then some of the above params were not defined.
             pass
 
+    @property
+    def shape(self):
+        return (self.ysize, self.xsize)
+
+    @property
+    def volume(self):
+        ret_list = [self.num_slices]
+        if self.frames_per_slice > 1:
+            ret_list += [self.frames_per_slice]
+        ret_list += [self.num_colors, self.ysize, self.xsize]
+        return tuple(ret_list)
+    
+    @property
+    def stack(self):
+        ret_list = [self.num_frames // (self.frames_per_volume), self.num_slices]
+        if self.frames_per_slice > 1 :
+            ret_list += [self.frames_per_slice]
+        ret_list += [self.num_colors, self.ysize, self.xsize]
+        return tuple(ret_list)
+
+    @property
+    def scale(self):
+        # units of microns, except for time.
+        ret_list = [1.0]
+        if not (self.frames_per_slice == 1):
+            raise AttributeError("Scale attribute of im_params not implemented for more than one frame per slice.")
+        if self.num_colors > 1: # otherwise irrelevant
+            ret_list.append(1.0)
+        if self.num_slices > 1: # otherwise irrelevant
+            ret_list.append(self.step_size)
+        if not len(self.imaging_fov) == 4:
+            raise ArithmeticError("Scale for mROI im_params not yet implemented")
+        fov = self.imaging_fov
+        xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
+        yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
+        ret_list.append(yrange/self.ysize)
+        ret_list.append(xrange/self.xsize)
+        return ret_list
+
+    @property
+    def axis_labels(self):
+        ret_list = ['Time']
+        if self.frames_per_slice > 1:
+            ret_list += ['Sub-slice repeats']
+        if self.num_slices > 1:
+            ret_list += ['Z planes']
+        if self.num_colors > 1:
+            ret_list += ['Color channel']
+        ret_list += ['x', 'y']
+        return ret_list
+
+    @property
+    def num_volumes(self):
+        return self.num_frames // (self.frames_per_volume)
+
+    @property
+    def num_colors(self):
+        if hasattr(self.colors, '__len__'):
+            return len(self.colors)
+        else:
+            return 1
+
     def __getitem__(self, key : str) -> None:
         if hasattr(self, key.lower()):
             return getattr(self, key.lower())
@@ -85,66 +147,7 @@ class ImParams():
         for key in self.__dict__:
             retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n"
         return retstr
-
-    def __getattr__(self, key : str) -> Any:
-        """
-        These are dependents that might change
-        but typically don't. I felt like it
-        made more sense to compute them on
-        getattr instead of defining them in 
-        init. Maybe not actually that smart
-        """
-        if key == 'num_colors':
-            if hasattr(self.colors, '__len__'):
-                return len(self.colors)
-            else:
-                return 1
-        if key == 'num_volumes':
-            return self.num_frames // (self.frames_per_volume)
-        if key == 'shape':
-            return (self.ysize, self.xsize)
-        if key == 'volume':
-            ret_list = [self.num_slices]
-            if self.frames_per_slice > 1:
-                ret_list += [self.frames_per_slice]
-            ret_list += [self.num_colors, self.ysize, self.xsize]
-            return tuple(ret_list)
-        if key == 'stack':
-            ret_list = [self.num_frames // (self.frames_per_volume), self.num_slices]
-            if self.frames_per_slice > 1 :
-                ret_list += [self.frames_per_slice]
-            ret_list += [self.num_colors, self.ysize, self.xsize]
-            return tuple(ret_list)
-        if key == 'scale':
-            # units of microns, except for time.
-            ret_list = [1.0]
-            if not (self.frames_per_slice == 1):
-                raise AttributeError("Scale attribute of im_params not implemented for more than one frame per slice.")
-            if self.num_colors > 1: # otherwise irrelevant
-                ret_list.append(1.0)
-            if self.num_slices > 1: # otherwise irrelevant
-                ret_list.append(self.step_size)
-            if not len(self.imaging_fov) == 4:
-                raise ArithmeticError("Scale for mROI im_params not yet implemented")
-            fov = self.imaging_fov
-            xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
-            yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
-            ret_list.append(yrange/self.ysize)
-            ret_list.append(xrange/self.xsize)
-            return ret_list
-        if key == 'axis_labels':
-            ret_list = ['Time']
-            if self.frames_per_slice > 1:
-                ret_list += ['Sub-slice repeats']
-            if self.num_slices > 1:
-                ret_list += ['Z planes']
-            if self.num_colors > 1:
-                ret_list += ['Color channel']
-            ret_list += ['x', 'y']
-            return ret_list
-        else:
-            raise AttributeError
-
+    
     def array_shape(self) -> tuple[int]:
         """ Returns the shape that an array would be in standard order """
         n_colors = 1

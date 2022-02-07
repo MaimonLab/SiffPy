@@ -69,7 +69,7 @@ def pva(vector_timeseries : np.ndarray, error_function : Union[Callable,str] = N
     vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
 
     pva_val = np.matmul(
-                np.exp(np.linspace(0,2*np.pi,vector_timeseries.shape[0])*1j),
+                np.exp(np.linspace(2*np.pi, 0,vector_timeseries.shape[0])*1j), # it goes clockwise.
                 vector_timeseries
                 )
 
