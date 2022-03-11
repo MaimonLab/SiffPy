@@ -1,5 +1,7 @@
 # SIFFPLOT
 
+TODO: REFACTOR THE `SiffPlotter` TO ONLY USE `HoloViews` WHILE THE `SiffVisualizer` DEFAULTS TO `napari`!
+
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
 `HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
@@ -19,7 +21,11 @@ while the primary class for viewing image streams is the `SiffVisualizer`.
 Other classes may inherit from these two, and those classes
 can be initialized with any other version of the same parent
 class to attain their attributes while still performing their
-own unique functionality (see below).
+own unique functionality (see below). The `SiffVisualizer` deals
+with image visualization directly and so tends to be best used with
+`napari`, while the `SiffPlotter` takes fluorescence / image data
+and produces data-type plots (heatmaps, traces, etc.) and so typically
+functions best with `HoloViews`/`Bokeh`.
 
 ## SiffPlotter
 

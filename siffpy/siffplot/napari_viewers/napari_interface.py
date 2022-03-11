@@ -28,7 +28,7 @@ class NapariInterface():
     def __getattr__(self, attr: str):
         """
         If you try to get an attribute but it's not
-        an attribute of an ROIViewer, try seeing if
+        an attribute of the NapariInterface itself, try seeing if
         it's an attribute of its Viewer
         """
         try:
