@@ -3,6 +3,7 @@ import logging
 from .siffplotter import SiffPlotter
 from .siffvisualizer import SiffVisualizer
 from .plotters import *
+from .visualizers import *
 import holoviews as hv
 from holoviews import opts
 

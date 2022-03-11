@@ -1,7 +1,5 @@
 # SIFFPLOT
 
-TODO: REFACTOR THE `SiffPlotter` TO ONLY USE `HoloViews` WHILE THE `SiffVisualizer` DEFAULTS TO `napari`!
-
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
 `HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
@@ -10,8 +8,9 @@ try my best to maintain full functionality for both, at least as long as I'm the
 Almost none of this relies on any serious `SiffReader` functionality, and as a result many of the classes can actually be used
 for .tiff files read by a `SiffReader`, or even previously processed `numpy` arrays. TODO: `DummySiffReader` to allow the deception.
 
-If the user has `napari` available, all plotter classes will DEFAULT to `napari`, unless the keyword `use_napari` is set to `False`
-on initialization. If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default. To use
+If the user has `napari` available, all `SiffVisualizer` classes will DEFAULT to `napari`, unless initialized with the keyword
+argument `backend = 'HoloViews'`. 
+If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default. To use
 options, and to actually visualize the `HoloViews` objects, be sure to call `hv.extension('bokeh')` in a notebook or script. Just
 as a warning, at the time of writing (SCT Dec. 28 2021), the `extension` call doesn't play nicely with `napari` and Notebooks, and
 it makes you have to manually execute individual cells, which is kind of a pain.
@@ -22,10 +21,8 @@ Other classes may inherit from these two, and those classes
 can be initialized with any other version of the same parent
 class to attain their attributes while still performing their
 own unique functionality (see below). The `SiffVisualizer` deals
-with image visualization directly and so tends to be best used with
-`napari`, while the `SiffPlotter` takes fluorescence / image data
-and produces data-type plots (heatmaps, traces, etc.) and so typically
-functions best with `HoloViews`/`Bokeh`.
+with image visualization directly, while the `SiffPlotter` takes fluorescence / image data
+and produces data-type plots (heatmaps, traces, etc.).
 
 ## SiffPlotter
 

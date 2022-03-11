@@ -2,18 +2,19 @@
 
 Class and related functions for the SiffVisualizer, a class
 which produces fast display of raw fluorescence or FLIM images,
-when coupled to a SiffReader object. These data are not analyzed,
-though it does permit some adjustment of visualization parameters.
+when coupled to a SiffReader object. These data are not typically
+quantitatively analyzed, though it does permit some adjustment of
+visualization parameters.
 
 SCT 09/23/2021
 """
-import math
-
 from typing import Iterable
+import functools, operator, logging, pickle, os, math
+
 import holoviews as hv
 import numpy as np
-import functools, operator, logging
 
+from .roi_protocols import rois
 from ..siffpy import SiffReader
 
 NAPARI = False
@@ -26,6 +27,26 @@ except ImportError:
     hv.extension('bokeh') # no need to do this unless
     # we're defaulting to holoviews, just because there
     # is some headache with napari and hv at the moment.
+
+def apply_opts(func):
+    """
+    Decorator function to apply a SiffPlotter's
+    'local_opts' attribute to methods which return
+    objects that might want them. Allows this object
+    to supercede applied defaults, because this gets
+    called with every new plot. Does nothing if local_opts
+    is not defined.
+    """
+    def local_opts(*args, **kwargs):
+        if hasattr(args[0],'local_opts'):
+            try:
+                opts = args[0].local_opts # get the local_opts param from self
+                return func(*args, **kwargs).opts(*opts)
+            except:
+                return func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    return local_opts
 
 
 class SiffVisualizer():
@@ -63,7 +84,19 @@ class SiffVisualizer():
             else:
                 logging.warn(f"Invalid backend argument {backend}. Defaulting to holoviews.")
                 backend = 'holoviews'
+                self.local_opts = None
         self.backend = backend
+
+        directory_with_file_name = os.path.join(
+            os.path.dirname(self.siffreader.filename),
+            os.path.splitext(self.siffreader.filename)[0]
+        )
+
+        if os.path.exists(directory_with_file_name):
+            if any([file.endswith('.roi') for file in os.listdir(directory_with_file_name)]):
+                logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
+                self.load_rois(path = directory_with_file_name)
+
 
     def view_frames(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs):
         """
@@ -204,11 +237,67 @@ class SiffVisualizer():
         -------
         v : siffpy.siffplot.napari_viewers.FrameViewer
 
-            A FrameViewer that subclasses the napari.Viewer
+            A FrameViewer that subclasses the NapariInterface
             class to match typical functionality for viewing
             individual frames of image data.
         """
         
-        self.visual = FrameViewer(self.siffreader, load_frames = load_frames, image_opts = self.image_opts)
+        self.frames = FrameViewer(self.siffreader, load_frames = load_frames, image_opts = self.image_opts)
         
-        return self.visual
+        return self.frames
+    
+    ## ROIS
+    def save_rois(self, path : str = None):
+        """
+        Saves the rois stored in the self.rois attribute. The default path is in the directory with
+        the .siff file.
+
+        Arguments
+        ---------
+        
+        path : str (optional)
+
+            Where to save the ROIs.
+        """
+        if self.rois is None:
+            raise RuntimeError("SiffPlotter object has no rois stored")
+        
+        if path is None:
+            if not self.siffreader.opened:
+                raise RuntimeError("Siffreader has no open file, and no alternative path was provided.")
+            path = os.path.dirname(self.siffreader.filename)
+
+        path = os.path.join(path, os.path.splitext(os.path.basename(self.siffreader.filename))[0])
+
+        if hasattr(self.rois,'__iter__'):
+            for roi in self.rois:
+                roi.save(path)
+        elif not (self.rois is None):
+            # else, just save the one.
+            self.rois.save(path)
+        else:
+            raise AttributeError("No attribute rois defined for this SiffPlotter.")
+
+    def load_rois(self, path : str = None):
+        """
+        Loads rois stored at location 'path'. If no path is specified, then
+        it looks for .roi files matching the file name
+        """
+
+        if path is None:
+            path = os.path.join(
+                os.path.dirname(self.siffreader.filename),
+                os.path.splitext(os.path.basename(self.siffreader.filename))[0]
+            )
+        
+        roi_files = [os.path.join(path,file) for file in os.listdir(path) if file.endswith('.roi')]
+
+        self.rois = []
+        for roi in roi_files:
+            with open(roi, 'rb') as curr_file:
+                if type(self.rois) is list:
+                    self.rois.append(pickle.load(curr_file))
+                elif type(self.rois) is rois.ROI:
+                    self.rois = list(self.rois) + [pickle.load(curr_file)]
+                else:
+                    self.rois = [pickle.load(curr_file)]

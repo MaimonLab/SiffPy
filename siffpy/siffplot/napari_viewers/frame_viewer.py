@@ -132,6 +132,8 @@ class FrameViewer(NapariInterface):
         if not image_opts is None:
             if 'clim' in image_opts:
                 contrast = image_opts['clim']
+                if not any(contrast):
+                    contrast = None
 
         self.add_image(
             data=stack,
