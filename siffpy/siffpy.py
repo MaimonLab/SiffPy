@@ -11,6 +11,7 @@ from .siffutils.flimparams import FLIMParams
 from .siffutils.flimarray import FlimArray
 from .siffutils.typecheck import *
 from .siffutils import registration
+from .siffutils.events import parseMetaAsEvents
 
 # TODO:
 # __repr__
@@ -442,8 +443,8 @@ class SiffReader(object):
         Returns a list of metadata objects corresponding to all frames where
         'events' occured, i.e. in which the Appended Text field is not empty.
         """
-        return [meta for meta in self.get_frames_metadata() if meta.hasEventTag]
-
+        list_of_list_of_events = [parseMetaAsEvents(meta) for meta in self.get_frames_metadata() if meta.hasEventTag]
+        return [event for list_of_events in list_of_list_of_events for event in list_of_events]
 
 ### IMAGE INTENSITY METHODS
     def get_frames(self, frames: list[int] = None, flim : bool = False, 

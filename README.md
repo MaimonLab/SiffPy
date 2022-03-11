@@ -70,9 +70,10 @@ Most things are at least partly documented in the README files, and just about e
 I'll get around to ensuring everything is documented well soon though.
 
 Each submodule is intended to function *in isolation and independent from* every other submodule, 
-(though all rely on the `SiffReader`),
+(though all rely on the `SiffReader`, and that in turn relies on the `siffutils` submodule),
 so there are a few functions repeated in their respective
-`utils` directories. This is 1) to avoid circular dependencies, 2) so that if one submodule is broken by an update, others need not fail.
+`utils` directories. This is 1) to avoid circular dependencies, 2) so that if one submodule is broken by
+a user's update/modification, others need not fail.
 
 ### SiffPlot
 

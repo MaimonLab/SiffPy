@@ -34,8 +34,8 @@ class TrajectoryPlotter(TracPlotter):
                 np.min(log.dataset['integrated_position_lab_1']),
                 np.max(log.dataset['integrated_position_lab_1'])
             )
-            square_bounds = (np.min(bounds), np.max(bounds))
-            this_path = this_path.opts(xlim=square_bounds,ylim=square_bounds)
+            #square_bounds = (np.min(bounds), np.max(bounds))
+            this_path = this_path.opts(aspect='equal')
         if not kwargs is None:
             this_path.opts(**kwargs)
 

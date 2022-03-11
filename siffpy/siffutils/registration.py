@@ -468,7 +468,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     ysize,xsize = frames_np[0].shape
 
     # rebuild the reference images for storage.
-    ref_im = build_reference_image(frames, **kwargs)
+    ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
 
     roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
 
