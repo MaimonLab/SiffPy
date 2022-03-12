@@ -19,6 +19,7 @@ import holoviews as hv
 __all__ = [
     'get_largest_lines_napari',
     'get_largest_polygon_napari',
+    'get_largest_ellipse_napari',
     'holoviews_to_napari_shapes',
     'napari_shapes_to_holoviews'
 ]
@@ -91,13 +92,19 @@ def _shapes_to_polys(shape_layer : Shapes) -> list[np.ndarray]:
     """
     return [shape_layer.data[idx] for idx in range(len(shape_layer.data)) if shape_layer.shape_type[idx] == 'polygon']
 
+def _shapes_to_ellipses(shape_layer : Shapes) -> list[np.ndarray]:
+    """
+    Takes a napari shapes layer and returns a list of ellipses
+    """
+    return [shape_layer.data[idx] for idx in range(len(shape_layer.data)) if shape_layer.shape_type[idx] == 'ellipse']
+
 def _shapes_to_lines(shape_layer : Shapes) -> list[np.ndarray]:
     """
     Takes a napari shapes layer and returns a list of lines
     """ 
     return [shape_layer.data[idx] for idx in range(len(shape_layer.data)) if shape_layer.shape_type[idx] == 'line']
 
-def _largest_polygon_tuple_from_viable(polys_list, n_polygons : int = 1) -> tuple[hv.element.path.Polygons,int, int]:
+def _largest_polygon_tuple_from_viable(polys_list : list[np.ndarray], n_polygons : int = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """
     Returns the appropriate polygon tuple (or list) for get_largest_polygon from a list of viable
     polygons as a hv.element.Polygons.
@@ -132,6 +139,86 @@ def _largest_polygon_tuple_from_viable(polys_list, n_polygons : int = 1) -> tupl
             (
                 hv.Polygons(
                     {('y','x'):poly_array[:,-2:]}
+                ),
+                ret_slice,
+                idx
+            )
+        )
+    return ret_list
+
+def _largest_ellipse_tuple_from_viable(ellipse_list : list[np.ndarray], n_ellipses : int = 1) -> tuple[hv.element.path.Ellipse,int, int]:
+    """
+    Returns the appropriate ellipse tuple (or list) for get_largest_ellipse from a list of viable
+    ellipses as a hv.element.Polygons.
+
+    Ellipse format: [
+        [z1, y1, x1],
+        [z2, y2, x2],
+        [z3, y3, x3],
+        [z4, y4, x4]
+    ]
+    """
+    areas = [_polygon_area(ellipse[:,-1], ellipse[:,-2]) for ellipse in ellipse_list] # polygon_area(x, y) is just a scaled version of ellipse area
+    roi_idxs = np.argpartition(np.array(areas), -n_ellipses)[-n_ellipses:]
+    ret_list = []
+    # If there's only one, don't bother returning as a list
+    if n_ellipses == 1:
+        ellipse_array = ellipse_list[roi_idxs[-1]]
+        if ellipse_array.shape[-1] == 2: # 2 dimensional, not 3d
+            ret_slice = None
+        else: # otherwise, get the z slice of the first point
+            ret_slice = int(ellipse_array[0][0])
+        
+        avgs = np.mean(ellipse_array,axis=0)
+        
+        width = np.sqrt(np.sum((ellipse_array[0,-2:] - ellipse_array[1,-2:])**2))
+        height = np.sqrt(np.sum((ellipse_array[1,-2:] - ellipse_array[2,-2:])**2))
+
+        diff1 = ellipse_array[1,-2:] - ellipse_array[0,-2:] 
+        theta = -np.arctan(diff1[0]/diff1[1])
+
+        return (
+            hv.Ellipse(
+                avgs[-1], # center x
+                avgs[-2], # center y
+                (width, height), # width, height
+                orientation = theta, # counterclockwise rotation from x axis
+            ),
+            ret_slice,
+            roi_idxs[-1]
+        )
+
+    #hv.Ellipse(
+    #        center_x,
+    #        center_y,
+    #        (width, height),
+    #        orientation = theta
+    #    )
+
+    # If there's more than one polygon requested,
+    # return a list of polygons
+    for idx in roi_idxs:
+        ellipse_array = ellipse_list[idx]
+        if ellipse_array.shape[-1] == 2:
+            ret_slice = None
+        else:
+            ret_slice = int(ellipse_array[0][0])
+        
+        avgs = np.mean(ellipse_array,axis=0)
+        
+        width = np.sqrt(np.sum((ellipse_array[0,-2:] - ellipse_array[1,-2:])**2))
+        height = np.sqrt(np.sum((ellipse_array[1,-2:] - ellipse_array[2,-2:])**2))
+
+        diff1 = ellipse_array[1,-2:] - ellipse_array[0,-2:] 
+        theta = -np.arctan(diff1[0]/diff1[1])
+        
+        ret_list.append(
+            (
+                hv.Ellipse(
+                    avgs[-1], # center x
+                    avgs[-2], # center y
+                    (width, height), # width, height
+                    orientation = theta, # counterclockwise rotation from x axis
                 ),
                 ret_slice,
                 idx
@@ -186,6 +273,7 @@ def _largest_lines_tuple_from_viable(
 ##########################
 ### IMPORTABLE METHODS ###
 ##########################
+
 def get_largest_lines_napari(
         viewer : napari.Viewer,
         shape_layer_name : str = 'ROI shapes',
@@ -204,11 +292,39 @@ def get_largest_lines_napari(
 
     return _slice_idx_parsing(slice_idx, _shapes_to_lines, _largest_lines_tuple_from_viable, n_lines, lines_layer)
 
+def get_largest_ellipse_napari(
+        viewer : napari.Viewer,
+        shape_layer_name : str = 'ROI shapes',
+        slice_idx : int = None,
+        n_ellipses : int = 1
+    ) -> tuple[hv.element.path.Ellipse, int, int]:
+    """
+    Expects a napari Viewer, and returns the largest ellipse in the
+    shapes layer(s) named + from which slice it came. n_ellipses is the
+    number of polygons to return.
+    If >1, returns a LIST of tuples, with the 1st tuple being the largest polygon, 
+    the next being the next largest polygon, etc. If there
+    are fewer polygons than requested, will raise an exception. 
+
+    Returns as Holoviews Ellipse, so that the napari import variation
+    issues are resolved.
+    """
+    if not (hasattr(viewer, 'layers')):
+        raise ValueError(f"Argument viewer must be of type napari.Viewer, not {type(viewer)}")
+
+    # get the layer matching the name expected. Throws an
+    # error if no such layer.
+    poly_layer = next(filter(lambda x: x.name == shape_layer_name, viewer.layers),None) 
+    if not type(poly_layer) is Shapes:
+        raise TypeError(f"Specified layer {shape_layer_name} is not a layer of polygons (shapes)")
+    
+    return _slice_idx_parsing(slice_idx, _shapes_to_ellipses, _largest_ellipse_tuple_from_viable, n_ellipses, poly_layer)    
+
 def get_largest_polygon_napari(
         viewer : napari.Viewer, 
         shape_layer_name : str = 'ROI shapes',
         slice_idx : int = None,
-        n_polygons = 1
+        n_polygons : int = 1
     ) -> tuple[hv.element.path.Polygons,int, int]:
     """
     Expects a napari Viewer, and returns the largest polygon in the
@@ -229,25 +345,6 @@ def get_largest_polygon_napari(
         raise TypeError(f"Specified layer {shape_layer_name} is not a layer of polygons (shapes)")
 
     return _slice_idx_parsing(slice_idx, _shapes_to_polys, _largest_polygon_tuple_from_viable, n_polygons, poly_layer)
-
-def get_largest_ellipse_napari(
-        viewer : napari.Viewer, 
-        shape_layer_name : str = 'ROI shapes',
-        slice_idx : int = None,
-        n_polygons = 1
-    ) -> tuple[hv.element.path.Polygons,int, int]:
-    """
-    Expects a napari Viewer, and returns the largest polygon in the
-    shapes layer(s) named + from which slice it came. n_ellipses is the
-    number of ellipses to return.
-    If >1, returns a LIST of tuples, with the 1st tuple being the largest ellipse, 
-    the next being the next largest polygon, etc. If there
-    are fewer polygons than requested, will raise an exception. 
-
-    Returns as Holoviews polygons, so that the napari import variation
-    issues are resolved.
-    """
-    raise NotImplementedError()
     
 def holoviews_to_napari_shapes(polygons : Iterable[hv.Element], properties : Iterable[dict] = None)-> Shapes:
     """

@@ -22,6 +22,10 @@ def roi_protocol(region : str, method_name : str, *args, **kwargs):
     
     If method_name is None, then the default method for that region will be provided.
     
+    ROI protocols, as a general rule, take the siffreader's reference frames and the 
+    polygon source (generally a napari Viewer, a NapariInterface, or an annotation_dict),
+    as the first two args. But this is not strictly necessary! roi_protocol permits
+    any *args and **kwargs arrangement.
     """
 
     for (key, value) in REGIONS.items():

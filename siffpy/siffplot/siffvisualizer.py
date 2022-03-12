@@ -301,3 +301,18 @@ class SiffVisualizer():
                     self.rois = list(self.rois) + [pickle.load(curr_file)]
                 else:
                     self.rois = [pickle.load(curr_file)]
+    
+    def __getattribute__(self, name: str):
+        """
+        To make it easier to access when there's only one ROI
+        (there's something gross about having to have a bunch of [0]
+        sitting around in your code)
+        """
+        if name == 'rois':
+            roi_ref = object.__getattribute__(self, name)
+            if type(roi_ref) is list:
+                if len(roi_ref) == 1:
+                    return roi_ref[0]
+            return roi_ref
+        else:
+            return object.__getattribute__(self, name)

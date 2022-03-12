@@ -27,7 +27,7 @@ except ImportError:
 __all__ = [
     'polygon_area',
     'fit_ellipse_to_poly',
-    'get_largest_polygon'
+    'get_largest_polygon',
 ]
 
 def contains_points(polygon, points)->np.ndarray:
@@ -145,6 +145,7 @@ def fit_ellipse_to_poly(poly : hv.element.path.Polygons, method : str = 'lsq', c
         )
 
     raise ValueError(f"Invalid method for ellipse fitting {method}")
+
 
 def get_largest_polygon_hv(annotation_dict : dict, slice_idx : int = None, n_polygons = 1) -> tuple[hv.element.path.Polygons,int, int]:
     """

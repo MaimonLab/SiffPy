@@ -24,6 +24,9 @@ own unique functionality (see below). The `SiffVisualizer` deals
 with image visualization directly, while the `SiffPlotter` takes fluorescence / image data
 and produces data-type plots (heatmaps, traces, etc.).
 
+`ROI` subclasses will also do everything entirely in `HoloViews`, but I intend to implement functionality
+to get them to be visualizable in at least some types of `SiffVisualizer`s.
+
 ## SiffPlotter
 
 The `SiffPlotter` interfaces with a `SiffReader` that can be applied on initialization. A `SiffPlotter` is initialized with
