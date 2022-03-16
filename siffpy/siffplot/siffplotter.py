@@ -79,6 +79,7 @@ class SiffPlotter():
 
         """
         self.siffreader : SiffReader = siffreader
+        self.reference_frames = None
 
         try:
             # can only be run if hv.extension(backend) has been executed

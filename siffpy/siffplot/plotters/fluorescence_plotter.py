@@ -18,9 +18,7 @@ inherited_params = [
     'local_opts',
     'siffreader',
     'reference_frames',
-    'rois',
-    'viewers',
-    'use_napari'
+    'rois'
 ]
 
 class FluorescencePlotter(SiffPlotter):
@@ -87,8 +85,6 @@ class FluorescencePlotter(SiffPlotter):
                 'toolbar' : 'above'
         }
         
-        self.use_napari = False
-    
     def compute_roi_timeseries(self, *args, roi : ROI = None, fluorescence_method : Union[str, Callable] = None, **kwargs) -> np.ndarray:
         """
         Takes an ROI object and returns a numpy.ndarray corresponding to fluorescence method supplied applied to
@@ -251,9 +247,6 @@ class FluorescencePlotter(SiffPlotter):
 
         Currently HoloViews only.
         """
-        if self.use_napari:
-            raise AttributeError("use_napari set to True, but a napari-compatible visualization method has"
-            f" not yet been implemented for this class ({self.__class__.__name__})")
         if timeseries is None:
             if not (hasattr(self, 'vector_timeseries') or hasattr(self,'roi_timeseries')):
                 try:

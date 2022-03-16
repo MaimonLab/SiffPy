@@ -2,6 +2,10 @@
 
 import numpy as np
 
+def zeroed_circ(x : float, rollover : float) -> float:
+    """ Returns a circularized variable that goes from -rollover/2 to +rollover/2"""
+    return (x + rollover/2) % rollover - rollover/2
+
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
     return ((x-y + rollover/2) % rollover) - rollover/2

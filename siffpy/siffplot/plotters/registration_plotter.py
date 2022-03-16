@@ -1,0 +1,124 @@
+"""
+SiffPlotter class for registration dictionaries
+"""
+
+from functools import reduce
+from typing import Callable, Union
+
+import numpy as np
+import holoviews as hv
+import operator
+
+from ...siffplot.siffplotter import SiffPlotter, apply_opts
+from ...siffutils import FLIMParams
+from ..utils import *
+from ...siffutils.slicefcns import *
+from ...siffutils.circle_fcns import zeroed_circ
+
+__all__ = [
+    'RegistrationPlotter'
+]
+
+inherited_params = [
+    'local_opts',
+    'siffreader'
+]
+
+class RegistrationPlotter(SiffPlotter):
+    """
+    Extends the SiffPlotter functionality to allow
+    analysis of binned arrival times of .siff files.
+    Discards spatial information.
+
+    Can be initialized with an existing SiffPlotter
+    to inherit its properties
+
+    ( e.g. reg_p = RistogramPlotter(siff_plotter)) )
+    """
+
+    def __init__(self, *args, **kwargs):
+        f"""
+        May be initialized from another SiffPlotter to inherit its
+        attributes. Inherited attributes are:
+
+            {inherited_params}
+        """
+        if not any([isinstance(arg,SiffPlotter) for arg in args]):
+            # From scratch
+            super().__init__(*args, **kwargs)
+            self.local_opts = [
+                hv.opts.Points(
+                    color='#000000',
+                    alpha=0.3
+                )
+            ]
+        else:
+            for arg in args:
+                # Iterate until you get to the first SiffPlotter object.
+                if isinstance(arg, SiffPlotter):
+                    plotter = arg
+                    break
+            
+            # inherits parameters from the provided plotter
+            for param in inherited_params:
+                if hasattr(plotter, param):
+                    setattr(self, param, getattr(plotter, param))
+
+
+    @apply_opts
+    def visualize(self) -> hv.Layout:
+        """ Not yet implemented """
+        if self.reference_frames is None:
+            self.reference_frames = self.reference_frames_to_holomap()
+        
+        if self.siffreader.registration_dict is None:
+            raise AttributeError("""
+                Provided SiffReader object does not have
+                a corresponding registration dictionary.
+
+                Please run `register()`, define a `registration_dict`
+                attribute, or run `assign_registration_dict(path)` on
+                the path to a `.dict` file.
+                """
+            )
+        
+        # Now sort out which frames belong to which z_slices
+
+        slice_frame_list = self.siffreader.framelist_by_slice()
+
+        shifts = np.array([np.append(
+            np.array([self.siffreader.registration_dict[frame] for frame in slice_frame_list[idx] ]),
+            idx*np.ones((len(slice_frame_list[idx]),1)),
+            axis=1
+          ) for idx in range(len(slice_frame_list))])
+
+
+        shifts = np.reshape(shifts,(shifts.shape[0]*shifts.shape[1],3))
+
+
+        shifts[:,0] = zeroed_circ(shifts[:,0], self.siffreader.im_params.ysize)
+        shifts[:,1] = zeroed_circ(shifts[:,1], self.siffreader.im_params.xsize)
+
+        shift_ds = hv.Dataset(shifts, kdims=['y','x','z'])
+
+        point_plot = shift_ds.to(hv.Points,kdims=['x','y'],groupby=['z']).opts(
+            xlabel = "X shift (pixels)",
+            ylabel = "Y shift (pixels)",
+            xlim = (-self.siffreader.im_params.xsize/2, self.siffreader.im_params.xsize/2),
+            ylim = (-self.siffreader.im_params.ysize/2, self.siffreader.im_params.ysize/2),
+            xticks = [-self.siffreader.im_params.xsize/2, 0, self.siffreader.im_params.xsize/2],
+            yticks = [-self.siffreader.im_params.ysize/2, 0, self.siffreader.im_params.ysize/2]
+        )
+
+        ref_zeroed = hv.Dataset(
+            (
+                range(-int(self.siffreader.im_params.xsize/2), int(self.siffreader.im_params.xsize/2)),
+                range(-int(self.siffreader.im_params.ysize/2), int(self.siffreader.im_params.ysize/2)), 
+                range(self.siffreader.im_params.num_slices),
+                self.siffreader.reference_frames
+            ),
+            ['x','y','z'], 'Intensity'
+        )
+        
+        ref_holomap = ref_zeroed.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
+        return point_plot + ref_holomap

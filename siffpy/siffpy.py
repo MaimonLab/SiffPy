@@ -69,7 +69,7 @@ class SiffReader(object):
         self.im_params = {}
         self.ROI_group_data = {}
         self.opened = False
-        self.registrationDict = None
+        self.registration_dict = None
         self.reference_frames = None
         self.debug = False
         self.events = None
@@ -150,7 +150,7 @@ class SiffReader(object):
                 reg_dict = pickle.load(dict_file)
             if isinstance(reg_dict, dict):
                 logging.warning("\n\n\tFound a registration dictionary for this image and importing it.\n")
-                self.registrationDict = reg_dict
+                self.registration_dict = reg_dict
             else:
                 logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
         if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
@@ -189,7 +189,7 @@ class SiffReader(object):
         with open(path, 'rb') as dict_file:
             reg_dict = pickle.load(dict_file)
         if isinstance(reg_dict, dict):
-            self.registrationDict = reg_dict
+            self.registration_dict = reg_dict
         else:
             logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
 
@@ -1049,7 +1049,7 @@ class SiffReader(object):
         raise NotImplementedError()
 
 ### REGISTRATION METHODS
-    def registration_dict(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
+    def register(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
         align_zplanes : bool = False, elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
@@ -1197,7 +1197,7 @@ class SiffReader(object):
                     reg_dict[key + offset] = reg_dict[key]
 
         # Now store the registration dict
-        self.registrationDict = reg_dict
+        self.registration_dict = reg_dict
         self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
 
         if save:

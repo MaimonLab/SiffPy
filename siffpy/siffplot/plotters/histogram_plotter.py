@@ -20,9 +20,7 @@ __all__ = [
 
 inherited_params = [
     'local_opts',
-    'siffreader',
-    'viewers',
-    'use_napari'
+    'siffreader'
 ]
 
 class HistogramPlotter(SiffPlotter):
@@ -70,8 +68,6 @@ class HistogramPlotter(SiffPlotter):
         if any(map(lambda x: isinstance(x, FLIMParams)), args):
             #self.FLIMParams = []
             pass
-
-        self.use_napari = False
 
     def visualize(self) -> hv.Layout:
         """ Not yet implemented """

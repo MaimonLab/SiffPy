@@ -19,9 +19,7 @@ inherited_params = [
     'local_opts',
     'siffreader',
     'reference_frames',
-    'rois',
-    'viewers',
-    'use_napari'
+    'rois'
 ]
 
 class PhasePlotter(FluorescencePlotter):

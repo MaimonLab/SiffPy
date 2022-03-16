@@ -44,6 +44,8 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
             plot.handles['xaxis'].axis_label_text_font_size = '16pt'
             plot.handles['xaxis'].axis_label_text_font_style = 'normal'
             plot.handles['xaxis'].minor_tick_line_color = None 
+            plot.handles['xaxis'].major_tick_line_color = None
+            plot.handles['xaxis'].axis_line_color = None
             
             plot.handles['yaxis'].major_label_text_font='arial'
             plot.handles['yaxis'].major_label_text_font_size='16pt'
@@ -52,8 +54,23 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
             plot.handles['yaxis'].axis_label_text_font_size = '16pt'
             plot.handles['yaxis'].axis_label_text_font_style = 'normal'
             plot.handles['yaxis'].minor_tick_line_color = None 
-            plot.handles['yaxis'].major_tick_line_color = None
-            plot.handles['yaxis'].axis_line_color = None
+
+        def font_both_ax_hook(plot, elem):
+            plot.handles['xaxis'].major_label_text_font='arial'
+            plot.handles['xaxis'].major_label_text_font_size='16pt'
+            plot.handles['xaxis'].major_label_text_font_style = 'normal'
+            plot.handles['xaxis'].axis_label_text_font = 'arial'
+            plot.handles['xaxis'].axis_label_text_font_size = '16pt'
+            plot.handles['xaxis'].axis_label_text_font_style = 'normal'
+            plot.handles['xaxis'].minor_tick_line_color = None 
+            
+            plot.handles['yaxis'].major_label_text_font='arial'
+            plot.handles['yaxis'].major_label_text_font_size='16pt'
+            plot.handles['yaxis'].major_label_text_font_style = 'normal'
+            plot.handles['yaxis'].axis_label_text_font = 'arial'
+            plot.handles['yaxis'].axis_label_text_font_size = '16pt'
+            plot.handles['yaxis'].axis_label_text_font_style = 'normal'
+            plot.handles['yaxis'].minor_tick_line_color = None 
             
         logging.warn(
             "\n\n Using explicit method initialize_holoviews written into siffplot's __init__.,py."
@@ -69,6 +86,9 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
                 cmap='viridis',
                 invert_yaxis = True,
                 hooks=[bounds_hook]
+            ),
+            opts.Points(
+                hooks = [font_both_ax_hook, bounds_hook]
             )
         )
     else:
