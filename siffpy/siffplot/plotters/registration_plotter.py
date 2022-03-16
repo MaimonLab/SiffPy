@@ -70,7 +70,32 @@ class RegistrationPlotter(SiffPlotter):
         """ Not yet implemented """
         if self.reference_frames is None:
             self.reference_frames = self.reference_frames_to_holomap()
+            
+        point_plot = self.registration_map()
+
+        ref_zeroed = hv.Dataset(
+            (
+                range(-int(self.siffreader.im_params.xsize/2), int(self.siffreader.im_params.xsize/2)),
+                range(-int(self.siffreader.im_params.ysize/2), int(self.siffreader.im_params.ysize/2)), 
+                range(self.siffreader.im_params.num_slices),
+                self.siffreader.reference_frames
+            ),
+            ['x','y','z'], 'Intensity'
+        )
         
+        ref_holomap = ref_zeroed.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
+        layout = point_plot + ref_holomap
+        layout = layout.opts(
+            hv.opts.Image(width = self.siffreader.im_params.xsize, height=self.siffreader.im_params.ysize),
+            hv.opts.Points(width = self.siffreader.im_params.xsize, height=self.siffreader.im_params.ysize),
+        )
+        return layout
+
+    @apply_opts
+    def registration_map(self):
+        """
+        Returns a DynamicMap of the framewise shifts for each z plane
+        """
         if self.siffreader.registration_dict is None:
             raise AttributeError("""
                 Provided SiffReader object does not have
@@ -107,18 +132,9 @@ class RegistrationPlotter(SiffPlotter):
             xlim = (-self.siffreader.im_params.xsize/2, self.siffreader.im_params.xsize/2),
             ylim = (-self.siffreader.im_params.ysize/2, self.siffreader.im_params.ysize/2),
             xticks = [-self.siffreader.im_params.xsize/2, 0, self.siffreader.im_params.xsize/2],
-            yticks = [-self.siffreader.im_params.ysize/2, 0, self.siffreader.im_params.ysize/2]
+            yticks = [-self.siffreader.im_params.ysize/2, 0, self.siffreader.im_params.ysize/2],
+            width = self.siffreader.im_params.xsize,
+            height=self.siffreader.im_params.ysize   
         )
 
-        ref_zeroed = hv.Dataset(
-            (
-                range(-int(self.siffreader.im_params.xsize/2), int(self.siffreader.im_params.xsize/2)),
-                range(-int(self.siffreader.im_params.ysize/2), int(self.siffreader.im_params.ysize/2)), 
-                range(self.siffreader.im_params.num_slices),
-                self.siffreader.reference_frames
-            ),
-            ['x','y','z'], 'Intensity'
-        )
-        
-        ref_holomap = ref_zeroed.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
-        return point_plot + ref_holomap
+        return point_plot

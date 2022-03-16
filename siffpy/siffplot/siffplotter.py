@@ -10,14 +10,10 @@ import os,logging, pickle
 import warnings
 
 import holoviews as hv
-from holoviews import opts
 
 from .roi_protocols import rois
 from ..siffpy import SiffReader
 from .utils import *
-
-
-#hv.extension('bokeh')
 
 def apply_opts(func):
     """
