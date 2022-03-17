@@ -204,9 +204,9 @@ class FLIMParams(object):
 
         if x0 is None:
             if use_noise:
-                x0 = (0.5,120,0.5,40,20,4,0.1)
+                x0 = (0.5,120,0.5,40,60,4,0.1)
             else:
-                x0 = (0.5,120,0.5,40,20,4) # seems to generally behave well
+                x0 = (0.5,120,0.5,40,60,4) # seems to generally behave well
 
         fit_obj = minimize(objective, x0, method='trust-constr',
                constraints=generate_linear_constraints_trust(self.param_dict()),

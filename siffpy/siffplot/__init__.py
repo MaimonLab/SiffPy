@@ -37,6 +37,7 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
             plot.handles['yaxis'].major_tick_line_color = None
 
         def font_hook(plot, elem):
+
             plot.handles['xaxis'].major_label_text_font='arial'
             plot.handles['xaxis'].major_label_text_font_size='16pt'
             plot.handles['xaxis'].major_label_text_font_style = 'normal'

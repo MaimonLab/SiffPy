@@ -67,23 +67,28 @@ class FluorescencePlotter(SiffPlotter):
             for param in inherited_params:
                 if hasattr(plotter, param):
                     setattr(self, param, getattr(plotter, param))
-
-        self.local_opts = {
-                'cmap':'Greens',
-                'width' : 1200,
-                'colorbar' : True,
-                'ylabel' : '',
-                'colorbar_position' : 'left',
-                'colorbar_opts' : {
-                    'height': 200,
-                    'width' : 20,
-                    'border_line_alpha':0,
-                },
-                'clabel': 'Normalized dF/F',
-                'xlabel': 'Time (seconds)',
-                'fontsize': 15,
-                'toolbar' : 'above'
-        }
+        
+        if 'opts' in kwargs:
+            self.local_opts += kwargs['opts']
+        else:
+            self.local_opts += [
+                hv.opts.HeatMap({
+                    'cmap':'Greens',
+                    'width' : 1200,
+                    'colorbar' : True,
+                    'ylabel' : '',
+                    'colorbar_position' : 'left',
+                    'colorbar_opts' : {
+                        'height': 200,
+                        'width' : 20,
+                        'border_line_alpha':0,
+                    },
+                    'clabel': 'Normalized dF/F',
+                    'xlabel': 'Time (seconds)',
+                    'fontsize': 15,
+                    'toolbar' : 'above'
+                })
+            ]
         
     def compute_roi_timeseries(self, *args, roi : ROI = None, fluorescence_method : Union[str, Callable] = None, **kwargs) -> np.ndarray:
         """

@@ -10,7 +10,6 @@ import holoviews as hv
 import operator
 
 from ...siffplot.siffplotter import SiffPlotter, apply_opts
-from ...siffutils import FLIMParams
 from ..utils import *
 from ...siffutils.slicefcns import *
 from ...siffutils.circle_fcns import zeroed_circ
@@ -46,12 +45,6 @@ class RegistrationPlotter(SiffPlotter):
         if not any([isinstance(arg,SiffPlotter) for arg in args]):
             # From scratch
             super().__init__(*args, **kwargs)
-            self.local_opts = [
-                hv.opts.Points(
-                    color='#000000',
-                    alpha=0.3
-                )
-            ]
         else:
             for arg in args:
                 # Iterate until you get to the first SiffPlotter object.
@@ -64,13 +57,30 @@ class RegistrationPlotter(SiffPlotter):
                 if hasattr(plotter, param):
                     setattr(self, param, getattr(plotter, param))
 
+        if 'opts' in kwargs:
+            self.local_opts += kwargs['opts']
+        else:
+            self.local_opts += [
+                hv.opts.Points(
+                    color='#000000',
+                    alpha=0.3
+                )
+            ]
+
+    def register(self, *args, **kwargs)->hv.Layout:
+        """ Performs registration and then shows output. Takes args and kwargs of self.siffreader.register"""
+        self.siffreader.register(*args, **kwargs)
+        return self.visualize()
 
     @apply_opts
-    def visualize(self) -> hv.Layout:
-        """ Not yet implemented """
+    def visualize(self, *args, **kwargs) -> hv.Layout:
+        """
+        Returns the visualization of the reference frames and
+        registration dict of the internal siffreader side-by-side
+        """
         if self.reference_frames is None:
             self.reference_frames = self.reference_frames_to_holomap()
-            
+
         point_plot = self.registration_map()
 
         ref_zeroed = hv.Dataset(

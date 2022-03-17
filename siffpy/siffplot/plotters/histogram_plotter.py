@@ -3,12 +3,16 @@ SiffPlotter class for arrival time histograms
 """
 
 from functools import reduce
-from typing import Callable, Union
+from operator import add
+import logging
+import random
+from collections.abc import Iterable
+import math
 
 import numpy as np
 import holoviews as hv
-import operator
 
+from ... import siffpy
 from ...siffplot.siffplotter import SiffPlotter, apply_opts
 from ...siffutils import FLIMParams
 from ..utils import *
@@ -45,14 +49,6 @@ class HistogramPlotter(SiffPlotter):
         if not any([isinstance(arg,SiffPlotter) for arg in args]):
             # From scratch
             super().__init__(*args, **kwargs)
-            self.local_opts = {
-                'width' : 800,
-                'colorbar' : True,
-                'ylabel' : 'Number of\nphotons',
-                'xlabel': 'Arrival time\n(nanoseconds)',
-                'fontsize': 15,
-                'toolbar' : 'above'
-            }
         else:
             for arg in args:
                 # Iterate until you get to the first SiffPlotter object.
@@ -65,19 +61,195 @@ class HistogramPlotter(SiffPlotter):
                 if hasattr(plotter, param):
                     setattr(self, param, getattr(plotter, param))
 
-        if any(map(lambda x: isinstance(x, FLIMParams)), args):
-            #self.FLIMParams = []
-            pass
+        self.FLIMParams = []
+        self.FLIMParams += [param for arg in args if isinstance(arg, Iterable) for param in arg if all(arg, lambda z: isinstance(z, FLIMParams))]
+        self.FLIMParams += [x for x in args if isinstance(x, FLIMParams)]
 
-    def visualize(self) -> hv.Layout:
-        """ Not yet implemented """
-        histograms = [self.siffreader.get_histogram(
-                frames = framelist_by_color(
-                    self.siffreader.im_params,
-                    color-1 # 0 indexed by fcn call, 1 indexed by matlab
+        if 'opts' in kwargs:
+            self.local_opts += kwargs['opts']
+        else:
+            self.local_opts += [
+                hv.opts.Curve({
+                    'width' : 800,
+                    'colorbar' : True,
+                    'ylabel' : 'Number of\nphotons',
+                    'xlabel': 'Arrival time\n(nanoseconds)',
+                    'fontsize': 15,
+                    'toolbar' : 'above'
+                })
+            ]
+
+    def fit(self, n_frames : int = 1000, color : 'int|list[int]' = None, **kwargs):
+        """
+        Fits the arrival time distributions for the color channel(s) requested.
+        Takes n_frames number of frames to perform the fit. Also accepts all kwargs
+        of `siffpy.fit_exp` (for more info, refer to the `fit_exp` documentation).
+
+        Stores the results in self.FLIMParams
+
+        Parameters
+        ----------
+
+        n_frames : int (optional, default 1000)
+
+            How many frames to use for each color channel to estimate the distribution of
+            FLIM parameters
+
+        color : int or list[int]
+
+            Color channels to fit. By default fits all color channels available.
+
+        """
+
+        if color is None:
+            color = self.siffreader.im_params.colors
+        if not isinstance(color, list):
+            color = [color]
+
+        for col in color: 
+            these_frames = framelist_by_color(self.siffreader.im_params, col-1)
+
+            sampled_number = n_frames
+            if len(these_frames) < n_frames: # just in case
+                sampled_number = len(these_frames)
+
+            sampled_frames = random.sample(these_frames, sampled_number)
+
+            channel_histogram = self.siffreader.get_histogram(
+                frames = sampled_frames
+            )
+
+            # I know this function is written for multiple channels, but this way
+            # I can use the fluorophore dictionary AND still have channel-wise refitting
+            # happen if it's ill-behaved.
+            FLIMparam = siffpy.fit_exp(channel_histogram, **kwargs)[0]
+            fit_count = 0
+            while ((FLIMparam.CHI_SQD > 10*n_frames) or (FLIMparam.CHI_SQD == 0)):
+                if fit_count > 10:
+                    logging.warn("Giving up. Using last fit.")
+                    break
+
+                logging.warn(f"Chi-squared / n_frames = {FLIMparam.CHI_SQD/n_frames}. \
+                    Repeating fit with new sample."
+                )
+                sampled_frames = random.sample(these_frames, sampled_number)
+
+                channel_histogram = self.siffreader.get_histogram(
+                    frames = sampled_frames
+                )
+                FLIMparam = siffpy.fit_exp(channel_histogram, **kwargs)[0]                
+                fit_count += 1
+            
+            self.FLIMParams += [FLIMparam]
+            
+    @apply_opts
+    def visualize(self, color : 'int|list[int]' = None, text : bool = True) -> hv.Layout:
+        """
+        Plots arrival time histograms over the entire imaging sessions
+        along with fits. If text is true, overlays text describing the fits.
+
+        Parameters
+        ----------
+        color : int or list[int]
+
+            Color channels to fit. By default fits all color channels available.
+
+        text : bool
+
+            Whether to overlay text describing each histogram's fits
+
+        Returns
+        -------
+
+        layout : hv.Layout
+
+            A Holoviews Layout object (single column) of all color channel fits
+        """
+
+        if color is None:
+            color = self.siffreader.im_params.colors
+        if not isinstance(color, list):
+            color = [color]
+
+        if not len(self.FLIMParams):
+            self.fit(color=color)
+
+        BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
+
+        curveplots = []
+        for col in color:
+            # full data histograms
+            histogram = self.siffreader.get_histogram(
+                    frames = framelist_by_color(
+                        self.siffreader.im_params,
+                        col-1 # 0 indexed by fcn call, 1 indexed by matlab
+                    )
+                )
+            
+            NUM_BINS = len(histogram)
+            ymax = np.max(histogram)
+            bound_exp = math.ceil(math.log10(ymax))
+            y_bounds = ( 10**(bound_exp-3), 10**(bound_exp) )
+            # plot the data    
+            this_plt = hv.Curve(
+                {
+                    'x': BIN_SIZE*np.arange(NUM_BINS),
+                    'y':histogram
+                }
+            ) 
+            this_plt *= hv.Curve(
+                {
+                    'x': BIN_SIZE*np.arange(NUM_BINS),
+                    'y':np.sum(histogram)*self.FLIMParams[col-1].p_dist(
+                                np.arange(0,NUM_BINS),cut_negatives=False
+                        )
+                }
+            )
+            this_plt.opts(
+                hv.opts.Curve(
+                    logy=True,
+                    ylim = y_bounds,
+                    title = f"Channel {col}"
                 )
             )
-            for color in self.siffreader.im_params.colors
-        ]
-        raise NotImplementedError()
-        return super().visualize()
+
+            if text:
+                this_plt *= hv.Text(
+                    BIN_SIZE*(0.98*NUM_BINS),
+                    0.95*y_bounds[-1],
+                    self.pretty_params(self.FLIMParams[col-1])
+                ).opts(text_align='right', text_baseline='top' ,text_font_style = 'normal')
+                pass
+
+            curveplots.append(this_plt)
+        
+        final_plot = reduce(add, curveplots).opts(
+            hv.opts.Curve(
+                width=900, 
+                xlabel='Arrival time (nanoseconds)', 
+                ylabel='Photon counts'
+            )
+        )
+        if isinstance(final_plot, hv.Layout): # if there are multiple plots
+            final_plot = final_plot.cols(1)
+
+        return final_plot
+        
+    def pretty_params(self, FLIMParam : FLIMParams) -> str:
+        """ Converts a FLIMParams object into a nice string """
+
+        BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
+
+        ret_string = ""
+        n_comp = FLIMParam.Ncomponents
+        ret_string += f"Number of components: {n_comp}"
+        for comp in range(n_comp):
+            exp = FLIMParam.Exp_params[comp]
+            ret_string += f"\nComponent {comp+1}: "
+            ret_string += f"Tau = " + "{:.2f}".format(exp['TAU']*BIN_SIZE) + " "
+            ret_string += f"Fraction = " + "{:.2f}".format(exp['FRAC']) + " "
+        
+        ret_string += f"\nOffset: " + "{:.2f}".format(FLIMParam.T_O * BIN_SIZE)
+        ret_string += f"\nSigma : " + "{:.2f}".format(FLIMParam.IRF['PARAMS']['SIGMA'] * BIN_SIZE)
+        ret_string += f"\nChi-squared : " + "{:.2f}".format(FLIMParam.CHI_SQD)
+        return ret_string
