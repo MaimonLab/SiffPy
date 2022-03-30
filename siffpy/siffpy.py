@@ -1,6 +1,8 @@
+from ast import Not
 import itertools
 import logging, os, pickle
-from siffpy.siffutils.slicefcns import framelist_by_color
+from .siffutils import SEC_TO_NANO, NANO_TO_SEC
+from .siffutils.slicefcns import framelist_by_color
 
 import numpy as np
 
@@ -445,6 +447,16 @@ class SiffReader(object):
         """
         list_of_list_of_events = [parseMetaAsEvents(meta) for meta in self.get_frames_metadata() if meta.hasEventTag]
         return [event for list_of_events in list_of_list_of_events for event in list_of_events]
+
+    def epoch_to_frame_time(self, epoch_time : int) -> float:
+        """ Converts epoch time to frame time for this experiment (returned in seconds) """
+
+        meta = self.get_frames_metadata(frames=[0])
+        frame_zero_time = meta[0]['frameTimestamps_sec'] # in seconds
+        epoch_zero_time = meta[0]['epoch'] # in nanoseconds
+
+        offset = frame_zero_time * SEC_TO_NANO - epoch_zero_time
+        return (epoch_time + offset)/NANO_TO_SEC
 
 ### IMAGE INTENSITY METHODS
     def get_frames(self, frames: list[int] = None, flim : bool = False, 

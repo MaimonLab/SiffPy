@@ -3,7 +3,7 @@
 
 
 // KEYWORD ARGS BY FUNCTION
-
+// NOTE: REGULAR ARGS HAVE TO BE HERE TOO!
 #define GET_FRAMES_KEYWORDS (const char*[]){"frames", "type", "flim", "registration", "discard_bins", NULL}
 
 #define GET_FRAMES_METADATA_KEYWORDS (const char*[]){"frames", NULL}
@@ -11,6 +11,10 @@
 #define POOL_FRAMES_KEYWORDS (const char*[]){"pool_lists", "type", "flim", "registration", "discard_bins", NULL}
 
 #define FLIM_MAP_KEYWORDS (const char*[]){"params","frames", "confidence_metric", "registration","sizeSafe", "discard_bins", NULL}
+
+#define SUM_ROIS_KEYWORDS (const char*[]){"mask", "frames", "registration", NULL}
+
+#define SUM_ROI_FLIM_KEYWORDS (const char*[]){"mask", "params", "frames", "registration", NULL}
 
 #define GET_HISTOGRAM_KEYWORDS (const char*[]){"frames", NULL}
 
@@ -38,6 +42,11 @@
         "\tReturns summed versions of frames.\n"\
     "flim_map(params, framelist=None, confidence_metric='log_p', registration=None):\n"\
         "\tReturns a tuple: empirical lifetime, intensity, and a confidence metric.\n"\
+    "sum_roi(mask : np.ndarray, frames : list[int] = None, registration : dict = None) -> np.ndarray:\n"\
+        "\tReturns the sum of the photon counts within the provided ROI in the requested frames.\n"\
+    "sum_roi_flim(mask : np.ndarray, params : siffpy.siffutils.flimparams.FLIMParams, "\
+        "frames : list[int] = None, registration : dict = None) -> np.ndarray:\n"\
+        "\tReturns the empirical lifetime estimated using the FLIMParams provided within the ROI in the requested frames.\n"\
     "get_histogram(frames=None):\n"\
         "\tReturns histogrm of photon arrival times."\
     "suppress_warnings():\n"\
@@ -124,6 +133,38 @@
     "\t\tintensity: list of np.ndarrays containing the number of photons used to compute the lifetime in each pixel.\n"\
     "\t\tconfidence: list of np.ndarrays reporting the confidence metric for each pixel under the assumption in FLIMParams."\
     "\tdiscard_bins (optional, int): arrival bin (IN UNITS OF BIN) beyond which to discard photons"
+
+#define SUM_ROI_DOCSTRING \
+    "sum_roi(mask : np.ndarray, frames : list[int] = None, registration : dict = None) -> np.ndarray:\n"\
+    "Requires a numpy array mask of dtype bool. Sums all the photons within the ROI for each of the frames requested"\
+    "in the list frames. If frames is None, sums for all frames. Returns a 1d numpy array of dtype uint64 with length"\
+    "equal to the number of frames requested.\n"\
+    "Input arguments:\n"\
+    "\tframes : list[int]\n"\
+    "\t\tA list of the integer indices of the frames to sum within the ROI.\n"\
+    "\tregistration : dict \n"\
+    "\t\tA registration_dict object whose keys are ints and whose values are tuples corresponding"\
+    "to a rigid shift in the y and x directions of the image."\
+    "Returns:\n"\
+    "\tsummed : np.ndarray\n"\
+    "\t\t1d numpy array with length equal to the length of the number of frames requested."
+
+#define SUM_ROI_FLIM_DOCSTRING \
+    "sum_roi_flim(mask : np.ndarray, params : `siffpy.siffutils.flimparams.FLIMParams, "\
+    "frames : list[int] = None, registration : dict = None) -> np.ndarray\n"\
+    "Requires a numpy array mask of dtype bool and a FLIMParams object. Sums all the photons within the"\
+    " provided ROI for each frame requested to compute an empirical lifetime for the ROI. If frames is None,"\
+    " computes the sum for all frames. Returns a 1d numpy array of dtype float with length equal to the number of "\
+    "frames requested. NOTE: the empirical lifetime is in units of TIME BINS.\n"\
+    "Input arguments:\n"\
+    "\tmask: np.ndarray of dtype bool\n"\
+    "\tparams : `siffpy.siffutils.flimparams.FLIMParams`\n"\
+    "\tframes : list[int]\n"\
+    "\tregistration : dict\n"\
+    "Returns:\n"\
+    "\tsummed : np.ndarray\n"\
+    "\t\t1d numpy array with length equal to the number of frames requested. Empirical lifetime measured in units of"\
+    " time bins of the arrival time measuring device (e.g. MultiHarp)."
 
 #define GET_HISTOGRAM_DOCSTRING \
     "get_histogram(frames : list[int] = None)-> np.ndarray \n"\

@@ -44,6 +44,11 @@ For all other functionality, you can use the documentation for `SiffPlotter` pro
 All `SiffPlotter` subclasses implement a `visualize(*args, **kwargs)` method that plots the 'standard output' of computations associated
 with that subclass of `SiffPlotter`.
 
+Every `SiffPlotter` permits customization of the visualization procedure (and often others). These are supplied either at initialization
+with the `kwarg` `opts=<list of hv.opts.X>` or after initialization by `plotter.local_opts = <list of hv.opts.X>` (or `+=`). The
+`local_opts` are applied automatically on `visualize` calls. Otherwise, _ex post facto_ adjustments can be performed as with all other
+`holoviews` objects.
+
 ### visualize
 
 `visualize(*args, **kwargs)` is usually implemented as a custom method for each subclass of the `SiffPlotter`. It either returns

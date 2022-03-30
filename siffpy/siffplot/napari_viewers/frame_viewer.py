@@ -114,7 +114,7 @@ class FrameViewer(NapariInterface):
                     return np.array(
                         siffreader.get_frames(
                             frames=list(range(frame_start,frame_start+siffreader.im_params.frames_per_volume)),
-                            registration_dict=siffreader.registrationDict
+                            registration_dict=siffreader.registration_dict
                         )
                     ).reshape(siffreader.im_params.volume)
                 batch_fcn = volume_get
@@ -135,12 +135,16 @@ class FrameViewer(NapariInterface):
                 if not any(contrast):
                     contrast = None
 
+        channel_axis = None
+        if siffreader.im_params.num_colors > 1:
+            channel_axis = 2
+
         self.add_image(
             data=stack,
             name='Raw images (one FOV)',
             scale = siffreader.im_params.scale,
             multiscale=False,
-            channel_axis=2,
+            channel_axis=channel_axis,
             contrast_limits = contrast,
             rgb = False
             )

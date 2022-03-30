@@ -7,6 +7,7 @@ from ..utils.ballparams import BallParams
 from ... import siffutils
 
 SEC_TO_NANO = 1e9
+NANO_TO_SEC = 1e-9
 
 class FictracLog():
     """

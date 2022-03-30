@@ -8,6 +8,12 @@
 #include "../include/siffreaderinline.hpp"
 #include <algorithm>
 
+#define REPORT_ERR(x) \
+    catch(std::exception &e) {\
+        errstring = std::string(x) + e.what();\
+        throw e;\
+    }
+
 ///////////////////////
 ////// FILE I/O ///////
 ///////////////////////
@@ -189,6 +195,99 @@ void SiffReader::closeFile(){
 ///// GET FILE DATA ////////
 ////////////////////////////
 
+PyArrayObject* SiffReader::sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict){
+    // Sums all pixel elements of the desired frames within the mask and returns a 1d PyArrayObject.
+    try{
+        if (!siff.is_open()) throw std::runtime_error("No open file.");
+        if (!params.issiff) throw std::runtime_error("File is not of type .siff! No FLIM data to collect.");
+        siff.clear();
+
+        // 1 dimensional
+        npy_intp dims[1];
+        dims[0] = framesN;
+        PyArrayObject* summedArray = (PyArrayObject*) PyArray_ZEROS(
+            1, // 1d array
+            dims, // length equal to number of frames
+            NPY_UINT64, // count data, and compressed enough to not care about saving space
+            0 // C order, i.e. last index increases fastest
+        ); // Or should I make a sparse array? Maybe make that an option? TODO.
+
+        uint64_t* data_ptr = (uint64_t *) PyArray_DATA(summedArray);
+
+        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
+
+        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
+
+            FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
+            
+            data_ptr[frame_idx] = sumFrameMask(
+                frameData,
+                params,
+                mask,
+                shift_tuple,
+                siff
+            );
+        }
+
+        return summedArray;
+
+    }
+    REPORT_ERR("Error in sum_roi mask method: ");
+}
+
+PyArrayObject* SiffReader::sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict) {
+    // sums empirical lifetime inside the provided mask
+
+    // Boilerplate-y, some bad code practice in here (for it to be so similar to the non-FLIM version).
+    try{
+        if (!siff.is_open()) throw std::runtime_error("No open file.");
+        siff.clear();
+
+        // 1 dimensional
+        npy_intp dims[1];
+        dims[0] = framesN;
+        PyArrayObject* summedArray = (PyArrayObject*) PyArray_ZEROS(
+            1, // 1d array
+            dims, // length equal to number of frames
+            NPY_DOUBLE, // empirical lifetime (albeit in units of bins), needs sub-bin resolution
+            0 // C order, i.e. last index increases fastest
+        ); // Or should I make a sparse array? Maybe make that an option? TODO.
+
+        double_t* data_ptr = (double_t *) PyArray_DATA(summedArray);
+
+        // Offset for empirical tau
+        double_t tau_o = PyFloat_AsDouble(PyObject_GetAttrString(FLIMParams,"T_O"));
+
+        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
+
+        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
+
+            FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
+            
+            data_ptr[frame_idx] = sumFrameFLIMMask(
+                frameData,
+                params,
+                tau_o,
+                mask,
+                shift_tuple,
+                siff
+            );
+        }
+        return summedArray;
+    }
+    REPORT_ERR("Error in sum_roi_flim mask method: ")
+};
+
+// TODO!!!!!
+PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict) {
+    // Returns a 1d numpy array of only the within-mask values.
+}
+
+
 // VANILLA
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
@@ -215,10 +314,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
         }
         return numpyArrayList;
     }
-    catch(std::exception& e){
-        errstring = std::string("Error parsing frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error parsing frames: ");
 }
 
 // REGISTRATION DICT
@@ -245,10 +341,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
         }
         return numpyArrayList;
     }
-    catch(std::exception& e){
-        errstring = std::string("Error parsing frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error parsing frames: ")
 }
 
 // TERMINAL BIN
@@ -278,10 +371,7 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[],
         //throw std::runtime_error("Terminal bin not yet implemented!");
         return numpyArrayList;
     }
-    catch(std::exception& e){
-        errstring = std::string("Error parsing frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error parsing frames: ");
 }
 
 PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* registrationDict) {
@@ -330,10 +420,7 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* reg
         }
         return returnedList;
     }
-    catch(std::exception& e) {
-        errstring = std::string("Error in pool frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error in pool frames: ")
 }
 
 PyObject* SiffReader::poolFrames(PyObject* listOfLists, uint64_t terminalBins,
@@ -386,10 +473,7 @@ PyObject* SiffReader::poolFrames(PyObject* listOfLists, uint64_t terminalBins,
         }
         return returnedList;
     }
-    catch(std::exception& e) {
-        errstring = std::string("Error in pool frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error in pool frames: ");
 }
 
 PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict) {
@@ -440,10 +524,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObj
         }
         return TupleOutList;
     }
-    catch(std::exception& e) {
-        errstring = std::string("Error in flimMap: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error in flimMap: ");
 }
 
 PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict) {
@@ -519,10 +600,7 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
         
         return TupleOutList;
     }
-    catch(std::exception& e) {
-        errstring = std::string("Error in flim_map: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error in flimMap");
 }
 
 
@@ -557,10 +635,7 @@ PyArrayObject* SiffReader::getHistogram(uint64_t frames[], uint64_t framesN) {
         }
         return numpyArray;
     }
-    catch(std::exception& e){
-        errstring = std::string("Error parsing frames: ") + e.what();
-        throw e;
-    }
+    REPORT_ERR("Error collecting histogram: ");
 }
 
 ////////////////////////////////////////////////////////////////////////

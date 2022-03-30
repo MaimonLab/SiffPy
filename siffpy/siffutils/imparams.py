@@ -84,12 +84,14 @@ class ImParams():
 
     @property
     def scale(self):
-        # units of microns, except for time.
-        ret_list = [1.0]
+        """
+        Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
+        [time , z , y , x]
+        """
+        # units of microns, except for time, which is in frames.
+        ret_list = [1.0] # time axis!
         if not (self.frames_per_slice == 1):
             raise AttributeError("Scale attribute of im_params not implemented for more than one frame per slice.")
-        if self.num_colors > 1: # otherwise irrelevant
-            ret_list.append(1.0)
         if self.num_slices > 1: # otherwise irrelevant
             ret_list.append(self.step_size)
         if not len(self.imaging_fov) == 4:

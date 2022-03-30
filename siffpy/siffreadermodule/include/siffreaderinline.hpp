@@ -469,6 +469,185 @@ inline void loadArrayWithSummedArrivalTimes(
     }
 };
 
+inline uint64_t sumMaskCompressed(FrameData& frameData, std::ifstream &siff, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+    
+    uint64_t photon_count = 0;
+    
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    
+    
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+
+    if(!(pixelsInImage == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+   
+    uint16_t frameReads[pixelsInImage];
+    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    siff.clear();
+
+    for(uint64_t px = 0; px < pixelsInImage; px++) {
+        uint64_t shifted_px = ( (((uint64_t)(px / mask_dims[0])) + y_shift) % mask_dims[0]) * mask_dims[1]; // y_val
+        shifted_px += (px % mask_dims[0] + x_shift) % mask_dims[1];
+        photon_count += frameReads[px]*mask_data_ptr[shifted_px];
+    }
+
+    return photon_count;
+};
+
+inline uint64_t sumMaskRaw(uint64_t& samplesThisFrame, FrameData& frameData, std::ifstream &siff, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+
+    uint64_t photon_counts = 0;
+
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+    uint64_t frameReads[samplesThisFrame];
+    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.clear();
+    
+    // if we're just doing intensity, the pointer element to increment should be different
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+        // increment if the mask data pointer for that photon is true
+        photon_counts += mask_data_ptr[((U64TOY(frameReads[photon]) + y_shift) % mask_dims[0])*mask_dims[1] + 
+            ((U64TOX(frameReads[photon]) + x_shift)%mask_dims[1])];
+    }
+
+    return photon_counts;
+};
+
+
+inline uint64_t sumFrameMask(FrameData& frameData, SiffParams& params, PyArrayObject* mask, PyObject* shift_tuple, std::ifstream& siff) {
+    // Adds together all photon counts within a frame if those counts are "True" in the mask array
+    uint64_t photon_count = 0;
+
+    siff.seekg(frameData.dataStripAddress);
+    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
+    
+    siff.clear();
+
+    bool* mask_data_ptr = (bool *) PyArray_DATA(mask);
+    npy_intp* mask_dims = PyArray_DIMS(mask);
+
+    if (params.issiff) {
+        photon_count = frameData.siffCompress ?
+            sumMaskCompressed(frameData, siff, mask_data_ptr, mask_dims, shift_tuple) : 
+            sumMaskRaw(samplesThisFrame, frameData, siff, mask_data_ptr, mask_dims, shift_tuple);
+    }
+    else {
+        if(!(samplesThisFrame == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
+
+        uint16_t frameReads[samplesThisFrame];
+        siff.read((char*)&frameReads,frameData.stripByteCounts);
+        siff.clear();
+
+        // figure out the rigid deformation for registration
+        uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+        uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+            uint64_t shifted_px = (( ((uint64_t)(px / mask_dims[0])) + y_shift) % mask_dims[0]) * mask_dims[1]; // y_val
+            shifted_px += (px % mask_dims[0] + x_shift) % mask_dims[1];
+            photon_count += frameReads[px] * mask_data_ptr[shifted_px];
+        }
+    }
+
+    return photon_count;
+};
+
+inline double_t sumMaskFLIMCompressed(FrameData& frameData, 
+    std::ifstream &siff, double_t& offset, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+    
+    double_t summed_arrivals = 0;
+    
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    
+    
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+
+    if(!(pixelsInImage == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+   
+    uint16_t frameReads[pixelsInImage];
+    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    siff.clear();
+
+    siff.seekg(frameData.dataStripAddress);
+    uint64_t counted_photons = 0;
+    for(uint64_t px = 0; px < pixelsInImage; px++) {
+        uint64_t shifted_px = ( (((uint64_t)(px / mask_dims[0])) + y_shift) % mask_dims[0]) * mask_dims[1]; // y_val
+        shifted_px += (px % mask_dims[0] + x_shift) % mask_dims[1];
+        uint16_t photonCounts = frameReads[px];
+        counted_photons += photonCounts*mask_data_ptr[shifted_px];
+        uint16_t arrivalTimes[photonCounts];
+        siff.read((char*) &arrivalTimes, photonCounts*sizeof(uint16_t));
+        for (size_t photon_idx = 0; photon_idx < photonCounts; photon_idx++) {
+            summed_arrivals += (((double_t) arrivalTimes[photon_idx]) - offset) * mask_data_ptr[shifted_px];
+        }
+        
+    }
+
+    return summed_arrivals/counted_photons;
+};
+
+inline double_t sumMaskFLIMRaw(uint64_t& samplesThisFrame, FrameData& frameData, std::ifstream &siff, double_t& offset, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+
+    double_t summed_bins = 0;
+
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+    uint64_t frameReads[samplesThisFrame];
+    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.clear();
+    
+    uint64_t n_counted = 0;
+    // if we're just doing intensity, the pointer element to increment should be different
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+        // increment if the mask data pointer for that photon is true
+        summed_bins += mask_data_ptr[((U64TOY(frameReads[photon]) + y_shift) % mask_dims[0])*mask_dims[1] + 
+            ((U64TOX(frameReads[photon]) + x_shift)%mask_dims[1])] * ( ((double_t) U64TOTAU(frameReads[photon])) - offset);
+        n_counted += mask_data_ptr[((U64TOY(frameReads[photon]) + y_shift) % mask_dims[0])*mask_dims[1] + 
+            ((U64TOX(frameReads[photon]) + x_shift)%mask_dims[1])];
+    }
+
+    return summed_bins/n_counted;
+};
+
+inline double_t sumFrameFLIMMask(FrameData& frameData, SiffParams& params, double_t offset, PyArrayObject* mask, PyObject* shift_tuple, std::ifstream& siff) {
+    // Adds together all arrival times of photons within a frame if those counts are "True" in the mask array
+    double_t arrival_time = 0;
+
+    siff.seekg(frameData.dataStripAddress);
+    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
+    
+    siff.clear();
+
+    bool* mask_data_ptr = (bool *) PyArray_DATA(mask);
+    npy_intp* mask_dims = PyArray_DIMS(mask);
+
+    arrival_time = frameData.siffCompress ?
+        sumMaskFLIMCompressed(frameData, siff, offset, mask_data_ptr, mask_dims, shift_tuple) : 
+        sumMaskFLIMRaw(samplesThisFrame, frameData, siff, offset, mask_data_ptr, mask_dims, shift_tuple);
+
+    return arrival_time;
+};
+
+
+
+
+
 /*************************************
  * 
  *  HISTOGRAMMING FUNCTIONALITY

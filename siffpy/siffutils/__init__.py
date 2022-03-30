@@ -19,6 +19,9 @@ from .imparams import ImParams
 from .flimparams import FLIMParams
 from .framemetadata import FrameMetaData
 
+SEC_TO_NANO = 1e9
+NANO_TO_SEC = 1e-9
+
 # types to cast strings to when looked up
 frame_meta_lookup_cast ={
     'frameNumbers' : int,

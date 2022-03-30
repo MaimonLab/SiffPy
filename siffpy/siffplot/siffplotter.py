@@ -6,6 +6,7 @@ SiffReader class of the main siffpy module
 
 SCT 09/23/2021
 """
+from abc import abstractmethod
 import os,logging, pickle
 import warnings
 
@@ -13,6 +14,7 @@ import holoviews as hv
 
 from .roi_protocols import rois
 from ..siffpy import SiffReader
+from ..siffutils.events import SiffEvent
 from .utils import *
 
 def apply_opts(func):
@@ -34,6 +36,33 @@ def apply_opts(func):
         else:
             return func(*args, **kwargs)
     return local_opts
+
+def apply_events(func):
+    """
+    Decorator function that checks if any of the events
+    stored in the plotter can be overlaid on the plot
+    being produced.
+    """
+    def iterate_through_events(*args, **kwargs):
+        self = args[0]
+        if not isinstance(self, SiffPlotter):
+            raise ValueError("""
+                apply_events decorator must be restricted to SiffPlotters
+            """)
+        if not hasattr(self, 'events'):
+            return func(*args, **kwargs)
+        else:
+            if not isinstance(self.events, list):
+                return func(*args, **kwargs)
+
+            output = func(*args, **kwargs)
+            for event in self.events:
+                if hasattr(event, 'visualize'):
+                    output *= event.visualize()
+            return output
+
+    return iterate_through_events
+
 
 class SiffPlotter():
     """
@@ -77,6 +106,7 @@ class SiffPlotter():
         self.siffreader : SiffReader = siffreader
         self.reference_frames = None
         self.local_opts = []
+        self.events = []
 
         try:
             # can only be run if hv.extension(backend) has been executed
@@ -110,6 +140,15 @@ class SiffPlotter():
             if any([file.endswith('.roi') for file in os.listdir(directory_with_file_name)]):
                 logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
                 self.load_rois(path = directory_with_file_name)
+    
+    @apply_opts
+    @apply_events
+    @abstractmethod
+    def visualize(self, color : 'int|list[int]' = None, text : bool = True) -> hv.Layout:
+        """
+        Visualize the associated phenomena of this SiffPlotter. Must be implemented by subclasses.
+        """
+        raise NotImplementedError()
 
     @apply_opts
     def reference_frames_to_holomap(self)->hv.HoloMap:
@@ -146,6 +185,24 @@ class SiffPlotter():
             if not self.local_opts is None:
                 ref_holomap = ref_holomap.opts(*self.local_opts)
         return ref_holomap
+
+    def save(self, path : str = None, filename : str = None):
+        """ Saves self in .splot file, which can be read with pickle anyways. If no path is given, saves in current directory """
+        if filename is None:
+            filename = f"{os.path.splitext(os.path.basename(self.siffreader.filename))[0]}_{self.__class__.__name__}"
+        if path is None:
+            path = "."
+        foldername = os.path.join(path,str(self.__class__.__name__))
+        if not os.path.exists(foldername):
+            os.makedirs(foldername)
+        splot_file_name = os.path.join(foldername, filename + ".splot")
+        with open(splot_file_name, "wb+") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(path : str):
+        """ Loads a .splot file """
+        raise NotImplementedError()    
 
     ## ROIS
     def save_rois(self, path : str = None):
@@ -217,3 +274,27 @@ class SiffPlotter():
             return roi_ref
         else:
             return object.__getattribute__(self, name)
+
+class EventPlotter():
+    """
+    A class for taking `siffpy.siffutils.events.SiffEvent` subclasses
+    and usefully annotating the output of a `SiffPlotter` with them.
+    """
+
+    def __init__(self, event : SiffEvent):
+        self.event = event
+
+    @abstractmethod
+    def visualize(self)->hv.Element:
+        """
+        This is probably different for every event class.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def iscompatible(cls, event : SiffEvent)->bool:
+        """ Returns whether an event is compatible with this plotter """
+        if not isinstance(event, SiffEvent):
+            return False
+        return False

@@ -4,6 +4,7 @@ Base class of SiffEvents
 from abc import abstractmethod
 
 from ..framemetadata import FrameMetaData
+from ...siffutils import SEC_TO_NANO, NANO_TO_SEC
 
 class SiffEvent():
     """
@@ -14,7 +15,7 @@ class SiffEvent():
     might care about events could use a common language.
     """
 
-    def __init__(self, metadata : FrameMetaData):
+    def __init__(self, metadata : FrameMetaData, annotation : str = None, time_epoch : int = None, frame_time : float = None):
         """
         SiffEvents must be defined from a FrameMetaData object.
         """
@@ -23,6 +24,9 @@ class SiffEvent():
 
         self.metadata = metadata
 
+        # offset is in NANOSECONDS
+        self.epoch_frame_offset : int = metadata['frameTimestamps_sec'] * SEC_TO_NANO - metadata['epoch']
+
         # These parameters are likely
         # derived from information contained
         # in the metadata, but not likely
@@ -30,9 +34,18 @@ class SiffEvent():
         # (e.g. time_epoch should be the time
         # of the actual event, not when it was
         # saved in the siff file)
-        self.annotation : str = None
-        self.time_epoch : float = None
-        self.frame_time : float = None
+        self.annotation : str = annotation
+        self.time_epoch : float = time_epoch
+        self.frame_time : float = frame_time
+
+    def epoch_to_frame_time(self, epoch_time : int, seconds : bool = True) -> float:
+        """ Converts epoch time (NANOSECONDS) to frame time (frame time in seconds).
+        Optional argument seconds specifies if epoch time is ALSO in seconds... """
+        if seconds:
+            return (epoch_time + self.epoch_frame_offset*NANO_TO_SEC)
+        else:
+            return (epoch_time + self.epoch_frame_offset)*NANO_TO_SEC
+
 
     @classmethod
     @abstractmethod

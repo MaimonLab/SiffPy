@@ -13,8 +13,8 @@ def apply_image(func):
                 imshape = args[0].image.shape
                 image = hv.Image(
                     {
-                        'x' : np.arange(imshape[0]),
-                        'y' : np.arange(imshape[1]),
+                        'x' : np.arange(imshape[1]),
+                        'y' : np.arange(imshape[0]),
                         'Intensity' : args[0].image
                     },
                     vdims=['Intensity']
@@ -199,7 +199,7 @@ class ROI():
                 poly *= self.subROIs[polyidx].visualize().opts(**SUBOPTS)
 
         # if not, just return the outline.
-        return poly
+        return poly,opts(**self.plotting_opts)
 
     def find_midline(self):
         """

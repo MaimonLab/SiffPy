@@ -12,6 +12,7 @@ class BarEvent(SiffEvent):
 
         spl = text.split(" = ")        
         self.time_epoch = float(spl[-1])
+        self.frame_time = float(self.epoch_to_frame_time(self.time_epoch))
         self.annotation = spl[0].split(" (sec since epoch)")[0]
 
     @classmethod

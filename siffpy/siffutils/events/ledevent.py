@@ -27,6 +27,7 @@ class LEDEvent(SiffEvent):
             timestamp = note.split(" = ")
             self.annotation = timestamp[0].split(" time")[0]
             self.time_epoch = float(timestamp[-1])
+            self.frame_time = float(self.epoch_to_frame_time(self.time_epoch))
         
         if "Brightness" in note:
             self.brightness = note.split(" = ")[-1].split()

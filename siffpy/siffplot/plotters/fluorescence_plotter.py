@@ -110,7 +110,10 @@ class FluorescencePlotter(SiffPlotter):
             frame specifications. Accepts any public function defined in 
             siffmath.fluorescence. If no argument is provided, defaults
             to dF/F with F0 defined as the fifth percentile signal in
-            each ROI. NOT Normalized from 0 to 1 by default!
+            each ROI. NOT Normalized from 0 to 1 by default! If a callable
+            is used, computes fluroescence with that function instead (with
+            the expectation that this function will be the transformation
+            from raw pixel photon counts into some readout a la dF/F).
 
         *args and other kwargs provided are passed directly to the fluorescence_
         method argument along with the full intensity profile, as:

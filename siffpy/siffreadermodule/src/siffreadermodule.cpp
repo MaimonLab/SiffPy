@@ -4,6 +4,12 @@
  * as quickly as possible and return appropriate data types
  * for data analysis. Or... at least that's the goal.
  * 
+ * This got bloated and will one day certainly need a refactor.
+ * For now, I'm putting off the problem. This was the first time
+ * I'd written a python module and started with something simple
+ * that didn't require good practices... maybe lesson learned.
+ * Maybe not.
+ * 
  * SCT March 01 2021
  * 
  * */
@@ -79,6 +85,12 @@ static PyObject* siffreader_get_file_header(PyObject *self, PyObject *args) {
     return Sf.readFixedData();
 }
 
+/*
+
+Frame getter methods
+
+*/
+
 static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject* kw) {
     // 
 
@@ -101,7 +113,7 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
         return NULL;
     }
 
-    // default mode: get all frames as an intensity profile
+    // default mode: get all frames as an intensity profile. No registration??
     if(!frames_list) {
         return Sf.retrieveFrames((uint64_t *) NULL, 0, flim);
     }
@@ -548,6 +560,288 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     }
 }
 
+/*
+
+ROI methods
+
+*/
+
+static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObject*kw){
+    /*
+    Returns the summed photon counts within the provided ROI
+
+    Args : numpy array ROI mask, dtype 'bool'
+    Kwargs : 
+        frames : list[int]
+            - If none provided, uses all frames.
+        registration : dict
+            - If none provided, uses no shift
+    */
+
+
+    PyArrayObject* mask;
+    PyObject *frames_list = NULL;
+    PyObject* registrationDict = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O!:sum_roi", const_cast<char**>(SUM_ROIS_KEYWORDS),
+        &mask,
+        &PyList_Type, &frames_list,
+        &PyDict_Type, &registrationDict
+        )
+     ) {
+            PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
+            return NULL;
+    }
+
+    if(!frames_list) { // populate with all frames.
+        Py_ssize_t nFrames = Sf.numFrames();
+        frames_list = PyList_New(nFrames);
+        for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
+            PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
+        }
+    }
+    
+    if(!registrationDict) registrationDict = PyDict_New();
+    if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
+        Py_DECREF(registrationDict);
+        registrationDict = PyDict_New();
+    }
+
+    // Check that all elements of the frame list and registration dictionary are valid.
+    uint64_t framesArray[PyList_Size(frames_list)];
+    for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
+        PyObject* item = PyList_GET_ITEM(frames_list, idx);
+        if(!PyLong_Check(item)) {
+            PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
+            return NULL;
+        }
+        uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
+        if (frameNum >= Sf.numFrames()) {
+            PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
+            return NULL;
+        }
+        framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
+
+        // if this isn't in the registration dict, shift by (0,0)
+        if (!PyDict_Contains(registrationDict, item)) {
+            PyDict_SetItem(registrationDict, item, // steals the reference to the value
+                PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                    PyLong_FromLong(0),
+                    PyLong_FromLong(0)
+                )
+            );
+        }
+        
+        // Now typecheck the registration dict item
+        // If it's not a tuple of PyLongs, replace it
+        // with a tuple of PyLongs made by attemping to cast
+        // the elements to one and replacing the tuple.
+        
+        try {
+            PyObject* shiftTuple = PyDict_GetItem(registrationDict, item);
+            if (!PyTuple_Check(shiftTuple)) {
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    (
+                        std::string("Registration dictionary element for frame ") + 
+                        std::to_string(PyLong_AsLongLong(item)) +
+                        std::string(" is not a tuple.")
+                    ).c_str()
+                );
+                return NULL;
+            }
+            Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
+            for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
+                PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
+                if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
+                    PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
+                    if (result == NULL) {
+                        PyErr_SetString(
+                            PyExc_TypeError,
+                            (
+                                std::string("Registration dictionary element for frame ") + 
+                                std::to_string(PyLong_AsLongLong(item)) +
+                                std::string(" cannot be cast to type int.")
+                            ).c_str()
+                        );
+                        return NULL;
+                    }
+                    PyTuple_SetItem(shiftTuple, tupIdx, result);
+                }
+            }
+        }
+        catch (...) {
+            PyErr_SetString(PyExc_RuntimeError,
+                (std::string("Failure to access registration dictionary element for frame ") +
+                std::to_string(PyLong_AsLongLong(item))).c_str()
+            );
+            return NULL;
+        }
+    }
+    uint64_t framesN = PyList_Size(frames_list);
+
+    // Okay enough argument checking, we can call the siffreader function
+
+    try{
+        return Sf.sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        return NULL;
+    }
+}
+
+static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, PyObject*kw){
+    /*
+    Returns the summed photon counts within the provided ROI
+
+    Args : 
+        mask : numpy array ROI mask, dtype 'bool'
+        FLIMParams : a `siffpy.FLIMParams` object
+    Kwargs : 
+        frames : list[int]
+            - If none provided, uses all frames.
+        registration : dict
+            - If none provided, uses no shift
+    */
+
+
+    PyArrayObject* mask;
+    PyObject* FLIMParams;
+    PyObject *frames_list = NULL;
+    PyObject* registrationDict = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O!:sum_roi", const_cast<char**>(SUM_ROI_FLIM_KEYWORDS),
+        &mask,
+        &FLIMParams,
+        &PyList_Type, &frames_list,
+        &PyDict_Type, &registrationDict
+        )
+     ) {
+            PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
+            return NULL;
+    }
+
+    if(PyArray_TYPE(mask) != NPY_BOOL) {
+        PyErr_SetString(PyExc_ValueError, "mask array must be of type bool.");
+        return NULL;
+    }
+
+    // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
+    if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
+
+        PyErr_SetString(PyExc_TypeError, 
+            strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
+                FLIMParams->ob_type->tp_name
+            )
+        );
+        return NULL;
+    }
+
+    if(!frames_list) { // populate with all frames.
+        Py_ssize_t nFrames = Sf.numFrames();
+        frames_list = PyList_New(nFrames);
+        for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
+            PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
+        }
+    }
+    
+    if(!registrationDict) registrationDict = PyDict_New();
+    if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
+        Py_DECREF(registrationDict);
+        registrationDict = PyDict_New();
+    }
+
+    // Check that all elements of the frame list and registration dictionary are valid.
+    uint64_t framesArray[PyList_Size(frames_list)];
+    for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
+        PyObject* item = PyList_GET_ITEM(frames_list, idx);
+        if(!PyLong_Check(item)) {
+            PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
+            return NULL;
+        }
+        uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
+        if (frameNum >= Sf.numFrames()) {
+            PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
+            return NULL;
+        }
+        framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
+
+        // if this isn't in the registration dict, shift by (0,0)
+        if (!PyDict_Contains(registrationDict, item)) {
+            PyDict_SetItem(registrationDict, item, // steals the reference to the value
+                PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
+                    PyLong_FromLong(0),
+                    PyLong_FromLong(0)
+                )
+            );
+        }
+        
+        // Now typecheck the registration dict item
+        // If it's not a tuple of PyLongs, replace it
+        // with a tuple of PyLongs made by attemping to cast
+        // the elements to one and replacing the tuple.
+        
+        try {
+            PyObject* shiftTuple = PyDict_GetItem(registrationDict, item);
+            if (!PyTuple_Check(shiftTuple)) {
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    (
+                        std::string("Registration dictionary element for frame ") + 
+                        std::to_string(PyLong_AsLongLong(item)) +
+                        std::string(" is not a tuple.")
+                    ).c_str()
+                );
+                return NULL;
+            }
+            Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
+            for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
+                PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
+                if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
+                    PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
+                    if (result == NULL) {
+                        PyErr_SetString(
+                            PyExc_TypeError,
+                            (
+                                std::string("Registration dictionary element for frame ") + 
+                                std::to_string(PyLong_AsLongLong(item)) +
+                                std::string(" cannot be cast to type int.")
+                            ).c_str()
+                        );
+                        return NULL;
+                    }
+                    PyTuple_SetItem(shiftTuple, tupIdx, result);
+                }
+            }
+        }
+        catch (...) {
+            PyErr_SetString(PyExc_RuntimeError,
+                (std::string("Failure to access registration dictionary element for frame ") +
+                std::to_string(PyLong_AsLongLong(item))).c_str()
+            );
+            return NULL;
+        }
+    }
+    uint64_t framesN = PyList_Size(frames_list);
+
+    // Okay enough argument checking, we can call the siffreader function
+
+    try{
+        return Sf.sumFLIMMask(framesArray, framesN, FLIMParams, (PyArrayObject*) mask, registrationDict);
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        return NULL;
+    }
+}
+
+/*
+
+Histogram methods
+
+*/
+
 static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, PyObject* kw) {
     PyObject* frames = NULL;
 
@@ -583,6 +877,12 @@ static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, P
         return NULL;
     }
 }
+
+/*
+
+Warnings and utils
+
+*/
 
 static PyObject* siffreader_suppress_warnings(PyObject* self, PyObject *args){
     // Suppresses warnings
@@ -666,6 +966,12 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
 }
 
 
+/*
+
+PyMethodDef, PyModuleDef
+
+*/
+
 static PyMethodDef SiffreaderMethods[] = {
 // Array of the methods and corresponding docstrings
         {"open", siffreader_open, METH_VARARGS,OPEN_DOCSTRING},
@@ -674,6 +980,9 @@ static PyMethodDef SiffreaderMethods[] = {
         // This needs to be cast to a PyCFunction, which by definition has only two arguments unlike our function
         {"get_frames", (PyCFunction) siffreader_get_frames, METH_VARARGS|METH_KEYWORDS, GET_FRAMES_DOCSTRING},
         {"get_frame_metadata", (PyCFunction) siffreader_get_frame_metadata, METH_VARARGS|METH_KEYWORDS, GET_METADATA_DOCSTRING},
+        {"sum_roi", (PyCFunction) siffreader_sum_roi, METH_VARARGS|METH_KEYWORDS, SUM_ROI_DOCSTRING},
+        {"sum_roi_flim", (PyCFunction) siffreader_sum_roi_flim, METH_VARARGS|METH_KEYWORDS, SUM_ROI_FLIM_DOCSTRING},
+        // {"roi_mask", (PyCFunction) siffreader_roi_mask, METH_VARARGS|METH_KEYWORDS, ROI_MASK_DOCSTRING},
         {"pool_frames", (PyCFunction) siffreader_pool_frames, METH_VARARGS|METH_KEYWORDS, POOL_FRAMES_DOCSTRING},
         {"flim_map", (PyCFunction) siffreader_flim_map, METH_VARARGS|METH_KEYWORDS, FLIM_MAP_DOCSTRING},
         {"get_histogram", (PyCFunction) siffreader_get_histogram, METH_VARARGS|METH_KEYWORDS, GET_HISTOGRAM_DOCSTRING},
@@ -704,19 +1013,19 @@ PyMODINIT_FUNC PyInit_siffreader(void) {
     import_array(); // we use NumPy in here, so I have to run this before creating the module
 
     PyObject* module;
-    if (PyType_Ready(&FLIMARRAY_TYPE) < 0) return NULL;
+//    if (PyType_Ready(&FLIMARRAY_TYPE) < 0) return NULL;
 
     module = PyModule_Create(&siffreadermodule);
     //siffmodule = PyImport_Import()
 
-    if (module == NULL) return NULL;
+//    if (module == NULL) return NULL;
 
-    Py_INCREF(&FLIMARRAY_TYPE);
-    if (PyModule_AddObject(module, "FlimArray", (PyObject *) &FLIMARRAY_TYPE) < 0) {
-        Py_DECREF(&FLIMARRAY_TYPE);
-        Py_DECREF(module);
-        return NULL;
-    }
+//    Py_INCREF(&FLIMARRAY_TYPE);
+//   if (PyModule_AddObject(module, "FlimArray", (PyObject *) &FLIMARRAY_TYPE) < 0) {
+//        Py_DECREF(&FLIMARRAY_TYPE);
+//        Py_DECREF(module);
+//        return NULL;
+//    }
 
     return module;
 }

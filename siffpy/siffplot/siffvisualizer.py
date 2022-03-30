@@ -169,7 +169,7 @@ class SiffVisualizer():
                     timespan = pool_width,
                     z_list = z_planes,
                     color_list = color,
-                    registration_dict = self.siffreader.registrationDict
+                    registration_dict = self.siffreader.registration_dict
                 )
             loaded_frames = True
 
@@ -182,7 +182,7 @@ class SiffVisualizer():
                     timespan = pool_width,
                     z_list = z_planes,
                     color_list = color,
-                    registration_dict = self.siffreader.registrationDict
+                    registration_dict = self.siffreader.registration_dict
                 )
             else:
                 frames = [self.frames[t_val*self.siffreader.frames_per_volume + k] for k in range(len(z_planes))]
@@ -212,7 +212,8 @@ class SiffVisualizer():
 
     def view_frames_napari(self, z_planes : list[int] = None, color : int = 0, load_frames : bool = False, **kwargs):
         """
-        Returns a napari Viewer object loaded with frames to image
+        Returns a napari Viewer object loaded with frames to image. Accepts the FrameViewer `NapariInterface` subclass's
+        initialization arguments as keyword arguments (e.g. batch_fcn).
 
         Arguments
         ---------
@@ -242,7 +243,7 @@ class SiffVisualizer():
             individual frames of image data.
         """
         
-        self.frames = FrameViewer(self.siffreader, load_frames = load_frames, image_opts = self.image_opts)
+        self.frames = FrameViewer(self.siffreader, load_frames = load_frames, image_opts = self.image_opts, **kwargs)
         
         return self.frames
     

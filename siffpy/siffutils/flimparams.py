@@ -82,6 +82,8 @@ class FLIMParams(object):
                 if use_noise:
                     self.noise = 0.0
 
+            self.color_channel = color_channel
+
     @classmethod
     def from_tuple(cls, param_tuple : tuple):
         """ Instantiate a FLIMParams from the parameter tuple """
@@ -109,6 +111,8 @@ class FLIMParams(object):
 
     def __repr__(self):
         retstr = "FLIM parameters: \n"
+        if not self.color_channel is None:
+            retstr += f"Color channel: {self.color_channel}\n"
         for key,val in self.param_dict().items():
             retstr += "\t" + str(key) + " : " + str(val) + "\n"
         return retstr

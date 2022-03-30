@@ -37,6 +37,10 @@ class HistogramPlotter(SiffPlotter):
     to inherit its properties
 
     ( e.g. hist_p = HistogramPlotter(siff_plotter)) )
+
+    Attributes
+    ----------
+
     """
 
     def __init__(self, *args, **kwargs):
@@ -75,11 +79,12 @@ class HistogramPlotter(SiffPlotter):
                     'ylabel' : 'Number of\nphotons',
                     'xlabel': 'Arrival time\n(nanoseconds)',
                     'fontsize': 15,
-                    'toolbar' : 'above'
+                    'toolbar' : 'above',
+                    'line_width' : 4
                 })
             ]
 
-    def fit(self, n_frames : int = 1000, color : 'int|list[int]' = None, **kwargs):
+    def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs):
         """
         Fits the arrival time distributions for the color channel(s) requested.
         Takes n_frames number of frames to perform the fit. Also accepts all kwargs
@@ -95,18 +100,26 @@ class HistogramPlotter(SiffPlotter):
             How many frames to use for each color channel to estimate the distribution of
             FLIM parameters
 
-        color : int or list[int]
+        channel : int or list[int]
 
-            Color channels to fit. By default fits all color channels available.
+            Color channels to fit. By default fits all color channels available. 1-indexed
+            because ScanImage is MATLAB based...
 
         """
 
-        if color is None:
-            color = self.siffreader.im_params.colors
-        if not isinstance(color, list):
-            color = [color]
+        if channel is None:
+            channel = self.siffreader.im_params.colors
+        if not isinstance(channel, list):
+            channel = [channel]
+        if any(color > self.siffreader.im_params.num_colors for color in channel):
+            logging.warn(
+                "Provided a channel number greater than number of recorded channels. " +
+                f"Must be less than {self.siffreader.im_params.num_colors}."
+            )
+        if any(color == 0 for color in channel):
+            raise ValueError("Provided channel number 0! Remember, these are 1-indexed not 0-indexed!")
 
-        for col in color: 
+        for col in channel: 
             these_frames = framelist_by_color(self.siffreader.im_params, col-1)
 
             sampled_number = n_frames
@@ -129,8 +142,8 @@ class HistogramPlotter(SiffPlotter):
                     logging.warn("Giving up. Using last fit.")
                     break
 
-                logging.warn(f"Chi-squared / n_frames = {FLIMparam.CHI_SQD/n_frames}. \
-                    Repeating fit with new sample."
+                logging.warn(f"Channel {col}: chi-squared / n_frames = {FLIMparam.CHI_SQD/n_frames}. " +
+                    "Repeating fit with new sample."
                 )
                 sampled_frames = random.sample(these_frames, sampled_number)
 
@@ -139,18 +152,23 @@ class HistogramPlotter(SiffPlotter):
                 )
                 FLIMparam = siffpy.fit_exp(channel_histogram, **kwargs)[0]                
                 fit_count += 1
+
+            FLIMparam.color_channel = col
+
+            if len(self.FLIMParams) < col:
+                self.FLIMParams += [[]]*(col - len(self.FLIMParams))
             
-            self.FLIMParams += [FLIMparam]
+            self.FLIMParams[col-1] = FLIMparam
             
     @apply_opts
-    def visualize(self, color : 'int|list[int]' = None, text : bool = True) -> hv.Layout:
+    def visualize(self, channel : 'int|list[int]' = None, text : bool = True) -> hv.Layout:
         """
         Plots arrival time histograms over the entire imaging sessions
         along with fits. If text is true, overlays text describing the fits.
 
         Parameters
         ----------
-        color : int or list[int]
+        channel : int or list[int]
 
             Color channels to fit. By default fits all color channels available.
 
@@ -166,18 +184,32 @@ class HistogramPlotter(SiffPlotter):
             A Holoviews Layout object (single column) of all color channel fits
         """
 
-        if color is None:
-            color = self.siffreader.im_params.colors
-        if not isinstance(color, list):
-            color = [color]
+        if channel is None:
+            channel = self.siffreader.im_params.colors
+        if not isinstance(channel, list):
+            channel = [channel]
+        
+        if any(color > self.siffreader.im_params.num_colors for color in channel):
+            logging.warn(
+                "Provided a channel number greater than number of recorded channels. " +
+                f"Must be less than {self.siffreader.im_params.num_colors}."
+            )
+        if any(color == 0 for color in channel):
+            raise ValueError("Provided channel number 0! Remember, these are 1-indexed not 0-indexed!")
 
+        # If there are no fits provided yet, fit them all! Or the channels requested, at least.
         if not len(self.FLIMParams):
-            self.fit(color=color)
+            self.fit(color=channel)        
 
         BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
 
         curveplots = []
-        for col in color:
+        for col in channel:
+            if col > len(self.FLIMParams):
+                continue
+            if not isinstance(self.FLIMParams[col-1], FLIMParams):
+                continue
+
             # full data histograms
             histogram = self.siffreader.get_histogram(
                     frames = framelist_by_color(
@@ -196,7 +228,7 @@ class HistogramPlotter(SiffPlotter):
                     'x': BIN_SIZE*np.arange(NUM_BINS),
                     'y':histogram
                 }
-            ) 
+            ).opts(line_color = "#000000") 
             this_plt *= hv.Curve(
                 {
                     'x': BIN_SIZE*np.arange(NUM_BINS),
@@ -204,7 +236,7 @@ class HistogramPlotter(SiffPlotter):
                                 np.arange(0,NUM_BINS),cut_negatives=False
                         )
                 }
-            )
+            ).opts(line_dash='dashed')
             this_plt.opts(
                 hv.opts.Curve(
                     logy=True,

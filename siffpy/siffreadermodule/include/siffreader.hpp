@@ -52,6 +52,9 @@ class SiffReader
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); 
         // internal method called in loops to get each frame and point to the next, drops photons later than the terminal bin
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL);
+        // internal method called in loops to get each frame and point to the next, MASKED BY AN ROI numpy array
+        void singleFrameRetrievalMask(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyArrayObject* mask, PyObject* shift_tuple = NULL);
+
         // internal method to get metadata for one frame
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList);
         // add this frame's arrival times to the 1-d array numpyArray
@@ -79,16 +82,24 @@ class SiffReader
         ~SiffReader(){closeFile();};
         
         int openFile(const char* filename);
-        
+
+        // Mask methods
+        PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict); // sums area inside the provided mask
+        PyArrayObject* sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict); // sums empirical lifetime inside teh provided mask
+        PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict); // Returns a 1d numpy array of only the within-mask values.
+
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
+        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin, PyArrayObject* mask);
         
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, bool flim = false, PyObject* registrationDict = NULL);
+        PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, PyArrayObject* mask, bool flim = false, PyObject* registrationDict = NULL);
 
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq
+        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyArrayObject* mask, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq, but restricted to a MASKED region
 
         PyArrayObject* getHistogram(uint64_t frames[] = NULL, uint64_t framesN = 0); // returns an arrival time vector, independent of pixel location.
 
