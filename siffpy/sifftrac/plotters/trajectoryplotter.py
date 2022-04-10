@@ -15,14 +15,15 @@ class TrajectoryPlotter(TracPlotter):
         Produces a path element of the trajectory in a single FicTracLog
         
         """
-        
+
         this_path = log.dataset.to(
-                        hv.Path,
-                        ['integrated_position_lab_0',
-                        'integrated_position_lab_1'],
-                        vdims = log.tdim
-                    )
-        
+                    hv.Path,
+                    ['integrated_position_lab_0',
+                    'integrated_position_lab_1'],
+                    vdims = log.tdim
+                )
+
+
         square = True
         if 'square' in kwargs:
             square = kwargs['square']

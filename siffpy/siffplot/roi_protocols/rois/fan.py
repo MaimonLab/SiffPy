@@ -86,7 +86,7 @@ class Fan(ROI):
             # look out for this?
             self.long_axis = None
 
-    def segment(self, n_segments : int, method : str = 'triangles', viewed_from : str = 'anterior')->None:
+    def segment(self, n_segments : int = 8, method : str = 'triangles', viewed_from : str = 'anterior')->None:
         """
         Divides the fan in to n_segments of 'equal width', 
         defined according to the segmentation method.
@@ -236,7 +236,7 @@ class Fan(ROI):
         paired_bounding_angles = pairwise(np.linspace(0, 360, n_segments+1)) # these are nominal, span 0 to 360
 
         self.columns = [
-            Fan.TriangleColumn(self, bound_vec, bound_ang, intersection)
+            Fan.TriangleColumn(self, bound_vec, bound_ang, intersection, slice_idx = self.slice_idx)
             for (bound_vec, bound_ang) in zip(paired_bounds,paired_bounding_angles)
         ]
 
@@ -245,6 +245,7 @@ class Fan(ROI):
         idx = 0
         for column in self.columns:
             column.plotting_opts['fill_color'] = colorwheel[idx * int(len(colorwheel)/len(self.columns))]
+            column.plotting_opts['fill_alpha'] = 0.3
             idx += 1
 
     def __getattr__(self, attr)->Any:
@@ -289,6 +290,7 @@ class Fan(ROI):
                 bounding_vectors : tuple[np.ndarray],
                 bounding_angles : tuple[float, float],
                 intersection_point : tuple[float, float],
+                slice_idx : int = None,
                 **kwargs
             ):
             """
@@ -305,6 +307,7 @@ class Fan(ROI):
             self.bounding_vectors = bounding_vectors
             self.bounding_angles = bounding_angles
             self.intersection_point = intersection_point
+            self.slice_idx = slice_idx
 
             self.polygon = polygon_bounded_by_rays(fan.polygon, self.bounding_vectors, self.intersection_point)
 

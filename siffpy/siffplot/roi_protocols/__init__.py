@@ -48,7 +48,7 @@ def roi_protocol(region : str, method_name : str, *args, **kwargs):
     
     raise ValueError(f"Unable to find region with alias {region}")
 
-def ROI_extraction_methods() -> dict[str, list[str]]:
+def ROI_extraction_methods(print_output : bool = True) -> dict[str, list[str]]:
     """
     Prints each ROI method and its docstring, organized by region.
 
@@ -93,8 +93,8 @@ def ROI_extraction_methods() -> dict[str, list[str]]:
             
             ret_stringdict[region_name].append(fcn_name)
 
-
-    print(print_string)
+    if print_output:
+        print(print_string)
     return ret_stringdict
 
 def str_in_list(string : str, target_list : list[str]) -> bool:

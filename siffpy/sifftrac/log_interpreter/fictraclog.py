@@ -8,6 +8,9 @@ from ... import siffutils
 
 SEC_TO_NANO = 1e9
 NANO_TO_SEC = 1e-9
+_ORIGINAL_FICTRAC_ROS_ZERO_HEADING = 3.053108549228689 # an error in the original projector_driver ROS2 code resulted in an
+# incorrect map between fictrac heading and the bar position relative to the fly.
+
 
 class FictracLog():
     """
@@ -61,17 +64,38 @@ class FictracLog():
         if ballparams is None:
             ballparams = BallParams()
 
+        self.__find_projector_specification(filepath)
+
         self.filename = filepath
         self.ballparams = ballparams
 
         if os.path.splitext(filepath)[-1] == '.csv':
             # It's a csv file and parse it as such
             if not suppress_warnings:
-                logging.warning("Converting dataframe coordinates to mm")
+                logging.warning("Converting dataframe coordinates to mm and rotating so that the bar is in the +y direction.")
             self._dataframe = pd.read_csv(filepath, ',')
             radius = self.ballparams.radius
             self._dataframe['integrated_position_lab_0']*=radius
             self._dataframe['integrated_position_lab_1']*=radius
+
+            df_copy = self.get_dataframe_copy()
+
+            self._dataframe['integrated_position_lab_0'] = -1.0*df_copy['integrated_position_lab_1']
+            self._dataframe['integrated_position_lab_1'] = df_copy['integrated_position_lab_0']
+
+            if self.__OLD_PROJECTOR_DRIVER:
+                self._dataframe['integrated_position_lab_0'], self._dataframe['integrated_position_lab_1'] = (
+                    (
+                        np.cos(_ORIGINAL_FICTRAC_ROS_ZERO_HEADING) * self._dataframe['integrated_position_lab_0'] +
+                        np.sin(_ORIGINAL_FICTRAC_ROS_ZERO_HEADING) * self._dataframe['integrated_position_lab_1']
+                    ),
+                    (
+                        -1.0*np.sin(_ORIGINAL_FICTRAC_ROS_ZERO_HEADING) * self._dataframe['integrated_position_lab_0'] +
+                        np.cos(_ORIGINAL_FICTRAC_ROS_ZERO_HEADING) * self._dataframe['integrated_position_lab_1']
+                    )
+                )
+                
+                pass
 
         if not hasattr(self,'_dataframe'):
             raise NotImplementedError(
@@ -325,3 +349,15 @@ class FictracLog():
         if not isinstance(other, FictracLog):
             return False
         return self.__hash__() == other.__hash__()
+
+    # TODO: ONCE THE PROJECTOR SPECIFICATION FILE IS FINISHED, IMPLEMENT THIS!
+    def __find_projector_specification(self, filepath : str)->None:
+        """
+        Needed for backwards compatibility. If there's no projector specification
+        file, this is from an earlier era where there was a mistake in the heading-
+        to-image map
+        """
+
+        # To be implemented.
+
+        self.__OLD_PROJECTOR_DRIVER = True

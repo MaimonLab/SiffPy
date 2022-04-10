@@ -24,9 +24,6 @@ def point_inside_rays(ray1 : np.ndarray, ray2 : np.ndarray, point : tuple[float,
         return True
     return False
 
-
-
-
 def intersection_of_line_and_ray(line : Union[hv.element.Path, Iterable], ray : np.ndarray, origin : np.ndarray) -> tuple[float,float]:
     """
     line : either a hv.element.Path or a pair of endpoints in an Iterable
@@ -84,7 +81,6 @@ def intersection_of_line_and_ray(line : Union[hv.element.Path, Iterable], ray : 
         return None
 
     return intersection
-
 
 def intersection_of_two_lines(path1 : hv.element.Path, path2: hv.element.Path)->tuple[float, float]:
     """
@@ -280,8 +276,6 @@ def polygon_bounded_by_rays(poly : hv.element.Polygons, rays : list[np.ndarray],
             'y' : [point[1] for point in points]
         }
     )
-
-
 
 def vector_pointing_along_path(path : hv.element.Path, point : tuple[float,float]) -> np.ndarray:
     """

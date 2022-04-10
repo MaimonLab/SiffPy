@@ -8,8 +8,7 @@ import holoviews as hv
 from holoviews import opts
 
 from numpy import add
-from ..log_interpreter.fictraclog import FictracLog
-from ..log_interpreter.logtoplot import LogToPlot
+from ..log_interpreter import *
 
 
 def apply_opts(func):

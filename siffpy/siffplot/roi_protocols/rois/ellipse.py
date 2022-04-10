@@ -95,7 +95,7 @@ class Ellipse(ROI):
         """
         self.midline = self.RingMidline(self)
 
-    def segment(self, n_segments : int, viewed_from = 'anterior')->None:
+    def segment(self, n_segments : int = 16, viewed_from : str = 'anterior')->None:
         """
         Creates an attribute wedges, a list of WedgeROIs corresponding to segments
         
@@ -153,7 +153,8 @@ class Ellipse(ROI):
                 boundaries[0],
                 boundaries[1],
                 ell,
-                image=image
+                image=image,
+                slice_idx = self.slice_idx
             )
             for boundaries in zip(tuple(pairwise(dividing_lines)),tuple(pairwise(angles)))
         ]
@@ -163,6 +164,7 @@ class Ellipse(ROI):
         idx = 0
         for wedge in self.wedges:
             wedge.plotting_opts['fill_color'] = colorwheel[idx * int(len(colorwheel)/len(self.wedges))]
+            wedge.plotting_opts['fill_alpha'] = 0.3
             idx += 1
 
     def get_roi_masks(self, n_segments : int = 16, image : np.ndarray = None, rettype = list)->list[np.ndarray]:
@@ -291,12 +293,14 @@ class Ellipse(ROI):
                 bounding_paths : tuple[hv.element.Path],
                 bounding_angles : tuple[float],
                 ellipse : hv.element.path.Ellipse,
+                slice_idx : int = None,
                 **kwargs
             ):
             super().__init__(self, **kwargs)
 
             self.bounding_paths = bounding_paths
             self.bounding_angles = bounding_angles
+            self.slice_idx = slice_idx
 
             sector_range = np.linspace(bounding_angles[0], bounding_angles[1], 60)
             offset = ellipse.orientation

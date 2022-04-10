@@ -10,12 +10,14 @@ SCT 09/23/2021
 """
 from typing import Iterable
 import functools, operator, logging, pickle, os, math
+from xml.dom.minidom import Attr
 
 import holoviews as hv
 import numpy as np
 
 from .roi_protocols import rois
 from ..siffpy import SiffReader
+from .utils.exceptions import *
 
 NAPARI = False
 try:
@@ -23,7 +25,7 @@ try:
     import dask
     from .napari_viewers import FrameViewer
     NAPARI = True
-except ImportError:
+except ImportError as e:
     hv.extension('bokeh') # no need to do this unless
     # we're defaulting to holoviews, just because there
     # is some headache with napari and hv at the moment.
@@ -86,6 +88,7 @@ class SiffVisualizer():
                 backend = 'holoviews'
                 self.local_opts = None
         self.backend = backend
+        self.rois = None
 
         directory_with_file_name = os.path.join(
             os.path.dirname(self.siffreader.filename),
@@ -261,7 +264,7 @@ class SiffVisualizer():
             Where to save the ROIs.
         """
         if self.rois is None:
-            raise RuntimeError("SiffPlotter object has no rois stored")
+            raise NoROIException("SiffVisualizer object has no ROIs stored")
         
         if path is None:
             if not self.siffreader.opened:
@@ -277,7 +280,7 @@ class SiffVisualizer():
             # else, just save the one.
             self.rois.save(path)
         else:
-            raise AttributeError("No attribute rois defined for this SiffPlotter.")
+            raise NoROIException("No attribute rois defined for this SiffVisualizer.")
 
     def load_rois(self, path : str = None):
         """
@@ -310,10 +313,13 @@ class SiffVisualizer():
         sitting around in your code)
         """
         if name == 'rois':
-            roi_ref = object.__getattribute__(self, name)
-            if type(roi_ref) is list:
-                if len(roi_ref) == 1:
-                    return roi_ref[0]
-            return roi_ref
+            try:
+                roi_ref = object.__getattribute__(self, name)
+                if type(roi_ref) is list:
+                    if len(roi_ref) == 1:
+                        return roi_ref[0]
+                return roi_ref
+            except AttributeError:
+                raise NoROIException
         else:
             return object.__getattribute__(self, name)

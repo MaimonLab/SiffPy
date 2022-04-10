@@ -279,6 +279,9 @@ class EventPlotter():
     """
     A class for taking `siffpy.siffutils.events.SiffEvent` subclasses
     and usefully annotating the output of a `SiffPlotter` with them.
+
+    Uses HoloViews for annotation and plotting so it's in the
+    same file as the base SiffPlotter class.
     """
 
     def __init__(self, event : SiffEvent):

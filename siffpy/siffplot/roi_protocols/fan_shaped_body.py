@@ -2,7 +2,7 @@
 
 from . import rois
 
-def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)-> rois.Fan:
+def outline_fan(reference_frames : list, polygon_source : dict, *args, slice_idx : int = None, **kwargs)-> rois.Fan:
     """
     Takes the largest ROI and assumes it's the outline of the fan-shaped body.
 
@@ -54,7 +54,7 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)
         
         fan_lines = rois.get_largest_lines_napari(polygon_source, shape_layer_name = 'ROI shapes', slice_idx=slice_idx, n_lines = 2)
 
-        if not fan_lines is None: # use them if you have them
+        if not (fan_lines is None): # use them if you have them
             return rois.Fan(
                 largest_polygon,
                 slice_idx = slice_idx,
@@ -69,3 +69,6 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, **kwargs)
                 image = source_image,
                 name='Fan-shaped body'
             )
+
+def dummy_method(*args, **kwargs):
+    print("I'm just a placeholder!")

@@ -1,11 +1,11 @@
 # Heading direction plots
 
-from typing import Type
 import holoviews as hv
 import numpy as np
 import logging
 from scipy.stats import circmean
 
+from ..log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 from .tracplotter import *
 from ..utils.fcns import *
 
@@ -97,6 +97,9 @@ class HeadingPlotter(TracPlotter):
             offset = 0.0
         else:
             self.offset = offset
+
+        if log.__OLD_PROJECTOR_DRIVER: # back compatibility
+            offset += _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 
         DEFAULT_OPTS = {
             'xlabel' : 'Time',

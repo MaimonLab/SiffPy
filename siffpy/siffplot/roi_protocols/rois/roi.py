@@ -1,4 +1,5 @@
 import abc, pickle, logging, os
+from re import A
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
@@ -199,7 +200,7 @@ class ROI():
                 poly *= self.subROIs[polyidx].visualize().opts(**SUBOPTS)
 
         # if not, just return the outline.
-        return poly,opts(**self.plotting_opts)
+        return poly.opts(**self.plotting_opts)
 
     def find_midline(self):
         """
@@ -283,7 +284,15 @@ class ROI():
             raise TypeError("'ROI' object is not subscriptable (except with 0 to return itself)")
 
     def __iter__(self) :
+        """ List-like behavior on a single ROI """
         return iter([self])
+
+    def __len__(self):
+        return 1
+
+    @abc.abstractmethod
+    def segment(self) -> None:
+        """ Abstract method, to be implemented by individual ROIs """
 
 class subROI(ROI):
     """

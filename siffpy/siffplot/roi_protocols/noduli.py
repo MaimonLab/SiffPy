@@ -3,7 +3,7 @@
 from . import rois
 import holoviews as hv
 
-def hemispheres(reference_frames : list, polygon_source : dict, *args, **kwargs) -> rois.Blobs:
+def hemispheres(reference_frames : list, polygon_source : dict, *args, slice_idx : int = None, **kwargs) -> rois.Blobs:
     """
     Just takes the ROIs in the left and right hemispheres. Returns them as a Blobs ROI which is basically
     the same as two polygons. For now, it just takes the two largest ones! TODO: At least check left vs. right,
@@ -38,3 +38,6 @@ def hemispheres(reference_frames : list, polygon_source : dict, *args, **kwargs)
         )
 
     return rois.Blobs(polygons_combined, slice_idx)
+
+def dummy_method(*args, **kwargs):
+    print("I'm just a placeholder!")

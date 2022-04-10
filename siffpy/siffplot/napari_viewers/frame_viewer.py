@@ -49,6 +49,8 @@ class FrameViewer(NapariInterface):
         What function to call to generate each batch.
         If left as None, it will simply produce
         a each volume. Does nothing if load_frames is True.
+        If batch_iter is provided, then batch_fcn will
+        be called on each one of batch_iter when demanded
 
     batch_iter : Iterable
 
@@ -92,7 +94,7 @@ class FrameViewer(NapariInterface):
         
         else:
             # uses dask to load volumes at a time.
-            if batch_iter is None:
+            if batch_iter is None: # batch_iter is an iterable describing each batch
                 if not batch_fcn is None:
                     logging.warn(
                         """"
@@ -105,8 +107,10 @@ class FrameViewer(NapariInterface):
                         \n\n
                         """
                     )
+                # each batch is a volume, this iter says which volume to grab
                 batch_iter = range(siffreader.im_params.num_volumes)
             
+            # function to get with each output of batch_iter
             if batch_fcn is None:
                 def volume_get(volume_idx):
                     # Local function executed over and over

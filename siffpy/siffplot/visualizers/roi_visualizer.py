@@ -201,7 +201,9 @@ class ROIVisualizer(SiffVisualizer):
         if not hasattr(self.siffreader, 'reference_frames'):
             raise AssertionError("SiffReader has no registered reference frames.")
 
-        self.viewer = ROIViewer(self.siffreader, title='Annotate ROIs')
+        self.viewer = ROIViewer(self.siffreader, visualizer = self, title='Annotate ROIs')
+        self.viewer.save_rois_fcn = self.save_rois
+
 
     def draw_rois_hv(self, keep_old : bool = False, **kwargs)->hv.Layout:
         """
@@ -306,7 +308,7 @@ class ROIVisualizer(SiffVisualizer):
         """
         raise NotImplementedError("")
 
-    def extract_rois(self, region : str, *args, method_name : str = None, overwrite : bool = False, **kwargs) -> None:
+    def extract_rois(self, region : str, *args, method_name : str = None, overwrite : bool = True, **kwargs) -> None:
         """
         Extract ROIs -- uses a different method for each anatomical region.
         ROIs are stored in a class attribute. Must have drawn at least one
@@ -328,7 +330,7 @@ class ROIVisualizer(SiffVisualizer):
 
         overwrite : bool (optional)
 
-            If set to True, overwrites self.rois rather than appending to it. Default is False.
+            If set to True, overwrites self.rois rather than appending to it. Default is True.
         
         Returns
         -------
@@ -336,6 +338,7 @@ class ROIVisualizer(SiffVisualizer):
         None
 
         """
+
         if not (self.backend == 'napari'):
             if not hasattr(self,'annotation_dict'):
                 raise AssertionError("No annotators generated yet. Try draw_rois()")
@@ -401,6 +404,10 @@ class ROIVisualizer(SiffVisualizer):
         if self.rois is None:
             raise RuntimeError("No rois extracted -- check method used, images provided, etc.")
     
+    def redraw_rois(self):
+        """ Redraws the rois, for example after segmentation. """
+        raise NotImplementedError()
+
     def __getattribute__(self, name: str):
         """
         To make it easier to access when there's only one ROI

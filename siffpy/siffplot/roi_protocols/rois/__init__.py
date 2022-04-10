@@ -18,7 +18,7 @@ from .fan import *
 from .blob import *
 
 try:
-    from .napari_fcns import * # only works if napari is installed
+    from ..utils.napari_fcns import * # only works if napari is installed
 except ImportError:
     pass
 

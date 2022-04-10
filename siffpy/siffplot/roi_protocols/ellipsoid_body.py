@@ -8,7 +8,7 @@ from .extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
 def fit_ellipse(reference_frames : list, polygon_source : dict,
-    *args, **kwargs) -> rois.Ellipse:
+    *args, slice_idx : int = None, extra_rois : str = 'center', **kwargs) -> rois.Ellipse:
     """
     Fits the largest polygon drawn in the annotators to an ellipse, 
     and uses that as the outside of the ellipsoid body estimate.
@@ -125,7 +125,7 @@ def fit_ellipse(reference_frames : list, polygon_source : dict,
     )
 
 def use_ellipse(reference_frames : list, polygon_source,
-    *args, **kwargs) -> rois.Ellipse:
+    *args, slice_idx : int = None, extra_rois : str = 'center', **kwargs) -> rois.Ellipse:
     """
     Simply takes the largest ellipse type shape in a viewer
     and uses it as the bound! polygon_source has to be a
@@ -223,3 +223,6 @@ def use_ellipse(reference_frames : list, polygon_source,
         image = source_image,
         name = 'Ellipsoid body'
     )
+
+def dummy_method(*args, **kwargs):
+    print("I'm just a placeholder!")

@@ -58,7 +58,7 @@ class Blobs(ROI):
         self.plotting_opts = {}
 
     def segment(self, viewed_from : str = 'anterior', **kwargs) -> None:
-        """ n_segments is not a keyword, always produces two """
+        """ n_segments is not a true keyword param, always produces two """
         self.hemispheres = [Blobs.Hemisphere(pgon) for pgon in self.polygon.split()]
         # TODO: USE BOUNDING ANGLES AND ORDER LEFT TO RIGHT
 

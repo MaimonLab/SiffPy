@@ -8,21 +8,146 @@ whether the user wants to use just HoloViews
 and Bokeh or add napari to the mix for better
 image interactions.
 
+Most of these functions either:
+1) reimplement functions designed to annotate
+ROIs from HoloViews objects
+or
+2) convert HoloViews or napari objects back
+and forth.
+
 SCT 12/11/2021
 """
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union
 import numpy as np
 import napari
 from napari.layers.shapes import Shapes
 import holoviews as hv
+import holoviews.element.path as hvpath
+
+from ..rois import ROI
 
 __all__ = [
     'get_largest_lines_napari',
     'get_largest_polygon_napari',
     'get_largest_ellipse_napari',
     'holoviews_to_napari_shapes',
-    'napari_shapes_to_holoviews'
+    'napari_shapes_to_holoviews',
+    'rois_into_shapes_layer',
 ]
+
+class _NapariLike():
+    """
+    Class containing metadata required to produce a new
+    drawn object on a napari Shapes layer. Surprised napari
+    doesn't have a class like this already!
+    """
+    SHAPETYPES = [
+        "line",
+        "rectangle",
+        "ellipse",
+        "path",
+        "polygon",
+    ]
+
+    def __init__(self, shapelike : Union[hvpath.BaseShape, hvpath.Path, hvpath.Polygons] = None):
+        """
+        Create a _NapariLike class that contains all required information to pass to the add
+        method of a napari Shapes layer. Can parse a HoloViews element as well.
+        """
+        self.data : np.ndarray = None
+        self._shape_type : str = None
+        self.edge_width : float = 1.0,
+        self.edge_color = "#FFFFFF",
+        self.face_color = None,
+        self.z_index : int = None,
+        self._slice : int = None
+
+        if not (shapelike is None):
+            self.convert_hv(shapelike)
+    
+    def convert_hv(self, shapelike : Union[hvpath.BaseShape, hvpath.Path, hvpath.Polygons]):
+        """ Converts a holoviews element into a _NapariLike """
+        typename = type(shapelike).__name__
+        if typename == 'Polygons':
+            self.shape_type = 'polygon'
+            self._to_polygon(shapelike)
+            return
+        if typename == 'Path':
+            self.shape_type = 'path'
+            self._to_path(shapelike)
+            return
+        if typename == 'Box':
+            self.shape_type = 'rectangle'
+            self._to_rectangle(shapelike)
+            return
+        if typename == 'Ellipse':
+            self.shape_type = 'ellipse'
+            self._to_ellipse(shapelike)
+            return
+        raise ValueError("Invalid HoloViews shapelike object passed.")
+
+    def _to_polygon(self, shapelike : hvpath.Polygons):
+        """ Called on hv.Polygons """
+        self.data = [np.stack((polygon['y'], polygon['x']),axis=-1) for polygon in shapelike.data]
+
+    def _to_path(self, shapelike):
+        """ Called on hv.Path """
+        raise NotImplementedError()
+    def _to_rectangle(self, shapelike):
+        """ Called on hv.Box """
+        raise NotImplementedError()
+    def _to_ellipse(self, shapelike):
+        """ Called on hv.Ellipse """
+        raise NotImplementedError()
+    
+
+    @property
+    def slice_idx(self):
+        return self._slice
+
+    @slice_idx.setter
+    def slice_idx(self, value : int):
+        if not isinstance(value, int):
+            raise ValueError("slice_idx must be an int")
+        
+        def add_z_info(data_array : np.ndarray, z_val : int)->np.ndarray:
+            # no z-dimension
+            if data_array.shape[-1] == 2:
+                newstack = np.hstack(
+                    (
+                        value * np.ones((data_array.shape[0],1)),
+                        data_array
+                    )
+                )
+            # already has a z dimension
+            elif data_array.shape[-1] == 3:
+                newstack = data_array.copy()
+                newstack[:,0] = value
+            else:
+                raise ValueError("Invalid data array encountered")
+            return newstack
+
+
+        if isinstance(self.data, list):
+            self.data = [add_z_info(data_array, value) for data_array in self.data]
+        elif isinstance(self.data, np.ndarray):
+            self.data = add_z_info(self.data, value)
+        else:
+            raise ValueError("Invalid data array stored.")
+
+    @property
+    def shape_type(self):
+        if not ((self._shape_type is None) or (self._shape_type in _NapariLike.SHAPETYPES)):
+            raise ValueError(f"Inappropriate shape_type set ({self._shape_type})")
+        return self._shape_type
+
+    @shape_type.setter
+    def shape_type(self, value : str):
+        if not value in _NapariLike.SHAPETYPES:
+            self._shape_type = None
+            raise ValueError("Invalid shape_type set!")
+        self._shape_type = value
+
 
 #######################
 ### PRIVATE METHODS ###
@@ -392,3 +517,55 @@ def napari_shapes_to_holoviews(shapesLayer : Shapes, inherit_properties = True)-
     raise NotImplementedError()
     if len(ret_list) == 0:
         return None
+
+def rois_into_shapes_layer(
+        rois : Iterable[ROI],
+        shapes_layer : Shapes
+    ):
+    """
+    Takes an iterable of siffpy ROI objects and draws them as comparable
+    objects in the passed napari Shapes layer
+    """
+
+    # Iterates through each item, converts it into something napari could understand,
+    # and then plots it.
+    for roi in rois:
+        shapelike = roi.polygon
+        naparilike = _NapariLike(shapelike)
+        if hasattr(roi, 'slice_idx'):
+            naparilike.slice_idx = roi.slice_idx
+        if 'fill_color' in roi.plotting_opts:
+            naparilike.face_color = roi.plotting_opts['fill_color']
+        if 'fill_alpha' in roi.plotting_opts:
+            alpha = roi.plotting_opts['fill_alpha']
+            facecolor = naparilike.face_color
+            if isinstance(facecolor, list):
+                if len(facecolor) == 3:
+                    facecolor.append(alpha)
+                if len(facecolor) == 4:
+                    facecolor[3] = alpha
+            if isinstance(facecolor, str) or (facecolor is None):
+                if isinstance(alpha,str):
+                    alpha_to_hex = alpha
+                if isinstance(alpha, float):
+                    alpha = max(1.0, alpha)
+                    alpha = int(alpha*255)
+                    alpha_to_hex = "{0:x}".format(alpha)
+                if isinstance(alpha, int):
+                    alpha = max(255, alpha)
+                    alpha_to_hex = "{0:x}".format(alpha)
+                if len(facecolor) == 7: # RGB
+                    facecolor = facecolor + alpha_to_hex
+                if len(facecolor) == 9: # RGBA
+                    facecolor = list(facecolor)
+                    facecolor[7:9] = alpha_to_hex
+                    facecolor = ''.join(facecolor)
+            naparilike.face_color = facecolor
+
+        shapes_layer.add(
+            naparilike.data,
+            shape_type = naparilike.shape_type,
+            edge_width = naparilike.edge_width,
+            edge_color = naparilike.edge_color,
+            face_color = naparilike.face_color
+        )
