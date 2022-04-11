@@ -58,14 +58,14 @@ class RegistrationPlotter(SiffPlotter):
                     setattr(self, param, getattr(plotter, param))
 
         if 'opts' in kwargs:
-            self.local_opts += kwargs['opts']
+            self._local_opts = {**self._local_opts, **kwargs['opts']}
         else:
-            self.local_opts += [
-                hv.opts.Points(
-                    color='#000000',
-                    alpha=0.3
-                )
-            ]
+            self._local_opts = {**self._local_opts,
+                'Points' : {
+                    'color' : '#000000',
+                    'alpha' : 0.3
+                }
+            }
 
     def register(self, *args, **kwargs)->hv.Layout:
         """ Performs registration and then shows output. Takes args and kwargs of self.siffreader.register"""

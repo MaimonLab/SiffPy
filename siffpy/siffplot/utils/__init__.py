@@ -8,6 +8,7 @@ import numpy as np
 import holoviews as hv
 
 from ...siffmath import fluorescence
+from .exceptions import *
 
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..., (sn-2, sn-1), (sn-1, sn)"

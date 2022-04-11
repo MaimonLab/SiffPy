@@ -70,10 +70,10 @@ class HistogramPlotter(SiffPlotter):
         self.FLIMParams += [x for x in args if isinstance(x, FLIMParams)]
 
         if 'opts' in kwargs:
-            self.local_opts += kwargs['opts']
+            self._local_opts = {**self._local_opts, **kwargs['opts']}
         else:
-            self.local_opts += [
-                hv.opts.Curve({
+            self._local_opts = {**self._local_opts,
+                'Curve' : {
                     'width' : 800,
                     'colorbar' : True,
                     'ylabel' : 'Number of\nphotons',
@@ -81,8 +81,8 @@ class HistogramPlotter(SiffPlotter):
                     'fontsize': 15,
                     'toolbar' : 'above',
                     'line_width' : 4
-                })
-            ]
+                }
+            }
 
     def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs):
         """
@@ -199,7 +199,7 @@ class HistogramPlotter(SiffPlotter):
 
         # If there are no fits provided yet, fit them all! Or the channels requested, at least.
         if not len(self.FLIMParams):
-            self.fit(color=channel)        
+            self.fit(channel = channel)        
 
         BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
 

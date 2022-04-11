@@ -29,8 +29,11 @@ def apply_opts(func):
     def local_opts(*args, **kwargs):
         if hasattr(args[0],'local_opts'):
             try:
-                opts = args[0].local_opts # get the local_opts param from self
-                return func(*args, **kwargs).opts(*opts)
+                opts = args[0]._local_opts # get the local_opts param from self
+                if isinstance(opts, list):
+                    return func(*args, **kwargs).opts(*opts)
+                if isinstance(opts, dict):
+                    return func(*args, **kwargs).opts(opts)
             except:
                 return func(*args, **kwargs)
         else:
@@ -111,20 +114,20 @@ class SiffPlotter():
         try:
             # can only be run if hv.extension(backend) has been executed
             if 'opts' in kwargs:
-                if not isinstance(kwargs['opts'], (list, tuple)):
-                    TypeError("Argument opts only accepts tuples or lists -- something that can be unpacked")
-                self.local_opts = kwargs['opts']
+                if not isinstance(kwargs['opts'], (list, tuple, dict)):
+                    TypeError("Argument opts only accepts tuples, lists, or dicts -- something that can be unpacked with * or a dictionary")
+                self._local_opts = kwargs['opts']
             else:
                 # Default opts
-                self.local_opts = [
-                    hv.opts.Image(
-                        cmap='viridis',
-                        invert_yaxis=True,
-                        width=self.siffreader.im_params.xsize,
-                        height=self.siffreader.im_params.ysize,
+                self._local_opts = {
+                    'Image' : {
+                        'cmap' : 'viridis',
+                        'invert_yaxis' : True,
+                        'width' : self.siffreader.im_params.xsize,
+                        'height' : self.siffreader.im_params.ysize,
                         #hooks = [bounds_hook]
-                    )
-                ]
+                    }
+                }
         except AttributeError:
             warnings.warn("HoloViews not yet initialized, and so local_opts was not defined.")
 
@@ -140,7 +143,7 @@ class SiffPlotter():
             if any([file.endswith('.roi') for file in os.listdir(directory_with_file_name)]):
                 logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
                 self.load_rois(path = directory_with_file_name)
-    
+
     @apply_opts
     @apply_events
     @abstractmethod
@@ -218,7 +221,7 @@ class SiffPlotter():
             Where to save the ROIs.
         """
         if self.rois is None:
-            raise RuntimeError("SiffPlotter object has no rois stored")
+            raise NoROIException("SiffPlotter object has no rois stored")
         
         if path is None:
             if not self.siffreader.opened:
@@ -234,7 +237,7 @@ class SiffPlotter():
             # else, just save the one.
             self.rois.save(path)
         else:
-            raise AttributeError("No attribute rois defined for this SiffPlotter.")
+            raise NoROIException("No attribute rois defined for this SiffPlotter.")
 
     def load_rois(self, path : str = None):
         """
@@ -255,7 +258,7 @@ class SiffPlotter():
             with open(roi, 'rb') as curr_file:
                 if type(self.rois) is list:
                     self.rois.append(pickle.load(curr_file))
-                elif type(self.rois) is rois.ROI:
+                elif issubclass(type(self.rois),rois.ROI):
                     self.rois = list(self.rois) + [pickle.load(curr_file)]
                 else:
                     self.rois = [pickle.load(curr_file)]
@@ -267,11 +270,14 @@ class SiffPlotter():
         sitting around in your code)
         """
         if name == 'rois':
-            roi_ref = object.__getattribute__(self, name)
-            if type(roi_ref) is list:
-                if len(roi_ref) == 1:
-                    return roi_ref[0]
-            return roi_ref
+            try:
+                roi_ref = object.__getattribute__(self, name)
+                if type(roi_ref) is list:
+                    if len(roi_ref) == 1:
+                        return roi_ref[0]
+                return roi_ref
+            except AttributeError:
+                raise NoROIException(f"`{type(self).__name__}` object has no stored ROIs")
         else:
             return object.__getattribute__(self, name)
 
