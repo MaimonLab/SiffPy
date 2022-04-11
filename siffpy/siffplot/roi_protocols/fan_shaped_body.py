@@ -30,12 +30,6 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, slice_idx
     #   Also looks to see if there's a pair of lines that can be used to guide
     #   segmentation, and if so adds that info to the Fan object produced.
     
-    slice_idx = None
-    if 'slice_idx' in kwargs:
-        if isinstance(kwargs['slice_idx'], int):
-            slice_idx = kwargs['slice_idx']
-        del kwargs['slice_idx']
-    
     if type(polygon_source) is dict: # use holoviews
         annotation_dict = polygon_source
         largest_polygon, slice_idx, _ = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx)
@@ -48,6 +42,7 @@ def outline_fan(reference_frames : list, polygon_source : dict, *args, slice_idx
         )
 
     else: # using napari
+
         largest_polygon, slice_idx, _ = rois.get_largest_polygon_napari(polygon_source, shape_layer_name = 'ROI shapes', slice_idx = slice_idx)
         reference_frame_layer = next(filter(lambda x: x.name == 'Reference frames', polygon_source.layers)) # get the layer with the reference frames
         source_image = reference_frame_layer.data[slice_idx, :, :]

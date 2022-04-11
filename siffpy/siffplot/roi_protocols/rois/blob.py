@@ -1,10 +1,8 @@
 from typing import Any
 import holoviews as hv
 import numpy as np
-import colorcet
-import logging
 
-from .roi import ROI, Midline, subROI
+from .roi import ROI, subROI, ViewDirection
 from ..extern.pairwise import pairwise
 
 class Blobs(ROI):
@@ -57,7 +55,7 @@ class Blobs(ROI):
         self.slice_idx = slice_idx
         self.plotting_opts = {}
 
-    def segment(self, viewed_from : str = 'anterior', **kwargs) -> None:
+    def segment(self, viewed_from : ViewDirection = ViewDirection.ANTERIOR, **kwargs) -> None:
         """ n_segments is not a true keyword param, always produces two """
         self.hemispheres = [Blobs.Hemisphere(pgon) for pgon in self.polygon.split()]
         # TODO: USE BOUNDING ANGLES AND ORDER LEFT TO RIGHT

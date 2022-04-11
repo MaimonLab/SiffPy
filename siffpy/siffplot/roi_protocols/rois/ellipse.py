@@ -3,7 +3,7 @@ import holoviews as hv
 import numpy as np
 import colorcet
 
-from .roi import ROI, Midline, subROI, apply_image
+from .roi import ROI, Midline, subROI, apply_image, ViewDirection
 from ..extern.pairwise import pairwise
 
 EB_OFFSET = (1/2) * np.pi # EPG going to left of each PB (when viewed from posterior) is the first ROI
@@ -95,7 +95,7 @@ class Ellipse(ROI):
         """
         self.midline = self.RingMidline(self)
 
-    def segment(self, n_segments : int = 16, viewed_from : str = 'anterior')->None:
+    def segment(self, n_segments : int = 16, viewed_from : ViewDirection = ViewDirection.ANTERIOR)->None:
         """
         Creates an attribute wedges, a list of WedgeROIs corresponding to segments
         
@@ -121,12 +121,12 @@ class Ellipse(ROI):
         cx, cy = self.center()
         ell = self.polygon
 
-        if viewed_from == 'anterior':
+        if (viewed_from == ViewDirection.ANTERIOR) or (viewed_from == ViewDirection.ANTERIOR.value):
             angles = np.linspace(EB_OFFSET, EB_OFFSET - 2*np.pi, n_segments+1)
-        elif viewed_from == 'posterior':
+        elif (viewed_from == ViewDirection.POSTERIOR) or (viewed_from == ViewDirection.POSTERIOR.value):
             angles = np.linspace(EB_OFFSET , EB_OFFSET + 2*np.pi, n_segments+1)
         else:
-            raise ValueError(f"Argument 'viewed_from' is {viewed_from}, must be 'anterior' or 'posterior'")
+            raise ValueError(f"Argument 'viewed_from' is {viewed_from}, must be in {[x.value for x in ViewDirection]}")
             
         self.perspective = viewed_from
         offset = ell.orientation

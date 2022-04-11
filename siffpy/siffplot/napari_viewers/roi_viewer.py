@@ -1,3 +1,4 @@
+from enum import Enum
 import typing, inspect
 from typing import Callable
 from inspect import Parameter
@@ -130,12 +131,16 @@ class ROIViewer(NapariInterface):
             tooltip = "Parameters for primary ROI extraction"
         )
 
+        self.extraction_params_container = extraction_params_container
+
         segmentation_params_container = widgets.Container(
             name = "SegmentationContainer",
             label = "Segmentation\nparameters",
             layout = "vertical",
             tooltip = "Variables for segmentation of drawn ROIs."
         )
+
+        self.segmentation_params_container = segmentation_params_container
 
         segment_pushbutton = widgets.PushButton(
             name="SegmentPushButton",
@@ -185,13 +190,164 @@ class ROIViewer(NapariInterface):
         # WARNING: these are all stateful! even if not referenced by self directly.
         # they all have references from the Container widgets.
 
-        def populate_rois_container(roi_container : widgets.Container, visualizer):
+        def populate_extraction_params(extraction_params_container : widgets.Container, extraction_method : str):
+            """ Updates the parameters for the extraction method by parsing the Python code for the extraction function"""
+            extraction_params_container.clear()
+            new_module = REGIONS[anatomical_region_box.value]['module']
+            try:
+                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == extraction_method)
+            except Exception as e:
+                return
+            
+            params = [
+                kw for key, kw in inspect.signature(method_itself).parameters.items()
+                if kw.kind is Parameter.KEYWORD_ONLY
+            ]
+
+            for param in params:
+                value = param.default
+                param_widget = None
+                if value is inspect._empty:
+                    value = None
+                if param.annotation is str:
+                    param_widget = widgets.LineEdit(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if issubclass(param.annotation,Enum):
+                    param_widget = widgets.ComboBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        choices = [option.value for option in type(value)],
+                        value = value.value
+                    )
+                if param.annotation is int:
+                    param_widget = widgets.SpinBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if param.annotation is float:
+                    param_widget = widgets.FloatSpinBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if not param_widget is None:
+                    extraction_params_container.append(param_widget)
+
+        def populate_segmentation_params(segmentation_params_container : widgets.Container, roi_class : type):
+            """ Updates the parameters for the segmentation method by parsing the Python code for the segment function """
+            segmentation_params_container.clear()
+            if roi_class is None:
+                return
+            
+            segment_fcn = inspect.getmembers(roi_class, lambda x: inspect.isfunction(x) and x.__name__ == 'segment')
+            if len(segment_fcn) == 0:
+                return
+            
+            segment_fcn = segment_fcn[0][1]
+
+            seg_params = [val for key, val in inspect.signature(segment_fcn).parameters.items()
+                if (not (key == 'self') and val.kind == Parameter.POSITIONAL_OR_KEYWORD)
+            ]            
+            if len(seg_params) == 0:
+                return
+
+            # Now the more generic approach
+            for param in seg_params:
+                value = param.default
+                param_widget = None
+                if value is inspect._empty:
+                    value = None
+                if param.annotation is str:
+                    param_widget = widgets.LineEdit(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if issubclass(param.annotation,Enum):
+                    param_widget = widgets.ComboBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        choices = [option.value for option in type(value)],
+                        value = value.value
+                    )
+                if param.annotation is int:
+                    param_widget = widgets.SpinBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if param.annotation is float:
+                    param_widget = widgets.FloatSpinBox(
+                        name = f"{param.name}",
+                        label = param.name,
+                        value = value
+                    )
+                if not param_widget is None:
+                    segmentation_params_container.append(param_widget)
+
+        def update_region(region_name : str):
+            """ Update callback when the selected brain region is changed. """
+            extraction_method_box.choices = ROI_extraction_methods(print_output=False)[region_name]
+            extraction_method_box.value = REGIONS[region_name]['default_fcn']
+
+        def update_extraction_method(method_name : str):
+            """ Updates the parameters for the extraction method """
+            populate_extraction_params(extraction_params_container, method_name)
+            update_segmentation_method(method_name)
+
+        def update_segmentation_method(method_name : str):
+            """ Updates the string naming the class of the returned ROI and the roi_widget container """
+            new_module = REGIONS[anatomical_region_box.value]['module']
+            try:
+                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == method_name)
+            except Exception as e:
+                return
+            try:
+                returned_class = typing.get_type_hints(method_itself)['return']
+            except KeyError:
+                roi_class.value = "None (invalid function)"
+                populate_segmentation_params(segmentation_params_container, None)
+                return
+            roi_class.value = returned_class.__name__
+            populate_segmentation_params(segmentation_params_container, returned_class)
+
+        self.populate_rois_container(current_rois_container, self.visualizer)
+        populate_extraction_params(extraction_params_container, default_fcn)
+        populate_segmentation_params(segmentation_params_container, starting_roi_class)
+            
+        anatomical_region_box.changed.connect(update_region)
+        extraction_method_box.changed.connect(update_extraction_method)
+        segment_pushbutton.changed.connect(self.segmentation_callback)
+        show_subrois.changed.connect(self.subROI_check_callback)
+        save_rois_pushbutton.changed.connect(self.save_rois_callback)
+
+        self.roi_widgets = roi_widget
+        self.viewer.window.add_dock_widget(self.roi_widgets, name='ROI segmentation tools')
+
+    @property
+    def segmented_rois_layer(self):
+        """ May not exist for all viewers or even may be deleted for some reason. """
+        roi_object_layer = next(
+            filter(
+                    lambda x: x.name == SUBROI_LAYER_NAME,
+                    self.viewer.layers
+                ),
+            None
+        )
+        return roi_object_layer
+
+    def populate_rois_container(self, roi_container : widgets.Container, visualizer):
             """ Provides info on existing rois stored by the accompanying visualizer object. """
             try:
                 self.draw_rois_on_napari()
             except NoROIException:
                 return
-            roi_container.widgets = []
+            
+            roi_container.clear()
             roi_container.visible = False
             if self.visualizer is None:
                 return
@@ -242,180 +398,55 @@ class ROIViewer(NapariInterface):
 
             roi_container.visible = True
 
-        def populate_extraction_params(extraction_params_container : widgets.Container, extraction_method : str):
-            """ Updates the parameters for the extraction method by parsing the Python code for the extraction function"""
-            extraction_params_container.clear()
-            new_module = REGIONS[anatomical_region_box.value]['module']
-            try:
-                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == extraction_method)
-            except Exception as e:
-                return
-            
-            params = [
-                kw for key, kw in inspect.signature(method_itself).parameters.items()
-                if kw.kind is Parameter.KEYWORD_ONLY
-            ]
-
-            for param in params:
-                value = param.default
-                param_widget = None
-
-                if value is inspect._empty:
-                    value = None
-                if param.annotation is str:
-                    param_widget = widgets.LineEdit(
-                        name = f"LineEdit{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if param.annotation is int:
-                    param_widget = widgets.SpinBox(
-                        name = f"SpinBox{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if param.annotation is float:
-                    param_widget = widgets.FloatSpinBox(
-                        name = f"FloatSpin{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if not param_widget is None:
-                    extraction_params_container.append(param_widget)
-
-        def populate_segmentation_params(segmentation_params_container : widgets.Container, roi_class : type):
-            """ Updates the parameters for the segmentation method by parsing the Python code for the segment function """
-            segmentation_params_container.clear()
-            if roi_class is None:
-                return
-            segment_fcn = inspect.getmembers(roi_class, lambda x: inspect.isfunction(x) and x.__name__ == 'segment')
-            if len(segment_fcn) == 0:
-                return
-            
-            segment_fcn = segment_fcn[0][1]
-
-            seg_params = [val for key, val in inspect.signature(segment_fcn).parameters.items()
-                if (not (key == 'self') and val.kind == Parameter.POSITIONAL_OR_KEYWORD)
-            ]            
-            if len(seg_params) == 0:
-                return
-
-            # The n_segments parameter is special because it will be in every method
-            # and I want to guarantee that it comes out the same
-            try:
-                nsegs_param = next(x for x in seg_params if x.name == 'n_segments')
-
-                if not (nsegs_param.default is inspect._empty):
-                    default_segment_count = int(nsegs_param.default)
-                else:
-                    default_segment_count = 0
-                seg_params.remove(nsegs_param)
-                segments_spinbox = widgets.SpinBox(
-                    name = "NSegmentsSpinbox",
-                    label = "Number of segments: ",
-                    value = default_segment_count,
-                    tooltip = "How many segments to subdivide the ROI into."
-                )
-
-                segmentation_params_container.append(segments_spinbox)
-            except Exception as e:
-                pass
-
-            # Now the more generic approach
-            for param in seg_params:
-                value = param.default
-                param_widget = None
-                if value is inspect._empty:
-                    value = None
-                if param.annotation is str:
-                    param_widget = widgets.LineEdit(
-                        name = f"LineEdit{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if param.annotation is int:
-                    param_widget = widgets.SpinBox(
-                        name = f"SpinBox{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if param.annotation is float:
-                    param_widget = widgets.FloatSpinBox(
-                        name = f"FloatSpin{param.name}",
-                        label = param.name,
-                        value = value
-                    )
-                if not param_widget is None:
-                    segmentation_params_container.append(param_widget)
-
-        def update_region(region_name : str):
-            """ Update callback when the selected brain region is changed. """
-            extraction_method_box.choices = ROI_extraction_methods(print_output=False)[region_name]
-            extraction_method_box.value = REGIONS[region_name]['default_fcn']
-
-        def update_extraction_method(method_name : str):
-            """ Updates the parameters for the extraction method """
-            populate_extraction_params(extraction_params_container, method_name)
-            update_segmentation_method(method_name)
-
-        def update_segmentation_method(method_name : str):
-            """ Updates the string naming the class of the returned ROI and the roi_widget container """
-            new_module = REGIONS[anatomical_region_box.value]['module']
-            try:
-                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == method_name)
-            except Exception as e:
-                return
-            try:
-                returned_class = typing.get_type_hints(method_itself)['return']
-            except KeyError:
-                roi_class.value = "None (invalid function)"
-                populate_segmentation_params(segmentation_params_container, None)
-                return
-            roi_class.value = returned_class.__name__
-            populate_segmentation_params(segmentation_params_container, returned_class)
-
-        populate_rois_container(current_rois_container, self.visualizer)
-        populate_extraction_params(extraction_params_container, default_fcn)
-        populate_segmentation_params(segmentation_params_container, starting_roi_class)
-            
-        anatomical_region_box.changed.connect(update_region)
-        extraction_method_box.changed.connect(update_extraction_method)
-        segment_pushbutton.changed.connect(self.segmentation_callback)
-        show_subrois.changed.connect(self.subROI_check_callback)
-        save_rois_pushbutton.changed.connect(self.save_rois_callback)
-
-        self.roi_widgets = roi_widget
-        self.viewer.window.add_dock_widget(self.roi_widgets, name='ROI segmentation tools')
-
-    @property
-    def segmented_rois_layer(self):
-        """ May not exist for all viewers or even may be deleted for some reason. """
-        roi_object_layer = next(
-            filter(
-                    lambda x: x.name == SUBROI_LAYER_NAME,
-                    self.viewer.layers
-                ),
-            None
-        )
-        return roi_object_layer
-
     def segmentation_callback(self, pushbutton_val : int):
         try:
             region = self._widget_val('AnatomicalRegionBox')
             method_name = self._widget_val('ExtractionMethodBox')
-            n_seg = self._widget_val('NumberOfSegmentsBox')
+            # parse each extraction param
+            extraction_kwarg_dict = {}
+            for widget in self.extraction_params_container:
+                extraction_kwarg_dict[widget.name] = widget.value
 
+            # Run the roi protocol
             rois = roi_protocol(
                 region,
                 method_name,
                 self.siffreader.reference_frames,
                 self,
-                #**kwargs
+                **extraction_kwarg_dict
             )
-            if self.segmentation_fcn is None:
-                raise ValueError("Segmentation callback not implemented.")
 
-            self.segmentation_fcn(region = region, method_name = method_name, n_seg = n_seg)
+            # Run the segmentation protocol
+            segmentation_kwarg_dict = {}
+            for widget in self.segmentation_params_container:
+                segmentation_kwarg_dict[widget.name] = widget.value
+
+            for roi in rois:
+                roi.segment(**segmentation_kwarg_dict)
+
+            if hasattr(self.visualizer, 'rois'):
+                if type(self.visualizer.rois) is list:
+                    if not type(rois) is list:
+                        self.visualizer.rois.append(rois)
+                    else:
+                        self.visualizer.rois += rois
+                else:
+                    if self.visualizer.rois is None:
+                        self.visualizer.rois = rois
+                    else:
+                        self.visualizer.rois = [self.visualizer.rois, rois]
+            else:
+                if not type(rois) is list:
+                    self.visualizer.rois = [rois]
+                else:
+                    self.visualizer.rois = rois
+            
+            if self.visualizer.rois is None:
+                raise RuntimeError("No rois extracted -- check method used, images provided, etc.")
+
+            self.populate_rois_container(self.roi_widgets['CurrentROIsContainer'], self.visualizer)
+            self.subROI_check_callback(self.roi_widgets['ShowSubROIsBox'].value)
+
         except Exception as e:
             self.warning_window(f"Error in segmentation function: {e}")
         
@@ -450,7 +481,6 @@ class ROIViewer(NapariInterface):
             if hasattr(roi,'subROIs'):
                 self.segmented_rois_layer.visible = True
                 for subroi in roi.subROIs:
-                    print(subroi)
                     if (not hasattr(subroi, 'slice_idx')) and hasattr(roi,'slice_idx'):
                         subroi.slice_idx = roi.slice_idx
                     napari_fcns.rois_into_shapes_layer(subroi, self.segmented_rois_layer)

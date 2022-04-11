@@ -301,7 +301,7 @@ class SiffVisualizer():
             with open(roi, 'rb') as curr_file:
                 if type(self.rois) is list:
                     self.rois.append(pickle.load(curr_file))
-                elif type(self.rois) is rois.ROI:
+                elif issubclass(type(self.rois),rois.ROI):
                     self.rois = list(self.rois) + [pickle.load(curr_file)]
                 else:
                     self.rois = [pickle.load(curr_file)]

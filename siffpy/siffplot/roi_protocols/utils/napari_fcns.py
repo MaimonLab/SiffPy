@@ -87,19 +87,61 @@ class _NapariLike():
         raise ValueError("Invalid HoloViews shapelike object passed.")
 
     def _to_polygon(self, shapelike : hvpath.Polygons):
-        """ Called on hv.Polygons """
+        """
+        Called on hv.Polygons
+        It's just the y and x points. HoloViews separates them in an OrderedDict,
+        and napari stacks them by row.
+        """
         self.data = [np.stack((polygon['y'], polygon['x']),axis=-1) for polygon in shapelike.data]
 
-    def _to_path(self, shapelike):
+    def _to_path(self, shapelike : hvpath.Path):
         """ Called on hv.Path """
-        raise NotImplementedError()
-    def _to_rectangle(self, shapelike):
+        raise NotImplementedError("Path-to-path conversion in napari_fcns not yet implemented.")
+
+    def _to_rectangle(self, shapelike : hvpath.Box):
         """ Called on hv.Box """
-        raise NotImplementedError()
-    def _to_ellipse(self, shapelike):
-        """ Called on hv.Ellipse """
-        raise NotImplementedError()
-    
+        raise NotImplementedError("Box-to-rectangle conversion in napari_fcns not yet implemented.")
+
+    def _to_ellipse(self, shapelike : hvpath.Ellipse):
+        """
+        Called on hv.Ellipse.
+
+        HoloViews stores the x and y coordinates of the center, the width and height of the ellipse,
+        and the rotation about the center.
+
+        Napari stores the bounding box corners as:
+        TOP-LEFT, TOP-RIGHT, BOTTOM-RIGHT, BOTTOM-LEFT
+        (from the viewing perspective),
+        or:
+        least-x-least-y, 
+
+        To go from HoloViews to napari you:
+
+        Divide the width and height by 2 to get the corners of an ellipse about the origin.
+
+        Rotate about the origin.
+
+        Shift upwards by the distance to the x and y centers.
+        """
+        ellipse_bounding_box = np.array([
+            [-shapelike.height/2, -shapelike.width/2],
+            [-shapelike.height/2, shapelike.width/2],
+            [ shapelike.height/2, shapelike.width/2],
+            [ shapelike.height/2, -shapelike.width/2]            
+        ])
+
+        theta : float = shapelike.orientation
+        ROT = np.array([
+            [np.cos(theta), -np.sin(theta)],
+            [np.sin(theta), np.cos(theta)],
+        ])
+
+        ellipse_bounding_box = np.matmul(ROT,ellipse_bounding_box.T).T # rotate and transpose back
+
+        ellipse_bounding_box[:,0] += shapelike.y
+        ellipse_bounding_box[:,1] += shapelike.x
+
+        self.data = ellipse_bounding_box
 
     @property
     def slice_idx(self):
@@ -176,7 +218,7 @@ def _slice_idx_parsing(slice_idx, shapes_to_array_fcn : Callable, ret_tuple_fcn 
         slice_arrays = [
             individual_array
             for individual_array in list_of_arrays
-            if (individual_array.shape[-1] == 3) and np.all(individual_array[:,0] == slice_idx)
+            if (individual_array.shape[-1] == 3) and np.all(individual_array[:,0].astype(int) == slice_idx)
         ]
         if len(slice_arrays) == 0:
             return None
@@ -251,6 +293,7 @@ def _largest_polygon_tuple_from_viable(polys_list : list[np.ndarray], n_polygons
             ret_slice,
             roi_idxs[-1]
         )
+
 
     # If there's more than one polygon requested,
     # return a list of polygons

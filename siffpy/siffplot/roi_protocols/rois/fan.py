@@ -1,12 +1,17 @@
+from enum import Enum
 from typing import Any
 import holoviews as hv
 import numpy as np
 import colorcet
 import logging
 
-from .roi import ROI, Midline, subROI
+from .roi import ROI, Midline, subROI, ViewDirection
 from ..extern.pairwise import pairwise
 from ..utils import *
+
+class FanSegmentationMethod(Enum):
+    TRIANGLES = "triangles"
+    MIDLINE = "midline"
 
 class Fan(ROI):
     """
@@ -86,7 +91,11 @@ class Fan(ROI):
             # look out for this?
             self.long_axis = None
 
-    def segment(self, n_segments : int = 8, method : str = 'triangles', viewed_from : str = 'anterior')->None:
+    def segment(self,
+        n_segments : int = 8,
+        method : FanSegmentationMethod = FanSegmentationMethod.TRIANGLES,
+        viewed_from : ViewDirection = ViewDirection.ANTERIOR
+        )->None:
         """
         Divides the fan in to n_segments of 'equal width', 
         defined according to the segmentation method.
@@ -126,21 +135,17 @@ class Fan(ROI):
         Stores segments as .columns, which are a subROI class
         TODO: implement
         """
-        VIEW_ANGLES = ['anterior', 'posterior']
 
-        if not type(method) is str:
+        if not ((type(method) is str) or isinstance(method, FanSegmentationMethod)):
             raise ValueError(f"Keyword argument method must be of type string, not type {type(method)}")
 
-        if not viewed_from in VIEW_ANGLES:
-            raise ValueError(f"Keyword argument viewed_from must be in list {VIEW_ANGLES}")
-
-        if method == 'triangles':
+        if (method is FanSegmentationMethod.TRIANGLES) or (method == 'triangles'):
             if not hasattr(self, 'bounding_paths'):
                 raise NotImplementedError("Fan must have bounding paths to use triangle method of segmenting into columns.")
             self._fit_triangles(n_segments, viewed_from)
             return
             
-        if method == 'midline':
+        if (method is FanSegmentationMethod.MIDLINE) or (method == 'midline'):
             raise NotImplementedError("Haven't implemented the midline method of segmenting into columns.")
             
 
@@ -184,6 +189,8 @@ class Fan(ROI):
                 - 'anterior'
                 - 'posterior'
         """
+        if isinstance(viewed_from, ViewDirection):
+            viewed_from = viewed_from.value
 
         ## Outline
         #
@@ -213,10 +220,10 @@ class Fan(ROI):
         vectors = [vector_pointing_along_path(path, intersection) for path in paths]
         
         # The left edge is determined by whether you're facing anterior or posterior
-        if viewed_from == 'anterior':
+        if viewed_from == ViewDirection.ANTERIOR.value:
             # The left edge is closest to the x axis (arctan is close to 0)
             left_edge = vectors[np.argmin([np.abs(np.arctan2(*vector[::-1])) for vector in vectors])]
-        if viewed_from == 'posterior':
+        if viewed_from == ViewDirection.POSTERIOR.value:
             # The left edge is closest to the negative x-axis (arctan is close to +/- pi)
             left_edge = vectors[np.argmax([np.abs(np.arctan2(*vector[::-1])) for vector in vectors])]
 
@@ -225,7 +232,7 @@ class Fan(ROI):
         swept_angle = angle_between(*vectors)
         
         # from the anterior, it rotates with NEGATIVE theta
-        if viewed_from == 'anterior':
+        if viewed_from == ViewDirection.ANTERIOR.value:
             swept_angle *= -1.0
 
         rotation_angles = np.linspace(0,swept_angle, n_segments+1) # the bounds for each segment

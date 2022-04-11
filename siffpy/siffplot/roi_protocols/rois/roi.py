@@ -1,8 +1,12 @@
 import abc, pickle, logging, os
-from re import A
+from enum import Enum
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
+
+class ViewDirection(Enum):
+    ANTERIOR = "anterior"
+    POSTERIOR = "posterior"
 
 def apply_image(func):
     """ If the ROI has an image attribute, applies the image """
@@ -256,7 +260,7 @@ class ROI():
             pass
         file_name = os.path.join(path,self.__class__.__name__)
         if hasattr(self,'name'):
-            file_name += str(self.name)
+            file_name += str(self.name)+str(self.polygon.__hash__())
         else:
             file_name += str(self.polygon.__hash__())
         with open(file_name + ".roi",'wb') as roi_file:
