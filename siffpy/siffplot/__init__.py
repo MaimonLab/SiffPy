@@ -7,7 +7,7 @@ from .visualizers import *
 import holoviews as hv
 from holoviews import opts
 
-from .roi_protocols import ROI_extraction_methods
+from .roi_protocols import ROI_extraction_methods, ROI
 
 def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None:
     """

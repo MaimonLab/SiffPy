@@ -1,8 +1,8 @@
-from ast import Not
+from typing import Union
 import itertools
 import logging, os, pickle
 from .siffutils import SEC_TO_NANO, NANO_TO_SEC
-from .siffutils.slicefcns import framelist_by_color
+from .siffutils.slicefcns import framelist_by_color, framelist_by_slice
 
 import numpy as np
 
@@ -533,6 +533,105 @@ class SiffReader(object):
             #return np.array(framelist).reshape(tuple(stackshape))
 
         raise ValueError(f"Invalid ret_type argument {ret_type}")
+
+    def sum_roi(self, roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
+        timepoint_start : int = 0, timepoint_end : int = None,
+        color_list : list[int] = None, registration_dict : dict = None,
+        )->Union[np.ndarray,list[np.ndarray]]:
+        """
+        Computes the sum photon counts within an ROI over timesteps.
+
+        Color_list should be organized by CHANNELS not by the INDEX,
+        so it's 1-indexed NOT 0-indexed.
+
+        If color_list is a list, returns a list, which each element being a color
+        channel.
+
+        If color_list is an int, returns a numpy array.
+
+        If color_list is None, returns all color channels as if a list were provided.
+        If there's only one color, will return as a numpy array no matter what.
+        """
+        if color_list is None:
+            color_list = self.im_params.color_list
+
+        if self.im_params.num_colors == 1:
+            color_list = 0
+
+        if timepoint_end is None:
+            timepoint_end = self.im_params.num_timepoints
+
+        if registration_dict is None:
+            if hasattr(self,'registration_dict'):
+                registration_dict = self.registration_dict
+
+        if isinstance(color_list, int):
+            color = color_list-1
+            slice_idx = None
+            if hasattr(roi, 'slice_idx'):
+                slice_idx = roi.slice_idx
+            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            if slice_idx is None: # flattens the list to extract values, then later will compress
+            # along slices
+                frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
+            else:
+                frames = frames[timepoint_start:timepoint_end]
+            try:
+                mask = roi.mask()
+            except ValueError:
+                if slice_idx is None:
+                    mask = roi.mask(image=self.reference_frames[0])
+                else:
+                    mask = roi.mask(image=self.reference_frames[slice_idx])
+
+            summed_data = siffreader.sum_roi(
+                mask,
+                frames = frames,
+                registration = registration_dict
+            )
+
+            # just one slice, no need to repack
+            if isinstance(slice_idx, int):
+                return summed_data
+
+            # more than one slice, sum across slices
+            return np.sum(summed_data.reshape((-1, self.im_params.num_slices)),axis=-1)
+            
+        # This means color_list is iterable
+        output_list = []
+        for color in color_list:
+            color = color-1
+            # Do the above, but iterate through colors
+            slice_idx = None
+            if hasattr(roi, 'slice_idx'):
+                slice_idx = roi.slice_idx
+            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            if slice_idx is None: # flattens the list to extract values, then later will compress
+            # along slices
+                frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
+            else:
+                frames = frames[timepoint_start:timepoint_end]
+
+            try:
+                mask = roi.mask()
+            except ValueError:
+                if slice_idx is None:
+                    mask = roi.mask(image=self.reference_frames[0])
+                else:
+                    mask = roi.mask(image=self.reference_frames[slice_idx])
+
+            summed_data = siffreader.sum_roi(
+                mask,
+                frames = frames,
+                registration = registration_dict
+            )
+
+            if not isinstance(slice_idx,int):
+                summed_data = np.sum(summed_data.reshape((-1, self.im_param.num_slices)),axis=-1)
+
+            output_list.append(summed_data)
+
+        return output_list
 
     def sum_across_time(self, timespan : int = 1, rolling : bool = False,
         timepoint_start : int = 0, timepoint_end : int = None,

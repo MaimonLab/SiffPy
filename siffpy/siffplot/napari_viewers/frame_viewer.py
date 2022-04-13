@@ -4,6 +4,7 @@ from typing import Callable, Iterable
 import numpy as np
 from dask import delayed
 import dask.array as da
+from qtpy import QtWidgets
 
 from ...siffpy import SiffReader
 from .napari_interface import NapariInterface
@@ -151,4 +152,16 @@ class FrameViewer(NapariInterface):
             channel_axis=channel_axis,
             contrast_limits = contrast,
             rgb = False
-            )
+        )
+
+        #self.show_roi_widget = _make_show_roi_widget()
+
+
+        self.viewer.window.add_dock_widget(self.show_roi_widget,name='Show ROIs')
+
+# def _make_show_roi_widget()->QtWidgets.QHBoxLayout:
+#     """ Returns the appropriately formatted QHBoxLayout object """
+#     layout = QtWidgets.QHBoxLayout()
+#     layout.addWidget(QtWidgets.QPushButton("Show ROIs"))
+#     return layout
+

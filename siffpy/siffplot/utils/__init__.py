@@ -178,13 +178,11 @@ def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[s
     the __all__ but this way I can also print the
     docstrings.
     """
-    fcns = inspect.getmembers(fluorescence, inspect.isfunction)
+    from siffpy.siffmath.fluorescence import FluorescenceTrace
+    fcns = inspect.getmembers(
+        fluorescence,
+        lambda x: inspect.isfunction(x) and issubclass(inspect.signature(x).return_annotation, FluorescenceTrace)
+    )
     if print_docstrings:
         return ["\033[1m" + fcn[0] + ":\n\n\t" + str(inspect.getdoc(fcns[1])) + "\033[0m" for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']] 
     return [fcn[0] for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']]
-
-
-def fifth_percentile(rois : np.ndarray) -> np.ndarray:
-    """ Roi-wise 5th percentile value """
-    sorted_array = np.sort(rois,axis=-1)
-    return sorted_array.take( sorted_array.shape[-1] // 20 ,axis=-1)

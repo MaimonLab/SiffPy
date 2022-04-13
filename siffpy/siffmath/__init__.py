@@ -4,6 +4,7 @@ import inspect, textwrap
 
 from . import phase
 from .fluorescence import *
+from .utils import *
 
 def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estimate = False, **kwargs)->np.ndarray:
     """
@@ -56,3 +57,19 @@ def phase_alignment_functions()->None:
         print_string += "\n\n"
     
     print(print_string)
+
+def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[str]:
+    """
+    List of public functions available from fluorescence
+    submodule. Seems a little silly since I can just use
+    the __all__ but this way I can also print the
+    docstrings.
+    """
+    from .fluorescence import FluorescenceTrace
+    fcns = inspect.getmembers(
+        fluorescence,
+        lambda x: inspect.isfunction(x) and issubclass(inspect.signature(x).return_annotation, FluorescenceTrace)
+    )
+    if print_docstrings:
+        return ["\033[1m" + fcn[0] + ":\n\n\t" + str(inspect.getdoc(fcns[1])) + "\033[0m" for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']] 
+    return [fcn[0] for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']]

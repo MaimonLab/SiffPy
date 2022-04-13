@@ -243,7 +243,7 @@ class Fan(ROI):
         paired_bounding_angles = pairwise(np.linspace(0, 360, n_segments+1)) # these are nominal, span 0 to 360
 
         self.columns = [
-            Fan.TriangleColumn(self, bound_vec, bound_ang, intersection, slice_idx = self.slice_idx)
+            Fan.TriangleColumn(self, bound_vec, bound_ang, intersection, slice_idx = self.slice_idx, image=self.image)
             for (bound_vec, bound_ang) in zip(paired_bounds,paired_bounding_angles)
         ]
 

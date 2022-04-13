@@ -63,6 +63,13 @@ class ImParams():
             pass
 
     @property
+    def color_list(self):
+        if isinstance(self.colors,list):
+            return self.colors
+        else:
+            return [self.colors]
+
+    @property
     def shape(self):
         return (self.ysize, self.xsize)
 
@@ -116,7 +123,13 @@ class ImParams():
         return ret_list
 
     @property
+    def num_timepoints(self):
+        """ Actually the same as num_volumes, but it's easier to read this sometimes """
+        return self.num_volumes
+
+    @property
     def num_volumes(self):
+        """ Actually the same as num_timepoints, but it's easier to read this sometimes """
         return self.num_frames // (self.frames_per_volume)
 
     @property

@@ -2,6 +2,7 @@ import re
 import logging
 import inspect, textwrap
 
+from .rois import ROI
 from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli
 
 # Default method for each brain region of interest
