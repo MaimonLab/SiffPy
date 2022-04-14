@@ -1,5 +1,5 @@
-from siffpy.siffutils.framemetadata import FrameMetaData
-from .siffevent import SiffEvent
+from ...siffutils.framemetadata import FrameMetaData
+from .siffevent import SiffEvent, _matlab_to_utc
 
 class LEDEvent(SiffEvent):
     """
@@ -25,8 +25,13 @@ class LEDEvent(SiffEvent):
         # It's the ON/OFF state
         if "time" in note:
             timestamp = note.split(" = ")
+                
             self.annotation = timestamp[0].split(" time")[0]
-            self.time_epoch = float(timestamp[-1])
+
+            if "(sec" in timestamp[0]: # OLD MATLAB ISSUE
+                self.time_epoch = _matlab_to_utc(float(timestamp[-1]))
+            else:
+                self.time_epoch = int(timestamp[-1])
             self.frame_time = float(self.epoch_to_frame_time(self.time_epoch))
         
         if "Brightness" in note:

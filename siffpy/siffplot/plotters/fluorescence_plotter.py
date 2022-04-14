@@ -1,17 +1,23 @@
 from functools import reduce
+from siffpy.siffplot.utils.exceptions import NoROIException
 from typing import Callable, Union
-import operator, logging
+import operator
+from enum import Enum
 
 import numpy as np
 import holoviews as hv
 
 from ...siffplot.siffplotter import SiffPlotter, apply_opts
 from ...siffplot.roi_protocols.rois import ROI, subROI
-from ...siffmath import fluorescence, fifth_percentile, string_names_of_fluorescence_fcns
+from ...siffmath import fluorescence, fifth_percentile, fluorescence_fcns
 
 __all__ = [
     'FluorescencePlotter'
 ]
+
+class HeatMapDirection(Enum):
+    HORIZONTAL = 'horizontal'
+    VERTICAL = 'vertical'
 
 inherited_params = [
     'local_opts',
@@ -73,7 +79,7 @@ class FluorescencePlotter(SiffPlotter):
             self._local_opts = {**self._local_opts,
                 'HeatMap' : {
                     'cmap':'Greens',
-                    'width' : 1200,
+                    'width' : 1000,
                     'colorbar' : True,
                     'ylabel' : '',
                     'colorbar_position' : 'left',
@@ -82,14 +88,14 @@ class FluorescencePlotter(SiffPlotter):
                         'width' : 20,
                         'border_line_alpha':0,
                     },
-                    'clabel': 'Normalized dF/F',
                     'xlabel': 'Time (seconds)',
                     'fontsize': 15,
                     'toolbar' : 'above'
                 },
                 'Curve' : {
                     'line_color' : '#000000',
-                    'width' : 1200,
+                    'line_width' : 1,
+                    'width' : 1000,
                     'fontsize' : 15,
                     'toolbar' : 'above'
                 }
@@ -97,7 +103,7 @@ class FluorescencePlotter(SiffPlotter):
         
     def compute_roi_timeseries(self, roi : Union[ROI, list[ROI]], *args,
         fluorescence_method : Union[str, Callable] = None,
-        color_list = None,
+        color_list : Union[list[int], int]= None,
         **kwargs) -> np.ndarray:
         """
         Takes an ROI object and returns a numpy.ndarray corresponding to fluorescence method supplied applied to
@@ -169,17 +175,21 @@ class FluorescencePlotter(SiffPlotter):
 
         # Optional alternatives
         if not callable(fluorescence_method):
-            if not fluorescence_method in string_names_of_fluorescence_fcns():
+            if not fluorescence_method in fluorescence_fcns():
                 raise ValueError(
                     "Fluorescence extraction method must either be a callable or a string. Available " +
                     "string options are functions defined in siffmath.fluorescence. Those are:" +
-                    reduce(operator.add, ["\n\n\t"+name for name in string_names_of_fluorescence_fcns()])
+                    reduce(operator.add, ["\n\n\t"+name for name in fluorescence_fcns()])
                 )
             fluorescence_method = getattr(fluorescence,fluorescence_method)
 
         return fluorescence_method(roi_trace, *args, **kwargs).flatten()
         
-    def compute_vector_timeseries(self, *args, roi : ROI = None, fluorescence_method : Union[str,Callable] = None, **kwargs)-> np.ndarray:
+    def compute_vector_timeseries(self,  roi : ROI = None, *args,
+        fluorescence_method : Union[str,Callable] = None,
+        color_list : Union[list[int],int] = None,
+        **kwargs
+        )-> np.ndarray:
         """
         Takes an roi ROI with subROIs and uses it to segment the data
         linked in the siffreader file into individual ROIs and
@@ -190,12 +200,9 @@ class FluorescencePlotter(SiffPlotter):
         Arguments
         ---------
 
-        roi : siffpy.siffplot.roi_protocols.rois.roi.ROI (optional)
+        roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
 
-            Any ROI subclass that has a 'subROIs' attribute. If none
-            is provided, will look at this SiffPlotter's rois attribute
-            to see if any meet the necessary criteria, and uses the first
-            one of those that it finds.
+            Any ROI subclass that has a 'subROIs' attribute.
 
         fluorescence_method : str or callable (optional)
 
@@ -225,42 +232,23 @@ class FluorescencePlotter(SiffPlotter):
             ROI provided.
         """
         if roi is None:
-            # See if any of the already stored ROIs work.
-            if self.rois is None:
-                raise AttributeError("No ROIs stored.")
-            if not any([hasattr(individual_roi, 'subROIs') for individual_roi in self.rois]):
-                raise AttributeError("No segmented subROIs in any previously stored ROIs.")
-            # Takes the first segmented one if one in particular is not provided!
-            for individual_roi in self.rois:
-                if hasattr(individual_roi, 'subROIs'):
-                    roi = individual_roi
-                    break
+            raise NoROIException("No ROI provided to compute_vector_timeseries")
         
         if not hasattr(roi, 'subROIs'):
-            raise ValueError(f"Provided roi {roi} of type {type(roi)} does not have attribute 'subROIs'.")
+            raise NoROIException(f"Provided roi {roi} of type {type(roi)} does not have attribute 'subROIs'.")
         if not all(map(lambda x: isinstance(x, subROI), roi.subROIs)):
-            raise ValueError("Supposed subROIs (segments, columns, etc.) are not actually of type subROI.")
+            raise NoROIException("Supposed subROIs (segments, columns, etc.) are not actually of type subROI. Presumed error in implementation.")
 
-        fluor = self.siffreader.get_frames() # gets all frames
-        # Default behavior, warning this DOES require a well-behaved full on SiffReader
-        if fluorescence_method is None:
-            return fluorescence.dFoF( # computes normalized dF/F
-                [fluorescence.roi_masked_fluorescence(fluor,sub) for sub in roi.subROIs], # masks every frame with the subROIs
-                normalized=True, # Normalized from 0-ish to 1-ish.
-                Fo = fifth_percentile # defined locally
-            )
-
-        # Optional alternatives
-        if not callable(fluorescence_method):
-            if not fluorescence_method in string_names_of_fluorescence_fcns():
-                raise ValueError(
-                    "Fluorescence extraction method must either be a callable or a string. Available " +
-                    "string options are functions defined in siffmath.fluorescence. Those are:" +
-                    reduce(operator.add, ["\n\n\t"+name for name in string_names_of_fluorescence_fcns()])
-                )
-            fluorescence_method = getattr(fluorescence,fluorescence_method)
-
-        return fluorescence_method(fluor, *args, **kwargs)
+        return np.array(
+            [
+                self.compute_roi_timeseries(
+                    sub_roi, *args,
+                    fluorescence_method = fluorescence_method,
+                    color_list = color_list,
+                    **kwargs,
+                ) for sub_roi in roi.subROIs
+            ]
+        )
 
     @apply_opts
     def plot_roi_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None, **kwargs)->hv.element.Curve:
@@ -302,8 +290,10 @@ class FluorescencePlotter(SiffPlotter):
 
         if isinstance(trace, fluorescence.FluorescenceTrace):
             yaxis_label = trace.method
+            title += f", F0 = {float(trace.F0)} photons per frame"
             if trace.normalized:
                 yaxis_label += "\n(normalized)"
+                title += f"\nNormalization: 0 = {str(float(trace.min_val))[:5]}, 1 = {str(float(trace.max_val))[:5]}"
             
         return hv.Curve(
             {
@@ -314,6 +304,86 @@ class FluorescencePlotter(SiffPlotter):
             vdims=[yaxis_label],
         ).opts(title=title)
             
+    @apply_opts
+    def plot_vector_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None,
+        direction = HeatMapDirection.HORIZONTAL, **kwargs
+        )->hv.element.HeatMap:
+        """
+        Returns a HoloViews HeatMap object that, by default, takes ALL current ROIs that are segmented, sums
+        their corresponding segments together (they must all have the same number of segments!!), and then plots
+        a HeatMap object (with time in the direction of the user's choosing) of the pooled fluorescence values.
+
+        May be passed a parameter rois to narrow the analysis to specific ROIs
+        """
+
+        if rois is None:
+            rois = self.rois
+
+        if isinstance(rois, ROI):
+            if not hasattr(rois, 'subROIs'):
+                raise NoROIException("Provided ROI does not have subROIs -- try segment() first!")
+            rois : list[ROI] = [rois]
+        for roi in rois:
+            if not hasattr(roi, 'subROIs'):
+                rois.remove(roi)
+        
+        if len(rois) == 0:
+            raise NoROIException("No ROIs provided that have subROIs attribute.")
+
+        if not(all(len(roi.subROIs) == len(rois[0].subROIs) for roi in rois)):
+            raise ValueError("Not all provided ROIs have the same number of subROIs!")
+
+
+        pooled  = []
+        # combine like ROIs TODO: use the self-identification of each subROI!
+        for segment_idx in range(len(rois[0].subROIs)):
+            subROI_pool = [roi.subROIs[segment_idx] for roi in rois]
+            pooled.append(self.compute_roi_timeseries(subROI_pool, *args, **kwargs))
+
+        time_axis = self.siffreader.t_axis()
+
+        # Now plotting stuff
+
+        xaxis_label = "Time (sec)"
+        yaxis_label = "Fluorescence\nmetric"
+
+        # if isinstance(trace, fluorescence.FluorescenceTrace):
+        #     yaxis_label = trace.method
+        #     title += f", F0 = {float(trace.F0)} photons per frame"
+        #     if trace.normalized:
+        #         yaxis_label += "\n(normalized)"
+        #         title += f" Normalization of 1 is dF/F = {str(float(trace.max_val))[:5]}"
+        #         title += f" Normalization of 0 is dF/F = {str(float(trace.min_val))[:5]}"
+            
+        # return hv.Curve(
+        #     {
+        #         xaxis_label : time_axis,
+        #         yaxis_label : trace,
+        #     },
+        #     kdims=[xaxis_label],
+        #     vdims=[yaxis_label],
+        # ).opts(title=title)
+
+        pooled = np.array(pooled)
+
+        if (direction == HeatMapDirection.HORIZONTAL) or (direction == HeatMapDirection.HORIZONTAL.value):
+            return hv.HeatMap(
+                (
+                    time_axis,
+                    np.linspace(0, 2.0*np.pi, pooled.shape[0]),
+                    pooled
+                )
+            )
+        if (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value):
+            return hv.HeatMap(
+                (
+                    np.linspace(0, 2.0*np.pi, pooled.shape[0]),
+                    time_axis,
+                    pooled
+                ).opts(invert_yaxis=True, height=1200)
+            )
+        raise NotImplementedError()
+
 
     @apply_opts
     def visualize(self, *args, timeseries = None, t_axis = None, **kwargs)->Union[hv.Layout,hv.element.Curve]:

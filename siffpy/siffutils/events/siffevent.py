@@ -35,10 +35,10 @@ class SiffEvent():
         # of the actual event, not when it was
         # saved in the siff file)
         self.annotation : str = annotation
-        self.time_epoch : float = time_epoch
+        self.time_epoch : int = time_epoch
         self.frame_time : float = frame_time
 
-    def epoch_to_frame_time(self, epoch_time : int, seconds : bool = True) -> float:
+    def epoch_to_frame_time(self, epoch_time : int, seconds : bool = False) -> float:
         """ Converts epoch time (NANOSECONDS) to frame time (frame time in seconds).
         Optional argument seconds specifies if epoch time is ALSO in seconds... """
         if seconds:
@@ -58,3 +58,12 @@ class SiffEvent():
 
     def __repr__(self):
         return "Base SiffEvent class"
+
+def _matlab_to_utc(matlab_time : float)->int:
+    """
+    To fix an issue where matlab was storing time as if it were
+    UTC but it was local time (and in seconds). Returns an int
+    that is TRUE epoch time in UTC and in nanoseconds
+    """
+    return int((matlab_time + 14400) * SEC_TO_NANO)
+

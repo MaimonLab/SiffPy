@@ -2,6 +2,7 @@
 Dedicated code for data that is purely fluorescence analysis
 """
 import numpy as np
+import inspect
 
 from .utils import fifth_percentile
 
@@ -16,7 +17,8 @@ class FluorescenceTrace(np.ndarray):
     """
 
     def __new__(cls, input_array, method : str = None, normalized : bool = False,
-        F0 : np.ndarray = None, info_string : str = None, # new attributes TBD?
+        F0 : np.ndarray = None, max_val : np.ndarray = None, min_val : np.ndarray = None,
+        info_string : str = None, # new attributes TBD?
         ):
         
         # Input array is an already formed ndarray instance
@@ -27,6 +29,8 @@ class FluorescenceTrace(np.ndarray):
         obj.method = method
         obj.normalized = normalized
         obj.F0 = F0
+        obj.max_val = max_val
+        obj.min_val = min_val
         obj.info_string = info_string
 
         # Finally, we must return the newly created object:
@@ -38,13 +42,13 @@ class FluorescenceTrace(np.ndarray):
         self.method = getattr(obj, 'method', None)
         self.normalized = getattr(obj, 'normalized', False)
         self.F0 = getattr(obj, 'F0', 0)
+        self.max_val = getattr(obj, 'max_val', 0)
+        self.min_val = getattr(obj, 'min_val', 0)
         self.info_string = getattr(obj,'info_string', '')
 
-
 def photon_counts(fluorescence : np.ndarray, *args, **kwargs)->FluorescenceTrace:
-    """ Simply returns raw photon counts. This is just the array that's passed in. """
+    """ Simply returns raw photon counts. This is just the array that's passed in, wrapped in a FluorescenceTrace. """
     return FluorescenceTrace(fluorescence, method = 'Photon counts', F0 = 0)
-
 
 def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth_percentile, **kwargs)->FluorescenceTrace:
     """
@@ -73,8 +77,11 @@ def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth
     if not isinstance(fluorescence,np.ndarray):
         fluorescence = np.array(fluorescence)
     fluorescence = np.atleast_2d(fluorescence)
+    
+    #info_string = ""
     if callable(Fo):
         F0 = Fo(fluorescence, *args, **kwargs)
+        #inspect.signature(Fo).
     elif type(Fo) is np.ndarray or float:
         F0 = Fo
     else:
@@ -84,6 +91,8 @@ def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth
             raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
 
     unnormalized = ((fluorescence.T.astype(float) - F0)/F0).T
+    max_val = None
+    min_val = None
     
     if normalized:
         sorted_vals = np.sort(unnormalized,axis=1)
@@ -91,9 +100,9 @@ def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth
         max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
         unnormalized = ((unnormalized.T - min_val)/(max_val - min_val)).T # perhaps a bad name
     
-    return FluorescenceTrace(unnormalized, normalized = normalized, method = 'dF/F', F0 = Fo)
+    return FluorescenceTrace(unnormalized, normalized = normalized, method = 'dF/F', F0 = F0, max_val = max_val, min_val = min_val)
 
-def roi_masked_fluorescence_numpy(frames : np.ndarray, rois : list[np.ndarray]):
+def roi_masked_fluorescence_numpy(frames : np.ndarray, rois : list[np.ndarray])->np.ndarray:
     """
     Takes an array of frames organized as a k-dimensional numpy array with the
     last three dimensions being ('time', 'y', 'x') and converts them into an k-2

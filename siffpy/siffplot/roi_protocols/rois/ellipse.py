@@ -243,7 +243,7 @@ class Ellipse(ROI):
         return self.polygon.opts(**self.plotting_opts)
 
     def __getattr__(self, attr)->Any:
-        if attr == 'subROIs':
+        if attr == '_subROIs':
             if hasattr(self,'wedges'):
                 return self.wedges
         else:

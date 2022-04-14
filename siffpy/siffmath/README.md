@@ -29,9 +29,5 @@ as can be discerned from their docstring with `help` or the printout of phase_al
 ## Fluorescence analysis
 
 Most functions in the `fluorescence.py` submodule are accessible through `siffmath` directly, except for the
-functions that are intended to be internal. It's organized like this because I want it to work even if you don't
-have `Holoviews` installed, and so some functions need alternative implementations. So `fluorescence.py` checks
-if it can `import Holoviews`, and then defines functions differently based on whether it can or can't do so.
-Then `siffmath`'s `__init__.py` imports all functions from `fluorescence.py`, but `fluorescence.py`'s `__all__`
-conceals the interal functions that are differentially implemented and provides a common interface for both.
-
+functions that are intended to be internal. To get a list of available methods, plus a print of their docstrings,
+use `siffmath.string_names

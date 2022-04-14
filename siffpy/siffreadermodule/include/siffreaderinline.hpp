@@ -821,7 +821,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
     // Lifetime by pixel
     for (int64_t px = 0; px<dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px]; // benefit of nanning if intensity is 0 for free
-        lifetime_ptr[px] -= std::min(tauo,lifetime_ptr[px]); // keeps positive
+        lifetime_ptr[px] -= tauo; // TODO: Figure out how to do the wraparound
         conf_ptr[px] /= intensity_ptr[px]; // nan the bad ones
         conf_ptr[px] += intensity_ptr[px]; // for the iterative procedure, start as if all observed are 0.
     }

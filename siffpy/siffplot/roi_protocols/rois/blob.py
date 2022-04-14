@@ -72,7 +72,7 @@ class Blobs(ROI):
         Custom subROI call to return hemispheres
         as the subROI
         """
-        if attr == 'subROIs':
+        if attr == '_subROIs':
             if hasattr(self,'hemispheres'):
                 return self.hemispheres
             else:

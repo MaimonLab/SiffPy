@@ -993,7 +993,7 @@ static PyMethodDef SiffreaderMethods[] = {
         {"siff_to_tiff",(PyCFunction) siffreader_sifftotiff, METH_VARARGS|METH_KEYWORDS, SIFF_TO_TIFF_DOCSTRING},
         {NULL, NULL, 0, NULL}        /* Sentinel */
 };
-
+//
 static struct PyModuleDef siffreadermodule = {
 // Defines the module, created during initialization function below
     PyModuleDef_HEAD_INIT, // must be the first property

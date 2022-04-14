@@ -1,5 +1,6 @@
 import abc, pickle, logging, os
 from enum import Enum
+from siffpy.siffplot.utils.exceptions import NoROIException
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
@@ -129,6 +130,8 @@ class ROI():
 
         if isinstance(self.polygon,hv.element.Polygons):
             poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
+        elif self.polygon is None:
+            return np.zeros_like(image).astype(bool)
         else:
             poly_as_path = mplPath(self.polygon.data[0], closed = True) # these are usually stored as arrays
        
@@ -265,6 +268,14 @@ class ROI():
             file_name += str(self.polygon.__hash__())
         with open(file_name + ".roi",'wb') as roi_file:
             pickle.dump(self, roi_file)
+
+    @property
+    def subROIs(self)-> list['subROI'] :
+        """ Returns subROIs if the ROI has such a property """
+        if hasattr(self, '_subROIs'):
+            return self._subROIs
+        else:
+            raise NoROIException("ROI does not have subROIs -- try calling segment() first")
 
     def __repr__(self)->str:
         """

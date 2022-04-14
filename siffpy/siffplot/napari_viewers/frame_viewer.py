@@ -157,7 +157,7 @@ class FrameViewer(NapariInterface):
         #self.show_roi_widget = _make_show_roi_widget()
 
 
-        self.viewer.window.add_dock_widget(self.show_roi_widget,name='Show ROIs')
+        #self.viewer.window.add_dock_widget(self.show_roi_widget,name='Show ROIs')
 
 # def _make_show_roi_widget()->QtWidgets.QHBoxLayout:
 #     """ Returns the appropriately formatted QHBoxLayout object """

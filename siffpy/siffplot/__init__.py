@@ -24,6 +24,7 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
 
         def arial_hook(plot, elem):
             plot.handles['xaxis'].major_label_text_font='arial'
+            plot.handles['xaxis'].major_label_text_font_size='16pt'
             plot.handles['xaxis'].major_label_text_font_style = 'normal'
             plot.handles['xaxis'].axis_label_text_font = 'arial'
             plot.handles['xaxis'].axis_label_text_font_style = 'normal'
@@ -79,7 +80,7 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
         )
         hv.extension(backend)
         opts.defaults(
-            opts.HeatMap(hooks = [arial_hook]),
+            opts.HeatMap(hooks = [font_hook]),
             opts.Polygons(fill_alpha=0.15),
             opts.Curve(hooks = [font_hook]),
             opts.Path(hooks = [font_hook]),

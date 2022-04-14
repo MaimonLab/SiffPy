@@ -40,7 +40,7 @@ def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estima
     phase_method = getattr(phase, method)
     return phase_method(vector_series, *args, error_estimate = error_estimate, **kwargs)
 
-def phase_alignment_functions()->None:
+def phase_alignment_functions(print_docstrings : bool = True)->None:
     """
     Prints the available methods for aligning a vector time series to a phase,
     as well as returning the string
@@ -56,9 +56,12 @@ def phase_alignment_functions()->None:
         print_string += textwrap.indent(str(inspect.getdoc(fcn_call)),"\t\t")
         print_string += "\n\n"
     
-    print(print_string)
+    if print_docstrings:
+        print(print_string)
+    else:
+        return memberfcns
 
-def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[str]:
+def fluorescence_fcns(print_docstrings : bool = True) -> list[str]:
     """
     List of public functions available from fluorescence
     submodule. Seems a little silly since I can just use
@@ -70,6 +73,18 @@ def string_names_of_fluorescence_fcns(print_docstrings : bool = False) -> list[s
         fluorescence,
         lambda x: inspect.isfunction(x) and issubclass(inspect.signature(x).return_annotation, FluorescenceTrace)
     )
+
+    print_string = ""
+
+    for member_fcn_info in fcns:
+        fcn_name = member_fcn_info[0]
+        fcn_call = member_fcn_info[1]
+        print_string += f"\033[1m{fcn_name}\033[0m\n\n"
+        print_string += f"\t{fcn_name}{inspect.signature(fcn_call)}\n\n"
+        print_string += textwrap.indent(str(inspect.getdoc(fcn_call)),"\t\t")
+        print_string += "\n\n"
+
     if print_docstrings:
-        return ["\033[1m" + fcn[0] + ":\n\n\t" + str(inspect.getdoc(fcns[1])) + "\033[0m" for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']] 
-    return [fcn[0] for fcn in fcns if fcn[0] in fluorescence.__dict__['__all__']]
+        print(print_string)
+    else:
+        return fcns

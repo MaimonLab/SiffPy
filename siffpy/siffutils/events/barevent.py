@@ -1,5 +1,5 @@
-from siffpy.siffutils.framemetadata import FrameMetaData
-from .siffevent import SiffEvent
+from ...siffutils.framemetadata import FrameMetaData
+from .siffevent import SiffEvent, _matlab_to_utc
 
 class BarEvent(SiffEvent):
     """
@@ -11,9 +11,13 @@ class BarEvent(SiffEvent):
         text = metadata.appendedText
 
         spl = text.split(" = ")        
-        self.time_epoch = float(spl[-1])
+        
+        if "(sec" in spl[0]: # OLD MATLAB ISSUE
+            self.time_epoch = _matlab_to_utc(float(spl[-1]))
+        else:    
+            self.time_epoch = int(spl[-1])
         self.frame_time = float(self.epoch_to_frame_time(self.time_epoch))
-        self.annotation = spl[0].split(" (sec since epoch)")[0]
+        self.annotation = spl[0].split(" (")[0]
 
     @classmethod
     def qualifying(cls, metadata : FrameMetaData)->bool:

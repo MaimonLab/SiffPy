@@ -260,7 +260,7 @@ class Fan(ROI):
         Custom subROI call to return columns
         as the subROI
         """
-        if attr == 'subROIs':
+        if attr == '_subROIs':
             if hasattr(self,'columns'):
                 return self.columns
             else:
