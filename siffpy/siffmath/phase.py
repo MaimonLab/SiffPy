@@ -32,7 +32,7 @@ class PhaseTrace(np.ndarray):
         
         # add the new attributes to the created instance
         obj.method = method
-        obj.error_array = error_array
+        obj.error_array = error_array # lower bound, upper bound
         obj.info_string = info_string
 
         # Finally, we must return the newly created object:

@@ -163,9 +163,8 @@ def use_ellipse(reference_frames : list, polygon_source,
     if not ((extra_rois is ExtraRois.NONE) or (extra_rois == ExtraRois.NONE.value)):
         
         poly_layer = next(filter(lambda x: x.name == 'ROI shapes', polygon_source.layers),None) 
-        
         if len(poly_layer.data) < 2:
-            pass
+            raise ValueError("Did not provide a second ROI for the extra ROI field")
         else: # at least two shapes available
             if (extra_rois is ExtraRois.CENTER or (extra_rois == ExtraRois.CENTER.value)):
                 # Go through all polygons, find the one with a center closest to the largest polygon
@@ -176,7 +175,7 @@ def use_ellipse(reference_frames : list, polygon_source,
                 
                 dists = len(centers)*[np.nan]
                 for c_idx in range(len(centers)):
-                    if c_idx == roi_idx:
+                    if c_idx == roi_idx: # but not the largest polygon itself!
                         continue
                     dists[c_idx] = (centers[c_idx][0] - center_x)**2 + (centers[c_idx][1] - center_y)**2
                 

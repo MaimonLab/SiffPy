@@ -111,25 +111,22 @@ class SiffPlotter():
         self.local_opts = []
         self.events = []
 
-        try:
-            # can only be run if hv.extension(backend) has been executed
-            if 'opts' in kwargs:
-                if not isinstance(kwargs['opts'], (list, tuple, dict)):
-                    TypeError("Argument opts only accepts tuples, lists, or dicts -- something that can be unpacked with * or a dictionary")
-                self._local_opts = kwargs['opts']
-            else:
-                # Default opts
-                self._local_opts = {
-                    'Image' : {
-                        'cmap' : 'viridis',
-                        'invert_yaxis' : True,
-                        'width' : self.siffreader.im_params.xsize,
-                        'height' : self.siffreader.im_params.ysize,
-                        #hooks = [bounds_hook]
-                    }
+        # can only be run if hv.extension(backend) has been executed
+        if 'opts' in kwargs:
+            if not isinstance(kwargs['opts'], (list, tuple, dict)):
+                TypeError("Argument opts only accepts tuples, lists, or dicts -- something that can be unpacked with * or a dictionary")
+            self._local_opts = kwargs['opts']
+        else:
+            # Default opts
+            self._local_opts = {
+                'Image' : {
+                    'cmap' : 'viridis',
+                    'invert_yaxis' : True,
+                    'width' : self.siffreader.im_params.xsize,
+                    'height' : self.siffreader.im_params.ysize,
+                    #hooks = [bounds_hook]
                 }
-        except AttributeError:
-            warnings.warn("HoloViews not yet initialized, and so local_opts was not defined.")
+            }
 
         if self.siffreader.opened:
             self.reference_frames : hv.HoloMap = self.reference_frames_to_holomap()
@@ -189,8 +186,27 @@ class SiffPlotter():
                 ref_holomap = ref_holomap.opts(*self.local_opts)
         return ref_holomap
 
-    def save(self, path : str = None, filename : str = None):
-        """ Saves self in .splot file, which can be read with pickle anyways. If no path is given, saves in current directory """
+    def render_plot(self, plot : hv.element.Element, **kwargs):
+        """
+        Calls hv.render without the user needing to import HoloViews directly.
+
+        This returns an object from the HoloViews backend being utilized (either
+        bokeh or matplotlib) for direct customization.
+        """
+        return hv.render(plot)
+
+    def save_fig(self, *args, path : str = None, filename : str = None, **kwargs):
+        """
+        Saves a figure file with a given backend using hv.save
+        """
+        raise NotImplementedError("")
+
+    def save(self, path : str = None, filename : str = None, as_fig : bool = False):
+        """
+        Saves self in .splot file, which can be read with the HoloViews Store object.
+        If no path is given, saves in current directory 
+        """
+        raise NotImplementedError("NEEDS TO USE HV.STORE.DUMP AND LOAD NOT PICKLE")
         if filename is None:
             filename = f"{os.path.splitext(os.path.basename(self.siffreader.filename))[0]}_{self.__class__.__name__}"
         if path is None:

@@ -83,7 +83,7 @@ class FictracLog():
             self._dataframe['integrated_position_lab_0'] = -1.0*df_copy['integrated_position_lab_1']
             self._dataframe['integrated_position_lab_1'] = df_copy['integrated_position_lab_0']
 
-            if self.__OLD_PROJECTOR_DRIVER:
+            if self._OLD_PROJECTOR_DRIVER:
                 self._dataframe['integrated_position_lab_0'], self._dataframe['integrated_position_lab_1'] = (
                     (
                         np.cos(_ORIGINAL_FICTRAC_ROS_ZERO_HEADING) * self._dataframe['integrated_position_lab_0'] +
@@ -360,4 +360,4 @@ class FictracLog():
 
         # To be implemented.
 
-        self.__OLD_PROJECTOR_DRIVER = True
+        self._OLD_PROJECTOR_DRIVER = True

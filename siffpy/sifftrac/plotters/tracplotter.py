@@ -108,17 +108,20 @@ class TracPlotter():
 
     ### COMBINING PLOTS FUNCTIONALITY
 
-    def __multiple_plots(self)->bool:
+    @property
+    def _multiple_plots(self)->bool:
         return len(self.logs)>1
 
-    def __overlaid_plots(self)->bool:
+    @property
+    def _overlaid_plots(self)->bool:
         return any(map(lambda x: len(x) > 1,self.logs)) 
 
-    def __multiplexed_plots(self) -> bool:
+    @property
+    def _multiplexed_plots(self) -> bool:
         """
         Returns true if this structure both overlays and combines plots already.
         """
-        return self.__multiple_plots() and self.__overlaid_plots()
+        return self._multiple_plots and self._overlaid_plots
 
     def __add__(self, other : TracPlotter)-> TracPlotter:
         """
@@ -162,7 +165,7 @@ class TracPlotter():
         if not isinstance(other, TracPlotter):
             return NotImplemented
 
-        if self.__multiplexed_plots() and other.__multiplexed_plots():
+        if self._multiplexed_plots and other._multiplexed_plots:
             raise TypeError("Operator *= is unsupported for two TracPlotters with multiplexed figures " +
             "(i.e. figures that both overlay and compose FictracLog plots)")
         
@@ -192,7 +195,7 @@ class TracPlotter():
         if not isinstance(other, TracPlotter):
             return NotImplemented
         
-        if self.__multiplexed_plots() and other.__multiplexed_plots():
+        if self._multiplexed_plots and other._multiplexed_plots:
             raise TypeError("Operator * is unsupported for two TracPlotters with multiplexed figures " +
             "(i.e. figures that both overlay and compose FictracLog plots)")
         
@@ -252,7 +255,7 @@ class TracPlotter():
         figure : hv.Layout or hv.Overlay
 
         """
-        if self._TracPlotter__multiple_plots():
+        if self._multiple_plots:
             self.figure = hv.Layout()
             for sublist in self.logs:
                 overlay = hv.Overlay()

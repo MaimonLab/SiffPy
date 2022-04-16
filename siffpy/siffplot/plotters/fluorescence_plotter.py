@@ -80,24 +80,26 @@ class FluorescencePlotter(SiffPlotter):
                 'HeatMap' : {
                     'cmap':'Greens',
                     'width' : 1000,
-                    'colorbar' : True,
-                    'ylabel' : '',
+                    'colorbar' : False,
                     'colorbar_position' : 'left',
                     'colorbar_opts' : {
                         'height': 200,
                         'width' : 20,
                         'border_line_alpha':0,
                     },
-                    'xlabel': 'Time (seconds)',
+                    'yaxis' : None,
                     'fontsize': 15,
-                    'toolbar' : 'above'
+                    'toolbar' : 'above',
+                    'show_frame' : False,
+                    'invert_yaxis' : False,
                 },
                 'Curve' : {
                     'line_color' : '#000000',
                     'line_width' : 1,
                     'width' : 1000,
                     'fontsize' : 15,
-                    'toolbar' : 'above'
+                    'toolbar' : 'above',
+                    'show_frame' : False
                 }
             }
         
@@ -345,44 +347,56 @@ class FluorescencePlotter(SiffPlotter):
         # Now plotting stuff
 
         xaxis_label = "Time (sec)"
-        yaxis_label = "Fluorescence\nmetric"
 
-        # if isinstance(trace, fluorescence.FluorescenceTrace):
-        #     yaxis_label = trace.method
-        #     title += f", F0 = {float(trace.F0)} photons per frame"
-        #     if trace.normalized:
-        #         yaxis_label += "\n(normalized)"
-        #         title += f" Normalization of 1 is dF/F = {str(float(trace.max_val))[:5]}"
-        #         title += f" Normalization of 0 is dF/F = {str(float(trace.min_val))[:5]}"
-            
-        # return hv.Curve(
-        #     {
-        #         xaxis_label : time_axis,
-        #         yaxis_label : trace,
-        #     },
-        #     kdims=[xaxis_label],
-        #     vdims=[yaxis_label],
-        # ).opts(title=title)
+        if all(lambda x : isinstance(x, fluorescence.FluorescenceTrace) for x in pooled):
+            #pooled = fluorescence.FluorescenceTrace(pooled) TODO
+            pooled = np.array(pooled)
+        else:
+            pooled = np.array(pooled)
 
-        pooled = np.array(pooled)
+        angle_axis = np.linspace(0, 2.0*np.pi, pooled.shape[0])
+
+        if all(hasattr(subroi, 'angle') for subroi in rois[0].subROIs):
+            angle_axis = np.array([subroi.angle for subroi in rois[0].subROIs])
+            angle_axis = angle_axis % (2.0*np.pi)
+
+        # TODO: COLORBAR FORMATTING
+
+        # TODO: special treatment for FluorescenceTrace arrays
+        if all(lambda x: isinstance(x, fluorescence.FluorescenceTrace) for x in pooled):
+            pass
 
         if (direction == HeatMapDirection.HORIZONTAL) or (direction == HeatMapDirection.HORIZONTAL.value):
             return hv.HeatMap(
                 (
                     time_axis,
-                    np.linspace(0, 2.0*np.pi, pooled.shape[0]),
+                    angle_axis,
                     pooled
                 )
-            )
+            ).opts(
+                    {
+                        'HeatMap' : {
+                            'xlabel' : xaxis_label,
+                        }
+                    }
+                )
         if (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value):
             return hv.HeatMap(
                 (
-                    np.linspace(0, 2.0*np.pi, pooled.shape[0]),
+                    angle_axis,
                     time_axis,
                     pooled
-                ).opts(invert_yaxis=True, height=1200)
+                )
+            ).opts(
+                    {
+                        'HeatMap' : {
+                            'invert_yaxis' : True,
+                            'height' : 1200,
+                            'width' : 400,
+                            'ylabel' : xaxis_label, #transposed
+                        }
+                    }
             )
-        raise NotImplementedError()
 
 
     @apply_opts
@@ -402,6 +416,7 @@ class FluorescencePlotter(SiffPlotter):
 
         Currently HoloViews only.
         """
+        raise NotImplementedError("Needs a rework!")
         if timeseries is None:
             if not (hasattr(self, 'vector_timeseries') or hasattr(self,'roi_timeseries')):
                 try:

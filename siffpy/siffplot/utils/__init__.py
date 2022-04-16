@@ -10,12 +10,6 @@ import holoviews as hv
 from ...siffmath import fluorescence
 from .exceptions import *
 
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..., (sn-2, sn-1), (sn-1, sn)"
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
 def select_on_tap(pt_array, tapped_points, x, y, x2, y2):
     """
     Add nearest point on singletap, remove nearest point on doubletap.
@@ -50,89 +44,6 @@ def select_on_tap(pt_array, tapped_points, x, y, x2, y2):
         return hv.Points([])
     else:
         return hv.Points(tapped_points)
-
-def split_headings_to_dict(x_var : np.ndarray, y_var : np.ndarray, xlabel : str ='x', ylabel : str ='y')->list[dict]:
-    """
-    Returns a list of dicts that can be passed to a Holoviews Path object.
-
-    Splits circular variables up whenever there's a shift > pi in magnitude.
-
-    ARGUMENTS
-    ---------
-    
-    x_var : 
-        
-        The independent variable (usually the kdim) to pass to Holoviews
-
-    y_var :
-
-        The dependent variable (usually to be the vdim) to pass to Holoviews
-
-    xlabel : str
-
-        What the key for the x_var should be
-
-    ylabel : str
-
-        What the key for the y_var should be
-
-    RETURNS
-    -------
-
-    split : list[dict]
-
-        A list of dicts corresponding to individual line segments before they need to be
-        made disjoint. Schematized as:
-
-        [
-            {
-                xlabel : consecutive_x_coords,
-                ylabel : consecutive_y_coords
-            }
-        ]
-
-    """
-    if np.where(np.abs(np.diff(y_var))>=np.pi)[0].shape[0] == 0 :
-        return [ {xlabel : x_var, ylabel : y_var} ]
-
-    split = [
-                {
-                    xlabel : x_var[(start+1):end],
-                    ylabel : (y_var[(start+1):end])
-                }
-                for start, end in pairwise(np.where(np.abs(np.diff(y_var))>=np.pi)[0]) # segments whenever the rotation is of magnitude > np.pi
-    ]
-    return split
-
-def split_headings_to_list(heading : np.ndarray)->list[np.ndarray]:
-    """
-    Splits circular variables up whenever there's a shift > pi in magnitude
-    and returns a list of each of the fragments
-
-    ARGUMENTS
-    ---------
-    
-    heading : np.ndarray 
-        
-        The independent variable (usually the kdim) to pass to Holoviews
-
-    RETURNS
-    -------
-
-    split : list[np.ndarray]
-
-        A list of arrays corresponding to individual line segments before they need to be
-        made disjoint. Schematized as:
-
-    """
-    if np.where(np.abs(np.diff(heading))>=np.pi)[0].shape[0] == 0 :
-        return [ heading ]
-
-    split = [
-            heading[(start+1):end]
-            for start, end in pairwise(np.where(np.abs(np.diff(heading))>=np.pi)[0]) # segments whenever the rotation is of magnitude > np.pi
-    ]
-    return split
 
 def bounds_hook(plot, elem):
     plot.state.x_range.bounds = 'auto'

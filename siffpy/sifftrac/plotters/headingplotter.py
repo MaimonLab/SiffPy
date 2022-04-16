@@ -7,7 +7,7 @@ from scipy.stats import circmean
 
 from ..log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 from .tracplotter import *
-from ..utils.fcns import *
+from ...siffutils.circle_fcns import split_angles_to_dict
 
 class HeadingPlotter(TracPlotter):
     """
@@ -48,7 +48,7 @@ class HeadingPlotter(TracPlotter):
         if isinstance(log, FictracLog):
             log = LogToPlot(FLog=log)
         if log is None:
-            if self.__multiple_plots():
+            if self._multiple_plots:
                 raise RuntimeError(
                     """
                     Current TracPlotter is storing multiple logs -- unclear which is intended.
@@ -98,19 +98,19 @@ class HeadingPlotter(TracPlotter):
         else:
             self.offset = offset
 
-        if log.__OLD_PROJECTOR_DRIVER: # back compatibility
+        if log._OLD_PROJECTOR_DRIVER: # back compatibility
             offset += _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 
         DEFAULT_OPTS = {
             'xlabel' : 'Time',
-            'width'  : 1200,
+            'width'  : 1000,
             'line_color' : 'black',
             'yticks' : [
                 (offset, 'Rear'),
                 ((np.pi + offset)%(2*np.pi), 'Front'),
             ],
             'ylabel' : 'Bar position',
-            'xlim' : (0.0, None)
+            'xlim' : (0.0, None),
         }
 
         if offset == 0:
@@ -129,7 +129,7 @@ class HeadingPlotter(TracPlotter):
         else:
             OPTS_DICT = DEFAULT_OPTS
 
-        return hv.Path(split_headings_to_dict(t, bar_position)).opts(**OPTS_DICT)
+        return hv.Path(split_angles_to_dict(t, bar_position)).opts(**OPTS_DICT)
         
 
 

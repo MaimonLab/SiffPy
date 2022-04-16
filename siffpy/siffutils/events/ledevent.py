@@ -28,7 +28,7 @@ class LEDEvent(SiffEvent):
                 
             self.annotation = timestamp[0].split(" time")[0]
 
-            if "(sec" in timestamp[0]: # OLD MATLAB ISSUE
+            if not "(nanosec" in timestamp[0]: # OLD MATLAB ISSUE
                 self.time_epoch = _matlab_to_utc(float(timestamp[-1]))
             else:
                 self.time_epoch = int(timestamp[-1])

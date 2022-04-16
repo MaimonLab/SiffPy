@@ -465,6 +465,7 @@ class SiffReader(object):
             frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
+                print(len(frames))
                 frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
             else:
                 frames = frames[timepoint_start:timepoint_end]

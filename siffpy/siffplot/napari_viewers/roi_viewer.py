@@ -448,7 +448,7 @@ class ROIViewer(NapariInterface):
             self.subROI_check_callback(self.roi_widgets['ShowSubROIsBox'].value)
 
         except Exception as e:
-            self.warning_window(f"Error in segmentation function: {e}")
+            self.warning_window(f"Error in segmentation function: {e}", exception = e)
         
     def _widget_val(self, widg_name : str):
         """ Keeps .__dict__ small but lets me store lots of widgets """
@@ -495,4 +495,4 @@ class ROIViewer(NapariInterface):
             else:
                 self.save_rois_fcn()
         except Exception as e:
-            self.warning_window(f"Error in save ROI function: {e}")
+            self.warning_window(f"Error in save ROI function: {e}", exception = e)

@@ -327,6 +327,10 @@ class Ellipse(ROI):
         def visualize(self):
             return self.polygon.opts(**self.plotting_opts)
 
+        @property
+        def angle(self):
+            return np.mean(self.bounding_angles)
+
         def __repr__(self):
             """
             An ellipse's wedge.

@@ -5,11 +5,11 @@ import numpy as np
 import holoviews as hv
 import operator
 
-from ...siffplot.siffplotter import apply_opts
-from .fluorescence_plotter import FluorescencePlotter
+from ...siffplot.siffplotter import apply_opts, SiffPlotter
 from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
 from ...siffmath import estimate_phase
+from ...siffutils.circle_fcns import *
 
 __all__ = [
     'PhasePlotter'
@@ -22,7 +22,7 @@ inherited_params = [
     'rois'
 ]
 
-class PhasePlotter(FluorescencePlotter):
+class PhasePlotter(SiffPlotter):
     """
     Extends the SiffPlotter functionality to allow
     analysis of phase information relating to a 
@@ -69,9 +69,10 @@ class PhasePlotter(FluorescencePlotter):
         """
         if vector_timeseries is None:
             if not hasattr(self, 'vector_timeseries'):
-                self.vector_timeseries = self.compute_vector_timeseries(roi,**kwargs)
+                raise NotImplementedError()
+                #self.vector_timeseries = self.compute_vector_timeseries(roi,**kwargs)
 
-
+        split_angles_to_dict()
         
         raise NotImplementedError()
 

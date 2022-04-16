@@ -135,7 +135,7 @@ REGIONS = {
         {
             'alias_list'  : ELLIPSOID_BODY,
             'module'      : ellipsoid_body,
-            'default_fcn' : 'fit_ellipse'
+            'default_fcn' : 'use_ellipse'
         },
     
     'Fan-shaped body' : 

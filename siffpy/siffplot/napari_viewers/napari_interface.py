@@ -5,6 +5,8 @@ object, but mostly behave like they do.
 
 SCT Dec 28, 2021
 """
+import traceback
+
 import napari
 from napari.layers import Shapes
 from PyQt5.QtWidgets import QMessageBox
@@ -99,11 +101,14 @@ class NapariInterface():
         except AttributeError:
             raise AttributeError(f"Requested attribute {attr} is not an attribute or method of this {self.__class__.__name__} nor of a napari.Viewer object.")
 
-    def warning_window(self, warning_msg : str):
+    def warning_window(self, warning_msg : str, exception : Exception = None):
         """ Opens a new window with a warning message. """
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
         msg.setText(warning_msg)
         msg.setWindowTitle(f"Warning: ({self.viewer.title})")
+        if isinstance(exception, Exception):
+            traceback_str = "\n".join(traceback.TracebackException.from_exception(exception).format())
+            msg.setDetailedText(traceback_str)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
