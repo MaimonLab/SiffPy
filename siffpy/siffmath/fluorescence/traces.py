@@ -1,10 +1,7 @@
-"""
-Dedicated code for data that is purely fluorescence analysis
-"""
 import numpy as np
-import inspect
+from typing import Union
 
-from .utils import fifth_percentile
+from ..utils import fifth_percentile
 
 class FluorescenceTrace(np.ndarray):
     """
@@ -21,12 +18,13 @@ class FluorescenceTrace(np.ndarray):
     ]
 
     LIST_PROPERTIES = [
-        'method', 'normalized', 'info_string'
+        'method', 'normalized', 'info_string', 'angle'
     ]
 
     def __new__(cls, input_array, method : str = None, normalized : bool = False,
         F : np.ndarray = None, F0 : np.ndarray = np.ndarray(None),
         max_val : np.ndarray = np.inf , min_val : np.ndarray = 0.0,
+        angle : float = None,
         info_string : str = None, # new attributes TBD?
         ):
         
@@ -46,7 +44,9 @@ class FluorescenceTrace(np.ndarray):
         obj.F0 = F0
         obj.max_val = max_val
         obj.min_val = min_val
+        obj.angle = angle
         obj.info_string = info_string
+        
 
         # Finally, we must return the newly created object:
         return obj
@@ -60,6 +60,7 @@ class FluorescenceTrace(np.ndarray):
         self.F0 = getattr(obj, 'F0', 0)
         self.max_val = getattr(obj, 'max_val', np.inf)
         self.min_val = getattr(obj, 'min_val', 0)
+        self.angle = getattr(obj, 'angle', None)
         self.info_string = getattr(obj,'info_string', '')
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
@@ -104,7 +105,8 @@ class FluorescenceTrace(np.ndarray):
             return NotImplemented
 
         if ufunc.nout == 1:
-            results = results.view(FluorescenceTrace)
+            results = np.asarray(results).view(FluorescenceTrace)
+            
             for key, val in prop_results.items():
                 setattr(results, key, val)
 
@@ -119,6 +121,11 @@ class FluorescenceTrace(np.ndarray):
                 resultlist.append(np.asarray(res).view(FluorescenceTrace))
                 for prop,val in prop_results.items():
                     setattr(resultlist[idx], prop, val[idx])
+                # TODO: what should I do with list attributes in this case?
+                # TODO: should they just propagate?
+                for prop, val in list_results.items():
+                    setattr(resultlist[idx], prop, val[idx])
+
             results = tuple(resultlist)
 
         return results[0] if len(results) == 1 else results
@@ -126,10 +133,13 @@ class FluorescenceTrace(np.ndarray):
 
 class FluorescenceVector(FluorescenceTrace):
     """
-    Constructed if a FluorescenceTrace is made out of an iterable of FluorescenceTraces
+    Constructed if a FluorescenceTrace is made out of an iterable of FluorescenceTraces.
+
+    A special type of FluorescenceTrace that keeps track of the fact that each of its major
+    dimension is supposed to be its own FluorescenceTrace object.
     """
 
-    def __new__(cls, input_array : list[FluorescenceTrace]):
+    def __new__(cls, input_array : Union[list[FluorescenceTrace],tuple[FluorescenceTrace]]):
         
         # converts the input iterable into a standard vector one dimension larger
         obj = np.asarray(input_array).view(cls)
@@ -151,17 +161,6 @@ class FluorescenceVector(FluorescenceTrace):
         # Finally, we must return the newly created object:
         return obj
 
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
-        self.method = getattr(obj, 'method', None)
-        self.normalized = getattr(obj, 'normalized', False)
-        self.F = getattr(obj,'F', 0)
-        self.F0 = getattr(obj, 'F0', 0)
-        self.max_val = getattr(obj, 'max_val', 0)
-        self.min_val = getattr(obj, 'min_val', 0)
-        self.info_string = getattr(obj,'info_string', '')
-
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """
         When you use ufuncs on FluorescenceVectors,
@@ -177,7 +176,7 @@ class FluorescenceVector(FluorescenceTrace):
             else:
                 np_args.append(input_)
 
-        results = super().__array_ufunc__(ufunc, method, *np_args, **kwargs)
+        results = FluorescenceTrace.__array_ufunc__(self, ufunc, method, *np_args, **kwargs)
 
         # Iterate over vector properties and perform the ufunc on each
         prop_results = {}
@@ -190,7 +189,7 @@ class FluorescenceVector(FluorescenceTrace):
                 else:
                     prop_args.append(input_)
             try:
-                prop_results[prop] = super().__array_ufunc__(ufunc, method, *prop_args, **kwargs)
+                prop_results[prop] = getattr(ufunc,method)(*prop_args, **kwargs) # uses numpy array's ufunc, not FluorescenceTrace's
             except:
                 continue
         
@@ -204,7 +203,7 @@ class FluorescenceVector(FluorescenceTrace):
             return NotImplemented
 
         if ufunc.nout == 1:
-            results = results.view(FluorescenceVector)
+            results = np.asarray(results).view(FluorescenceVector)
             for key, val in prop_results.items():
                 setattr(results, key, val)
 
@@ -223,82 +222,25 @@ class FluorescenceVector(FluorescenceTrace):
 
         return results[0] if len(results) == 1 else results
 
+    def __getitem__(self, key):
+        """
+        Returns instances of FluorescenceTrace for int keys.
+        """
+        if isinstance(key, int):
+            rettrace = FluorescenceTrace(self.__array__()[key])
+            for prop in FluorescenceTrace.VECTOR_PROPERTIES:
+                setattr(rettrace, prop, getattr(self,prop)[key])
         
+            for prop in FluorescenceTrace.LIST_PROPERTIES:
+                setattr(rettrace, prop, getattr(self, prop)[key])
 
-def photon_counts(fluorescence : np.ndarray, *args, **kwargs)->FluorescenceTrace:
-    """ Simply returns raw photon counts. This is just the array that's passed in, wrapped in a FluorescenceTrace. """
-    return FluorescenceTrace(fluorescence, F = fluorescence, method = 'Photon counts', F0 = 0)
-
-def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth_percentile, **kwargs)->FluorescenceTrace:
-    """
-    
-    Takes a numpy array and returns a dF/F0 trace across the rows -- i.e. each row is normalized independently
-    of the others. Returns a version of the function (F - F0)/F0, where F0 is computed as below
-
-    fluorescence : np.ndarray
-
-        The data constituting the F in dF/F0
-
-    normalized : bool (optional)
-
-        Compresses the response of each row to approximately the range 0 - 1 (uses the 5th and 95th percentiles).
-        Default is False
-
-    Fo : callable or np.ndarray (optional)
-
-        How to determine the F0 term for a given row. If Fo is callable, the function is applied to the
-        roi numpy array directly (i.e. it's NOT a function that operates on only one row at a time). 
-        Can also provide just a number or an array of numbers.
-
-    Passes additional args and kwargs to the Fo function, if those args and kwargs are provided.
-    
-    """
-    if not isinstance(fluorescence,np.ndarray):
-        fluorescence = np.array(fluorescence)
-    fluorescence = np.atleast_2d(fluorescence)
-    
-    #info_string = ""
-    if callable(Fo):
-        F0 = Fo(fluorescence, *args, **kwargs)
-        #inspect.signature(Fo).
-    elif type(Fo) is np.ndarray or float:
-        F0 = Fo
-    else:
-        try:
-            np.array(Fo).astype(float)
-        except TypeError:
-            raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
-
-    df_trace = ((fluorescence.T.astype(float) - F0)/F0).T
-    max_val = None
-    min_val = None
-    
-    if normalized:
-        sorted_vals = np.sort(df_trace,axis=1)
-        min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
-        max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
-        df_trace = ((df_trace.T - min_val)/(max_val - min_val)).T
-    
-    return FluorescenceTrace(
-        df_trace, normalized = normalized, method = 'dF/F', 
-        F = fluorescence, F0 = F0,
-        max_val = max_val, min_val = min_val
-    )
-
-def roi_masked_fluorescence_numpy(frames : np.ndarray, rois : list[np.ndarray])->np.ndarray:
-    """
-    Takes an array of frames organized as a k-dimensional numpy array with the
-    last three dimensions being ('time', 'y', 'x') and converts them into an k-2
-    dimensional array, with the final two dimensions of 'frames' compressed against
-    the masks in rois. For use on arrays not generated by `SiffPy` and/or not using
-    the `siffpy.siffplot.ROI` class
-    """
-    rois = np.array(rois)
-    return np.sum(
-            np.tensordot(
-                frames,
-                rois,
-                axes=((-1,-2),(-1,-2))
-            ),
-            axis = (-2,-1)
-        )
+            return rettrace
+        else:
+            # retval = super().__getitem__(key)
+            # if len(retval.shape) == 1:
+            #     rettrace = FluorescenceTrace(retval.__array__())
+            #     for prop in FluorescenceTrace.VECTOR_PROPERTIES:
+            #         setattr(rettrace, prop, getattr(self,prop)[key])
+            #     return rettrace
+                
+            return np.asarray(super().__getitem__(key))

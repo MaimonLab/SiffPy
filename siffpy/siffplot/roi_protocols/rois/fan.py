@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Any
 import holoviews as hv
 import numpy as np
+from scipy.stats import circmean
 import colorcet
 import logging
 
@@ -323,7 +324,7 @@ class Fan(ROI):
 
         @property
         def angle(self):
-            return np.mean(self.bounding_angles)
+            return circmean(self.bounding_angles)
 
         def __repr__(self):
             """

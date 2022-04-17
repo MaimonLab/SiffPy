@@ -1,5 +1,4 @@
 from functools import reduce
-from siffpy.siffplot.utils.exceptions import NoROIException
 from typing import Callable, Union
 import operator
 from enum import Enum
@@ -7,9 +6,12 @@ from enum import Enum
 import numpy as np
 import holoviews as hv
 
-from ...siffplot.siffplotter import SiffPlotter, apply_opts
-from ...siffplot.roi_protocols.rois import ROI, subROI
-from ...siffmath import fluorescence, fifth_percentile, fluorescence_fcns
+from ..siffplotter import SiffPlotter, apply_opts
+from ..roi_protocols.rois import ROI, subROI
+from ..utils.exceptions import NoROIException
+from ..utils.dims import *
+from ...siffmath import fluorescence, fluorescence_fcns
+from ...siffmath.fluorescence import *
 
 __all__ = [
     'FluorescencePlotter'
@@ -290,20 +292,23 @@ class FluorescencePlotter(SiffPlotter):
         xaxis_label = "Time (sec)"
         yaxis_label = "Fluorescence\nmetric"
 
+        yaxis = FluorescenceAxis(yaxis_label)
+
         if isinstance(trace, fluorescence.FluorescenceTrace):
             yaxis_label = trace.method
             title += f", F0 = {float(trace.F0)} photons per frame"
             if trace.normalized:
                 yaxis_label += "\n(normalized)"
                 title += f"\nNormalization: 0 = {str(float(trace.min_val))[:5]}, 1 = {str(float(trace.max_val))[:5]}"
+            yaxis.label = yaxis_label
             
         return hv.Curve(
-            {
-                xaxis_label : time_axis,
-                yaxis_label : trace,
-            },
-            kdims=[xaxis_label],
-            vdims=[yaxis_label],
+            (
+                time_axis,
+                trace,
+            ),
+            kdims=[ImageTime()],
+            vdims=[yaxis]
         ).opts(title=title)
             
     @apply_opts
@@ -348,9 +353,8 @@ class FluorescencePlotter(SiffPlotter):
 
         xaxis_label = "Time (sec)"
 
-        if all(lambda x : isinstance(x, fluorescence.FluorescenceTrace) for x in pooled):
-            #pooled = fluorescence.FluorescenceTrace(pooled) TODO
-            pooled = np.array(pooled)
+        if all(lambda x : isinstance(x, (FluorescenceTrace,FluorescenceVector)) for x in pooled):
+            pooled = FluorescenceTrace(pooled)
         else:
             pooled = np.array(pooled)
 
@@ -363,40 +367,37 @@ class FluorescencePlotter(SiffPlotter):
         # TODO: COLORBAR FORMATTING
 
         # TODO: special treatment for FluorescenceTrace arrays
-        if all(lambda x: isinstance(x, fluorescence.FluorescenceTrace) for x in pooled):
+        if all(lambda x: isinstance(x, (FluorescenceTrace, FluorescenceVector)) for x in pooled):
             pass
 
         if (direction == HeatMapDirection.HORIZONTAL) or (direction == HeatMapDirection.HORIZONTAL.value):
-            return hv.HeatMap(
+            element = hv.HeatMap(
                 (
                     time_axis,
                     angle_axis,
                     pooled
-                )
-            ).opts(
-                    {
-                        'HeatMap' : {
-                            'xlabel' : xaxis_label,
-                        }
-                    }
-                )
+                ),
+                kdims=[ImageTime(), AngularSpace()]
+            )
         if (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value):
-            return hv.HeatMap(
+            element = hv.HeatMap(
                 (
                     angle_axis,
                     time_axis,
                     pooled
-                )
+                ),
+                kdims = [AngularSpace(), ImageTime()]
             ).opts(
                     {
                         'HeatMap' : {
                             'invert_yaxis' : True,
                             'height' : 1200,
                             'width' : 400,
-                            'ylabel' : xaxis_label, #transposed
                         }
                     }
             )
+        
+        return element
 
 
     @apply_opts

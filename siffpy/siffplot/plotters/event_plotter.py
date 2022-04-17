@@ -4,7 +4,8 @@ from operator import mul
 import holoviews as hv
 
 from ...siffutils.events import SiffEvent
-from ...siffplot.siffplotter import SiffPlotter, apply_opts
+from ..siffplotter import SiffPlotter, apply_opts
+from ..utils.dims import *
 
 
 __all__ = [
@@ -92,15 +93,15 @@ class EventPlotter(SiffPlotter):
     @apply_opts
     def plot_event(self, event : SiffEvent, *args, direction = 'v', **kwargs)->hv.Overlay:
         """ Returns a small Overlay object with an arrow demarcating the time of an event and text annotation """
-        arrow = hv.element.Arrow(event.frame_time, 0, direction=direction).opts(ylim=(0,10))
-        text = hv.element.Text(event.frame_time, 2.5, event.annotation, valign='bottom').opts(ylim=(0,10))
-        return (arrow*text).redim(y=hv.Dimension('Annotation_y',range=(0,10))) # redimmed so that 
+        arrow = hv.element.Arrow(event.frame_time, 0, direction=direction, kdims=[ImageTime(), AnnotationAxis()]).opts(ylim=(0,10))
+        text = hv.element.Text(event.frame_time, 2.5, event.annotation, valign='bottom', kdims=[ImageTime(), AnnotationAxis()]).opts(ylim=(0,10))
+        return arrow*text
 
     def annotate(self, element : hv.Element)->hv.Layout:
         """ Returns a HoloViews Layout object that has been annotated with the EventPlotter """
         annotations = reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
         if len(element.kdims):
-            annotations = annotations.redim(x=element.kdims[0])
+            annotations = annotations
         return (
             annotations + element
         ).opts(transpose=True)

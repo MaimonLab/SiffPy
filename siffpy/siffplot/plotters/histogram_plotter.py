@@ -13,10 +13,10 @@ import numpy as np
 import holoviews as hv
 
 from ... import siffpy
-from ...siffplot.siffplotter import SiffPlotter, apply_opts
+from ..siffplotter import SiffPlotter, apply_opts
 from ...siffutils import FLIMParams
-from ..utils import *
 from ...siffutils.slicefcns import *
+from ..utils import *
 
 __all__ = [
     'HistogramPlotter'
