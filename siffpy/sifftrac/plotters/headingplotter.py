@@ -62,9 +62,9 @@ class HeadingPlotter(TracPlotter):
                 raise TypeError("Existing log attribute, if loaded, is not a FictracLog, LogToPlot, or list of the above.")
         if not isinstance(log, LogToPlot):
             raise TypeError(f"Argument log is not of type LogToPlot or FictracLog")
-        wrapped_heading = log.get_dataframe_copy()['integrated_heading_lab'] # get the copy if you're modifying
-        wrapped_heading -= offset
-        return wrapped_heading % (2*np.pi)
+        wrapped_heading = np.exp(log.get_dataframe_copy()['integrated_heading_lab']*1j) # get the copy if you're modifying
+        wrapped_heading *= np.exp(offset*1j)
+        return np.angle(wrapped_heading)+np.pi
 
     def fit_offset(self, phase, **kwargs) -> float:
         """
