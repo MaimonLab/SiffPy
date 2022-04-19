@@ -13,7 +13,8 @@ from scipy.stats import circmean
 from ...siffutils.circle_fcns import circ_interpolate_between_endpoints
 
 from .traces import *
-from ..fluorescence import FluorescenceVector
+from ..fluorescence import FluorescenceTrace
+#from ..fluorescence import FluorescenceVector
 
 __all__ = [
     'fit_offset',
@@ -104,7 +105,7 @@ def fit_offset(
     return circmean(np.angle(np.exp(fictrac_interp*1j)/np.exp(phase_interp*1j)))
 
 def pva(
-        vector_timeseries : Union[np.ndarray, FluorescenceVector], time : np.ndarray = None,
+        vector_timeseries : Union[np.ndarray, FluorescenceTrace], time : np.ndarray = None,
         error_function : Union[Callable,str] = None,
         filter_fcn : Union[Callable,str] = None, **kwargs
     ) -> PhaseTrace:
@@ -165,7 +166,7 @@ def pva(
     vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
 
     angle_coords = np.exp(np.linspace(2*np.pi, 0 , vector_timeseries.shape[0])*1j) # it goes clockwise.
-    if isinstance(vector_timeseries, FluorescenceVector):
+    if isinstance(vector_timeseries, FluorescenceTrace):
         if all(x is not None for x in vector_timeseries.angle):
             angle_coords = np.exp(vector_timeseries.angle[::-1]*1j)
     

@@ -97,6 +97,9 @@ class EventPlotter(SiffPlotter):
         text = hv.element.Text(event.frame_time, 2.5, event.annotation, valign='bottom', kdims=[ImageTime(), AnnotationAxis()]).opts(ylim=(0,10))
         return arrow*text
 
+    def annotation_element(self)->hv.Layout:
+        return reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
+
     def annotate(self, element : hv.Element)->hv.Layout:
         """ Returns a HoloViews Layout object that has been annotated with the EventPlotter """
         annotations = reduce(mul, (self.plot_event(event) for event in self.siffreader.events))

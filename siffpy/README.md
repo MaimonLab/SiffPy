@@ -22,6 +22,10 @@ simple math functions.
 
 ## SiffMath
 
+Numerical code that does not depend on or directly interact with any plotting functionality. Operates almost exclusively with
+`numpy` arrays and creates several `np.ndarray` subclasses that track accompanying metadata of vector-type data usefully (for 
+example, adding and subtracting scalars or summing two such arrays).
+
 ## SiffReaderModule
 
 The `C/C++` code underlying direct interactions with the `.siff` filetype. It produces `numpy.ndarray` objects for image data 

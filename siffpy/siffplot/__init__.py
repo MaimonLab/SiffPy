@@ -39,20 +39,26 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
 
         def font_hook(plot, elem):
 
+            #plot.handles[]
+
             plot.handles['xaxis'].major_label_text_font='arial'
+            plot.handles['xaxis'].major_label_text_color='#000000'
             plot.handles['xaxis'].major_label_text_font_size='16pt'
             plot.handles['xaxis'].major_label_text_font_style = 'normal'
             plot.handles['xaxis'].axis_label_text_font = 'arial'
             plot.handles['xaxis'].axis_label_text_font_size = '16pt'
+            plot.handles['xaxis'].axis_label_text_color='#000000'
             plot.handles['xaxis'].axis_label_text_font_style = 'normal'
             plot.handles['xaxis'].minor_tick_line_color = None 
             plot.handles['xaxis'].major_tick_line_color = None
             plot.handles['xaxis'].axis_line_color = None
             
             plot.handles['yaxis'].major_label_text_font='arial'
+            plot.handles['yaxis'].major_label_text_color='#000000'
             plot.handles['yaxis'].major_label_text_font_size='16pt'
             plot.handles['yaxis'].major_label_text_font_style = 'normal'
             plot.handles['yaxis'].axis_label_text_font = 'arial'
+            plot.handles['yaxis'].axis_label_text_color='#000000'
             plot.handles['yaxis'].axis_label_text_font_size = '16pt'
             plot.handles['yaxis'].axis_label_text_font_style = 'normal'
             plot.handles['yaxis'].minor_tick_line_color = None 
@@ -80,10 +86,10 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
         )
         hv.extension(backend)
         opts.defaults(
-            opts.HeatMap(hooks = [font_hook]),
+            opts.HeatMap(hooks = [font_hook, bounds_hook]),
             opts.Polygons(fill_alpha=0.15),
-            opts.Curve(hooks = [font_hook]),
-            opts.Path(hooks = [font_hook]),
+            opts.Curve(hooks = [font_hook, bounds_hook]),
+            opts.Path(hooks = [font_hook, bounds_hook]),
             opts.Image(
                 cmap='viridis',
                 invert_yaxis = True,

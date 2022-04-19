@@ -10,7 +10,6 @@ SCT 09/23/2021
 """
 from typing import Iterable
 import functools, operator, logging, pickle, os, math
-from xml.dom.minidom import Attr
 
 import holoviews as hv
 import numpy as np
@@ -39,6 +38,7 @@ def apply_opts(func):
     called with every new plot. Does nothing if local_opts
     is not defined.
     """
+    @functools.wraps(func)
     def local_opts(*args, **kwargs):
         if hasattr(args[0],'local_opts'):
             try:

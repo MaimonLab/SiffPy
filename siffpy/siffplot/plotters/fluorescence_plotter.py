@@ -82,6 +82,7 @@ class FluorescencePlotter(SiffPlotter):
                 'HeatMap' : {
                     'cmap':'Greens',
                     'width' : 1000,
+                    'height' : 150,
                     'colorbar' : False,
                     'colorbar_position' : 'left',
                     'colorbar_opts' : {
@@ -94,6 +95,7 @@ class FluorescencePlotter(SiffPlotter):
                     'toolbar' : 'above',
                     'show_frame' : False,
                     'invert_yaxis' : False,
+                    #'hooks' : [bounds_hook],
                 },
                 'Curve' : {
                     'line_color' : '#000000',
@@ -101,7 +103,8 @@ class FluorescencePlotter(SiffPlotter):
                     'width' : 1000,
                     'fontsize' : 15,
                     'toolbar' : 'above',
-                    'show_frame' : False
+                    'show_frame' : False,
+                    #'hooks' : [bounds_hook, ],
                 }
             }
         
@@ -311,9 +314,10 @@ class FluorescencePlotter(SiffPlotter):
             vdims=[yaxis]
         ).opts(title=title)
             
-    @apply_opts
     def plot_vector_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None,
-        direction = HeatMapDirection.HORIZONTAL, **kwargs
+        direction = HeatMapDirection.HORIZONTAL, 
+        show_f0 : bool = False,
+        **kwargs
         )->hv.element.HeatMap:
         """
         Returns a HoloViews HeatMap object that, by default, takes ALL current ROIs that are segmented, sums
@@ -321,6 +325,10 @@ class FluorescencePlotter(SiffPlotter):
         a HeatMap object (with time in the direction of the user's choosing) of the pooled fluorescence values.
 
         May be passed a parameter rois to narrow the analysis to specific ROIs
+
+        Does NOT apply local_opts to the entire element, but DOES apply the local_opts to the HeatMap element.
+        This allows additional annotation of the F and F0 aspects of the traces that might use different
+        opts.
         """
 
         if rois is None:
@@ -340,6 +348,7 @@ class FluorescencePlotter(SiffPlotter):
         if not(all(len(roi.subROIs) == len(rois[0].subROIs) for roi in rois)):
             raise ValueError("Not all provided ROIs have the same number of subROIs!")
 
+        vertical : bool = (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value)
 
         pooled  = []
         # combine like ROIs TODO: use the self-identification of each subROI!
@@ -353,7 +362,7 @@ class FluorescencePlotter(SiffPlotter):
 
         xaxis_label = "Time (sec)"
 
-        if all(lambda x : isinstance(x, (FluorescenceTrace,FluorescenceVector)) for x in pooled):
+        if all(lambda x : isinstance(x, FluorescenceTrace) for x in pooled):
             pooled = FluorescenceTrace(pooled)
         else:
             pooled = np.array(pooled)
@@ -361,32 +370,44 @@ class FluorescencePlotter(SiffPlotter):
         angle_axis = np.linspace(0, 2.0*np.pi, pooled.shape[0])
 
         if all(hasattr(subroi, 'angle') for subroi in rois[0].subROIs):
-            angle_axis = np.array([subroi.angle for subroi in rois[0].subROIs])
-            angle_axis = angle_axis % (2.0*np.pi)
+            #angle_axis = np.array([subroi.angle for subroi in rois[0].subROIs])
+            #angle_axis = angle_axis % (2.0*np.pi)
+            pass
 
         # TODO: COLORBAR FORMATTING
 
         # TODO: special treatment for FluorescenceTrace arrays
-        if all(lambda x: isinstance(x, (FluorescenceTrace, FluorescenceVector)) for x in pooled):
-            pass
+        z_axis_name = None
+        if all(lambda x: isinstance(x, FluorescenceTrace) for x in pooled):
+            if not (pooled[0].method is None):
+                z_axis_name = pooled[0].method
+                if pooled[0].normalized:
+                    z_axis_name += "\n(normalized)"
 
-        if (direction == HeatMapDirection.HORIZONTAL) or (direction == HeatMapDirection.HORIZONTAL.value):
+        kdim_axes = [ImageTime(), AngularSpace()]
+        
+        vdim_axes = [FluorescenceAxis(z_axis_name)]
+
+        if not vertical:
             element = hv.HeatMap(
                 (
                     time_axis,
                     angle_axis,
                     pooled
                 ),
-                kdims=[ImageTime(), AngularSpace()]
+                kdims= kdim_axes,
+                vdims = vdim_axes,
             )
-        if (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value):
+        if vertical:
+            kdim_axes.reverse()
             element = hv.HeatMap(
                 (
                     angle_axis,
                     time_axis,
                     pooled
                 ),
-                kdims = [AngularSpace(), ImageTime()]
+                kdims = kdim_axes,
+                vdims = vdim_axes,
             ).opts(
                     {
                         'HeatMap' : {
@@ -396,9 +417,57 @@ class FluorescencePlotter(SiffPlotter):
                         }
                     }
             )
-        
-        return element
 
+        element = element.opts(self._local_opts)
+        # Annotate F0        
+        if show_f0 and all(isinstance(x, FluorescenceTrace) for x in pooled):
+            angle_vals = element.data['Angular'].flatten()
+            f0s = np.array([x.F0 for x in pooled]).flatten()
+            if not vertical: 
+                f0HeatMap = hv.HeatMap(
+                    (
+                        np.zeros_like(f0s),
+                        angle_vals,
+                        f0s
+                    ),
+                    kdims = [hv.Dimension("F0_x"), AngularSpace()],
+                    vdims = [FluorescenceAxis('Photons')],
+                )
+            if vertical:
+                f0HeatMap = hv.HeatMap(
+                    (
+                        angle_vals,
+                        np.zeros_like(f0s),
+                        f0s
+                    ),
+                    kdims = [AngularSpace(), hv.Dimension("F0_x")],
+                    vdims = [FluorescenceAxis('Photons')],
+                )
+            f0HeatMap = f0HeatMap.opts(
+                cmap='Greys',
+                clabel = "Photons",
+                clim = (0,None),
+                xaxis=None,
+                yaxis=None,
+                colorbar=True,
+                width=100,
+                height=150,
+                title='F0',
+                colorbar_opts = {
+                    'width' : 10,
+                    'height' : 40,
+                    'title_text_font' : 'arial',
+                    'title_text_font_style' : 'normal',
+                    'title_text_font_size' : '6pt',
+                    'major_tick_line_width' : 0
+                },
+            )
+
+            element += f0HeatMap
+
+
+
+        return element
 
     @apply_opts
     def visualize(self, *args, timeseries = None, t_axis = None, **kwargs)->Union[hv.Layout,hv.element.Curve]:

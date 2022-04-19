@@ -9,6 +9,7 @@ SCT 09/23/2021
 from abc import abstractmethod
 import os,logging, pickle
 import warnings
+from functools import wraps
 
 import holoviews as hv
 
@@ -26,6 +27,7 @@ def apply_opts(func):
     called with every new plot. Does nothing if local_opts
     is not defined.
     """
+    @wraps(func)
     def local_opts(*args, **kwargs):
         if hasattr(args[0],'local_opts'):
             try:
@@ -46,6 +48,7 @@ def apply_events(func):
     stored in the plotter can be overlaid on the plot
     being produced.
     """
+    @wraps(func)
     def iterate_through_events(*args, **kwargs):
         self = args[0]
         if not isinstance(self, SiffPlotter):
