@@ -66,6 +66,18 @@ class AngularSpace(hv.Dimension):
         super().__init__(("Angular", "Angular\ncoordinate"), **kwargs)
 
 
+class UnwrappedHeading(hv.Dimension):
+    """
+    A dimension class for unbounded angles -- units are REVOLUTIONS
+    not radians by default.
+    """
+
+    def __init__(self, label : str = "Unwrapped heading", **kwargs):
+        if not "unit" in kwargs:
+            kwargs["unit"] = "revolutions"
+        super().__init__(("UnwrappedAngle", label), **kwargs)
+
+
 class AnnotationAxis(hv.Dimension):
     """
     A shared dimension for annotations on Events

@@ -171,7 +171,13 @@ def use_ellipse(reference_frames : list, polygon_source,
                 centers = []
                 for shape in poly_layer.data:
                     (c_x, c_y, _) = smallest_circle.make_circle(list(zip(shape[:,-1],shape[:,-2])))
-                    centers.append((c_x,c_y))
+
+                    if slice_idx is None:
+                        centers.append((c_x,c_y))
+                    else:
+                        z_plane = int(np.round(shape[0,0]))
+                        if slice_idx == z_plane:
+                            centers.append((c_x,c_y))
                 
                 dists = len(centers)*[np.nan]
                 for c_idx in range(len(centers)):

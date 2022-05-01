@@ -12,6 +12,7 @@ import warnings
 from functools import wraps
 
 import holoviews as hv
+from holoviews.core.io import Pickler, Unpickler
 
 from .roi_protocols import rois
 from ..siffpy import SiffReader
@@ -196,35 +197,69 @@ class SiffPlotter():
         This returns an object from the HoloViews backend being utilized (either
         bokeh or matplotlib) for direct customization.
         """
-        return hv.render(plot)
+        return hv.render(plot, **kwargs)
 
     def save_fig(self, *args, path : str = None, filename : str = None, **kwargs):
         """
-        Saves a figure file with a given backend using hv.save
+        Saves a figure file with a given backend using a Holoviews Pickler. Accepts the standard
+        `holoviews.core.io.Pickler.save()` args and kwargs, except if a filename or path are not provided
+        it drops the object in a subfolder in the directory holding the .siff file.
         """
-        raise NotImplementedError("")
-
-    def save(self, path : str = None, filename : str = None, as_fig : bool = False):
-        """
-        Saves self in .splot file, which can be read with the HoloViews Store object.
-        If no path is given, saves in current directory 
-        """
-        raise NotImplementedError("NEEDS TO USE HV.STORE.DUMP AND LOAD NOT PICKLE")
-        if filename is None:
-            filename = f"{os.path.splitext(os.path.basename(self.siffreader.filename))[0]}_{self.__class__.__name__}"
         if path is None:
-            path = "."
-        foldername = os.path.join(path,str(self.__class__.__name__))
-        if not os.path.exists(foldername):
-            os.makedirs(foldername)
-        splot_file_name = os.path.join(foldername, filename + ".splot")
-        with open(splot_file_name, "wb+") as f:
+            path = os.path.join(
+                os.path.dirname(self.siffreader.filename),
+                os.path.splitext(self.siffreader.filename)[0],
+                self.__class__.__name__ + " plots"
+            )
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
+        if filename is None:
+            filename = self.__class__.__name__ + " plot obj"
+
+        fname = os.path.join(path, filename)
+        Pickler.save(*args, fname, **kwargs)
+
+    def save(self, path : str = None, filename : str = None):
+        """
+        Saves self in .splot file, which can be read with the class method SiffPlotter.load(file).
+        If no path is given, saves in .siff file's current directory.
+        """
+        
+        if path is None:
+            path = os.path.join(
+                os.path.dirname(self.siffreader.filename),
+                os.path.splitext(self.siffreader.filename)[0],
+                self.__class__.__name__ + " plots"
+            )
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
+        if filename is None:
+            filename = self.__class__.__name__ + " plot obj"
+
+        fname = os.path.join(path, filename)
+        fname += ".splot"
+
+        with open(fname, "wb+") as f:
             pickle.dump(self, f)
+
+    @property
+    def filename(self)->str:
+        """ Get the filename of the .siff file """
+        return self.siffreader.filename
 
     @classmethod
     def load(path : str):
-        """ Loads a .splot file """
-        raise NotImplementedError()    
+        """ Loads a .splot file to return a SiffPlotter class (which contains method and local plotting options. """
+        raise NotImplementedError()
+
+    @classmethod
+    def load_fig(cls, path : str, *args, **kwargs) -> hv.Element:
+        """ Wraps HoloViews Unpickler's load method"""
+        return Unpickler.load(path, *args, **kwargs)    
 
     ## ROIS
     def save_rois(self, path : str = None):

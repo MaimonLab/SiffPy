@@ -88,8 +88,6 @@ class EventPlotter(SiffPlotter):
                 }
             }
         
- 
-            
     @apply_opts
     def plot_event(self, event : SiffEvent, *args, direction = 'v', **kwargs)->hv.Overlay:
         """ Returns a small Overlay object with an arrow demarcating the time of an event and text annotation """

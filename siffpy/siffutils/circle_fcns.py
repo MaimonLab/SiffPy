@@ -1,5 +1,6 @@
 # Functions for circularizing floats and ints
 from itertools import tee
+from tkinter import Y
 
 import numpy as np
 
@@ -26,6 +27,99 @@ def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: f
     d_y = circ_d(roll1[0],roll2[0],rollover_y)
     d_x = circ_d(roll1[1],roll2[1],rollover_x)
     return np.sqrt(d_x**2 + d_y**2)
+
+def circ_diff(arr : np.ndarray)->np.ndarray:
+    return np.angle(np.exp(arr[1:]*1j)/np.exp(arr[:-1]*1j))
+
+def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
+    """
+    Compute circular correlation a la Green, Adachi, Maimon 2017,
+    itself borrowing a circular correlation toolkit from 
+    Jessica B. Hamrick and Peter W. Battaglia, who in turn
+    built their function after the MATLAB circ functions,
+    themselves deriving this function from Fisher et al. 1983.
+
+    rho = 2*( (E[cos(x-y)]**2 + E[sin(x-y)]**2) - (E[cos(x+y)]**2 + E[sin(x+y)]**2) ) / Z
+
+    Z is the normalization constant
+
+    This measure reflects the difference between an estimated positive exact relationship
+    between x and y vs. an estimated negative relationship. Each term is the expected magnitude of
+    a resultant vector made from either x - y (a constant if there's a positive relationship
+    between the two) or x + y (a constant if there's a negative relationship between the two.)
+    The expected magnitude of the constant vector is 1, and so if rho is approximately 0 if the
+    two have no relationship, 1 if the two have a constant positive relationship, and -1 if
+    the two have a constant negative offset
+
+    TODO: figure out good bounds
+    on the error.
+
+    x and y are presumed to be in radians, but there's no
+    need to use mod.
+
+    Can't help but suspect there's an even more elegant way to
+    implement this using complex numbers. There's never a time that
+    circular functions are better implemented in R than in C.
+
+    ARGUMENTS
+    ---------
+
+    x : np.ndarray
+
+        One of the two arrays of circular variables to correlate
+
+    y : np.ndarray
+
+        The other of the two arrays of circular variables to correlate
+
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+    """
+    if not (x.shape == y.shape):
+        raise ValueError("Arrays must be of same size.")
+
+    diffed = x - y
+    summed = x + y
+
+    # The first half of the term is the prediction of a POSITIVE association between x and y, i.e. x ~ y + alpha,
+    # the second half is the prediction of a NEGATIVE association between x and y, i.e. x ~ -y + alpha.
+    # Each term is the magnitude of the resultant mean vector of the sum vs. the difference of the two series
+    numerator = (
+        np.nansum(np.cos(diffed) + np.cos(summed), axis = axis) * np.nansum(np.cos(diffed)-np.cos(summed), axis = axis) -
+        np.nansum(np.sin(summed) - np.sin(diffed), axis = axis) * np.nansum(np.sin(summed)+np.sin(diffed), axis = axis)
+    )
+
+    # Sqrt( (n^2 - Sum(cos(2x))^2 - Sum(sin(2x))^2)(n^2 - Sum(cos(2y))^2 - Sum(sin(2y))^2) )
+    denominator = np.sqrt(
+        (x.shape[axis]**2 - (np.nansum(np.cos(2*x), axis = axis)**2 + np.nansum(np.sin(2*x), axis = axis)**2) ) *
+        (y.shape[axis]**2 - (np.nansum(np.cos(2*y), axis = axis)**2 + np.nansum(np.sin(2*y), axis = axis)**2) )
+    )
+
+    return numerator / denominator
+
+def circ_corr_non_parametric(x : np.ndarray, y : np.ndarray)->float:
+    """
+    Compute a ranked circular correlation from Fisher et al. 1983.
+
+    P = (4/n^2)( Sum_{1<=i<j<=n} sin(2*pi*(r_i-r_j)/n)*sin(2*pi(s_i-s_j)/n) )
+    with {r_k} the ranks of the elements of x and {s_k} the ranks of the elements of y
+
+    This measure bears the same relationship with the circ_corr as Pearson's r has with
+    Spearmann's rho. With _uniform_ (not von Mises) marginals, this asymptotically converges
+    to the distribution of circ_corr.
+
+    TODO: figure out good bounds
+    on the error.
+
+    Can't help but suspect there's an even more elegant way to
+    implement this using complex numbers. There's never a time that
+    circular functions are better implemented in R than in C.
+    """
+
+    raise NotImplementedError("Too lazy.")
+
 
 def circ_interpolate_between_endpoints(x_samp : np.ndarray, endpts_x : np.ndarray, endpts_y : np.ndarray):
     """

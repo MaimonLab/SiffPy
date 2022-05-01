@@ -27,6 +27,12 @@ and produces data-type plots (heatmaps, traces, etc.).
 `ROI` subclasses will also do everything entirely in `HoloViews`, but I intend to implement functionality
 to get them to be visualizable in at least some types of `SiffVisualizer`s.
 
+Because the `SiffPlotter` objects use `HoloViews`, rather than storing pointers to the data objects as explicit properties,
+they can always be extracted from the `HoloViews` plotting objects themselves (`Element`s), each of which have an attribute
+`data`. So if you produce a plot `myPlot = myPlotter().visualize()`, then you can access the underlying data with `myPlot.data`,
+which returns either a list or a dictionary of the data objects (depending on the type of plot used). If it returns a `dict`,
+each plot's data attributes can be accessed with keys detailing the type of plot it is (for example, `(Curve, I)`).
+
 ## SiffPlotter
 
 The `SiffPlotter` interfaces with a `SiffReader` that can be applied on initialization. A `SiffPlotter` is initialized with

@@ -260,14 +260,19 @@ class ROI():
         """
         if not os.path.exists(path):
             os.makedirs(path)
-            pass
         file_name = os.path.join(path,self.__class__.__name__)
         if hasattr(self,'name'):
-            file_name += str(self.name)+str(self.polygon.__hash__())
+            file_name += str(self.name)+str(self.__hash__())
         else:
-            file_name += str(self.polygon.__hash__())
+            file_name += str(self.__hash__())
         with open(file_name + ".roi",'wb') as roi_file:
             pickle.dump(self, roi_file)
+
+    def __hash__(self)->float:
+        if hasattr(self, 'image'):
+            return hash((self.center, self.__class__.__name__, self.mask().tobytes()))
+        else:
+            return hash((self.center, self.__class__.name))
 
     @property
     def subROIs(self)-> list['subROI'] :

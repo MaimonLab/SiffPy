@@ -3,7 +3,6 @@
 import holoviews as hv
 import numpy as np
 import logging
-from scipy.stats import circmean
 
 from ..log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 from .tracplotter import *
@@ -37,7 +36,7 @@ class HeadingPlotter(TracPlotter):
             else:
                 logging.warn(f"\nKeyword argument for offset {kwargs['offset']} is not of type float. Ignoring.")
 
-    def wrap_heading(self, log : LogToPlot = None) -> np.ndarray:
+    def wrapped_heading(self, log : LogToPlot = None) -> np.ndarray:
         """
         Returns the wrapped heading with self.offset subtracted
         """
@@ -66,7 +65,7 @@ class HeadingPlotter(TracPlotter):
         wrapped_heading *= np.exp(offset*1j)
         return np.angle(wrapped_heading)+np.pi
 
-    def fit_offset(self, phase, **kwargs) -> float:
+    def fit_offset(self, phase : np.ndarray, **kwargs) -> float:
         """
         Takes a numpy array of estimated phase (1-dimensional), computes the best aligned
         phase offset between it and heading, and stores that in this HeadingPlotter.
@@ -82,8 +81,7 @@ class HeadingPlotter(TracPlotter):
             the phase estimate to match the heading (or, alternatively, subtracted from the heading to match phase).
 
         """
-        downsampled_heading = self.logs[0][0].downsample_to_imaging(**kwargs)['integrated_heading_lab']
-        self.offset = circmean( downsampled_heading - phase )
+        raise NotImplementedError()
         return self.offset
 
     @apply_opts

@@ -202,6 +202,7 @@ class ROIVisualizer(SiffVisualizer):
             raise AssertionError("SiffReader has no registered reference frames.")
 
         self.viewer = ROIViewer(self.siffreader, visualizer = self, title='Annotate ROIs')
+        self.viewer.viewer.layers.selection = [self.viewer.viewer.layers['ROI shapes']] # selects the ROI drawing layer
         self.viewer.save_rois_fcn = self.save_rois
 
 

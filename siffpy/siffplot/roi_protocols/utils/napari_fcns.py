@@ -130,7 +130,7 @@ class _NapariLike():
             [ shapelike.height/2, -shapelike.width/2]            
         ])
 
-        theta : float = shapelike.orientation
+        theta : float = -shapelike.orientation # NOTE THE MINUS SIGN
         ROT = np.array([
             [np.cos(theta), -np.sin(theta)],
             [np.sin(theta), np.cos(theta)],
@@ -218,7 +218,7 @@ def _slice_idx_parsing(slice_idx, shapes_to_array_fcn : Callable, ret_tuple_fcn 
         slice_arrays = [
             individual_array
             for individual_array in list_of_arrays
-            if (individual_array.shape[-1] == 3) and np.all(individual_array[:,0].astype(int) == slice_idx)
+            if (individual_array.shape[-1] == 3) and np.all(np.round(individual_array[:,0]).astype(int) == slice_idx)
         ]
         if len(slice_arrays) == 0:
             return None
@@ -235,7 +235,7 @@ def _slice_idx_parsing(slice_idx, shapes_to_array_fcn : Callable, ret_tuple_fcn 
             slice_arrays = [
                 individual_array
                 for individual_array in list_of_arrays
-                if (individual_array.shape[-1] == 3) and np.all(individual_array[:,0] == this_slice)
+                if (individual_array.shape[-1] == 3) and np.all(np.round(individual_array[:,0]).astype(int) == this_slice)
             ]
 
             if len(slice_arrays) == 0:
@@ -335,7 +335,7 @@ def _largest_ellipse_tuple_from_viable(ellipse_list : list[np.ndarray], n_ellips
         if ellipse_array.shape[-1] == 2: # 2 dimensional, not 3d
             ret_slice = None
         else: # otherwise, get the z slice of the first point
-            ret_slice = int(ellipse_array[0][0])
+            ret_slice = int(np.round(ellipse_array[0][0]))
         
         avgs = np.mean(ellipse_array,axis=0)
         
@@ -350,7 +350,7 @@ def _largest_ellipse_tuple_from_viable(ellipse_list : list[np.ndarray], n_ellips
                 avgs[-1], # center x
                 avgs[-2], # center y
                 (width, height), # width, height
-                orientation = theta, # counterclockwise rotation from x axis
+                orientation = -theta, # counterclockwise rotation from x axis
             ),
             ret_slice,
             roi_idxs[-1]
@@ -370,7 +370,7 @@ def _largest_ellipse_tuple_from_viable(ellipse_list : list[np.ndarray], n_ellips
         if ellipse_array.shape[-1] == 2:
             ret_slice = None
         else:
-            ret_slice = int(ellipse_array[0][0])
+            ret_slice = int(np.round(ellipse_array[0][0]))
         
         avgs = np.mean(ellipse_array,axis=0)
         
@@ -386,7 +386,7 @@ def _largest_ellipse_tuple_from_viable(ellipse_list : list[np.ndarray], n_ellips
                     avgs[-1], # center x
                     avgs[-2], # center y
                     (width, height), # width, height
-                    orientation = theta, # counterclockwise rotation from x axis
+                    orientation = -theta, # counterclockwise rotation from x axis
                 ),
                 ret_slice,
                 idx
@@ -410,7 +410,7 @@ def _largest_lines_tuple_from_viable(
         if line_array.shape[-1] == 2:
             ret_slice = None
         else:
-            ret_slice = int(line_array[0][0])
+            ret_slice = int(np.round(line_array[0][0]))
         return (
             hv.Path(
                 {('y','x'):line_array[:,-2:]}
@@ -426,7 +426,7 @@ def _largest_lines_tuple_from_viable(
         if line_array.shape[-1] == 2:
             ret_slice = None
         else:
-            ret_slice = int(line_array[0][0])
+            ret_slice = int(np.round(line_array[0][0]))
         ret_list.append(
             (
                 hv.Path(

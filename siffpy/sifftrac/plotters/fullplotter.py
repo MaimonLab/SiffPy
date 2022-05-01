@@ -13,7 +13,6 @@ import logging
 from scipy.stats import circmean
 
 from .tracplotter import *
-from ..utils.fcns import *
 
 class FullPlotter(TracPlotter):
     """

@@ -241,7 +241,7 @@ class Fan(ROI):
         # vectors oriented in the direction of each bounding path
         bounding_directions = [np.dot(rotation_matrix(angle), left_edge) for angle in rotation_angles]
         paired_bounds = pairwise(bounding_directions) # pair them up, (vec1, vec2), (vec2, vec3), ...
-        paired_bounding_angles = pairwise(np.linspace(0, 360, n_segments+1)) # these are nominal, span 0 to 360
+        paired_bounding_angles = pairwise(np.linspace(0, 2*np.pi, n_segments+1)) # these are nominal, span 0 to 2pi
 
         self.columns = [
             Fan.TriangleColumn(self, bound_vec, bound_ang, intersection, slice_idx = self.slice_idx, image=self.image)

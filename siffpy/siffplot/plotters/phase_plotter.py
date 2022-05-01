@@ -1,13 +1,14 @@
+from cmath import phase
 from functools import reduce
 from typing import Callable, Union
 
 import numpy as np
 import holoviews as hv
-import operator
 
 from ...siffplot.siffplotter import apply_opts, SiffPlotter
 from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
+from ...siffplot.utils.dims import *
 from ...siffmath import estimate_phase
 from ...siffutils.circle_fcns import *
 
@@ -38,25 +39,58 @@ class PhasePlotter(SiffPlotter):
     ( e.g. phase_p = PhasePlotter(siff_plotter)) )
     """
 
-    def estimate_phase(self, roi : ROI = None, vector_timeseries : np.ndarray = None, phase_method : str = None, **kwargs)->np.ndarray:
+    def __init__(self, *args, **kwargs):
+        f"""
+        May be initialized from another SiffPlotter to inherit its
+        attributes. Inherited attributes are:
+
+            {inherited_params}
         """
-        Wraps the estimate_phase methods of siffmath, taking a segmented
-        ROI, using it to extract fluorescence data from the siffreader frames,
-        and then fitting a phase to those data (with the option of returning
-        error estimates too). Those values are returned and stored within
+        if not any([isinstance(arg,SiffPlotter) for arg in args]):
+            # From scratch
+            super().__init__(*args, **kwargs)
+        else:
+            for arg in args:
+                # Iterate until you get to the first SiffPlotter object.
+                if isinstance(arg, SiffPlotter):
+                    plotter = arg
+                    break
+            
+            # inherits parameters from the provided plotter
+            for param in inherited_params:
+                if hasattr(plotter, param):
+                    setattr(self, param, getattr(plotter, param))
+        
+        if 'opts' in kwargs:
+            self._local_opts = {**self._local_opts, **kwargs['opts']}
+        else:
+            self._local_opts = {**self._local_opts,
+                'Path' : {
+                    'line_color':'#3FA50F',
+                    'line_width' : 1,
+                    'width' : 1000,
+                    'height' : 150,
+                    'yaxis' : None,
+                    'fontsize': 15,
+                    'toolbar' : 'above',
+                    'show_frame' : False,
+                    'invert_yaxis' : False,
+                },
+            }
+
+    def estimate_phase(self, vector_timeseries : np.ndarray, phase_method : str = None, **kwargs)->np.ndarray:
+        """
+        Wraps the estimate_phase methods of siffmath, taking an extracted vector
+        of fluorescence measurements across timepoints
+        and then fitting a phase to those data. Those values are returned and stored within
         the PhasePlotter.
+
+        Accepts vector 
 
         Arguments
         ---------
 
-        roi : siffpy.siffplot.roi_protocols.rois.roi.ROI (optional)
-
-            Any ROI subclass that has a 'subROIs' attribute. If None
-            is provided, will look at this SiffPlotter's rois attribute
-            to see if any meet the necessary criteria, and uses the first
-            one of those that it finds. Default is None.
-
-        vector_timeseries : np.ndarray (optional)
+        vector_timeseries : np.ndarray
 
             Alternatively, you can skip using the ROI explicitly and just pass a
             numpy array of fluorescence data for each subROI. Default is None,
@@ -65,21 +99,41 @@ class PhasePlotter(SiffPlotter):
 
         Returns
         -------
-        NotImplementedError
-        """
-        if vector_timeseries is None:
-            if not hasattr(self, 'vector_timeseries'):
-                raise NotImplementedError()
-                #self.vector_timeseries = self.compute_vector_timeseries(roi,**kwargs)
-
-        split_angles_to_dict()
         
-        raise NotImplementedError()
+        phase_estimate : np.ndarray
+
+            A numpy array corresponding to the estimated phase of the passed
+            vector_timeseries signal.
+        """
+        if phase_method is None:
+            self.phase = estimate_phase(vector_timeseries, **kwargs)
+        else:
+            self.phase = estimate_phase(vector_timeseries, method = phase_method, **kwargs)
+        return self.phase
 
     def visualize(self) -> hv.Layout:
         """ Not yet implemented """
         raise NotImplementedError()
         return super().visualize()
+
+    @apply_opts
+    def plot_phase(self, time : np.ndarray, phase : np.ndarray)->hv.element.Path:
+        """
+        Returns a Path object plotting a phase timeseries.
+        """
+
+        if not (time.shape == phase.shape):
+            raise ValueError("Time and phase arguments must have same shape.")
+
+        path_obj = hv.element.Path(
+            split_angles_to_list(
+                time,
+                phase
+            ),
+            kdims = [ImageTime(), AngularSpace()]
+        )
+
+        return path_obj
 
     @apply_opts
     def wrapped_error_plot(x_axis : np.ndarray, central_data : np.ndarray, error : np.ndarray,

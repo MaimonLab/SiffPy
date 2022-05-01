@@ -250,9 +250,10 @@ def polygon_bounded_by_rays(poly : hv.element.Polygons, rays : list[np.ndarray],
 
     # Probably happens a few times per polygon: at least one ray doesn't pass through the polygon
     
-    # Edgiest-case, neither passes through the polygon
+    # Edgiest-case, neither passes through the polygon. It's either INSIDE the rays (return the whole polygon)
+    # or OUTSIDE the rays (return None)
     elif not any(map(lambda x: len(x) >= 2, vector_poly_intersections)):
-        # just check if a point is inside the bounding rays
+        # just check if at least one point is inside the bounding rays
         if point_inside_rays(*rays, polygon_points[0], origin):
             return poly
         else:

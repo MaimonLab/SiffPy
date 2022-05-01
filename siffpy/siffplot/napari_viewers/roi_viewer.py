@@ -65,6 +65,9 @@ class ROIViewer(NapariInterface):
     def initialize_layers(self, edge_color = CINNABAR):
         """ Initializes the napari viewer layer for drawing ROIs """
         
+        if not hasattr(self.siffreader,'reference_frames'):
+            raise NoROIException("SiffReader has no reference frames")
+
         self.viewer.add_image(
             data = np.array(self.siffreader.reference_frames),
             name='Reference frames',
