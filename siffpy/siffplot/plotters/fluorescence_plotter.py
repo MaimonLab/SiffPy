@@ -465,8 +465,6 @@ class FluorescencePlotter(SiffPlotter):
 
             element += f0HeatMap
 
-
-
         return element
 
     @apply_opts
