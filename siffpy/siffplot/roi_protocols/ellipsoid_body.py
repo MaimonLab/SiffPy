@@ -168,8 +168,14 @@ def use_ellipse(reference_frames : list, polygon_source,
         else: # at least two shapes available
             if (extra_rois is ExtraRois.CENTER or (extra_rois == ExtraRois.CENTER.value)):
                 # Go through all polygons, find the one with a center closest to the largest polygon
+                viable_polygons = []
+                if slice_idx is None:
+                    viable_polygons = poly_layer.data
+                else:
+                    viable_polygons = [shape for shape in poly_layer.data if int(np.round(shape[0,0])) == slice_idx]
+
                 centers = []
-                for shape in poly_layer.data:
+                for shape in viable_polygons:
                     (c_x, c_y, _) = smallest_circle.make_circle(list(zip(shape[:,-1],shape[:,-2])))
 
                     if slice_idx is None:
@@ -188,7 +194,7 @@ def use_ellipse(reference_frames : list, polygon_source,
                 nearest_poly_idx = np.nanargmin(dists)
                 
                 #reassign the ellipse center to this smallest polygon's center.
-                center_poly_array = poly_layer.data[nearest_poly_idx]
+                center_poly_array = viable_polygons[nearest_poly_idx]
                 center_poly = hv.Polygons(
                     {
                         ('y', 'x') : center_poly_array[:,-2:]

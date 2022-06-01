@@ -1,3 +1,6 @@
+import logging
+from multiprocessing.sharedctypes import Value
+
 import numpy as np
 
 from . import FLIMParams
@@ -91,6 +94,9 @@ class FlimArray():
             return FlimArray(self.intensity*other, self.lifetime, **kwargs)
         if isinstance(other, np.ndarray):
             return FlimArray(self.intensity*other, self.lifetime, **kwargs)
+        if isinstance(other, FlimArray):
+            raise ValueError("FlimArrays cannot be multiplied by other FlimArrays -- lifetime operation undefined.")
+            #return FlimArray(self.intensity*other.intensity, self.lifetime, **kwargs)
         
         return NotImplemented
 

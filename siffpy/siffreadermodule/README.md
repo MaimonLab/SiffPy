@@ -2,6 +2,9 @@
 
 C and C++ code compiled into a local Python extension module. The code in here is designed to quickly read .siff files and .tiff files (with a custom tiff-like reader) and return Numpy arrays. I'll document this too, though it's a bit messier.
 
+Due for a refactor. The `SiffReader` object has gotten extremely complex, and the way some
+function calls are handled is not great (and some things maybe should be inlined that aren't).
+
 ## SiffReader class (C++)
 
 Most file I/O is done by a `SiffReader` object in the module (yes, I agree, it was maybe a bad idea to name both the module and the `C++` class `SiffReader`, though the idea is that the `Python` module wraps the `C++` class).

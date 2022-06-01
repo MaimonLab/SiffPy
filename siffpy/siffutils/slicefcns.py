@@ -9,7 +9,9 @@ def framelist_by_slice(im_params : ImParams, color_channel : int = None, upper_b
     
     If slice_idx is not None, returns a single list corresponding to that slice.
 
-    Defaults to using the lowest-numbered color channel
+    Defaults to using the lowest-numbered color channel.
+
+    color_channel is * 0-indexed *.
     """
     
     n_slices = im_params['NUM_SLICES']
@@ -52,6 +54,8 @@ def framelist_by_timepoint(im_params : ImParams, color_channel : int, upper_boun
     
     If slice_idx is int:
     Returns all frames corresponding to a specific slice
+
+    color_channel is * 0-indexed *.
     """
     
     n_slices = im_params['NUM_SLICES']
@@ -86,7 +90,7 @@ def framelist_by_timepoint(im_params : ImParams, color_channel : int, upper_boun
         return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
 
 def framelist_by_color(im_params : ImParams, color_channel : int, upper_bound = None)->list:
-    "List of all frames that share a color, regardless of slice. Color channel is indexed from 0!"
+    "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
 
     colors = im_params['COLORS']
     n_frames = im_params['NUM_FRAMES'] - 1

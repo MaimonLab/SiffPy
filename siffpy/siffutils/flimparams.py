@@ -82,7 +82,7 @@ class FLIMParams(object):
                 if use_noise:
                     self.noise = 0.0
 
-            self.color_channel = color_channel
+        self.color_channel = color_channel
 
     @classmethod
     def from_tuple(cls, param_tuple : tuple):
@@ -333,6 +333,21 @@ class FLIMParams(object):
 
         return arrival_p
 
+    def __eq__(self, other)->bool:
+        """ Test whether two FLIMParams are the same """
+        if isinstance(other, FLIMParams):
+            # If at least one color_channel is None, then just ignore the color channel
+            if not ((self.color_channel is None) and (other.color_channel is None)): # if these are defined, check them
+                if not (self.color_channel == other.color_channel):
+                    return False
+            if (
+                (self.Ncomponents == other.Ncomponents) and
+                (self.Exp_params == other.Exp_params) and
+                (self.IRF == other.IRF) and
+                (self.T_0 == other.T_0)
+            ):
+                return True
+        return False
 
 
 ### LOCAL FUNCTIONS

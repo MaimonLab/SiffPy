@@ -661,7 +661,7 @@ inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameDa
     // Can ignore the preceding array listing photons per pixel.
     siff.seekg(frameData.dataStripAddress);
 
-    throw std::runtime_error(std::to_string(frameData.dataStripAddress));
+    //throw std::runtime_error(std::to_string(frameData.dataStripAddress));
 
     uint16_t readsThisFrame[samplesThisFrame];
     siff.read((char*) readsThisFrame, sizeof(uint16_t)*samplesThisFrame);

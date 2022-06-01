@@ -100,6 +100,8 @@ class FrameMetaData(object):
                 else:
                     setattr(self, key, param_dict[key])
 
+        self._param_dict = param_dict
+
     def __getitem__(self, key : str) -> None:
 
         if hasattr(self, key):

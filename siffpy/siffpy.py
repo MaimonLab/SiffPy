@@ -1,10 +1,11 @@
 from typing import Union
 import itertools
 import logging, os, pickle
-from .siffutils import SEC_TO_NANO, NANO_TO_SEC
-from .siffutils.slicefcns import framelist_by_color, framelist_by_slice
 
 import numpy as np
+
+from .siffutils import SEC_TO_NANO, NANO_TO_SEC
+from .siffutils.slicefcns import framelist_by_color, framelist_by_slice
 
 import siffreader
 from . import siffutils
@@ -799,10 +800,205 @@ class SiffReader(object):
             frame_endpoints[1] = int(self.im_params.num_volumes*self.im_params.frames_per_volume/self.im_params.num_colors)
         if color_channel is None:
             color_channel = [c-1 for c in self.im_params.colors]
+        if isinstance(color_channel, int):
+            color_channel = [color_channel]
 
         framelists = [framelist_by_color(self.im_params, c) for c in color_channel]
         true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
         return np.array([self.get_histogram(frames) for frames in true_framelists])
+
+    def sum_roi_flim(self,
+            params : Union[FLIMParams, list[FLIMParams]],
+            roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
+            timepoint_start : int = 0,
+            timepoint_end : int = None,
+            color_list : list[int] = None,
+            registration_dict : dict = None,
+        )->Union[FlimArray,list[FlimArray]]:
+        """
+        Computes the empirical lifetime within an ROI over timesteps.
+
+        params determines the color channels used.
+
+        If params is a list, returns a list of numpy arrays, each corresponding
+        to the provided FLIMParams element.
+
+        If params is a single FLIMParams object, returns a numpy array.
+
+        ARGUMENTS
+        ----------
+
+        params : FLIMParams object or list of FLIMParams
+
+            The FLIMParams objects fit to the FLIM data of this .siff file. If
+            the FLIMParams objects do not all have a color_channel attribute,
+            then the optional argument color_list must be provided and be a list
+            of ints corresponding to the * 1-indexed * color channel numbers for
+            each FLIMParams, unless there is only one color channel in the data.
+
+        roi : siffpy.siffplot.roi_protocols.rois.ROI
+
+            An ROI subclass that defines the boundaries of the region being considered.
+
+        timepoint_start : int (optional) (default is 0)
+
+            The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
+
+        timepoint_end : int (optional) (default is None)
+
+            The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
+            defaults to the final timepoint of the .siff file.
+
+        color_list : list[int] (optional) (default is None)
+
+            If the FLIMParams objects do not have a color_channel attribute, then this
+            argument is REQUIRED. Explains which channel's frames should used to compute
+            the empirical lifetime. Must be of the same length as the params argument. Will
+            be superceded by the corresponding FLIMParams color_channel if both are required.
+
+        registration_dict : dict
+
+            Registration dictionary for frames.
+
+        """
+
+        if isinstance(params, FLIMParams):
+            params = [params]
+
+        if not isinstance(params, list):
+            raise ValueError("params argument must be either a FLIMParams object or a list of FLIMParams")
+
+        if not all(isinstance(x, FLIMParams) for x in params):
+            raise ValueError("params argument must be either a FLIMParams object or a list of FLIMParams")
+
+        # Make color_list a list no matter what so that it's mutable
+        if hasattr(color_list, '__iter__'):
+            color_list = [color for color in color_list]
+
+        if self.im_params.num_colors == 1:
+            color_list = [0]*len(params)
+        
+        # Now check that the color parameters are all correct
+        if color_list is None:
+            if not all(hasattr(x,'color_channel') and not (x.color_channel is None) for x in params):
+                raise ValueError(
+                    "Provided FLIMParams do not all have a valid color_channel, "
+                    "more than one color channel is in the given siff file, "
+                    "and no color_list argument was provided."
+                )
+            color_list = [None]*len(params)
+
+        # not everything needs to be Pythonic. This just seems more readable
+        for idx, param in enumerate(params):
+            if hasattr(param, 'color_channel') and not (param.color_channel is None):
+                color_list[idx] = int(param.color_channel)
+        
+        if not all(isinstance(x, int) for x in color_list):
+            raise ValueError("At least one provided FLIMParams does not have a "
+                "color channel that has been accounted for, either as a color_channel attribute "
+                "or as an element of the color_list keyword argument."
+            )        
+
+        if timepoint_end is None:
+            timepoint_end = self.im_params.num_timepoints
+
+        if registration_dict is None:
+            if hasattr(self,'registration_dict'):
+                registration_dict = self.registration_dict
+
+        if len(params) == 1:
+            color = color_list[0]-1
+            slice_idx = None
+            if hasattr(roi, 'slice_idx'):
+                slice_idx = roi.slice_idx
+            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            if slice_idx is None: # flattens the list to extract values, then later will compress
+            # along slices
+                frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
+            else:
+                frames = frames[timepoint_start:timepoint_end]
+            try:
+                mask = roi.mask()
+            except ValueError:
+                if slice_idx is None:
+                    mask = roi.mask(image=self.reference_frames[0])
+                else:
+                    mask = roi.mask(image=self.reference_frames[slice_idx])
+
+            summed_intensity_data = siffreader.sum_roi(
+                mask,
+                frames = frames,
+                registration = registration_dict
+            )
+
+            summed_flim_data = siffreader.sum_roi_flim(
+                mask,
+                params[0],
+                frames = frames,
+                registration = registration_dict
+            )
+
+            # just one slice, no need to repack
+            if isinstance(slice_idx, int):
+                return FlimArray(
+                    summed_intensity_data,
+                    summed_flim_data,
+                    FLIMParams = params[0],
+                )
+
+            # more than one slice, sum across slices TODO!!!!
+            raise NotImplementedError("Need to deal with multiple z planes still. Line 941 of siffpy.py")
+            return np.sum(summed_flim_data.reshape((-1, self.im_params.num_slices)),axis=-1)
+            
+        # This means color_list is longer than length 1
+        output_list = []
+        for idx, color in enumerate(color_list):
+            color = color-1
+            # Do the above, but iterate through colors
+            slice_idx = None
+            if hasattr(roi, 'slice_idx'):
+                slice_idx = roi.slice_idx
+            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            if slice_idx is None: # flattens the list to extract values, then later will compress
+            # along slices
+                frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
+            else:
+                frames = frames[timepoint_start:timepoint_end]
+
+            try:
+                mask = roi.mask()
+            except ValueError:
+                if slice_idx is None:
+                    mask = roi.mask(image=self.reference_frames[0])
+                else:
+                    mask = roi.mask(image=self.reference_frames[slice_idx])
+
+            summed_intensity_data = siffreader.sum_roi(
+                mask,
+                frames = frames,
+                registration = registration_dict
+            )
+
+            summed_flim_data = siffreader.sum_roi_flim(
+                mask,
+                params[idx],
+                frames = frames,
+                registration = registration_dict
+            )
+
+            if not isinstance(slice_idx,int):
+                raise ValueError("Haven't set up to handle more than one slice in this function yet.")
+                summed_data = np.sum(summed_data.reshape((-1, self.im_param.num_slices)),axis=-1)
+
+            output_list.append(
+                FlimArray(
+                    summed_intensity_data,
+                    summed_flim_data,
+                    FLIMParams=params[idx]
+                )
+            )
+
+        return output_list
 
     def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, rolling : bool = False,
             timepoint_start : int = 0, timepoint_end : int = None,
@@ -967,6 +1163,8 @@ class SiffReader(object):
             return np.array(list_of_arrays)
         else:
             return [FlimArray(arr[1], arr[0], FLIMParams=flimfit) for arr in list_of_arrays]
+
+
 
 ### ORGANIZATIONAL METHODS
     def framelist_by_slice(self, color_channel : int = None) -> list[list[int]]:

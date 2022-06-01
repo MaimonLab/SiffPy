@@ -32,7 +32,7 @@ frame_meta_lookup_cast ={
     'endOfAcquisitionMode' : bool
 }
 
-MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 2. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
+MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
 
 EVENT_DICT = { # lookup table 
 

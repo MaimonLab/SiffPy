@@ -1,8 +1,6 @@
 import numpy as np
 from typing import Union
 
-from ..utils import fifth_percentile
-
 class FluorescenceTrace(np.ndarray):
     """
     Extends the numpy array to provide
@@ -11,6 +9,18 @@ class FluorescenceTrace(np.ndarray):
     a normal numpy array. Modeled after
     the RealisticInfoArray example provided at
     https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
+
+    FluorescenceTrace(
+        input_array,
+        method : str = None,
+        normalized : bool = False,
+        F : np.ndarray = None,
+        F0 : np.ndarray = np.ndarray(None),
+        max_val : np.ndarray = np.inf,
+        min_val : np.ndarray = 0.0,
+        angle : float = None,
+        info_string : str = None
+    )
     """
 
     VECTOR_PROPERTIES = [

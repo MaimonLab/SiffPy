@@ -877,7 +877,7 @@ static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, P
         return NULL;
     }
 }
-
+//
 /*
 
 Warnings and utils

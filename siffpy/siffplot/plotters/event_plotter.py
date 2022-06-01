@@ -1,8 +1,16 @@
+"""
+Generic EventPlotter.
+
+Can be overwritten for different types of events
+
+"""
 from functools import reduce
 from operator import mul
+from abc import abstractmethod
 
 import holoviews as hv
 
+from ...siffpy import SiffReader
 from ...siffutils.events import SiffEvent
 from ..siffplotter import SiffPlotter, apply_opts
 from ..utils.dims import *
@@ -89,18 +97,23 @@ class EventPlotter(SiffPlotter):
             }
         
     @apply_opts
-    def plot_event(self, event : SiffEvent, *args, direction = 'v', **kwargs)->hv.Overlay:
-        """ Returns a small Overlay object with an arrow demarcating the time of an event and text annotation """
+    def plot_event(self, event : SiffEvent, direction = 'v')->hv.Overlay:
+        """
+        Generic event annotation.
+
+        Returns a small Overlay object with an arrow demarcating the time of an event and text annotation
+        """
         arrow = hv.element.Arrow(event.frame_time, 0, direction=direction, kdims=[ImageTime(), AnnotationAxis()]).opts(ylim=(0,10))
         text = hv.element.Text(event.frame_time, 2.5, event.annotation, valign='bottom', kdims=[ImageTime(), AnnotationAxis()]).opts(ylim=(0,10))
         return arrow*text
 
     def annotation_element(self)->hv.Layout:
+        """ Returns a single element for all the events together """
         return reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
 
     def annotate(self, element : hv.Element)->hv.Layout:
         """ Returns a HoloViews Layout object that has been annotated with the EventPlotter """
-        annotations = reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
+        annotations = self.annotation_element() 
         if len(element.kdims):
             annotations = annotations
         return (
@@ -125,3 +138,13 @@ class EventPlotter(SiffPlotter):
         Currently HoloViews only.
         """
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def qualifying(cls, siffreader : SiffReader) -> bool:
+        """
+        Takes a SiffReader and determines if it contains info valid
+        to produce this class. To be implemented by each custom EventPlotter
+        to automate detection and annotation of event types.
+        """
+        return False

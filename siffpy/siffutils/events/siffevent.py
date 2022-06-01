@@ -65,5 +65,7 @@ def _matlab_to_utc(matlab_time : float)->int:
     UTC but it was local time (and in seconds). Returns an int
     that is TRUE epoch time in UTC and in nanoseconds
     """
+    if matlab_time < 1647133200: # daylight-savings switch date
+        matlab_time += 3600
     return int((matlab_time + 14400) * SEC_TO_NANO)
 
