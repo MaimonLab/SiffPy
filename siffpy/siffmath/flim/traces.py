@@ -38,65 +38,13 @@ class FlimTrace(np.ndarray):
     )
     """
 
-    HANDLED_UFUNCS = {
-
-    }
-
-    EXCEPTED_UFUNCS = [
-
-    ]
-
-    HANDLED_FUNCTIONS = {
-
-    }
-
-    EXCEPTED_FUNCTIONS = [
-
-    ]
-
-    LIST_PROPERTIES = [
-        'method', 'FLIMParams', 'info_string', 'angle'
-    ]
-
-    @classmethod
-    def implements_func(cls, np_function):
-        """Register an __array_function__ implementation for FlimTrace objects."""
-        def decorator(func):
-            FlimTrace.HANDLED_FUNCTIONS[np_function] = func
-            return func
-        return decorator
-
-    @classmethod
-    def excludes_func(cls, np_function):
-        """ Excludes a function from being used on a FlimTrace object """
-        def decorator(func):
-            FlimTrace.EXCEPTED_FUNCTIONS.append(np_function)
-            return func
-        return decorator
-
-    @classmethod
-    def implements_ufunc(cls, np_ufunction):
-        """Register an __array_ufunction__ implementation for FlimTrace objects."""
-        def decorator(func):
-            FlimTrace.HANDLED_UFUNCS[np_ufunction] = func
-            return func
-        return decorator
-
-    @classmethod
-    def excludes_ufunc(cls, np_ufunction):
-        """ Excludes a ufunction from being used on a FlimTrace object """
-        def decorator(func):
-            FlimTrace.EXCEPTED_UFUNCS.append(np_ufunction)
-            return func
-        return decorator
-
     def __new__(cls, input_array : np.ndarray, # INPUT_ARRAY IS THE LIFETIME METRIC
             intensity : np.ndarray = None,
             confidence : np.ndarray = None,
             FLIMParams : FLIMParams = None,
             method : str = None,
             angle : float = None,
-            info_string : str = None, # new attributes TBD?
+            info_string : str = "", # new attributes TBD?
         ):
         
         if isinstance(input_array, (list,tuple)):
@@ -116,7 +64,7 @@ class FlimTrace(np.ndarray):
         if not (obj.confidence is None):
             raise ValueError("Confidence parameter in FlimTrace not yet implemented.")
 
-        if not (obj.intensity.shape == obj.lifetime.shape):
+        if not (obj.intensity.shape == obj.__array__().shape):
             raise ValueError("Provided intensity and lifetime arrays must have same shape!")
 
         # add the new attributes to the created instance
@@ -130,8 +78,8 @@ class FlimTrace(np.ndarray):
 
     @property
     def lifetime(self)->np.ndarray:
-        """ Returns the FLIM data of a FlimArray as a regular numpy array """
-        return self.__array__()
+        """ Returns a COPY of the FLIM data of a FlimArray as a regular numpy array """
+        return self.__array__().copy()
 
     @property
     def fluorescence(self)->FluorescenceTrace:
@@ -149,7 +97,7 @@ class FlimTrace(np.ndarray):
         }
 
     def __repr__(self)->str:
-        return f"{self.__class__.__name__}(\nLifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}\n)"
+        return f"{self.__class__.__name__} : {self.info_string}\nLifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
@@ -170,99 +118,23 @@ class FlimTrace(np.ndarray):
         consistent across all FlimTraces involved
         """
         
-        if ufunc in FlimTrace.EXCEPTED_UFUNCS:
+        if (ufunc in FlimTrace.EXCEPTED_UFUNCS) and (method in FlimTrace.EXCEPTED_UFUNCS[ufunc]):
             return NotImplemented
 
-        np_args = [] # args as numpy arrays for the ufunc call
-        inp_args = [] # the intensity value, rather than the flim value
-        ftraces = [] # args that are FlimTraces
+        inp_args = [] # convert to a regular array
         for input_ in inputs:
             if isinstance(input_, FlimTrace):
-                np_args.append(input_.view(np.ndarray))
-                inp_args.append(input_.intensity.view(np.ndarray))
-                ftraces.append(input_)
+                inp_args.append(input_.view(np.ndarray))
             else:
-                np_args.append(input_)
                 inp_args.append(input_)
 
-        outputs = out
-        if outputs:
-            out_args = []
-            for j, output in enumerate(outputs):
-                if isinstance(output, FlimTrace):
-                    out_args.append(output.view(np.ndarray))
-                else:
-                    out_args.append(output)
-            kwargs['out'] = tuple(out_args)
-        else:
-            outputs = (None,) * ufunc.nout
+        # if it's not handled, just treat it like a regular array, operating on the FLIM data. DANGEROUS but seems simplest
+        if not (
+            (ufunc in FlimTrace.HANDLED_UFUNCS) and (method in FlimTrace.HANDLED_UFUNCS[ufunc])
+        ):
+            return super().__array_ufunc__(ufunc, method, *inp_args, out = out, **kwargs)
 
-        # if it's not handled, just treat it like a regular array
-        if not ufunc in FlimTrace.HANDLED_UFUNCS:
-            return super().__array_ufunc__(ufunc, method, *inp_args, **kwargs)
-
-        raise NotImplementedError("UFUNCS NOT YET IMPLEMENTED IN FLIMTRACES")
-        results = super().__array_ufunc__(ufunc, method, *np_args, **kwargs)
-
-        # Iterate over vector properties and perform the ufunc on each
-        prop_results = {}
-        for prop in FluorescenceTrace.VECTOR_PROPERTIES:
-            # construct the prop arguments for the ufunc
-            prop_args = []
-            for input_ in inputs:
-                if isinstance(input_, FluorescenceTrace):
-                    # Uses the property of the FluorescenceTrace in lieu of the trace itself.
-                    prop_args.append(np.asarray(getattr(input_, prop)))
-                else:
-                    prop_args.append(input_)
-            try:
-                prop_results[prop] = super().__array_ufunc__(ufunc, method, *prop_args, **kwargs)
-            except:
-                continue
-
-        # list results can be shared if they're consonant across all args
-        list_results = {}
-        for prop in FluorescenceTrace.LIST_PROPERTIES:
-            if all(getattr(trace, prop) == getattr(ftraces[0], prop) for trace in ftraces):
-                list_results[prop] = getattr(ftraces[0],prop)
-
-        if results is NotImplemented:
-            print(type(self), ufunc, method, [type(arg) for arg in inputs], kwargs)
-            return NotImplemented
-
-        if ufunc.nout == 1:
-            results = np.asarray(results).view(FluorescenceTrace)
-            
-            for key, val in prop_results.items():
-                if not (val is NotImplemented):
-                    setattr(results, key, np.asarray(val))
-
-            for key,val in list_results.items():
-                setattr(results, key, val)
-
-            results = (results,)
-        
-        else:
-
-            results = tuple(
-                (np.asarray(result).view(FluorescenceTrace) if output is None else output)
-                for result, output in zip(results, outputs)
-            )
-
-            resultlist = []
-            for idx, res in enumerate(results):    
-                resultlist.append(np.asarray(res).view(FluorescenceTrace))
-                for prop,val in prop_results.items():
-                    if not (val[idx] is NotImplemented):
-                        setattr(resultlist[idx], prop, np.asarray(val[idx]))
-                # TODO: what should I do with list attributes in this case?
-                # TODO: should they just propagate?
-                for prop, val in list_results.items():
-                    setattr(resultlist[idx], prop, val[idx])
-
-            results = tuple(resultlist)
-
-        return results[0] if len(results) == 1 else results
+        return FlimTrace.HANDLED_UFUNCS[ufunc][method](*inputs, out = out, **kwargs)
 
     def __array_function__(self, func, types, args, kwargs):
         """
@@ -276,6 +148,76 @@ class FlimTrace(np.ndarray):
             replaced_args = [arg.__array__() if isinstance(arg, self.__class__) else arg for arg in args]
             return func._implementation(*replaced_args, **kwargs)
         return FlimTrace.HANDLED_FUNCTIONS[func](*args, **kwargs)
+
+    def _equal_params(self, other)->bool:
+        """ Checks that two FlimTraces have compatible params """
+        if isinstance(other, FlimTrace):
+            if (
+                (self.FLIMParams == other.FLIMParams) and
+                (self.method == other.method)
+            ):
+                return True
+        return False
+
+    # populated in siffpy.siffmath.flim.trace_funcs.flimtrace_ufuncs
+    HANDLED_UFUNCS = {
+
+    }
+
+    EXCEPTED_UFUNCS = {
+
+    }
+
+    # populated in siffpy.siffmath.flim.trace_funcs.flimtrace_funcs
+    HANDLED_FUNCTIONS = {
+
+    }
+
+    EXCEPTED_FUNCTIONS = [
+
+    ]
+
+    @classmethod
+    def implements_func(cls, np_function):
+        """Register an __array_function__ implementation for FlimTrace objects."""
+        def decorator(func):
+            FlimTrace.HANDLED_FUNCTIONS[np_function] = func
+            return func
+        return decorator
+
+    @classmethod
+    def excludes_func(cls, np_function):
+        """ Excludes a function from being used on a FlimTrace object """
+        def decorator(func):
+            FlimTrace.EXCEPTED_FUNCTIONS.append(np_function)
+            return func
+        return decorator
+
+    @classmethod
+    def implements_ufunc(cls, np_ufunction, method):
+        """Register an __array_ufunction__ implementation for FlimTrace objects."""
+        def decorator(func):
+            if not np_ufunction in FlimTrace.HANDLED_UFUNCS:
+                FlimTrace.HANDLED_UFUNCS[np_ufunction] = {}
+            FlimTrace.HANDLED_UFUNCS[np_ufunction][method] = func
+            return func
+        return decorator
+
+    @classmethod
+    def excludes_ufunc(cls, np_ufunction, method):
+        """ Excludes a ufunction from being used on a FlimTrace object """
+        def decorator(func):
+            if not np_ufunction in FlimTrace.EXCEPTED_UFUNCS:
+                FlimTrace.EXCEPTED_UFUNCS[np_ufunction] = []
+            FlimTrace.EXCEPTED_UFUNCS[np_ufunction].append(method)
+            return func
+        return decorator
+
+
+
+
+
+
 
 # class FlimVector(FluorescenceTrace):
 # #class FluorescenceVector(np.ndarray):

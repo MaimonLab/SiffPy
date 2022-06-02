@@ -18,7 +18,7 @@ numerical and speed benefits of `numpy` and its toolkit, as well as making for m
 
 The downside, of course, is that these become a little trickier to understand. Fortunately,
 this is what documentation should be for! The types of arrays implemented here are documented
-in this README.
+in this README, as well as the readmes of submodules (e.g. `flim` or `fluorescence`).
 
 ## FLUORESCENCE ARRAYS
 
@@ -202,7 +202,7 @@ The `FlimTrace` also has a few useful properties:
 
 - `FlimTrace.lifetime` returns the primary array as a plain `np.ndarray`.
 
-
+Functions on `FlimTrace` objects behave a little bit differently.
 
 ### **FlimVector**
 

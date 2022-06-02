@@ -191,7 +191,7 @@ def squeeze_flimtrace(flimtrace, axis=None):
         **flimtrace._inheritance_dict
     )
 
-@FlimTrace.implements_func(np.tranpose)
+@FlimTrace.implements_func(np.transpose)
 def tranpose_flimtrace(flimtrace, axes):
     return FlimTrace(
         np.transpose(flimtrace.__array__(), axes),
