@@ -1,12 +1,24 @@
 import logging
 
+import holoviews as hv
+from holoviews import opts
+
+BOKEH = False
+try:
+    import bokeh
+    BOKEH = True
+except ImportError:
+    pass
+
+LATEX = False
+if BOKEH:
+    LATEX = (bokeh.__version__ >= '2.4') and (hv.__version__ > '1.14.6')
+
+
 from .siffplotter import SiffPlotter
 from .siffvisualizer import SiffVisualizer
 from .plotters import *
 from .visualizers import *
-import holoviews as hv
-from holoviews import opts
-
 from .roi_protocols import ROI_extraction_methods, ROI
 
 def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None:

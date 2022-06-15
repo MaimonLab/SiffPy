@@ -41,7 +41,8 @@ FlimTrace(
 
 While a `FlimTrace` *can* be initialized without `intensity`, it defeats some of the
 purpose. Most `FlimTrace` operations require some interaction between the `intensity`
-and `lifetime` attributes (the `lifetime` attribute is the primary array as well).
+and `lifetime` attributes (the `lifetime` property returns a COPY of the primary array,
+the `__array__()` method returns a reference to the array itself).
 
 **Arguments**
 
@@ -72,7 +73,7 @@ The `FlimTrace` also has a few useful properties:
 
 - `FlimTrace.fluorescence` returns the `intensity` attribute as a `FluorescenceTrace`.
 
-- `FlimTrace.lifetime` returns the primary array as a plain `np.ndarray`.
+- `FlimTrace.lifetime` returns a COPY of the primary array as a plain `np.ndarray`.
 
 Functions on `FlimTrace` objects behave a little bit differently.
 

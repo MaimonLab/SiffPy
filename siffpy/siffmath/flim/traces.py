@@ -5,6 +5,7 @@ import numpy as np
 
 from ...siffutils.flimparams import FLIMParams
 from ..fluorescence.traces import FluorescenceTrace
+from .flimunits import FlimUnits, MULTIHARP_BASE_RESOLUTION_IN_PICOSECONDS, convert_flimunits
 
 class FlimTrace(np.ndarray):
     """
@@ -44,22 +45,29 @@ class FlimTrace(np.ndarray):
             FLIMParams : FLIMParams = None,
             method : str = None,
             angle : float = None,
+            units : FlimUnits = FlimUnits.UNKNOWN,
             info_string : str = "", # new attributes TBD?
         ):
         
-        if isinstance(input_array, (list,tuple)):
-            if all(isinstance(x, FlimTrace) for x in input_array):
-                logging.warning("Haven't implemented the FlimVector yet. Returning just a FlimTrace")
-                #return FlimVector(input_array)
+        if hasattr(input_array, '__iter__') and all(isinstance(x, FlimTrace) for x in input_array):
+            intensity = np.asarray([x.intensity for x in input_array])
+            confidence = None
+            if all(x.FLIMParams == input_array[0].FLIMParams for x in input_array):
+                FLIMParams = input_array[0].FLIMParams
+            if all(x.method == input_array[0].method for x in input_array):
+                method = input_array[0].method
+            if all(x.units == input_array[0].units for x in input_array):
+                units = input_array[0].units
+            info_string = " ".join(x.info_string for x in input_array)
+            input_array = np.asarray([x.__array__() for x in input_array])
+            
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
-        obj = np.asarray(input_array).view(cls)
-
-        obj.intensity = intensity
-
-        if obj.intensity is None:
-            logging.warning("Creating a FlimTrace without an intensity value! Filling with NaNs.")
-            obj.intensity = np.full_like(input_array, np.nan)
+        obj = np.asanyarray(input_array).view(cls)
+        if intensity is None:
+            obj.intensity = np.zeros_like(input_array)
+        else:
+            obj.intensity = np.asarray(intensity)
         obj.confidence = confidence
         if not (obj.confidence is None):
             raise ValueError("Confidence parameter in FlimTrace not yet implemented.")
@@ -71,6 +79,9 @@ class FlimTrace(np.ndarray):
         obj.FLIMParams = FLIMParams
         obj.method = method
         obj.angle = angle
+        if units is None:
+            units = FlimUnits.UNKNOWN
+        obj.units = units
         obj.info_string = info_string
         
         # Finally, we must return the newly created object:
@@ -86,6 +97,12 @@ class FlimTrace(np.ndarray):
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
         return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
 
+    def convert_units(self, units : FlimUnits):
+        """ Converts units in place """
+        
+        self[...] = convert_flimunits(self.__array__(), self.units, units)
+        self.units = units
+    
     @property
     def _inheritance_dict(self)->dict:
         return {
@@ -93,11 +110,18 @@ class FlimTrace(np.ndarray):
             'FLIMParams' : self.FLIMParams,
             'method' : self.method,
             'angle' : self.angle,
-            'info_string' : self.info_string
+            'info_string' : self.info_string,
+            'units' : self.units,
         }
 
     def __repr__(self)->str:
-        return f"{self.__class__.__name__} : {self.info_string}\nLifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
+        return f"{self.__class__.__name__} :\n" + \
+        f"Units : {self.units}, Info: {self.info_string}, Method : {self.method}\n"+\
+        f"Lifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
+
+    def __array_wrap__(self, out_arr, context=None):
+        print("in here")
+        return super().__array_wrap(out_arr, context=context)
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
@@ -107,6 +131,7 @@ class FlimTrace(np.ndarray):
         self.FLIMParams = getattr(obj, 'FLIMParams', None)
         self.method = getattr(obj, 'method', None)
         self.angle = getattr(obj, 'angle', None)
+        self.units = getattr(obj, 'units', FlimUnits.UNKNOWN)
         self.info_string = getattr(obj,'info_string', '')
 
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
@@ -149,6 +174,19 @@ class FlimTrace(np.ndarray):
             return func._implementation(*replaced_args, **kwargs)
         return FlimTrace.HANDLED_FUNCTIONS[func](*args, **kwargs)
 
+    def __getitem__(self, key):
+        """
+        Returns the indexed version of BOTH arrays
+        """
+        if key is ...:
+            return self.__array__()[...]
+        else:
+            return FlimTrace(
+                self.__array__()[key],
+                self.intensity[key],
+                **self._inheritance_dict
+            )            
+
     def _equal_params(self, other)->bool:
         """ Checks that two FlimTraces have compatible params """
         if isinstance(other, FlimTrace):
@@ -158,6 +196,44 @@ class FlimTrace(np.ndarray):
             ):
                 return True
         return False
+
+    # NUMPY METHODS IMPLEMENTED BY ARRAYS
+    # ANNOYING TO HAVE TO OVERWRITE THEM BUT IT MAKES SENSE WITH PYTHON
+    def sum(self, *args, **kwargs):
+        return np.sum(self, *args, **kwargs)
+
+    def nansum(self, *args, **kwargs):
+        return np.nansum(self, *args, **kwargs)
+
+    def mean(self, *args, **kwargs):
+        return np.mean(self, *args, **kwargs)
+
+    def nanmean(self, *args, **kwargs):
+        return np.nanmean(self, *args, **kwargs)
+
+    def reshape(self, *args, **kwargs):
+
+        # A little special, since the array class implementation
+        # of reshape is willing to accept several arguments and
+        # treat them like a tuple.
+
+        return np.reshape(self, args, **kwargs)
+
+    def append(self, *args, **kwargs):
+        return np.append(self, *args, **kwargs)
+    
+    def ravel(self, *args, **kwargs):
+        return np.ravel(self, *args, **kwargs)
+
+    def sort(self, *args, sortby = 'flim', **kwargs):
+        """ Sortby argument must be either 'flim' or 'intensity' """
+        return np.sort(self, *args, sortby = sortby, **kwargs)
+
+    def squeeze(self, *args, **kwargs):
+        return np.squeeze(self, *args, **kwargs)
+
+    def transpose(self, *args, **kwargs):
+        return np.transpose(self, *args, **kwargs)
 
     # populated in siffpy.siffmath.flim.trace_funcs.flimtrace_ufuncs
     HANDLED_UFUNCS = {
@@ -178,20 +254,19 @@ class FlimTrace(np.ndarray):
     ]
 
     @classmethod
-    def implements_func(cls, np_function):
+    def implements_func(cls, *np_functions):
         """Register an __array_function__ implementation for FlimTrace objects."""
         def decorator(func):
-            FlimTrace.HANDLED_FUNCTIONS[np_function] = func
+            for np_function in np_functions:
+                FlimTrace.HANDLED_FUNCTIONS[np_function] = func
             return func
         return decorator
 
     @classmethod
-    def excludes_func(cls, np_function):
+    def excludes_func(cls, *np_functions):
         """ Excludes a function from being used on a FlimTrace object """
-        def decorator(func):
+        for np_function in np_functions:
             FlimTrace.EXCEPTED_FUNCTIONS.append(np_function)
-            return func
-        return decorator
 
     @classmethod
     def implements_ufunc(cls, np_ufunction, method):
@@ -206,17 +281,9 @@ class FlimTrace(np.ndarray):
     @classmethod
     def excludes_ufunc(cls, np_ufunction, method):
         """ Excludes a ufunction from being used on a FlimTrace object """
-        def decorator(func):
-            if not np_ufunction in FlimTrace.EXCEPTED_UFUNCS:
-                FlimTrace.EXCEPTED_UFUNCS[np_ufunction] = []
-            FlimTrace.EXCEPTED_UFUNCS[np_ufunction].append(method)
-            return func
-        return decorator
-
-
-
-
-
+        if not np_ufunction in FlimTrace.EXCEPTED_UFUNCS:
+            FlimTrace.EXCEPTED_UFUNCS[np_ufunction] = []
+        FlimTrace.EXCEPTED_UFUNCS[np_ufunction].append(method)
 
 
 # class FlimVector(FluorescenceTrace):

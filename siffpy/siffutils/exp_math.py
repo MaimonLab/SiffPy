@@ -27,7 +27,7 @@ from scipy import special
 import logging
 
 
-def px_chi_sq_exp(photon_arrivals, params):
+def px_chi_sq_exp(photon_arrivals, params, cut_negatives : bool = True):
     """ Returns the chi-squared statistic
     of a photon arrival data set, given
     parameters in params
@@ -67,7 +67,7 @@ def px_chi_sq_exp(photon_arrivals, params):
     return np.nansum(chi_sq)
 
 
-def px_log_likelihood_exp(photon_arrivals, params):
+def px_log_likelihood_exp(photon_arrivals, params, cut_negatives : bool = True):
     """ Returns the log-likelihood of a single pixel's distribution of arrival times under the presumption of the input params
 
     INPUTS

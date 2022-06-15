@@ -90,7 +90,7 @@ class ROI():
             self.image = image
 
         if not name is None:
-            self.name = name
+            self._name = name
         
         self.plotting_opts = {} # called during visualize
 
@@ -273,6 +273,20 @@ class ROI():
             return hash((self.center, self.__class__.__name__, self.mask().tobytes()))
         else:
             return hash((self.center, self.__class__.name))
+
+    @property
+    def name(self)->str:
+        if hasattr(self,'_name'):
+            return str(self._name)
+        else:
+            return ""
+
+    @property
+    def hashname(self)->str:
+        if hasattr(self,'_name'):
+            return str(self._name) + str(self.__hash__())
+        else:
+            return str(self.__hash__())
 
     @property
     def subROIs(self)-> list['subROI'] :

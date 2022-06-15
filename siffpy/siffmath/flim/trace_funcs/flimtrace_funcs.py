@@ -26,6 +26,7 @@ def sum_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
             raise ValueError("Provided FlimTrace must have same shape as returned sum")
         out[...] = np.sum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_sum
+        return out
 
 @FlimTrace.implements_func(np.nansum)
 def nansum_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
@@ -45,6 +46,7 @@ def nansum_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
             raise ValueError("Provided FlimTrace must have same shape as returned sum")
         out[...] = np.nansum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_sum
+        return out
 
 @FlimTrace.implements_func(np.mean)
 def mean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
@@ -67,6 +69,7 @@ def mean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
             raise ValueError("Provided FlimTrace must have same shape as returned array")
         out[...] = np.sum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_mean
+        return out
 
 @FlimTrace.implements_func(np.nanmean)
 def nanmean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
@@ -89,6 +92,7 @@ def nanmean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
             raise ValueError("Provided FlimTrace must have same shape as returned array")
         out[...] = np.nansum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_mean
+        return out
 
 @FlimTrace.implements_func(np.concatenate)
 def concatenate_flimtrace(concats, *args, out = None, **kwargs):
@@ -130,12 +134,13 @@ def concatenate_flimtrace(concats, *args, out = None, **kwargs):
             raise ValueError("Provided FlimTrace must have same shape as returned array")
         out[...] = flim_concat
         out.intensity = intensity_concat
+        return out
 
 @FlimTrace.implements_func(np.reshape)
-def reshape_flimtrace(flimtrace : FlimTrace, **kwargs):
+def reshape_flimtrace(flimtrace : FlimTrace, newshape, **kwargs):
     return FlimTrace(
-        np.reshape(flimtrace.__array__(),**kwargs),
-        np.reshape(flimtrace.intensity, **kwargs),
+        np.reshape(flimtrace.__array__(), newshape, **kwargs),
+        np.reshape(flimtrace.intensity, newshape, **kwargs),
         **flimtrace._inheritance_dict
     )
 
@@ -175,8 +180,14 @@ def ravel_flimtrace(a, order = 'C')->FlimTrace:
     )
 
 @FlimTrace.implements_func(np.sort)
-def sort_flimtrace(flimtrace, **kwargs):
-    idxs = np.argsort(flimtrace.__array__(), **kwargs)
+def sort_flimtrace(flimtrace, sortby = 'flim', **kwargs):
+    """ SORTS BY FLIM VALUE NOT INTENSITY """
+    if sortby == 'flim':
+        idxs = np.argsort(flimtrace.__array__(), **kwargs)
+    elif sortby == 'intensity':
+        idxs = np.argsort(flimtrace.intensity, **kwargs)
+    else:
+        raise ValueError("Invalid sortby parameter for FlimTrace. Must be 'flim' or 'intensity'.")
     return FlimTrace(
         flimtrace.__array__()[idxs],
         flimtrace.intensity[idxs],

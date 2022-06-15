@@ -8,18 +8,9 @@ import logging
 import numpy as np
 
 from ..traces import FlimTrace
+from ..flimunits import FlimUnits
 
-# REFERENCE OUTS just so I can remind myself how that looks
-        # if outputs:
-        #     out_args = []
-        #     for j, output in enumerate(outputs):
-        #         if isinstance(output, FluorescenceTrace):
-        #             out_args.append(output.view(np.ndarray))
-        #         else:
-        #             out_args.append(output)
-        #     kwargs['out'] = tuple(out_args)
-        # else:
-        #     outputs = (None,) * ufunc.nout
+### CALL_UFUNC #####
 
 def flimtrace_ufunc_call_pattern(numpy_ufunc, *args, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
     """
@@ -72,6 +63,14 @@ def add_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind
     x1 : FlimTrace
     x2 : FlimTrace
 
+    if not (x1.units == x2.units):
+        if any(x.units == FlimUnits.UNKNOWN for x in [x1,x2]): # means they're not BOTH unknown
+            raise ValueError("Unable to add FlimTraces with incompatible units")
+        try:
+            x2.convert_units(x1.units)
+        except ValueError:
+            x1.convert_units(x2.units)
+
     new_intensity = np.add(x1.intensity, x2.intensity, out=None, **ufunc_kwargs, **kwargs)
     new_lifetime = np.add(
         np.multiply(np.asarray(x1), x1.intensity, out=None, **ufunc_kwargs, **kwargs),
@@ -99,6 +98,7 @@ def add_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind
     
     out[...] = new_lifetime
     out.intensity = new_intensity
+    return out
 
 @FlimTrace.implements_ufunc(np.subtract, "__call__")
 def subtract_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
@@ -140,6 +140,7 @@ def subtract_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same
     
     out[...] = new_lifetime
     out.intensity = new_intensity
+    return out
 
 @FlimTrace.implements_ufunc(np.multiply, "__call__")
 def multiply_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
@@ -189,6 +190,7 @@ def matmul_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_k
     
     out[...] = new_lifetime
     out.intensity = new_intensity
+    return out
 
 
 @FlimTrace.implements_ufunc(np.divide, "__call__")
@@ -221,6 +223,7 @@ def negative_call_flimtrace(x, / , out = None, where = True, casting = 'same_kin
     x : FlimTrace
     out[...] = x.lifetime # copy
     out.intensity = np.negative(x.intensity)
+    return out
 
 @FlimTrace.implements_ufunc(np.positive, "__call__")
 def positive_call_flimtrace(x, / , out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
@@ -240,4 +243,29 @@ def positive_call_flimtrace(x, / , out = None, where = True, casting = 'same_kin
     x : FlimTrace
     out[...] = x.lifetime # copy
     out.intensity = np.positive(x.intensity)
+    return out
 
+### REDUCE UFUNC #######
+
+def flimtrace_ufunc_reduce_pattern(numpy_ufunc : np.ufunc, array, axis=0, dtype=None, out=None, keepdims=False, initial=None, where=True):
+    """
+    A pattern for ufunc reduction on FlimTrace data that do not perform addition-like phenomena
+    
+    The general procedure is to apply the ufunc to the intensity and return a FlimTrace with unchanged FLIM data
+    """
+    if out is None:    
+        return FlimTrace(
+            array.__array__(),
+            intensity = numpy_ufunc.reduce(array, axis=axis, dtype = dtype, out=None, keepdims = False, initial=initial, where = where),
+            **array._inheritance_dict
+        )
+    if not isinstance(out, FlimTrace):
+        logging.warn(
+            "Calling numpy {np_ufunc.__name__}.reduce on a FlimTrace but specifying a return value that is not a FlimTrace. "
+            "Performing standard numpy {np_ufunc.__name__}.reduce on the intensity data.",
+            stacklevel=2
+        )
+        return numpy_ufunc.reduce(array, axis=axis, dtype = dtype, out=out, keepdims = False, initial=initial, where = where)
+    return numpy_ufunc.reduce(array.intensity, axis=axis, dtype = dtype, out=out.intensity, keepdims = False, initial=initial, where = where)
+
+#TODO WRITE THESE

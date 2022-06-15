@@ -1,3 +1,7 @@
+"""
+TODO: Restructure this to be less clumsy
+(e.g. the param_dict structure is a little weird and ugly)
+"""
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint
 from .exp_math import monoexponential_prob
@@ -344,7 +348,7 @@ class FLIMParams(object):
                 (self.Ncomponents == other.Ncomponents) and
                 (self.Exp_params == other.Exp_params) and
                 (self.IRF == other.IRF) and
-                (self.T_0 == other.T_0)
+                (self.T_O == other.T_O)
             ):
                 return True
         return False

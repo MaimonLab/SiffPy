@@ -12,9 +12,11 @@ from . import siffutils
 from .siffutils.exp_math import *
 from .siffutils.flimparams import FLIMParams
 from .siffutils.flimarray import FlimArray
+from .siffmath.flim import FlimTrace, FlimUnits
 from .siffutils.typecheck import *
 from .siffutils import registration
 from .siffutils.events import parseMetaAsEvents
+
 
 # TODO:
 # __repr__
@@ -936,19 +938,38 @@ class SiffReader(object):
                 params[0],
                 frames = frames,
                 registration = registration_dict
-            )
+            ) * self.im_params.picoseconds_per_bin
 
             # just one slice, no need to repack
             if isinstance(slice_idx, int):
-                return FlimArray(
-                    summed_intensity_data,
+                return FlimTrace(
                     summed_flim_data,
+                    intensity = summed_intensity_data,
                     FLIMParams = params[0],
+                    method = 'empirical lifetime',
+                    info_string =  "ROI ID: " + roi.hashname,
+                    units = FlimUnits.PICOSECONDS
                 )
 
             # more than one slice, sum across slices TODO!!!!
-            raise NotImplementedError("Need to deal with multiple z planes still. Line 941 of siffpy.py")
-            return np.sum(summed_flim_data.reshape((-1, self.im_params.num_slices)),axis=-1)
+            summed_intensity_data.reshape((-1, self.im_params.num_slices))
+            summed_flim_data.reshape((-1, self.im_params.num_slices))
+            return np.sum(
+                FlimTrace( # a numpy operation on the list alone returns just a numpy array
+                    [
+                        FlimTrace(
+                            summed_flim_data[...,k], 
+                            intensity = summed_intensity_data[...,k],
+                            FLIMParams = params[0],
+                            method = 'empirical lifetime',
+                            info_string = "ROI ID " + roi.hashname,
+                            units = FlimUnits.PICOOSECONDS
+                        )
+                        for k in range(self.im_params.num_slices)
+                    ]
+                ),
+                axis=-1
+            )
             
         # This means color_list is longer than length 1
         output_list = []
@@ -984,21 +1005,24 @@ class SiffReader(object):
                 params[idx],
                 frames = frames,
                 registration = registration_dict
-            )
+            ) * self.im_params.picoseconds_per_bin
 
             if not isinstance(slice_idx,int):
-                raise ValueError("Haven't set up to handle more than one slice in this function yet.")
+                raise ValueError("Haven't set up to handle more than one slice per ROI in this function yet.")
                 summed_data = np.sum(summed_data.reshape((-1, self.im_param.num_slices)),axis=-1)
 
             output_list.append(
-                FlimArray(
-                    summed_intensity_data,
+                FlimTrace(
                     summed_flim_data,
-                    FLIMParams=params[idx]
+                    intensity = summed_intensity_data,
+                    method = 'empirical lifetime',
+                    FLIMParams = params[idx],
+                    info_string = "ROI ID: " + roi.hashname,
+                    units = FlimUnits.PICOSECONDS
                 )
             )
 
-        return output_list
+        return FlimTrace(output_list)
 
     def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, rolling : bool = False,
             timepoint_start : int = 0, timepoint_end : int = None,

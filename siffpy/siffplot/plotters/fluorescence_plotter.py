@@ -6,6 +6,7 @@ from enum import Enum
 import numpy as np
 import holoviews as hv
 
+from ...siffplot import LATEX
 from ..siffplotter import SiffPlotter, apply_opts
 from ..roi_protocols.rois import ROI, subROI
 from ..utils.exceptions import NoROIException
@@ -154,7 +155,7 @@ class FluorescencePlotter(SiffPlotter):
             ROI provided
         """
 
-        if isinstance(roi, list):
+        if isinstance(roi, (list, tuple)):
             if not all( isinstance(x, ROI) for x in roi ):
                 raise TypeError("Not all objects provided in list are of type `ROI`.")
             roi_trace = np.sum(
@@ -299,6 +300,9 @@ class FluorescencePlotter(SiffPlotter):
 
         if isinstance(trace, fluorescence.FluorescenceTrace):
             yaxis_label = trace.method
+            if LATEX and (yaxis_label == 'dF/F'):
+                yaxis_label = r"$$\Delta \text{F}/\text{F}$$"
+            
             title += f", F0 = {float(trace.F0)} photons per frame"
             if trace.normalized:
                 yaxis_label += "\n(normalized)"
@@ -381,6 +385,8 @@ class FluorescencePlotter(SiffPlotter):
         if all(lambda x: isinstance(x, FluorescenceTrace) for x in pooled):
             if not (pooled[0].method is None):
                 z_axis_name = pooled[0].method
+                if LATEX and (z_axis_name == 'dF/F'):
+                    z_axis_name = r"$$\DeltaF/F$$"
                 if pooled[0].normalized:
                     z_axis_name += "\n(normalized)"
 
@@ -485,42 +491,4 @@ class FluorescencePlotter(SiffPlotter):
         Currently HoloViews only.
         """
         raise NotImplementedError("Needs a rework!")
-        if timeseries is None:
-            if not (hasattr(self, 'vector_timeseries') or hasattr(self,'roi_timeseries')):
-                try:
-                    self.vector_timeseries = self.compute_vector_timeseries(*args, **kwargs) # to store it
-                    timeseries = self.vector_timeseries
-                except AttributeError:
-                    try:
-                        self.roi_timeseries = self.compute_roi_timeseries(*args, **kwargs) # to store it
-                        timeseries = self.roi_timeseries
-                    except:
-                        raise AttributeError(f"No adequate ROI provided to {self.__class__.__name__}")
-            else:
-                if hasattr(self,'vector_timeseries'):
-                    timeseries = self.vector_timeseries
-                else:
-                    timeseries = self.roi_timeseries
-            t_axis = self.siffreader.t_axis()
-
-        if t_axis is None:
-            t_axis = np.arange(0,timeseries.shape[-1])
-            self.local_opts['xlabel'] = "Undefined ticks (perhaps frames?)"
-
-        #timeseries = np.squeeze(timeseries)
-
-        if len(timeseries.shape) == 1:
-            # Return a curve
-            raise NotImplementedError()
-            return
-        print("I finished computing the timeseries.")
-        # otherwise do a heatmap
-        qm = hv.HeatMap(
-            (
-                t_axis,
-                np.linspace(0,2*np.pi,timeseries.shape[0]),
-                timeseries
-            )
-        )
-
-        return qm
+        

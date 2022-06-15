@@ -1,12 +1,22 @@
 from setuptools import setup, Extension
 import setuptools
 import logging
+import os, re
 
 try:
     import numpy
     import scipy
 except ImportError as error:
     raise Exception("Numpy or scipy is not yet installed on this distribution. Set up numpy using command 'pip install <directory_containing_this_setup.py>' instead.")
+
+HERE = os.path.abspath(os.path.dirname(__file__))
+
+def _version() -> str:
+    """ Parses _version.py to return a version string without executing the code """
+    with open(os.path.join(HERE, "siffpy", "core", "_version.py")) as f:
+        match = re.search(r'version\s?=\s?\'([^\']+)', f.read())
+        if match:
+            return match.groups()[0].split('+')[0]
 
 class bcolors:
     HEADER = '\033[95m'
@@ -37,7 +47,7 @@ siffmodule = Extension('siffreader',
                     )
 
 setup (name = 'siffpy',
-       version = '0.5.2',
+       version = _version(),
        install_requires = [
            'numpy',
            'scipy'

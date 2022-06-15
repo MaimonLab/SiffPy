@@ -3,7 +3,8 @@
 The central SiffPy object: the `SiffReader`. I promise I'll document this soon. Each submodule has its own README as well, so for more info look there.
 The submodules are made to be largely independent, and are separated to some extent by which libraries they rely on. `SiffTrac` and `SiffPlot`,
 for example, rely on `HoloViews` and `Bokeh` for many functions, while the others do not. The only thing I expect all `SiffPy` users
-to need is `siffpy.SiffReader`, its obligate helper module `siffreadermodule`, and the `siffpy.siffutils` tools.
+to need is `siffpy.SiffReader`, its obligate helper module `siffreadermodule`, and the `siffpy.siffutils` tools. The `siffmath` package contains
+some more elaborate tools for dealing with fluorescence and FLIM data.
 
 ## SiffTrac
 
