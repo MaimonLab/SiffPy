@@ -1,26 +1,22 @@
 from functools import reduce
 from typing import Callable, Union
 import operator
-from enum import Enum
 
 import numpy as np
 import holoviews as hv
 
 from ...siffplot import LATEX
-from ..siffplotter import SiffPlotter, apply_opts
-from ..plotmath.fluorescence.roianalysis import *
+from .fluorescence_plotter import FluorescencePlotter, HeatMapDirection
+from ..siffplotter import apply_opts
 from ..roi_protocols.rois import ROI
 from ..utils.exceptions import NoROIException
 from ..utils.dims import *
-from ...siffmath.fluorescence import *
+from ..plotmath.flim.roianalysis import *
+from ...siffutils import FLIMParams
 
 __all__ = [
-    'FluorescencePlotter'
+    'FlimPlotter'
 ]
-
-class HeatMapDirection(Enum):
-    HORIZONTAL = 'horizontal'
-    VERTICAL = 'vertical'
 
 inherited_params = [
     'local_opts',
@@ -29,10 +25,10 @@ inherited_params = [
     'rois'
 ]
 
-class FluorescencePlotter(SiffPlotter):
+class FlimPlotter(FluorescencePlotter):
     """
-    Extends the SiffPlotter functionality to allow
-    analysis of fluorescence information relating to a 
+    Extends the FluorescencePlotter functionality to allow
+    a focus on FLIM data relating to a 
     population of neurons or subROIs. Makes use
     of siffmath functionality, so all that can stay
     under the hood if you don't want to chase down
@@ -41,7 +37,7 @@ class FluorescencePlotter(SiffPlotter):
     Can be initialized with an existing SiffPlotter
     to inherit its properties
 
-    ( e.g. fluor_p = FluorescencePlotter(siff_plotter)) )
+    ( e.g. flim_p = FlimPlotter(siff_plotter)) )
 
     Contains methods to read frames with a SiffReader and return
     timeseries and plots. But most methods will also accept a
@@ -51,64 +47,20 @@ class FluorescencePlotter(SiffPlotter):
     The visualize method returns a holoviews Layout object
     of a heatmap of fluorescence, customizable with various
     args and kwargs that can be read in the documentation or
-    with help(fluor_p.visualize).
+    with help(flim_p.visualize).
     """
 
-    def __init__(self, *args, **kwargs):
-        f"""
-        May be initialized from another SiffPlotter to inherit its
-        attributes. Inherited attributes are:
-
-            {inherited_params}
+    def __init__(self, *args,
+        FLIMParams : Union[FLIMParams,list[FLIMParams]] = None,
+        **kwargs
+    ):
         """
-        if not any([isinstance(arg,SiffPlotter) for arg in args]):
-            # From scratch
-            super().__init__(*args, **kwargs)
-        else:
-            for arg in args:
-                # Iterate until you get to the first SiffPlotter object.
-                if isinstance(arg, SiffPlotter):
-                    plotter = arg
-                    break
-            
-            # inherits parameters from the provided plotter
-            for param in inherited_params:
-                if hasattr(plotter, param):
-                    setattr(self, param, getattr(plotter, param))
-        
-        if 'opts' in kwargs:
-            self._local_opts = {**self._local_opts, **kwargs['opts']}
-        else:
-            self._local_opts = {**self._local_opts,
-                'HeatMap' : {
-                    'cmap':'Greens',
-                    'width' : 1000,
-                    'height' : 150,
-                    'colorbar' : False,
-                    'colorbar_position' : 'left',
-                    'colorbar_opts' : {
-                        'height': 200,
-                        'width' : 20,
-                        'border_line_alpha':0,
-                    },
-                    'yaxis' : None,
-                    'fontsize': 15,
-                    'toolbar' : 'above',
-                    'show_frame' : False,
-                    'invert_yaxis' : False,
-                    #'hooks' : [bounds_hook],
-                },
-                'Curve' : {
-                    'line_color' : '#000000',
-                    'line_width' : 1,
-                    'width' : 1000,
-                    'fontsize' : 15,
-                    'toolbar' : 'above',
-                    'show_frame' : False,
-                    #'hooks' : [bounds_hook, ],
-                }
-            }
-        
+        Initialized like a FluorescencePlotter, though accepts additional
+        kwarg FLIMParams
+        """
+        super().__init__(*args, **kwargs)
+        self.FLIMParams = FLIMParams
+
     @apply_opts
     def plot_roi_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None, **kwargs)->hv.element.Curve:
         """
@@ -118,6 +70,7 @@ class FluorescencePlotter(SiffPlotter):
 
         Accepts args and kwargs of `FluorescencePlotter.compute_roi_timeseries`
         """
+        raise NotImplementedError()
         if rois is None:
             if hasattr(self, 'rois'):
                 rois = self.rois
@@ -125,8 +78,7 @@ class FluorescencePlotter(SiffPlotter):
         if not isinstance(rois, (ROI, list)):
             raise TypeError(f"Invalid rois argument. Must be of type `ROI` or a list of `ROI`s")
 
-        trace = compute_roi_timeseries(
-            self.siffreader,
+        trace = self.compute_roi_timeseries(
             rois,
             *args,
             **kwargs
@@ -150,7 +102,7 @@ class FluorescencePlotter(SiffPlotter):
 
         yaxis = FluorescenceAxis(yaxis_label)
 
-        if isinstance(trace, FluorescenceTrace):
+        if isinstance(trace, fluorescence.FluorescenceTrace):
             yaxis_label = trace.method
             if LATEX and (yaxis_label == 'dF/F'):
                 yaxis_label = r"$$\Delta \text{F}/\text{F}$$"
@@ -186,7 +138,7 @@ class FluorescencePlotter(SiffPlotter):
         This allows additional annotation of the F and F0 aspects of the traces that might use different
         opts.
         """
-
+        raise NotImplementedError()
         if rois is None:
             rois = self.rois
 
@@ -210,7 +162,7 @@ class FluorescencePlotter(SiffPlotter):
         # combine like ROIs TODO: use the self-identification of each subROI!
         for segment_idx in range(len(rois[0].subROIs)):
             subROI_pool = [roi.subROIs[segment_idx] for roi in rois]
-            pooled.append(compute_roi_timeseries(self.siffreader, subROI_pool, *args, **kwargs))
+            pooled.append(self.compute_roi_timeseries(subROI_pool, *args, **kwargs))
 
         time_axis = self.siffreader.t_axis()
 

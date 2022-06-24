@@ -23,11 +23,13 @@ class ROIViewer(NapariInterface):
     Designed to behave LIKE a Viewer without subclassing the Viewer
     directly.
 
-    TODO: FINISH IMPLEMENTING. Most important feature: incorporate
-    the roi functions into widgets docked on the viewer! This might
-    actually end up being quite slick, with dropdown menu for brain
-    regions that determine a separate dropdown menu for currently-
-    implemented fitting functions.
+    TODO: FINISH IMPLEMENTING. Most important features: 
+
+    -- Fix the subROI segmentation function when it happens multiple
+    times
+
+    -- Allow selecting ROIs from the side panel and deleting them
+    (or highlighting them)
     """
 
     def __init__(self, siffreader : SiffReader, *args, segmentation_fcn = None, edge_color = CINNABAR, **kwargs):
@@ -361,6 +363,8 @@ class ROIViewer(NapariInterface):
             if len(self.visualizer.rois) == 0:
                 return
             
+            
+
             # label the top row
             names = widgets.Container(
                 layout='vertical',

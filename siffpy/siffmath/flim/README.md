@@ -22,7 +22,9 @@ it's difficult to keep track of this -- and even if you do, all of your numerica
 processing libraries and tools WON'T know to do this! The `FlimTrace` exists to
 resolve this headache: all the standard `numpy` functions should work on it, as
 will any library that expects `array`-like data (e.g. `dask`, `HoloViews`, `napari`,
-`matplotlib`).
+`matplotlib`). It's implemented using `numpy` itself, so it's fairly fast, though
+not as fast as if it were implemented in the `C++` code directly. Still, compared to
+file I/O this turns out to be a relatively small component of compute time. 
 
 ## **FlimTrace**
 

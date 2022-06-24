@@ -29,13 +29,13 @@ class FlimTrace(np.ndarray):
     https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
     
     FlimTrace(
-        input_array,
-        intensity : np.ndarray = None,
-        confidence : np.ndarray = None,
-        FLIMParams : FLIMParams = None,
-        method : str = None,
-        angle : float = None,
-        info_string : str = None
+        `input_array`,
+        `intensity` : np.ndarray = None,
+        `confidence` : np.ndarray = None,
+        `FLIMParams` : FLIMParams = None,
+        `method` : str = None,
+        `angle` : float = None,
+        `info_string` : str = None
     )
     """
 
@@ -58,7 +58,7 @@ class FlimTrace(np.ndarray):
                 method = input_array[0].method
             if all(x.units == input_array[0].units for x in input_array):
                 units = input_array[0].units
-            info_string = " ".join(x.info_string for x in input_array)
+            info_string = "[" + " , ".join(x.info_string for x in input_array) + "]"
             input_array = np.asarray([x.__array__() for x in input_array])
             
         # Input array is an already formed ndarray instance
@@ -68,6 +68,7 @@ class FlimTrace(np.ndarray):
             obj.intensity = np.zeros_like(input_array)
         else:
             obj.intensity = np.asarray(intensity)
+        
         obj.confidence = confidence
         if not (obj.confidence is None):
             raise ValueError("Confidence parameter in FlimTrace not yet implemented.")

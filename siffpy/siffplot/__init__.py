@@ -1,4 +1,5 @@
 import logging
+import os
 
 import holoviews as hv
 from holoviews import opts
@@ -6,6 +7,9 @@ from holoviews import opts
 BOKEH = False
 try:
     import bokeh
+    from bokeh.plotting import Figure
+    from bokeh.models.layouts import LayoutDOM
+    from bokeh.io import export_svg, export_svgs
     BOKEH = True
 except ImportError:
     pass
@@ -92,7 +96,7 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
             plot.handles['yaxis'].axis_label_text_font_style = 'normal'
             plot.handles['yaxis'].minor_tick_line_color = None 
             
-        logging.warn(
+        logging.warning(
             "\n\n Using explicit method initialize_holoviews written into siffplot's __init__.,py."
             "\nBetter to use a style sheet!\n"    
         )
@@ -113,3 +117,75 @@ def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None
         )
     else:
         raise NotImplementedError("Haven't implemented a style sheet yet")
+
+def siffpy_export_svgs(fig : hv.Layout, filename : str = None):
+    """
+    Takes a Holoviews Layout object and exports its individual
+    components as svgs in a folder
+
+    Arguments
+    --------
+
+    fig : hv.Layout
+
+        A HoloViews Layout object that can't be simply export_svg'd.
+
+    filename : str
+
+        A path to save the file in
+    """
+    if not BOKEH:
+        raise ImportError("Bokeh not available on this system")
+
+    try:
+        fig = hv.render(fig)
+    except AttributeError:
+        # Presumes this means fig is already a Bokeh class
+        # or a tuple and I can safely iter
+        if hasattr(fig, '__iter__'):
+            figname = fig.__class__.__name__
+            dirroot, ext = os.path.splitext(filename)
+            if figname in ['list', 'tuple']:
+                newpath = dirroot
+            else:
+                newpath = os.path.join(dirroot,figname)
+            if not os.path.exists(newpath):
+                os.makedirs(newpath)
+            for subelement in fig:
+                try:
+                    filename = os.path.join(newpath, subelement.__class__.__name__)
+                    if hasattr(subelement, 'id'):
+                        filename += f"_id_{subelement.id}"
+                    siffpy_export_svgs(subelement, filename = filename+ext)
+                except NotFigureError:
+                    pass
+
+    if isinstance(fig, Figure):
+        fig.output_backend = 'svg'
+        export_svgs(fig, filename = filename)
+        return
+
+    if isinstance(fig, LayoutDOM):
+        if not hasattr(fig, 'children'):
+            return
+        
+        figname = fig.__class__.__name__
+        dirroot, ext = os.path.splitext(filename)
+        newpath = os.path.join(dirroot,figname)
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
+
+        for subelement in fig.children:
+            try:
+                filename = os.path.join(newpath, subelement.__class__.__name__)
+                if hasattr(subelement, 'id'):
+                    filename += f"_id_{subelement.id}"
+                siffpy_export_svgs(subelement, filename = filename+ext)
+            except NotFigureError:
+                pass
+        return
+
+    raise NotFigureError(f"Argument {fig} is not a `Bokeh` element nor a renderable `Holoviews` object.")
+
+class NotFigureError(ValueError):
+    """ Special error for not being a usable figure for a method """

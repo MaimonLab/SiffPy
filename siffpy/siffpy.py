@@ -1029,7 +1029,7 @@ class SiffReader(object):
             z_list : list[int] = None, color_list : list[int] = None,
             ret_type : type = list, registration : dict = None,
             confidence_metric='chi_sq', discard_bins = None
-        )-> np.ndarray:
+        )-> FlimTrace:
         """
         Exactly as in sum_across_time but returns a FlimArray instead
 
@@ -1186,8 +1186,17 @@ class SiffReader(object):
             ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
             return np.array(list_of_arrays)
         else:
-            return [FlimArray(arr[1], arr[0], FLIMParams=flimfit) for arr in list_of_arrays]
-
+            return FlimTrace(
+                [
+                    FlimTrace(
+                        arr[0],
+                        intensity = arr[1],
+                        FLIMParams = flimfit,
+                        method = 'empirical lifetime',
+                    )
+                    for arr in list_of_arrays
+                ]
+            )
 
 
 ### ORGANIZATIONAL METHODS

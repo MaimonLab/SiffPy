@@ -166,7 +166,7 @@ class SiffVisualizer():
             if 'pool_width' in kwargs:
                 pool_width = kwargs['pool_width']
 
-            self.frames = frames = self.siffreader.sum_across_time(
+            self.frames = self.siffreader.sum_across_time(
                     timepoint_start = 0,
                     timepoint_end = self.siffreader.im_params.num_frames // self.siffreader.im_params.frames_per_volume , # number of volumes
                     timespan = pool_width,
