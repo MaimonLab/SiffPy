@@ -15,6 +15,7 @@
 
 #include "siffParams.hpp"
 #include <numpy/arrayobject.h>
+#define PY_SSIZE_T_CLEAN
 
 class SiffReader
 {
@@ -25,8 +26,6 @@ class SiffReader
         std::ofstream debugger;
         // Clock for measuring time to execute functions
         std::chrono::high_resolution_clock debug_clock;
-        // the name of the .siff file
-        std::string filename;
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
 
@@ -79,9 +78,13 @@ class SiffReader
 
     public:
         SiffReader();
+        //SiffReader operator=(const SiffReader& siffreader);
         ~SiffReader(){closeFile();};
         
         int openFile(const char* filename);
+        bool isOpen();
+        // the name of the .siff file
+        std::string filename;
 
         // Mask methods
         PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict); // sums area inside the provided mask

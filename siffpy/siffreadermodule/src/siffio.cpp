@@ -1,97 +1,159 @@
-/**
- * 
- * Interface with Python to read .siff files and meta data 
- * as quickly as possible and return appropriate data types
- * for data analysis. Or... at least that's the goal.
- * 
- * This got bloated and will one day certainly need a refactor.
- * For now, I'm putting off the problem. This was the first time
- * I'd written a python module and started with something simple
- * that didn't require good practices... maybe lesson learned.
- * Maybe not.
- * 
- * SCT March 01 2021
- * 
- * */
-
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-
-// OK THIS GAVE ME SO MUCH HEADACHE SO I'M GONNA COMMENT IT HERE.
-// the PyArray_API is defined as STATIC, so every file needs to call
-// import_array() on its own. BUT, this can be avoided by doing this:
-// in this file, I define a PY_ARRAY_UNIQUE_SYMBOL referring to this
-// PyArray_API. Then, in any other file that includes numpy/arrayobject.h
-// I define NO_IMPORT_ARRAY and define the unique symbol again.
-// for more reading: https://docs.scipy.org/doc/numpy-1.10.1/reference/c-api.array.html#miscellaneous
-#define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes, some compiler thing I don't really understand
-#include <numpy/arrayobject.h>
-
-#include "../include/siffreader/siffreader.hpp"
-#include "../include/siffmoduledefin.hpp"
-#include "../include/sifftotiff.hpp"
-#include "../include/siffio/siffio.hpp"
-
-static SiffReader Sf;
-
-//  I'm going to comment this in a way to remind myself how this process works
-//  so hopefully I can use this as a reference doc for myself
-
-// What you need to do: build this file a la the Python C API guide to make a .so object, then put that .so object in your
-// Python's lib path. If you use setuptools or distutil tools, it will do both automatically.
-// But! Don't forget to put all your .c and .cpp files in the source. Whoops.
-
-// Also important, compile with the headers for your python version. Which means, if you're using
-// Anaconda, to pay close attention to your anaconda2/envs directory for include files. You can control
-// this with the "include_dirs" argument in your setup.py but there's likely a smarter way using
-// anaconda interactions directly. I'll update this when I get around to figuring that out.
-
-static PyObject* siffreader_open(PyObject *self, PyObject *args) {
-    // returns a PyObject to Python when called.
-    const char *filename;
-
-    if (!PyArg_ParseTuple(args, "s:open", &filename)) // parses PyObject args, "s" says it should be a string, loads into filename
-        // PyArg_ParseTuple returns 0 if it fails to parse
-        return NULL; // functions as an exception (TODO read more into this)
-    
-    int ret = Sf.openFile(filename); // Opens the file in the SiffReader
-    if (ret < 0) {
-        if (ret == -2) {
-            PyErr_WarnEx(PyExc_RuntimeWarning, Sf.getErrString(),Py_ssize_t(1));
-            Py_RETURN_NONE;
-        }
-        else PyErr_SetString(PyExc_FileNotFoundError,Sf.getErrString());
-        return NULL;
-    }
-    Py_RETURN_NONE;
-}
-
-static PyObject* siffreader_close(PyObject *self, PyObject *args) {
-    // simple: returns the file header data
-
-    if(!PyArg_ParseTuple(args, ":close")) return NULL;
-    // if there are any args, it shouldn't go through
-
-    Py_RETURN_NONE;
-}
-
-static PyObject* siffreader_get_file_header(PyObject *self, PyObject *args) {
-    // simple: returns the file header data
-
-    if(!PyArg_ParseTuple(args, ":get_file_header")) return NULL;
-    // if there are any args, it shouldn't go through
-
-    return Sf.readFixedData();
-}
-
 /*
 
-Frame getter methods
+Defines a Python class SiffIO which
+handles file I/O for each file type. This
+cleans up SiffPy pretty dramatically relative
+to earlier versions:
+
+1) Allows multiple files to be opened from one
+interpreter
+
+2) Allows each SiffReader object from SiffPy to
+operate independently
+
+TODO: IMPLEMENT
+//
+*/
+
+#include "../include/siffio/siffio.hpp"
+#include "../include/siffio/siffiokwargs.hpp"
+#define PY_SSIZE_T_CLEAN
+/* Called on creation of an instance of a siffio.
+
+Creates a blank C++ siffreader
 
 */
 
-static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject* kw) {
+// Allocate the new SiffReader++
+static PyObject* siffio_new(PyTypeObject* type, PyObject* args, PyObject* kwargs){
+    SiffIO *self;
+    self = (SiffIO *) type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->siffreader = new SiffReader();
+    }
+    return (PyObject *) self;
+};
+
+// Can init with a filename to open that way.
+static int siffio_init(SiffIO* self, PyObject* args){
+
+    const char* filename = NULL;
+
+    if(!PyArg_ParseTuple(args, "|s:SiffIO", &filename)){
+        return -1;
+    }
+
+    // No filename provided, nothing to do.
+    if(filename == NULL) return 0;
+
+    int retval = self->siffreader->openFile(filename);
+    if (retval < 0) {
+        PyErr_SetString(
+            PyExc_ValueError,
+            (std::string(
+            "Invalid file or filename provided.\n"
+            "Additional info :\n\n"
+            ) + 
+            std::string(self->siffreader->getErrString())
+            ).c_str()
+        );
+        return -1;
+    }
+    return 0;
+};
+
+static void siffio_dealloc(SiffIO *self){
+    // Called on deallocation -- close the siffreader object.
+    self->siffreader->closeFile();
+    delete self->siffreader;
+    Py_TYPE(self)->tp_free((PyObject *) self);
+};
+
+static PyObject* siffio_repr(SiffIO *self){
+    PyObject* retstring = PyUnicode_FromString(
+        "A SiffIO object. Not meant to be touched "
+        "outside of a SiffReader. Maybe this will change."
+        " - SCT 06/29/2022"
+    );
+    return retstring;
+};
+
+/******
+ * 
+ *  FILE IO
+ * 
+ * */
+
+// Opens a file in the SiffReader++ object.
+static PyObject* siffio_open(SiffIO* self, PyObject* args){
+    
+    const char* filename; 
+    
+    if (!PyArg_ParseTuple(args, "s:open", &filename)){
+        return NULL;
+    }
+    
+    int ret = self->siffreader->openFile(filename);
+
+    if (ret < 0) {
+        if (ret == -2) {
+            PyErr_WarnEx(
+                PyExc_RuntimeWarning,
+                self->siffreader->getErrString(),
+                Py_ssize_t(1)
+            );
+            Py_RETURN_NONE;
+        }
+        else PyErr_SetString(
+            PyExc_FileNotFoundError,
+            self->siffreader->getErrString()
+            );
+        return NULL;
+    }
+    Py_RETURN_NONE;
+};
+
+// Closes any open SiffReader++ object.
+static PyObject* siffio_close(SiffIO* self){
+    try{
+        self->siffreader->closeFile();
+    }
+    catch(std::exception &e) {
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            e.what()
+        );
+        return NULL;
+    }
+    Py_RETURN_NONE;
+};
+
+static PyObject* siffio_get_file_header(SiffIO *self) {
+    // simple: returns the file header data
+    // Error handling is in the siffreader method this time.
+    return self->siffreader->readFixedData();
+};
+
+static PyObject* siffio_num_frames(SiffIO* self){
+    // Returns number of frames in file
+
+    uint64_t ret_val = self->siffreader->numFrames();
+
+    if (ret_val < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "Unopened file");
+        return NULL;
+    }
+    return PyLong_FromUnsignedLongLong(ret_val);
+}
+
+/**************
+ * 
+ *  FRAMES METHODS
+ * 
+ * 
+ * *****/
+
+static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     // 
 
     PyObject *frames_list = NULL;
@@ -101,7 +163,7 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
     PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!pO!O:get_frames", const_cast<char**>(GET_FRAMES_KEYWORDS),
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!pO!O:get_frames", GET_FRAMES_KWARGS,
         &PyList_Type, &frames_list,
         &PyType_Type, &type,
         &flim,
@@ -115,7 +177,7 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
 
     // default mode: get all frames as an intensity profile. No registration??
     if(!frames_list) {
-        return Sf.retrieveFrames((uint64_t *) NULL, 0, flim);
+        return self->siffreader->retrieveFrames((uint64_t *) NULL, 0, flim);
     }
 
     if(!registrationDict) registrationDict = PyDict_New();
@@ -132,7 +194,7 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
                 return NULL;
             }
             uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
-            if (frameNum >= Sf.numFrames()) {
+            if (frameNum >= self->siffreader->numFrames()) {
                 PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
                 return NULL;
             }
@@ -198,31 +260,31 @@ static PyObject* siffreader_get_frames(PyObject *self, PyObject *args, PyObject*
         try{
             if (discard_bins) {
                 if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                    return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
+                    return self->siffreader->retrieveFrames(framesArray, framesN,flim, registrationDict);
                 }
                 else {
                     uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                    return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict, terminalBin);
+                    return self->siffreader->retrieveFrames(framesArray, framesN,flim, registrationDict, terminalBin);
                 }
             }
             else{
-                return Sf.retrieveFrames(framesArray, framesN,flim, registrationDict);
+                return self->siffreader->retrieveFrames(framesArray, framesN,flim, registrationDict);
             }
         }
         catch(...) {
-            PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+            PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
             return NULL;
         }
     }
 }
 
-static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, PyObject* kw) {
+static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObject* kw) {
     // Gets the meta data for the frames in kw, or for all the frames.  
     PyObject *frames_list = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
     if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_frames_metadata", 
-            const_cast<char**>(GET_FRAMES_METADATA_KEYWORDS), 
+            GET_FRAMES_METADATA_KEYWORDS, 
             &PyList_Type, &frames_list)
         ) {
         return NULL;
@@ -230,7 +292,7 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
 
     // default mode: get all frames
     if(!frames_list) {
-        return Sf.readMetaData();
+        return self->siffreader->readMetaData();
     }
     
     else {
@@ -244,7 +306,7 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
             }
             
             uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
-            if (frameNum >= Sf.numFrames()) {
+            if (frameNum >= self->siffreader->numFrames()) {
                 PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
                 return NULL;
             }
@@ -252,16 +314,16 @@ static PyObject* siffreader_get_frame_metadata(PyObject *self, PyObject *args, P
         }
         uint64_t framesN = PyList_Size(frames_list);
         try{
-            return Sf.readMetaData(framesArray, framesN);
+            return self->siffreader->readMetaData(framesArray, framesN);
         }
         catch(std::exception& e){
             PyErr_SetString(PyExc_RuntimeError, e.what());
             return NULL;
         }
     }
-}
+};
 
-static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObject* kw) {
+static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw) {
     // Pools frames together, returns list of pooled frames.
     PyObject* listOfFramesListed = NULL;
     PyObject* type = NULL;
@@ -271,7 +333,7 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
     if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!O:pool_frames", 
-        const_cast<char**>(POOL_FRAMES_KEYWORDS),
+        POOL_FRAMES_KEYWORDS,
         &PyList_Type, &listOfFramesListed,
         &PyType_Type, &type,
         &flim,
@@ -311,7 +373,7 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
                 return NULL;
             }
 
-            if (PyLong_AsUnsignedLongLong(element) >= Sf.numFrames()) {
+            if (PyLong_AsUnsignedLongLong(element) >= self->siffreader->numFrames()) {
                 PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
                 return NULL;
             }
@@ -377,24 +439,33 @@ static PyObject * siffreader_pool_frames(PyObject* self, PyObject *args, PyObjec
     try{
         if (discard_bins) {
             if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
+                return self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
             }
             else {
                 uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                return Sf.poolFrames(listOfFramesListed, terminalBin, flim, registrationDict);
+                return self->siffreader->poolFrames(listOfFramesListed, terminalBin, flim, registrationDict);
             }
         }
         else{
-            return Sf.poolFrames(listOfFramesListed, flim, registrationDict);
+            return self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
         }
     }
     catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
-}
+};
 
-static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* kw) {
+/*******
+ * 
+ * 
+ *  FLIM METHODS
+ * 
+ * 
+ * *////
+
+
+static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     // Takes in a FLIMParams object and frames desired and returns a lifetime map, an intensity distribution,
     // and a chi-squared value for every pixel.
 
@@ -406,7 +477,7 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!pO:flim_map", const_cast<char**>(FLIM_MAP_KEYWORDS),
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!pO:flim_map", FLIM_MAP_KEYWORDS,
         &FLIMParams,
         &PyList_Type,&listOfFramesListed,
         &conf_measure, &conf_measure_length,
@@ -449,10 +520,10 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
         try{
             PyErr_SetString(PyExc_RuntimeError, "All frames default is not yet implemented");
             return NULL;
-            //return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+            //return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
         }
         catch(...) {
-            PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+            PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
             return NULL;
         }
     }
@@ -540,7 +611,7 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
     try{
         if (discard_bins) {
             if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+                return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
             }
             else {
                 uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
@@ -551,22 +622,28 @@ static PyObject* siffreader_flim_map(PyObject* self, PyObject* args, PyObject* k
             }
         }
         else{
-            return Sf.flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
+            return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
         }
     }
     catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
 }
 
+
+/***
+ * 
+ * ROI METHODS
+ * 
+ * */
 /*
 
 ROI methods
 
 */
 
-static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObject*kw){
+static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     /*
     Returns the summed photon counts within the provided ROI
 
@@ -583,7 +660,7 @@ static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObjec
     PyObject *frames_list = NULL;
     PyObject* registrationDict = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O!:sum_roi", const_cast<char**>(SUM_ROIS_KEYWORDS),
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O!:sum_roi", SUM_ROIS_KEYWORDS,
         &mask,
         &PyList_Type, &frames_list,
         &PyDict_Type, &registrationDict
@@ -594,7 +671,7 @@ static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObjec
     }
 
     if(!frames_list) { // populate with all frames.
-        Py_ssize_t nFrames = Sf.numFrames();
+        Py_ssize_t nFrames = self->siffreader->numFrames();
         frames_list = PyList_New(nFrames);
         for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
             PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
@@ -616,7 +693,7 @@ static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObjec
             return NULL;
         }
         uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
-        if (frameNum >= Sf.numFrames()) {
+        if (frameNum >= self->siffreader->numFrames()) {
             PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
             return NULL;
         }
@@ -683,15 +760,15 @@ static PyArrayObject* siffreader_sum_roi(PyObject* self, PyObject* args, PyObjec
     // Okay enough argument checking, we can call the siffreader function
 
     try{
-        return Sf.sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
+        return self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
     }
     catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
-}
+};
 
-static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, PyObject*kw){
+static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject*kw){
     /*
     Returns the summed photon counts within the provided ROI
 
@@ -711,7 +788,7 @@ static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, Py
     PyObject *frames_list = NULL;
     PyObject* registrationDict = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O!:sum_roi", const_cast<char**>(SUM_ROI_FLIM_KEYWORDS),
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O!:sum_roi", SUM_ROI_FLIM_KEYWORDS,
         &mask,
         &FLIMParams,
         &PyList_Type, &frames_list,
@@ -739,7 +816,7 @@ static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, Py
     }
 
     if(!frames_list) { // populate with all frames.
-        Py_ssize_t nFrames = Sf.numFrames();
+        Py_ssize_t nFrames = self->siffreader->numFrames();
         frames_list = PyList_New(nFrames);
         for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
             PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
@@ -761,7 +838,7 @@ static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, Py
             return NULL;
         }
         uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
-        if (frameNum >= Sf.numFrames()) {
+        if (frameNum >= self->siffreader->numFrames()) {
             PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
             return NULL;
         }
@@ -828,31 +905,33 @@ static PyArrayObject* siffreader_sum_roi_flim(PyObject* self, PyObject* args, Py
     // Okay enough argument checking, we can call the siffreader function
 
     try{
-        return Sf.sumFLIMMask(framesArray, framesN, FLIMParams, (PyArrayObject*) mask, registrationDict);
+        return self->siffreader->sumFLIMMask(framesArray, framesN, FLIMParams, (PyArrayObject*) mask, registrationDict);
     }
     catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
-}
+};
 
-/*
+/******************
+ * 
+ * 
+ * HISTOGRAM METHODS
+ * 
+ * 
+ * ***/////
 
-Histogram methods
-
-*/
-
-static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, PyObject* kw) {
+ static PyArrayObject* siffio_get_histogram(SiffIO* self, PyObject *args, PyObject* kw) {
     PyObject* frames = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", const_cast<char**>(GET_HISTOGRAM_KEYWORDS), &PyList_Type, &frames)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", GET_HISTOGRAM_KEYWORDS, &PyList_Type, &frames)) {
         return NULL;
     }
 
     try{
         if(!frames) {
-            return Sf.getHistogram();
+            return self->siffreader->getHistogram();
         }
         else {
             uint64_t framesArray[PyList_Size(frames)];
@@ -869,168 +948,75 @@ static PyArrayObject* siffreader_get_histogram(PyObject* self, PyObject *args, P
             }
 
             uint64_t framesN = PyList_Size(frames);
-            return Sf.getHistogram(framesArray, framesN);
+            return self->siffreader->getHistogram(framesArray, framesN);
         }
     }
     catch(...) {
-        PyErr_SetString(PyExc_RuntimeError, Sf.getErrString());
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
 }
-//
-/*
 
-Warnings and utils
 
-*/
+/**********************
+ * 
+ * 
+ *  GETTER AND SETTER METHODS
+ * 
+ * 
+ * */
 
-static PyObject* siffreader_suppress_warnings(PyObject* self, PyObject *args){
-    // Suppresses warnings
-
-    if(!PyArg_ParseTuple(args, ":suppress_warnings")) return NULL;
-    // if there are any args, it shouldn't go through
-    
-    Sf.suppressWarnings(true);
-    Py_RETURN_NONE;
-}
-
-static PyObject* siffreader_report_warnings(PyObject* self, PyObject *args){
-    // Suppresses warnings
-    if(!PyArg_ParseTuple(args, ":report_warnings")) return NULL;
-    // if there are any args, it shouldn't go through
-    
-    Sf.suppressWarnings(false);
-
-    Py_RETURN_NONE;
-}
-
-static PyObject* siffreader_num_frames(PyObject* self, PyObject *args){
-    // Returns number of frames in file
-
-    if(!PyArg_ParseTuple(args, ":num_frames")) return NULL;
-    // if there are any args, it shouldn't go through
-    
-    uint64_t ret_val = Sf.numFrames();
-
-    if (ret_val < 0) {
-        PyErr_SetString(PyExc_RuntimeError, "Unopened file");
-        return NULL;
-    }
-    return PyLong_FromUnsignedLongLong(ret_val);
-}
-
-static PyObject* siffreader_debug(PyObject* self, PyObject *args){
-    // Returns number of frames in file
-
-    if(!PyArg_ParseTuple(args, ":debug")) return NULL;
-    // if there are any args, it shouldn't go through
-    
-    Sf.setDebug(true);
-    Py_RETURN_NONE;
-}
-
-static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject *kwargs) {
-    // Converts the open .siff file to a .tiff file and saves it in the location specified
-    // (or next to the original, if no argument is provided).
-    
-    char* sourcepath;
-    Py_ssize_t sourcepath_len = Py_ssize_t(0);
-    
-    char* savepath;
-    Py_ssize_t savepath_len = Py_ssize_t(0);
-
-    if(
-        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
-        &sourcepath, &sourcepath_len,
-        &savepath, &savepath_len
-        ))
-        {
-            return NULL;
-    }
-    try{
-        if (savepath_len > 0) {
-            siff_to_tiff(sourcepath, savepath);
+static PyObject* siffio_filename_get(SiffIO* self){
+    //PyUnicode_FromString()
+    if (self->siffreader->isOpen()){
+            return PyUnicode_FromString(self->siffreader->filename.c_str());
         }
-        else {
-            siff_to_tiff(sourcepath);
-        }
-    }
-    catch(std::exception& e) {
-        PyErr_SetString(
-            PyExc_RuntimeError,
-            e.what()
-        );
-        return NULL;
-    }
-    Py_RETURN_NONE;
-}
-
-
-/*
-
-PyMethodDef, PyModuleDef
-
-*/
-
-static PyMethodDef SiffreaderMethods[] = {
-// Array of the methods and corresponding docstrings
-        {"open", siffreader_open, METH_VARARGS,OPEN_DOCSTRING},
-        {"close", siffreader_close, METH_VARARGS, CLOSE_DOCSTRING},
-        {"get_file_header", siffreader_get_file_header, METH_VARARGS, GET_FILE_HEADER_DOCSTRING},
-        // This needs to be cast to a PyCFunction, which by definition has only two arguments unlike our function
-        {"get_frames", (PyCFunction) siffreader_get_frames, METH_VARARGS|METH_KEYWORDS, GET_FRAMES_DOCSTRING},
-        {"get_frame_metadata", (PyCFunction) siffreader_get_frame_metadata, METH_VARARGS|METH_KEYWORDS, GET_METADATA_DOCSTRING},
-        {"sum_roi", (PyCFunction) siffreader_sum_roi, METH_VARARGS|METH_KEYWORDS, SUM_ROI_DOCSTRING},
-        {"sum_roi_flim", (PyCFunction) siffreader_sum_roi_flim, METH_VARARGS|METH_KEYWORDS, SUM_ROI_FLIM_DOCSTRING},
-        // {"roi_mask", (PyCFunction) siffreader_roi_mask, METH_VARARGS|METH_KEYWORDS, ROI_MASK_DOCSTRING},
-        {"pool_frames", (PyCFunction) siffreader_pool_frames, METH_VARARGS|METH_KEYWORDS, POOL_FRAMES_DOCSTRING},
-        {"flim_map", (PyCFunction) siffreader_flim_map, METH_VARARGS|METH_KEYWORDS, FLIM_MAP_DOCSTRING},
-        {"get_histogram", (PyCFunction) siffreader_get_histogram, METH_VARARGS|METH_KEYWORDS, GET_HISTOGRAM_DOCSTRING},
-        {"suppress_warnings", siffreader_suppress_warnings, METH_VARARGS, SUPPRESS_WARNINGS_DOCSTRING},
-        {"report_warnings", siffreader_report_warnings, METH_VARARGS, REPORT_WARNINGS_DOCSTRING},
-        {"num_frames", siffreader_num_frames, METH_VARARGS, NUM_FRAMES_DOCSTRING},
-        {"debug", siffreader_debug, METH_VARARGS, DEBUG_DOCSTRING},
-        {"siff_to_tiff",(PyCFunction) siffreader_sifftotiff, METH_VARARGS|METH_KEYWORDS, SIFF_TO_TIFF_DOCSTRING},
-        {NULL, NULL, 0, NULL}        /* Sentinel */
+    Py_INCREF(Py_None);
+    return Py_None;
 };
-//
-static struct PyModuleDef siffreadermodule = {
-// Defines the module, created during initialization function below
-    PyModuleDef_HEAD_INIT, // must be the first property
-    "siffreader",   /* name of module, this is what you type for "import XX" */
-    PyDoc_STR(MODULE_DOC), /* module documentation, may be NULL*/ 
-    -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
-    SiffreaderMethods // PyMethodDef array of methods for the module
-}; // OTHER OPTIONAL ELEMENTS OF ARRAY MIGHT BE ADDED. SOME USEFUL ONES INCLUDE:
-// CLEAR (for Python's garbage collector)
-// FREE (for deallocation)
 
-
-PyMODINIT_FUNC PyInit_siffreader(void) {
-// THE  ONLY NONSTATIC OBJECT
-// executes on initialization
-    import_array(); // we use NumPy in here, so I have to run this before creating the module
-
-    PyObject* module;
-    
-    if (PyType_Ready(&SiffIOType) < 0) return NULL;
-    
-    module = PyModule_Create(&siffreadermodule);
-    if (module == NULL) return NULL;
-
-    Py_INCREF(&SiffIOType);
-    if (
-        PyModule_AddObject(
-            module,
-            SIFFIO_OBJECTNAME,
-            (PyObject*) &SiffIOType
-        ) < 0
-    ) {
-        Py_DECREF(&SiffIOType);
-        Py_DECREF(module);
-        return NULL;
-    }
-
-    return module;
+static PyObject* siffio_filename_set(SiffIO* self, PyObject* args){
+    PyErr_SetString(
+        PyExc_ValueError,
+        "Cannot set filename -- can only open a new file."
+    );
+    return NULL;
 }
+
+static PyObject* siffio_status_get(SiffIO* self){
+    std::string retstr;
+    retstr += "Filename: " + std::string(self->siffreader->filename) + "\n";
+    retstr += "Error string: " + std::string(self->siffreader->getErrString());
+    return PyUnicode_FromString(retstr.c_str());
+};
+
+static PyObject* siffio_status_set(SiffIO* self, PyObject* args){
+    PyErr_SetString(
+        PyExc_ValueError,
+        "Cannot set status."
+    );
+    return NULL;
+}
+
+/******************
+ * 
+ * SIFFIO TYPE
+ * 
+ * */
+
+PyTypeObject SiffIOType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = SIFFIO_TPNAME,
+    .tp_doc = PyDoc_STR(SIFFIO_DOCSTRING),
+    .tp_basicsize = sizeof(SiffIO),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = (newfunc) siffio_new,
+    .tp_init = (initproc) siffio_init,
+    .tp_dealloc = (destructor) siffio_dealloc,
+//    .tp_getattr = (getattrfunc) siffio_getattr,
+    .tp_repr = (reprfunc) siffio_repr,
+    .tp_members = siffio_members,
+    .tp_methods = siffio_methods,
+    .tp_getset  = siffio_getset,
+};

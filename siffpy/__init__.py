@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from .siffpy import *
 from .core import __version__ as _version
-import siffreader
+
+#TODO: IMPLEMENT SIFFTOTIFF import siffreader
 
 __version__ = _version
 

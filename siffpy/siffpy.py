@@ -8,6 +8,7 @@ from .siffutils import SEC_TO_NANO, NANO_TO_SEC
 from .siffutils.slicefcns import framelist_by_color, framelist_by_slice
 
 import siffreader
+from siffreader import SiffIO
 from . import siffutils
 from .siffutils.exp_math import *
 from .siffutils.flimparams import FLIMParams
@@ -78,6 +79,7 @@ class SiffReader(object):
         self.reference_frames = None
         self.debug = False
         self.events = None
+        self.siffio = SiffIO()
         if filename is None:
             self.filename = ''
         else:
@@ -809,6 +811,44 @@ class SiffReader(object):
         true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
         return np.array([self.get_histogram(frames) for frames in true_framelists])
 
+    def get_frames_flim(self,
+            params : FLIMParams,
+            frames: list[int] = None,
+            registration_dict : dict = None,
+            confidence_metric : str = 'chi_sq',
+        ) -> FlimArray:
+        """
+        Returns a FlimTrace object of dimensions
+        n_frames by y_size by x_size corresponding
+        to the frames requested.
+        """
+     
+        if frames is None:
+            frames = list(range(self.im_params.num_frames))
+        
+        if registration_dict is None:
+            list_of_arrays = siffreader.flim_map(
+                params,
+                frames = frames, 
+                confidence_metric=confidence_metric
+            )
+        else:
+            list_of_arrays = siffreader.flim_map(
+                params,
+                frames = frames,
+                registration = registration_dict,
+                confidence_metric=confidence_metric
+            )
+
+        return FlimTrace(
+            np.array(list_of_arrays[0]),
+            intensity = np.array(list_of_arrays[1]),
+            FLIMParams = params,
+            method = 'empirical lifetime',
+        )
+
+
+
     def sum_roi_flim(self,
             params : Union[FLIMParams, list[FLIMParams]],
             roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
@@ -1035,6 +1075,7 @@ class SiffReader(object):
 
         TODO: IMPLEMENT RET_TYPE
         TODO: IMPLEMENT NONE FOR CONFIDENCE METRIC
+        TODO: MORE PROPER DOCSTRING
 
         INPUTS
         ------

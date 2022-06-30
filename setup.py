@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 import setuptools
 import logging
-import os, re
+import os, re, glob
 
 try:
     import numpy
@@ -31,13 +31,8 @@ class bcolors:
 
 # written for Darwin. Probably should write a Windows and/or GNU compatible
 siffmodule = Extension('siffreader',
-                    sources = [
-                        'siffpy/siffreadermodule/src/siffreadermodule.cpp', 
-                        'siffpy/siffreadermodule/src/siffreader.cpp',
-                        'siffpy/siffreadermodule/src/sifftotiff.cpp'
-                    ],
+                    sources = glob.glob('./siffpy/siffreadermodule/src/*.cpp'),
                     include_dirs = [
-                        'siffpy/siffreadermodule/include',
                         numpy.get_include()
                     ]
                     ,

@@ -4,8 +4,8 @@
 #include <string>
 #include <map>
 
-#include "siffParams.hpp"
-#include "sifdefin.hpp"
+#include "siffreader/siffParams.hpp"
+#include "siffreader/sifdefin.hpp"
 
 void siff_to_tiff(std::string sourcepath);
 void siff_to_tiff(std::string sourcepath, std::string savepath);

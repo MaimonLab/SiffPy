@@ -1,13 +1,14 @@
 // IMPORT_ARRAY() CALLED IN MODULE INIT
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
+#define PY_SSIZE_T_CLEAN
+#include "../include/siffreader/siffreader.hpp"
 
-#include "../include/siffreader.hpp"
-
-#include "../include/sifdefin.hpp"
-#include "../include/siffreaderinline.hpp"
+#include "../include/siffreader/sifdefin.hpp"
+#include "../include/siffreader/siffreaderinline.hpp"
 #include <algorithm>
 
+// Appends the error to errstring and rethrows()
 #define REPORT_ERR(x) \
     catch(std::exception &e) {\
         errstring = std::string(x) + e.what();\
@@ -29,7 +30,6 @@ SiffReader::SiffReader(){
 
 int SiffReader::openFile(const char* _filename) {
     // Opens a .siff file for further analysis / use.
-    
     try{
         // First make sure we can open it at all.
         if(siff.is_open()) {
@@ -51,7 +51,6 @@ int SiffReader::openFile(const char* _filename) {
         siff.seekg(0, siff.beg);
         
         // Now check that it's a siff file.
-        
         // Gotta know the endianness
         char * endian = new char[2];
         siff.read(endian, sizeof(char)*2);   
@@ -143,6 +142,9 @@ int SiffReader::openFile(const char* _filename) {
     }
 };
 
+bool SiffReader::isOpen(){
+    return siff.is_open();
+}
 
 void SiffReader::discernFrames() {
     // Runs through all the frames to find their IFD, calculates the total number of frames,
@@ -688,6 +690,10 @@ PyObject* SiffReader::readFixedData(){
     // returns the data in the primary ScanImage header, if it's been opened
     if (!siff.is_open()) {
         errstring = "No file open";
+        PyErr_SetString(
+            PyExc_AssertionError,
+            "No open file in SiffReader C++ class."
+        );
         return NULL;
     }
 
