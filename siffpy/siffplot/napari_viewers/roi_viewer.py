@@ -390,6 +390,7 @@ class ROIViewer(NapariInterface):
                 widgets = [widgets.Label(label="N segments?")],
             )
 
+
             roi_container.extend([names, classes, segmenteds, nsegs])
             
             roi : ROI # type hinting
