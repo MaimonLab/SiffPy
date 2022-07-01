@@ -54,12 +54,3 @@ def x_across_time_TYPECHECK(
         z_list = list(range(num_slices))
 
     return (z_list, flim, color_list)
-
-def siffreader_type_check(siffreader, fcn_name, *args, **kwargs):
-    """
-    Typechecks siffreader functions generically.
-    """
-
-    raise NotImplementedError("This is a function that I should use to clean up the SiffReader "
-        "class but haven't implemented yet."
-    )

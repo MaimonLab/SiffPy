@@ -7,7 +7,7 @@ import numpy as np
 import magicgui.widgets as widgets
 
 from .napari_interface import NapariInterface
-from ...siffpy import SiffReader
+from ...core import SiffReader
 from ..utils.exceptions import NoROIException
 from ..roi_protocols import ROI_extraction_methods, REGIONS, roi_protocol
 from ..roi_protocols.rois import ROI

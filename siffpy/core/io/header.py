@@ -134,6 +134,6 @@ def header_to_imparams(header : str, num_frames : int = None)->ImParams:
         " planning on addressing it."
         )
     finally:
-        im_pars = ImParams(im_params)
-        im_pars.num_frames = num_frames
+        im_params['NUM_FRAMES'] = num_frames
+        im_pars = ImParams(**im_params)
         return im_pars

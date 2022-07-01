@@ -6,7 +6,7 @@ import logging
 
 from ..log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 from .tracplotter import *
-from ...siffutils.circle_fcns import split_angles_to_dict
+from ...core.utils.circle_fcns import split_angles_to_dict
 
 class HeadingPlotter(TracPlotter):
     """

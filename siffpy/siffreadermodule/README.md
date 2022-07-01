@@ -5,6 +5,27 @@ C and C++ code compiled into a local Python extension module. The code in here i
 Due for a refactor. The `SiffReader` object has gotten extremely complex, and the way some
 function calls are handled is not great (and some things maybe should be inlined that aren't).
 
+## SiffIO object
+
+As of `siffpy` version `0.6.0`, the preferred way to access
+siff file inputs and outputs is to create a `SiffIO` object
+
+```
+from siffreader import SiffIO
+
+siffio = SiffIO() # filepath may be provided as a string in initialization
+
+siffio.open(filepath) # if a SiffIO was initialized without a file
+
+siffio.get_frames(*args, **kwargs)
+
+siffio.sum_roi_flim(*args, **kwargs)
+```
+
+which is what the `siffpy.SiffReader` object does as of
+`0.6.0`.
+
+
 ## SiffReader class (C++)
 
 Most file I/O is done by a `SiffReader` object in the module (yes, I agree, it was maybe a bad idea to name both the module and the `C++` class `SiffReader`, though the idea is that the `Python` module wraps the `C++` class).
@@ -20,26 +41,26 @@ file, `SiffReader.siff`. The front-facing methods can:
 - `readFixedData` to get metadata that is established at the start of an experiment.
 - `siffToTiff`, saves a `.tiff` file that contains the intensity data of a `.siff` file.
 
-## SiffReader methods (Python module)
+## SiffIO methods (Python module)
 
-You can interact with the `SiffReader` class through the `siffreader` Python module. At import, this module initializes a `SiffReader` which you then can interact with. __That means that there's a single global (static) `SiffReader` within the interpreter__, and so it has memory of function calls made previously (e.g. to change settings, or which file is being read). 
+You can interact with the `SiffReader` class through the `SiffIO` Python class.
 
 For more information, and probably more up to date than the README, try 
 ```
-import siffreader
+from siffreadermodule import SiffIO
 
-help(siffreader)
+help(SiffIO)
 ```
 
 The methods are (at time of writing):
 
--    `open(filename : str) -> None`
+-    `SiffIO.open(filename : str) -> None`
         Opens the file at location filename.
 
--    `close() -> None`
+-    `SiffIO.close() -> None`
         Closes an open file.
 
--    `get_file_header()->dict` 
+-    `SiffIO.get_file_header()->dict` 
         Returns header data that applies across the file. Dictionary returned contains the following `(key, value)` pairs:
         - `Filename` : `str`
                 The path to the file
@@ -57,10 +78,10 @@ The methods are (at time of writing):
         - `IFD pointers` (only in debug mode) : `list[int]`
                 A list of pointers to the start of the IFD for every frame, to jump directly to that frame for file I/O
 
--    `get_frames(frames= None, type=list, flim=False, registration = None, discard_bins = None)->list[np.ndarray]`
+-    `SiffIO.get_frames(frames= None, type=list, flim=False, registration = None, discard_bins = None)->list[np.ndarray]`
         Returns frames as a list of numpy arrays.
 
--    `get_frame_metadata(frames=[])->list[dict]`
+-    `SiffIO.get_frame_metadata(frames=[])->list[dict]`
         Returns frame metadata in the form of a list of dicts of the same size as `frames`. The dictionaries are of the form `(key, value)`:
         - `Width` : `int`
             The x dimension of the frame
@@ -84,17 +105,22 @@ The methods are (at time of writing):
         -  `Siff compression` : `bool`
             Whether or not the frame uses the siff compression algorithm for data (described below).
 
--    `pool_frames(pool_lists : list[list[int]], type=list, flim=False, registration=None)-> list[np.ndarray]`
+-    `SiffIO.pool_frames(pool_lists : list[list[int]], type=list, flim=False, registration=None)-> list[np.ndarray]`
         As `get_frames`, but takes a list of lists as input. Each top-level list element contains a list of
         frame numbers, which themselves will be pooled together to return a single `np.ndarray` that is the
         summed values of the photon counts of the frames specified by that list.
 
--    `flim_map(params : siffpy.FLIMParams, framelist = None, confidence_metric= 'log_p', registration=None) -> tuple[np.ndarray, np.ndarray, np.ndarray]`
+-    `SiffIO.flim_map(params : siffpy.FLIMParams, framelist = None, confidence_metric= 'log_p', registration=None) -> tuple[np.ndarray, np.ndarray, np.ndarray]`
         Returns a tuple: empirical lifetime, intensity, and a confidence metric. `framelist` is as in `pool_frames`.
         TODO: document this more (explain the confidence metric, etc.)
 
--    `get_histogram(frames=None)->np.ndarray`
+-    `SiffIO.get_histogram(frames=None)->np.ndarray`
         Returns histogrm of photon arrival times.
+
+-    `SiffIO.num_frames() -> int`
+        If file is open, reports the total number of frames (quick access to a useful field of the `SiffReader`)
+
+There are also `siffreadermodule` methods:
 
 -    `suppress_warnings() -> None`
         Suppresses module-specific warnings.
@@ -102,16 +128,9 @@ The methods are (at time of writing):
 -    `report_warnings() -> None`
         Allows module-specific warnings (undoes suppress_warnings)
 
--    `num_frames() -> int`
-        If file is open, reports the total number of frames (quick access to a useful field of the `SiffReader`)
-
 -    `debug() -> None`
         Enables siffreadermodule debugging log and reporting
 
 -    `siff_to_tiff(sourcepath : str, savepath : str = None) -> None`
         Converts the open .siff file to a .tiff file, discarding arrival time information, if relevant. If no path is
         provided, the .tiff is saved in the same location as the .siff.
-
-## FlimArray (Python class)
-
-The `FlimArray` class in the module is a C implementation much like a numpy array. NOT YET IMPLEMENTED (will it ever be?). I think it might be capable of going much faster than a native Python class playing with two numpy arrays

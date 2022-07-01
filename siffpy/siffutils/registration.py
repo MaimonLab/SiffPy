@@ -1,12 +1,12 @@
 import numpy as np
 from numpy import fft
 from numpy.core.numeric import rollaxis
-import siffreader
+from siffreadermodule import SiffIO
 import warnings, random, scipy
 import scipy.ndimage
-from .circle_fcns import *
+from ..core.utils.circle_fcns import *
 
-def build_reference_image(frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
+def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
     """
     Constructs a reference image for alignment. WARNING: DOES NOT TYPECHECK FOR COMPATIBLE SHAPES
 
@@ -35,14 +35,14 @@ def build_reference_image(frames : list[int], ref_method : str = 'suite2p', **kw
     """
 
     if ref_method == 'average':
-        return siffreader.pool_frames(pool_lists=[frames], flim = False)
+        return siffio.pool_frames(pool_lists=[frames], flim = False)
 
     if ref_method == 'suite2p':
-        return suite2p_reference(frames, **kwargs)
+        return suite2p_reference(siffio, frames, **kwargs)
 
     raise TypeError("Method passed for constructing average not valid")
 
-def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
+def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarray:
     """
     Implements the alignment procedure used by suite2p, iteratively averaging
     the frames most correlated with all other frames in a random subset.
@@ -107,7 +107,7 @@ def suite2p_reference(frames : list[int], **kwargs) -> np.ndarray:
             discard_bins = kwargs['discard_bins']
 
     init_frames = np.array(
-                    siffreader.get_frames(
+                    siffio.get_frames(
                         frames = init_frames_idx, 
                         flim = False,
                         registration = registration_dict
@@ -312,7 +312,7 @@ def align_references(reference_frames : list[np.ndarray], phase_blur : float = 1
     return [tuple(offset) for offset in relative_offsets]
 
 
-def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.ndarray]:
+def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.ndarray]:
     """
     Registers the frames described by the list of indices in the input
     argument frames. This is for a single slice. To register multiple slices
@@ -404,7 +404,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
         if isinstance(kwargs['discard_bins'], int):
             discard_bins = kwargs['discard_bins']
 
-    frames_np = siffreader.get_frames(frames = frames, flim = False)
+    frames_np = siffio.get_frames(frames = frames, flim = False)
     use_tqdm = False
     if 'tqdm' in kwargs:
         import tqdm
@@ -419,7 +419,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
 
     import time
     t = time.time()
-    ref_im = build_reference_image(frames, **kwargs)
+    ref_im = build_reference_image(siffio, frames, **kwargs)
     if use_tqdm:
         pbar.set_description(f"Ref image (1): {time.time() - t} seconds")
 
@@ -452,7 +452,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     for ref_iter in range(n_ref_iters - 1):
         pbar.set_postfix({"Alignment iteration" : ref_iter})
         t = time.time()
-        ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
+        ref_im = build_reference_image(siffio, frames, registration_dict = reg_dict, **kwargs)
 
         t = time.time()
         ref_im_NORMED = fft.fft2(ref_im)
@@ -468,7 +468,7 @@ def register_frames(frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.nd
     ysize,xsize = frames_np[0].shape
 
     # rebuild the reference images for storage.
-    ref_im = build_reference_image(frames, registration_dict = reg_dict, **kwargs)
+    ref_im = build_reference_image(siffio, frames, registration_dict = reg_dict, **kwargs)
 
     roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
 

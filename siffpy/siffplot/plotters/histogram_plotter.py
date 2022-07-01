@@ -12,10 +12,9 @@ import math
 import numpy as np
 import holoviews as hv
 
-from ... import siffpy
+from ...core import *
 from ..siffplotter import SiffPlotter, apply_opts
 from ...siffutils import FLIMParams
-from ...siffutils.slicefcns import *
 from ..utils import *
 
 __all__ = [
@@ -120,7 +119,7 @@ class HistogramPlotter(SiffPlotter):
             raise ValueError("Provided channel number 0! Remember, these are 1-indexed not 0-indexed!")
 
         for col in channel: 
-            these_frames = framelist_by_color(self.siffreader.im_params, col-1)
+            these_frames = self.siffreader.im_params.framelist_by_color(col-1)
 
             sampled_number = n_frames
             if len(these_frames) < n_frames: # just in case
@@ -135,7 +134,7 @@ class HistogramPlotter(SiffPlotter):
             # I know this function is written for multiple channels, but this way
             # I can use the fluorophore dictionary AND still have channel-wise refitting
             # happen if it's ill-behaved.
-            FLIMparam = siffpy.fit_exp(channel_histogram, **kwargs)[0]
+            FLIMparam = fit_exp(channel_histogram, **kwargs)[0]
             fit_count = 0
             while ((FLIMparam.CHI_SQD > 10*n_frames) or (FLIMparam.CHI_SQD == 0)):
                 if fit_count > 10:
@@ -150,7 +149,7 @@ class HistogramPlotter(SiffPlotter):
                 channel_histogram = self.siffreader.get_histogram(
                     frames = sampled_frames
                 )
-                FLIMparam = siffpy.fit_exp(channel_histogram, **kwargs)[0]                
+                FLIMparam = fit_exp(channel_histogram, **kwargs)[0]                
                 fit_count += 1
 
             FLIMparam.color_channel = col
@@ -212,8 +211,7 @@ class HistogramPlotter(SiffPlotter):
 
             # full data histograms
             histogram = self.siffreader.get_histogram(
-                    frames = framelist_by_color(
-                        self.siffreader.im_params,
+                    frames = self.siffreader.im_params.framelist_by_color(
                         col-1 # 0 indexed by fcn call, 1 indexed by matlab
                     )
                 )

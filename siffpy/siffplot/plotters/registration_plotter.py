@@ -11,8 +11,7 @@ import operator
 
 from ...siffplot.siffplotter import SiffPlotter, apply_opts
 from ..utils import *
-from ...siffutils.slicefcns import *
-from ...siffutils.circle_fcns import zeroed_circ
+from ...core.utils.circle_fcns import zeroed_circ
 
 __all__ = [
     'RegistrationPlotter'

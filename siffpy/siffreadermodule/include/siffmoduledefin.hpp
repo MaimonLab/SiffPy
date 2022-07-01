@@ -26,6 +26,9 @@
 #define MODULE_DOC \
     "siffreader C extension module\n"\
     "Reads and interprets .siff and ScanImage .tiffs\n"\
+    "Can be used in one of two ways: either directly calling"\
+    "functions from siffreader (siffreader.get_frames(*args, **kwargs)"\
+    "or instantiating a siffreader.SiffIO object (preferred).\n"\
     "\n"\
     "FUNCTIONS:\n"\
     "open(filename):\n"\

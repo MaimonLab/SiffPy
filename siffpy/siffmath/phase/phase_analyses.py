@@ -8,7 +8,7 @@ import random
 import numpy as np
 from scipy.stats import circmean
 
-from ...siffutils.circle_fcns import *
+from ...core.utils.circle_fcns import *
 from .traces import PhaseTrace
 
 def fit_offset(

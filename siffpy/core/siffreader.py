@@ -5,20 +5,19 @@ import logging, os, pickle
 
 import numpy as np
 
-import siffreader
+from siffreadermodule import SiffIO
 
 from . import io, timetools
 from .utils import ImParams
+from .utils.typecheck import *
 
 ## Things to deprecate still
 from .. import siffutils
-from ..siffutils.slicefcns import framelist_by_color, framelist_by_slice
 from ..siffutils.exp_math import *
 from ..siffutils.flimparams import FLIMParams
-from ..siffutils.flimarray import FlimArray
 from ..siffmath.flim import FlimTrace, FlimUnits
-from ..siffutils.typecheck import *
 from ..siffutils import registration
+from ..siffutils.registration import register_frames, regularize_all_tuples
 
 # TODO:
 # __repr__
@@ -79,6 +78,7 @@ class SiffReader(object):
         self.reference_frames = None
         self.debug = False
         self.events = None
+        self.siffio = SiffIO()
         if filename is None:
             self.filename = ''
         else:
@@ -124,16 +124,16 @@ class SiffReader(object):
             raise NotImplementedError("Dialog to navigate to file not yet implemented")
             
         if self.opened and not (filename == self.filename):
-            siffreader.close()
+            self.siffio.close()
 
-        siffreader.open(filename)
+        self.siffio.open(filename)
         self.filename = filename
 
-        header = siffreader.get_file_header()
+        header = self.siffio.get_file_header()
         if self.debug:
             print("Header read")
 
-        self.im_params = io.header_to_imparams(header, siffreader.num_frames())
+        self.im_params = io.header_to_imparams(header, self.siffio.num_frames())
 
         self.ROI_group_data = io.header_data_to_roi_string(header)
         self.opened = True
@@ -160,7 +160,7 @@ class SiffReader(object):
 
     def close(self) -> None:
         """ Closes opened file """
-        siffreader.close()
+        self.siffio.close()
         self.opened = False
         self.filename = ''
 
@@ -259,7 +259,7 @@ class SiffReader(object):
         )
 
         return timetools.metadata_dicts_to_time(
-            siffreader.get_frame_metadata(frames=framelist),
+            self.siffio.get_frame_metadata(frames=framelist),
             reference = reference_time,
         )
     
@@ -290,14 +290,14 @@ class SiffReader(object):
         if frames is None:
             frames = list(range(self.im_params.num_frames))
 
-        return io.metadata_dicts_to_time(siffreader.get_frame_metadata(frames=frames), reference)
+        return timetools.metadata_dicts_to_time(self.siffio.get_frame_metadata(frames=frames), reference)
 
 ### METADATA METHODS
     def get_frames_metadata(self, frames : list[int] = None) -> list[io.FrameMetaData]:
         if frames is None:
             frames = list(range(self.im_params.num_frames))
         return [io.FrameMetaData(meta_dict)
-            for meta_dict in io.frame_metadata_to_dict(siffreader.get_frame_metadata(frames=frames))
+            for meta_dict in io.frame_metadata_to_dict(self.siffio.get_frame_metadata(frames=frames))
         ]
 
     def epoch_to_frame_time(self, epoch_time : int) -> float:
@@ -316,7 +316,7 @@ class SiffReader(object):
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 
-        Wraps siffreader.get_frames
+        Wraps self.siffio.get_frames
 
         INPUTS
         ------
@@ -351,18 +351,18 @@ class SiffReader(object):
             frames = list(range(self.im_params.num_frames))
         if discard_bins is None:
             if registration_dict is None:
-                framelist = siffreader.get_frames(frames = frames, flim = flim)
+                framelist = self.siffio.get_frames(frames = frames, flim = flim)
             else:
-                framelist = siffreader.get_frames(frames = frames, flim = flim, registration = registration_dict)
+                framelist = self.siffio.get_frames(frames = frames, flim = flim, registration = registration_dict)
         else:
             # arg checking
             if not isinstance(discard_bins, int):
                 framelist = self.get_frames(frames, flim, registration_dict)
             else:
                 if registration_dict is None:
-                    framelist = siffreader.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
+                    framelist = self.siffio.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
                 else:
-                    framelist = siffreader.get_frames(frames = frames, flim = flim, 
+                    framelist = self.siffio.get_frames(frames = frames, flim = flim, 
                                                 registration = registration_dict, 
                                                 discard_bins = discard_bins)
 
@@ -416,7 +416,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 print(len(frames))
@@ -431,7 +431,7 @@ class SiffReader(object):
                 else:
                     mask = roi.mask(image=self.reference_frames[slice_idx])
 
-            summed_data = siffreader.sum_roi(
+            summed_data = self.siffio.sum_roi(
                 mask,
                 frames = frames,
                 registration = registration_dict
@@ -452,7 +452,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
@@ -467,7 +467,7 @@ class SiffReader(object):
                 else:
                     mask = roi.mask(image=self.reference_frames[slice_idx])
 
-            summed_data = siffreader.sum_roi(
+            summed_data = self.siffio.sum_roi(
                 mask,
                 frames = frames,
                 registration = registration_dict
@@ -632,9 +632,9 @@ class SiffReader(object):
             # ordered by time changing slowest, then z, then color, e.g.
             # T0: z0c0, z0c1, z1c0, z1c1, ... znc0, znc1, T1: ...
             if registration_dict is None:
-                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
+                list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
             else:
-                list_of_arrays = siffreader.pool_frames(framelist, flim = flim, registration = registration_dict, discard_bins = discard_bins)
+                list_of_arrays = self.siffio.pool_frames(framelist, flim = flim, registration = registration_dict, discard_bins = discard_bins)
 
             if ret_type == np.ndarray:
                 ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
@@ -654,7 +654,7 @@ class SiffReader(object):
             masks : list[np.ndarray] = None 
         ) -> list[np.ndarray]:
         """
-        Wraps siffreader.pool_frames
+        Wraps self.siffio.pool_frames
         TODO: Docstring.
         """
             
@@ -665,20 +665,20 @@ class SiffReader(object):
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         if discard_bins is None:
             if registration is None:
-               list_of_arrays = siffreader.pool_frames(framelist, flim=flim) 
+               list_of_arrays = self.siffio.pool_frames(framelist, flim=flim) 
             else:
-                list_of_arrays = siffreader.pool_frames(framelist, flim=flim, registration= registration)
+                list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, registration= registration)
         else:
             if not isinstance(discard_bins, int):
                 if registration is None:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim)
+                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim)
                 else:
                     return self.pool_frames(framelist, flim, registration, ret_type)
             else:
                 if registration is None:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
+                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
                 else:
-                    list_of_arrays = siffreader.pool_frames(framelist, flim=flim, 
+                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, 
                         registration = registration, discard_bins = discard_bins 
                     )
 
@@ -718,8 +718,8 @@ class SiffReader(object):
             1 dimensional histogram of arrival times
         """
         if frames is None:
-            return siffreader.get_histogram()
-        return siffreader.get_histogram(frames=frames)[:self.im_params.num_bins]
+            return self.siffio.get_histogram()
+        return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]
 
     def histograms(self, color_channel : 'int|list' = None, frame_endpoints : tuple[int,int] = [None,None]) -> np.ndarray:
         """
@@ -754,7 +754,7 @@ class SiffReader(object):
         if isinstance(color_channel, int):
             color_channel = [color_channel]
 
-        framelists = [framelist_by_color(self.im_params, c) for c in color_channel]
+        framelists = [self.im_params.framelist_by_color(c) for c in color_channel]
         true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
         return np.array([self.get_histogram(frames) for frames in true_framelists])
 
@@ -763,7 +763,7 @@ class SiffReader(object):
             frames: list[int] = None,
             registration_dict : dict = None,
             confidence_metric : str = 'chi_sq',
-        ) -> FlimArray:
+        ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
         n_frames by y_size by x_size corresponding
@@ -774,13 +774,13 @@ class SiffReader(object):
             frames = list(range(self.im_params.num_frames))
         
         if registration_dict is None:
-            list_of_arrays = siffreader.flim_map(
+            list_of_arrays = self.siffio.flim_map(
                 params,
                 frames = frames, 
                 confidence_metric=confidence_metric
             )
         else:
-            list_of_arrays = siffreader.flim_map(
+            list_of_arrays = self.siffio.flim_map(
                 params,
                 frames = frames,
                 registration = registration_dict,
@@ -794,8 +794,6 @@ class SiffReader(object):
             method = 'empirical lifetime',
         )
 
-
-
     def sum_roi_flim(self,
             params : Union[FLIMParams, list[FLIMParams]],
             roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
@@ -803,7 +801,7 @@ class SiffReader(object):
             timepoint_end : int = None,
             color_list : list[int] = None,
             registration_dict : dict = None,
-        )->Union[FlimArray,list[FlimArray]]:
+        )->Union[FlimTrace,list[FlimTrace]]:
         """
         Computes the empirical lifetime within an ROI over timesteps.
 
@@ -900,7 +898,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
@@ -914,13 +912,13 @@ class SiffReader(object):
                 else:
                     mask = roi.mask(image=self.reference_frames[slice_idx])
 
-            summed_intensity_data = siffreader.sum_roi(
+            summed_intensity_data = self.siffio.sum_roi(
                 mask,
                 frames = frames,
                 registration = registration_dict
             )
 
-            summed_flim_data = siffreader.sum_roi_flim(
+            summed_flim_data = self.siffio.sum_roi_flim(
                 mask,
                 params[0],
                 frames = frames,
@@ -966,7 +964,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
@@ -981,13 +979,13 @@ class SiffReader(object):
                 else:
                     mask = roi.mask(image=self.reference_frames[slice_idx])
 
-            summed_intensity_data = siffreader.sum_roi(
+            summed_intensity_data = self.siffio.sum_roi(
                 mask,
                 frames = frames,
                 registration = registration_dict
             )
 
-            summed_flim_data = siffreader.sum_roi_flim(
+            summed_flim_data = self.siffio.sum_roi_flim(
                 mask,
                 params[idx],
                 frames = frames,
@@ -1161,11 +1159,11 @@ class SiffReader(object):
         # ordered by time changing slowest, then z, then color, e.g.
         # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
         if registration is None:
-            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, 
+            list_of_arrays = self.siffio.flim_map(flimfit, frames = framelist, 
                                                 confidence_metric=confidence_metric
                                                 )
         else:
-            list_of_arrays = siffreader.flim_map(flimfit, frames = framelist, registration = registration,
+            list_of_arrays = self.siffio.flim_map(flimfit, frames = framelist, registration = registration,
                                                 confidence_metric=confidence_metric)
 
         if ret_type == np.ndarray:
@@ -1186,50 +1184,7 @@ class SiffReader(object):
 
 
 ### ORGANIZATIONAL METHODS
-    def framelist_by_slice(self, color_channel : int = None) -> list[list[int]]:
-        """
-        Return a list of lists of the frames in the image corresponding to each z slice (but only one color channel)
-
-        INPUTS
-        ------
-
-        color_channel : int
-
-            Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
-
-        RETURN
-        ------
-
-        list[list[int]] :
-
-            Returns a list of lists of ints, each sublist corresponding all frames across time for one z slice
-            and one color channel.
-        """
-        
-        return siffutils.framelist_by_slice(self.im_params, color_channel)
-        
-    def framelist_by_time(self, color_channel : int = None)->list[list[int]]:
-        """
-        Returns a list of lists of frame indices that are simultaneous (within a single color channel)
-
-        INPUTS
-        ------
-
-        color_channel : int
-
-            Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
-
-        RETURN
-        ------
-
-        list[list[int]] :
-
-            Returns a list of lists of ints, each sublist corresponding all frames across z for one timepoint
-            and one color channel.
-        """
-        
-        return siffutils.framelist_by_timepoint(self.im_params, color_channel)
-
+ 
     def frames_to_single_array(self, frames=None):
         """
         TODO: IMPLEMENT
@@ -1243,31 +1198,6 @@ class SiffReader(object):
         """
         raise NotImplementedError()
 
-    def map_to_standard_order(self, numpy_array, map_list=['time','z','color','y','x','tau']):
-        """
-        TODO: IMPLEMENT
-        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau).
-        Input arrays of dimension < 6 will be returned as 6 dimensional arrays with singleton dimensions.
-
-        INPUTS
-        ----------
-        numpy_array: (ndarray)
-
-        map_list: (list) List of any subset of the strings:
-            "time"
-            "z"
-            "color"
-            "y"
-            "x"
-            "tau"
-            to make it clear which indices correspond to which dimension.
-            If the input array has fewer dimensions than 6, that's fine.
-
-        RETURN VALUES
-        ----------
-        reshaped: (ndarray) numpy_array reordered as the standard order, (time,z, color, y, x, tau)
-        """
-        raise NotImplementedError()
 
 ### REGISTRATION METHODS
     def register(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
@@ -1335,17 +1265,16 @@ class SiffReader(object):
         if color_channel is None:
             color_channel = 0
 
-        frames_list = self.framelist_by_slice(color_channel=color_channel)
-        from ..siffutils.registration import register_frames
+        frames_list = self.im_params.framelist_by_slice(color_channel=color_channel)
         try:
             if __IPYTHON__: # check if we're running in a notebook. One of the nice things about an interpreted language!
                 import tqdm
                 pbar = tqdm.tqdm(frames_list)
-                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
+                slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
             else:
-                slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+                slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
         except (ImportError,NameError):
-            slicewise_reg =[register_frames(slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
+            slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
         
         # each element of the above is of the form:
         #   [registration_dict, difference_between_alignment_movements, reference image]
@@ -1367,8 +1296,7 @@ class SiffReader(object):
                               f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD\n"
                              )
                 elastic_slice = elastic_slice+1.0
-            simultaneous_frames = self.framelist_by_time(color_channel=color_channel)
-            from ..siffutils.registration import regularize_all_tuples
+            simultaneous_frames = self.im_params.framelist_by_timepoint(color_channel=color_channel)
             for framelist in simultaneous_frames:
                 regularized = regularize_all_tuples(
                     [reg_dict[frame] for frame in framelist],
@@ -1391,7 +1319,7 @@ class SiffReader(object):
             else:
                 refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg])
             
-            slicewise = self.framelist_by_slice()
+            slicewise = self.im_params.framelist_by_slice()
             for z in range(len(slicewise)):
                 slicewise_reg[z] = (
                     slicewise_reg[z][0],
@@ -1464,12 +1392,6 @@ class SiffReader(object):
 # LOCAL #
 #########
 #########
-
-def suppress_warnings() -> None:
-    siffreader.suppress_warnings()
-
-def report_warnings() -> None:
-    siffreader.report_warnings()
 
 # I don't think this is a natural home for these functions but they rely on multiple siffutils and so they end up with
 # circular imports if I put them in most of those places... To figure out later. TODO

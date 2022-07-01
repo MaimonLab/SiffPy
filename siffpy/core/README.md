@@ -2,3 +2,5 @@
 
 Functionality for the main `SiffReader` class. To be implemented (`SiffPy` is due a refactor!). Slowly
 migrating functionality over to this.
+
+TODO: Switch over to the `core` FLIMParams!

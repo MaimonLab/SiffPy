@@ -15,8 +15,8 @@ import holoviews as hv
 from holoviews.core.io import Pickler, Unpickler
 
 from .roi_protocols import rois
-from ..siffpy import SiffReader
-from ..siffutils.events import SiffEvent
+from ..core import SiffReader
+from ..core.io.events import SiffEvent
 from .utils import *
 
 def apply_opts(func):

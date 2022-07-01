@@ -3,6 +3,8 @@
 
 import logging
 
+import numpy as np
+
 CORE_PARAMS = {
     'NUM_SLICES' : int,
     'FRAMES_PER_SLICE' : int,
@@ -64,18 +66,18 @@ class ImParams():
             pass
 
     @property
-    def color_list(self):
+    def color_list(self)->list[int]:
         if isinstance(self.colors,list):
             return self.colors
         else:
             return [self.colors]
 
     @property
-    def shape(self):
+    def shape(self)->tuple[int]:
         return (self.ysize, self.xsize)
 
     @property
-    def volume(self):
+    def volume(self)->tuple[int]:
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
             ret_list += [self.frames_per_slice]
@@ -83,7 +85,7 @@ class ImParams():
         return tuple(ret_list)
     
     @property
-    def stack(self):
+    def stack(self)->tuple[int]:
         ret_list = [self.num_frames // (self.frames_per_volume), self.num_slices]
         if self.frames_per_slice > 1 :
             ret_list += [self.frames_per_slice]
@@ -91,7 +93,7 @@ class ImParams():
         return tuple(ret_list)
 
     @property
-    def scale(self):
+    def scale(self)->list[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
         [time , z , y , x]
@@ -112,7 +114,7 @@ class ImParams():
         return ret_list
 
     @property
-    def axis_labels(self):
+    def axis_labels(self) -> list[str]:
         ret_list = ['Time']
         if self.frames_per_slice > 1:
             ret_list += ['Sub-slice repeats']
@@ -124,17 +126,21 @@ class ImParams():
         return ret_list
 
     @property
-    def num_timepoints(self):
+    def num_timepoints(self) -> int:
         """ Actually the same as num_volumes, but it's easier to read this sometimes """
         return self.num_volumes
 
     @property
-    def num_volumes(self):
+    def num_volumes(self) -> int:
         """ Actually the same as num_timepoints, but it's easier to read this sometimes """
         return self.num_frames // (self.frames_per_volume)
 
     @property
-    def num_colors(self):
+    def lowest_color_channel(self)->int:
+        return min(self.color_list)
+
+    @property
+    def num_colors(self) -> int:
         if hasattr(self.colors, '__len__'):
             return len(self.colors)
         else:
@@ -210,4 +216,92 @@ class ImParams():
         ]
 
         return framelist
+
+    def framelist_by_slice(self, color_channel : int = None, upper_bound = None, slice_idx : int = None) -> list[list[int]]:
+        """
+        List of lists, each sublist containing the frames indices that share a z slice
+        
+        If slice_idx is not None, returns a single list corresponding to that slice.
+
+        Defaults to using the lowest-numbered color channel.
+
+        color_channel is * 0-indexed *.
+        """
+        
+        n_slices = self.num_slices
+        fps = self.frames_per_slice
+        n_colors = self.num_colors
+        n_frames = self.num_frames
+
+        frames_per_volume = n_slices * fps * n_colors
+
+        n_frames -= n_frames%frames_per_volume # ensures this only goes up to full volumes.
+
+        if (color_channel is None) and (n_colors == 1):
+            color_channel = 0
+        if (color_channel is None) and (n_colors > 1):
+            color_channel = self.lowest_color_channel - 1 # MATLAB idx is 1-based
+
+        frame_list = []
+
+        all_frames = np.arange( n_frames - (n_frames % frames_per_volume))
+        all_frames = all_frames.reshape(n_frames//frames_per_volume, n_slices * fps, n_colors)
+
+        if slice_idx is None:
+            for slice_num in range(n_slices):
+                frame_list.append(all_frames[:,(slice_num*fps):((slice_num+1)*fps),color_channel].flatten().tolist()) # list of lists
+        else:
+            if not (isinstance(slice_idx, int)):
+                slice_idx = int(slice_idx)
+            frame_list = all_frames[:,(slice_idx*fps):((slice_idx+1)*fps),color_channel].flatten().tolist() # just a list
+        return frame_list
+
+    def framelist_by_color(self, color_channel : int, upper_bound : int = None)->list:
+        "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
+
+        if color_channel >= self.num_colors:
+            raise ValueError("Color channel specified larger than number of colors acquired. Color channel is indexed from 0!")
+
+        if upper_bound is None:
+            return list(range(color_channel, self.n_frames, self.n_colors))
+        else:
+            return list(range(color_channel, upper_bound, self.n_colors))
+
+    def framelist_by_timepoint(self, color_channel : int, upper_bound : int = None, slice_idx : int = None)->list[list[int]]:
+        """
+        If slice_idx is None:
+        list of lists, each containing frames that share a timepoint, i.e. same stack but different slices or colors
+        
+        If slice_idx is int:
+        Returns all frames corresponding to a specific slice
+
+        color_channel is * 0-indexed *.
+        """
+        n_frames = self.num_frames
+        n_slices = self.num_slices
+        fps = self.frames_per_slice
+        n_colors = self.num_colors
+
+        frames_per_volume = n_slices * fps * n_colors
+
+        n_frames -= n_frames%frames_per_volume # ensures this only goes up to full volumes.
+
+        if (color_channel is None) and (n_colors == 1):
+            color_channel = 0
+        if (color_channel is None) and (n_colors > 1):
+            color_channel = self.lowest_color_channel - 1 # MATLAB idx is 1-based
+
+        all_frames = np.arange( n_frames - (n_frames % frames_per_volume))
+        all_frames = all_frames.reshape(int(n_frames/frames_per_volume), n_slices * fps, n_colors)
+        if slice_idx is None:
+            if upper_bound is None:
+                return all_frames[:,:,color_channel].tolist()
+            else:
+                return [framenum for framenum in all_frames[:,:,color_channel].tolist() if framenum < upper_bound]
+        else:
+            if not (type(slice_idx) is int):
+                slice_idx = int(slice_idx)
+            return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
+
+
 

@@ -2,12 +2,10 @@ import pandas as pd
 import numpy as np
 import os, logging
 
-from ...siffpy import SiffReader
+from ...core import SiffReader
+from ...core.timetools import SEC_TO_NANO, NANO_TO_SEC
 from ..utils.ballparams import BallParams
-from ... import siffutils
 
-SEC_TO_NANO = 1e9
-NANO_TO_SEC = 1e-9
 _ORIGINAL_FICTRAC_ROS_ZERO_HEADING = 3.053108549228689 # an error in the original projector_driver ROS2 code resulted in an
 # incorrect map between fictrac heading and the bar position relative to the fly.
 
@@ -135,7 +133,7 @@ class FictracLog():
             raise Exception("No pandas Fictrac dataframe assigned.")
 
         # Only need one color channel, since color frames have shared tiempoints
-        framelist = siffutils.framelist_by_color(siffreader.im_params, color_channel) 
+        framelist = siffreader.im_params.framelist_by_color(color_channel) 
 
         if 'uses_seconds' in kwargs:
             # Undocumented kwarg for data from before the epoch value used nanoseconds

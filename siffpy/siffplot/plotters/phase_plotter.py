@@ -10,7 +10,7 @@ from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
 from ...siffplot.utils.dims import *
 from ...siffmath import estimate_phase
-from ...siffutils.circle_fcns import *
+from ...core.utils.circle_fcns import *
 
 __all__ = [
     'PhasePlotter'
