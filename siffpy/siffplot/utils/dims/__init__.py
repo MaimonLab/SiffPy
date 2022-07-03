@@ -19,6 +19,11 @@ class FluorescenceAxis(hv.Dimension):
             method = "dF/F" # default
         super().__init__(("FluorescenceAxis", method), **kwargs)
 
+class FlimAxis(hv.Dimension):
+    def __init__(self, method : str = None, **kwargs):
+        if not isinstance(method, str):
+            method = 'Empirical lifetime'
+        super().__init__(("Flim", "Empirical lifetime"), **kwargs)
 
 class ArrivalTime(hv.Dimension):
     """

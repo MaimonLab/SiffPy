@@ -118,7 +118,7 @@ class RegistrationPlotter(SiffPlotter):
         
         # Now sort out which frames belong to which z_slices
 
-        slice_frame_list = self.siffreader.framelist_by_slice()
+        slice_frame_list = self.siffreader.im_params.framelist_by_slice()
 
         shifts = np.array([np.append(
             np.array([self.siffreader.registration_dict[frame] for frame in slice_frame_list[idx] ]),

@@ -45,7 +45,7 @@ PyDoc_STRVAR(
 
 PyDoc_STRVAR(
     siffio_get_frames_doc,
-    "SiffIO.get_frames(frames : list[int] = [], type : type = list, flim : bool = False, registration : dict = {})->list[np.ndarray]\n"
+    "SiffIO.get_frames(frames : list[int] = [], flim : bool = False, registration : dict = {})->list[np.ndarray]\n"
     "--\n"
     "\n"
     "Reads an opened .siff or .tiff file and returns a PyObject corresponding to a (time by z by y by x by tau) array.\n"
@@ -53,7 +53,7 @@ PyDoc_STRVAR(
     "Arguments:\n\n"
     "\tframes : list[int] \n\t\tA list of the indices of the frames to extract. "
     "NOTE: Frames will be returned in the order they are listed! TODO: Make this timepoint-specific\n"
-    "\ttype : type \n\t\tFormat of returned data. Can be list or numpy.ndarray. "
+    "\trettype : type \n\t\tFormat of returned data. Can be list or numpy.ndarray. "
     "If list, returns a list of single frame numpy arrays. If an ndarray, returns a full (time by color by z by x by y by tau) array, "
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"
     "\tflim : bool = False \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"

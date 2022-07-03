@@ -109,6 +109,8 @@ class EventPlotter(SiffPlotter):
 
     def annotation_element(self)->hv.Layout:
         """ Returns a single element for all the events together """
+        if self.siffreader.events is None:
+            return None
         return reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
 
     def annotate(self, element : hv.Element)->hv.Layout:
@@ -116,6 +118,8 @@ class EventPlotter(SiffPlotter):
         annotations = self.annotation_element() 
         if len(element.kdims):
             annotations = annotations
+        if annotations is None:
+            return element
         return (
             annotations + element
         ).opts(transpose=True)

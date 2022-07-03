@@ -656,7 +656,7 @@ inline double_t sumFrameFLIMMask(FrameData& frameData, SiffParams& params, doubl
 
 
 inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint64_t* data_ptr) // uses siffCompress
+    uint64_t* data_ptr, uint16_t taudim) // uses siffCompress
     {
     // Can ignore the preceding array listing photons per pixel.
     siff.seekg(frameData.dataStripAddress);
@@ -667,20 +667,22 @@ inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameDa
     siff.read((char*) readsThisFrame, sizeof(uint16_t)*samplesThisFrame);
     // now put the arrival time values that are in succession into the right elements of the numpy array.
     for (uint64_t photon = 0; photon<samplesThisFrame; photon++) {
-        data_ptr[readsThisFrame[photon]]++; // not even needing masking
+        data_ptr[readsThisFrame[photon]] += readsThisFrame[photon] < taudim; // not even needing masking
     }
 }
 
 inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint64_t* data_ptr) // every read is a uint64 of y, x, tau
+    uint64_t* data_ptr, uint16_t taudim) // every read is a uint64 of y, x, tau
     {
     
     siff.seekg(frameData.dataStripAddress);
     uint64_t frameReads[samplesThisFrame];
     siff.read((char*) frameReads,frameData.stripByteCounts);
+    uint64_t ptr_idx;
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
         // increment the appropriate numpy element
-        data_ptr[U64TOTAU(frameReads[photon])]++;
+        ptr_idx = U64TOTAU(frameReads[photon]);
+        data_ptr[ptr_idx] += ptr_idx < taudim;
     }
 }
 
@@ -688,6 +690,7 @@ inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std
 inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, FrameData& frameData, std::ifstream& siff) {
     // Takes a numpy array and adds arrival times of a frame to it.
     uint64_t* data_ptr = (uint64_t *) PyArray_DATA(numpyArray);
+    uint16_t taudim = PyArray_DIM(numpyArray, 0);
     
     siff.clear();
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
@@ -698,8 +701,8 @@ inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, Fr
     siff.clear();
 
     frameData.siffCompress ?
-        readCompressedArrivals(samplesThisFrame, frameData, siff, data_ptr) : 
-        readRawArrivals(samplesThisFrame, frameData, siff, data_ptr);
+        readCompressedArrivals(samplesThisFrame, frameData, siff, data_ptr, taudim) : 
+        readRawArrivals(samplesThisFrame, frameData, siff, data_ptr, taudim);
 
 }
 

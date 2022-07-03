@@ -6,7 +6,7 @@ from dask import delayed
 import dask.array as da
 from qtpy import QtWidgets
 
-from ...siffpy import SiffReader
+from ...core import SiffReader
 from .napari_interface import NapariInterface
 
 class FrameViewer(NapariInterface):

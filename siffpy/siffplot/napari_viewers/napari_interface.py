@@ -11,7 +11,7 @@ import napari
 from napari.layers import Shapes
 from PyQt5.QtWidgets import QMessageBox
 
-from ...siffpy import SiffReader
+from ...core import SiffReader
 from ..roi_protocols.utils.napari_fcns import rois_into_shapes_layer
 
 ROI_OBJECT_LAYER_NAME = "Primary ROIs"

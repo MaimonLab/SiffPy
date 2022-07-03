@@ -2,7 +2,7 @@ from typing import Union, Callable
 
 import numpy as np
 
-from ....siffpy import SiffReader
+from ....core import SiffReader
 from ...roi_protocols.rois import ROI, subROI
 from ....siffutils import FLIMParams
 from ....siffmath.flim import FlimTrace

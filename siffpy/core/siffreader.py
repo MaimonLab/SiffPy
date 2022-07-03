@@ -357,7 +357,7 @@ class SiffReader(object):
         else:
             # arg checking
             if not isinstance(discard_bins, int):
-                framelist = self.get_frames(frames, flim, registration_dict)
+                framelist = self.siffio.get_frames(frames, flim, registration_dict)
             else:
                 if registration_dict is None:
                     framelist = self.siffio.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
@@ -452,7 +452,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
@@ -898,7 +898,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
@@ -964,7 +964,7 @@ class SiffReader(object):
             slice_idx = None
             if hasattr(roi, 'slice_idx'):
                 slice_idx = roi.slice_idx
-            frames = self.im_params.framelist_by_slice(self.im_params, color_channel = color, slice_idx = slice_idx)
+            frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
                 frames = [individual_frame for slicewise in frames for individual_frame in slicewise]

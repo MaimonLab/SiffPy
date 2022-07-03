@@ -4,7 +4,7 @@ import operator
 
 import numpy as np
 
-from ....siffpy import SiffReader
+from ....core import SiffReader
 from ...utils.exceptions import NoROIException
 from ...roi_protocols.rois import ROI, subROI
 from ....siffmath import fluorescence, fluorescence_fcns

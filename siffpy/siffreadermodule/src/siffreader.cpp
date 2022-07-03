@@ -15,6 +15,14 @@
         throw e;\
     }
 
+// Appends the error to errstring, executes y, and rethrows
+#define REPORT_ERR_EXEC(x,y) \
+    catch(std::exception &e) {\
+        y; \
+        errstring = std::string(x) + e.what();\
+        throw e;\
+    }
+
 ///////////////////////
 ////// FILE I/O ///////
 ///////////////////////
@@ -614,22 +622,23 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
 PyArrayObject* SiffReader::getHistogram(uint64_t frames[], uint64_t framesN) {
     // NOTE! THIS USES UINT64_T BECAUSE YOU'RE LIKELY TO GET >65k PHOTONS PER BIN
     // By default, retrieves ALL frames, returns a single numpy array of the arrival times
+    // create the 1-d numpy array.
+    uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
+    npy_intp dims[1];
+    dims[0] = tau_dim;
+    PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
+        1,
+        dims,
+        NPY_UINT64, 
+        0 // C order, i.e. last index increases fastest
+    );
+//
+//
     try{
         if(!siff.is_open()) throw std::runtime_error("No open file.");
         if(!params.issiff) throw std::runtime_error("Not a .siff -- no arrival time data.");
         siff.clear();
         
-        // create the 1-d numpy array.
-        uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
-        npy_intp dims[1];
-        dims[0] = tau_dim;
-        PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
-            1,
-            dims,
-            NPY_UINT64, 
-            0 // C order, i.e. last index increases fastest
-        );
-
         if(frames){
             for(uint64_t i = 0; i < framesN; i++){
                 singleFrameHistogram(params.allIFDs[frames[i]], numpyArray);
@@ -998,7 +1007,7 @@ void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArra
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
 
     FrameData frameData = getTagData(thisIFD, params, siff);
-
+//
     addArrivalsToArray(numpyArray, params, frameData, siff);
 }
 

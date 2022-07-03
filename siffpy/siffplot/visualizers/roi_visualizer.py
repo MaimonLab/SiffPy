@@ -3,7 +3,7 @@ import functools, os, re, pickle, logging
 import holoviews as hv
 import numpy as np
 
-from ...siffpy import SiffReader
+from ...core import SiffReader
 from ..siffvisualizer import SiffVisualizer, apply_opts
 from ..napari_viewers import ROIViewer
 from .. import roi_protocols

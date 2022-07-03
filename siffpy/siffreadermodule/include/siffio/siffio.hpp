@@ -22,6 +22,7 @@ TODO: IMPLEMENT
 #include <Python.h>
 #include <string>
 #include "structmember.h"
+#include <iostream>
 #include "../siffreader/siffreader.hpp"
 #include "siffiodocstring.hpp"
 
@@ -52,6 +53,7 @@ typedef struct _SiffIO {
 
     SiffReader* siffreader; // each SiffIO has a C++ siffreader
     std::string status;
+    std::iostream debug_log; // only defined when debug called. TODO
 } SiffIO;
 
 

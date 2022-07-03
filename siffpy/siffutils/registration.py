@@ -89,7 +89,6 @@ def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarr
             nimg_init = len(frames)
 
     registration_dict = {}
-    
     if 'registration_dict' in kwargs:
         registration_dict = kwargs['registration_dict']
         if not isinstance(registration_dict, dict):
@@ -403,7 +402,6 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
         discard_bins = None
         if isinstance(kwargs['discard_bins'], int):
             discard_bins = kwargs['discard_bins']
-
     frames_np = siffio.get_frames(frames = frames, flim = False)
     use_tqdm = False
     if 'tqdm' in kwargs:
@@ -440,7 +438,6 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
         # adjacent timepoints should be near each other.
         rolls = regularize_adjacent_tuples(rolls, ref_im.shape[0], ref_im.shape[1], sigma = regularize_sigma)
         
-
     reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
     
     n_ref_iters = 2
