@@ -1,7 +1,8 @@
+from re import A
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 
-from .exponentials import chi_sq_exp
+from .exponentials import chi_sq_exp, monoexponential_prob
 from .flimunits import FlimUnits
 
 class FLIMParams():
@@ -13,13 +14,14 @@ class FLIMParams():
     Currently only implements combinations of exponentials.
     """
     
-    def __init__(self, *args, color_channel : int = None, units = FlimUnits.ARRIVAL_BINS, allow_noise : bool = False, **params):
+    def __init__(self, *args, color_channel : int = None, units = FlimUnits.ARRIVAL_BINS, noise : float = 0.0, **params):
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
         self.irf = next((x for x in args if isinstance(x, Irf)), None)
         self.color_channel = color_channel
         self.units = units
-        self.allow_noise = allow_noise
+        self.allow_noise = noise>0
+        self.noise = noise
 
     @property
     def tau_g(self)->float:
@@ -122,13 +124,15 @@ class FLIMParams():
         else:
             objective = lambda x: metric(data, x)
 
-        # Just some numbers. Assumes lifetimes of 1200 picoseconds, 2400 picoseconds etc. ascending.
         if initial_guess is None:
-            x0 = []
-            for exp in range(num_exps):
-                x0 += [1.0/num_exps, 6*(exp+1)]
-            x0 += [4, 0.2] # tau_offset, tau_g
-            initial_guess = tuple(x0) 
+            if not ((self.exps is None) and (self.irf is None)):
+                initial_guess = self.param_tuple
+            else:
+                x0 = []
+                for exp in range(num_exps):
+                    x0 += [1.0/num_exps, 60*(exp+1)]
+                x0 += [40, 2.0] # tau_offset, tau_g
+                initial_guess = tuple(x0) 
 
         fit_obj = minimize(objective, initial_guess, method='trust-constr',
                constraints=generate_linear_constraints_trust(initial_guess),
@@ -171,9 +175,39 @@ class FLIMParams():
         ]
         return cls(*args)
 
-    def probability_dist(self, data :np.ndarray):
-        
-        raise NotImplementedError()
+    def probability_dist(self, x_range : np.ndarray, **kwargs):
+        """
+        Return the fit value's probability distribution. To plot against a
+        data set, rescale this by the total number of photons in the data set.
+        Assumes x_range is in the same units as the FLIMParams.
+
+        INPUTS
+        ------
+        x_range : np.ndarray (1-dimensional)
+
+            The x values you want the output probabilities of. Usually this will be something like
+            np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
+
+        RETURN VALUES
+        ------------
+        p_out : np.ndarray(1-dimensional)
+            
+            The probability of observing a photon in each corresponding bin of x_range.
+        """
+        if not len(self.exps):
+            raise AttributeError("FLIMParams does not have at least one defined component.")
+        arrival_p = np.zeros_like(x_range)
+        for exp in self.exps:
+            arrival_p += exp.frac * monoexponential_prob(
+                x_range - self.irf.tau_offset,
+                exp.tau,
+                self.irf.tau_g,
+                **kwargs
+            )
+
+        if self.allow_noise:
+            arrival_p *= 1.0 - self.noise
+        return arrival_p
 
     def __repr__(self):
         retstr = "FLIMParams object: \n\n"
@@ -189,6 +223,26 @@ class FLIMParams():
             return self.tau_offset
         else:
             super().__getattr__(attr)
+
+    def __eq__(self, other)->bool:
+        equal = False
+        if isinstance(other, FLIMParams):
+            if not ((self.color_channel is None) and other.color_channel is None):
+                equal *= self.color_channel == other.color_channel
+            equal *= len(self.exps) == len(other.exps)
+            equal *= all( # every exp has at least one match in the other FLIMParams
+                (
+                    any(
+                        (
+                            exp == otherexp
+                            for otherexp in other.exps
+                        )
+                    )
+                    for exp in self.exps
+                )
+            )
+            equal *= self.irf == other.irf
+        return equal
 
 class FLIMParameter():
     """
@@ -221,6 +275,14 @@ class FLIMParameter():
         for param in self.__class__.class_params:
             retstr += "\t" + str(param) + " : " + str(getattr(self,param)) + "\n"
         return retstr
+
+    def __eq__(self, other)->bool:
+        equal = False
+        if type(self) is type(other):
+            for par in self.__class__.class_params:
+                equal *= self.par == other.par
+        return equal
+
 
 class Exp(FLIMParameter):
     """ Monoexponential parameter fits """

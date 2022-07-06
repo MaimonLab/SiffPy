@@ -5,7 +5,7 @@ from typing import Callable, Union
 import numpy as np
 import holoviews as hv
 
-from ...siffplot.siffplotter import apply_opts, SiffPlotter
+from ..siffplotter import apply_opts, SiffPlotter
 from ..utils import *
 from ...siffplot.roi_protocols.rois import ROI, subROI
 from ...siffplot.utils.dims import *

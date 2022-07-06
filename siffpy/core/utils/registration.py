@@ -1,10 +1,15 @@
+import warnings, random
+
 import numpy as np
 from numpy import fft
-from numpy.core.numeric import rollaxis
-from siffreadermodule import SiffIO
-import warnings, random, scipy
+from numpy.linalg import solve
+import scipy
 import scipy.ndimage
-from ..core.utils.circle_fcns import *
+from scipy.sparse import diags
+from scipy.sparse.linalg import spsolve
+
+from .circle_fcns import *
+from siffreadermodule import SiffIO
 
 def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
     """
@@ -477,9 +482,6 @@ def regularize_adjacent_tuples(tuples : list[tuple], ydim : int, xdim: int, sigm
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
     High sigma is more like the initial values. Low sigma pushes them all to identical values
     """
-    from scipy.sparse import diags
-    from scipy.sparse.linalg import spsolve
-
     s = (sigma**2)*np.ones(len(tuples))
     off = -1*np.ones(len(tuples)-1)
     trans_mat = diags(2+s) + diags(off,-1) + diags(off,1) # the forcing function is trans_mat * tuples - sigma**2 * tuples_init
@@ -501,7 +503,6 @@ def regularize_all_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : f
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
     High sigma is more like the initial values. Low sigma pushes them all to identical values
     """
-    from numpy.linalg import solve
 
     # Warn the user if they're applying a dangerous elasticity ratio. But don't prevent it.
     if np.abs(np.sqrt(np.abs(3-len(tuples))) - sigma) < 0.5:

@@ -94,7 +94,7 @@ PyDoc_STRVAR(
 
 PyDoc_STRVAR(
     siffio_flim_map_doc,
-    "SiffIO.flim_map(params : siffutils.FLIMParams, framelist : list[list[int]] = None, confidence_metric : string = 'chi_sq')->list[tuple[np.ndarray]]\n"
+    "SiffIO.flim_map(params : FLIMParams, framelist : list[list[int]] = None, confidence_metric : string = 'chi_sq')->list[tuple[np.ndarray]]\n"
     "--\n"
     "\n"
     "Takes in a FLIMParams object and a list of lists of frames.\n"

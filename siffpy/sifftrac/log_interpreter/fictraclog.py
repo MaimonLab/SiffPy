@@ -4,7 +4,7 @@ import os, logging
 
 from ...core import SiffReader
 from ...core.timetools import SEC_TO_NANO, NANO_TO_SEC
-from ..utils.ballparams import BallParams
+from ..utils import BallParams
 
 _ORIGINAL_FICTRAC_ROS_ZERO_HEADING = 3.053108549228689 # an error in the original projector_driver ROS2 code resulted in an
 # incorrect map between fictrac heading and the bar position relative to the fly.

@@ -1,5 +1,9 @@
 # SIFFPLOT
 
+TODO:
+
+- Link `SiffPlot` and `SiffTrac`, or create a tool for permitting their interactions.
+
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
 `HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
@@ -148,6 +152,12 @@ Different `SiffPlotter` subclasses have details that may be elaborated on in TOD
 
 ### FluorescencePlotter
 
+TODO: Document me!
+
+### FlimPlotter
+
+TODO: Document me!
+
 ### PhasePlotter
 
 The `PhasePlotter` extends the `FluorescencePlotter` and uses its segmented `ROI` objects to construct estimates of a "phase" of the signal,
@@ -176,4 +186,6 @@ But if you try to get `subROIs` from an `Ellipse`, it will also return the `wedg
 as a common interface to all of the functions that might want to use the various types of `subROI` classes. More on `ROI`s, `subROI`s, and all other things `ROI` related in the `roi_protocols` README file.
 
 ## SiffVisualizers
+
+TODO: Document me!!
 

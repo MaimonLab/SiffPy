@@ -85,7 +85,7 @@ def header_to_imparams(header : str, num_frames : int = None)->ImParams:
 
     RETURNS
     -------
-    siffutils.imparams.ImParams:
+    siffpy.core.utils.imparams.ImParams:
 
         Attributes:
         ----------

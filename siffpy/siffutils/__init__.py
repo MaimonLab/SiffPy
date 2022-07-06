@@ -9,7 +9,5 @@ SCT March 28 2021, still rainy in Maywood
 
 """
 
-from typing import Any
-from .registration import *
 from .fluorophore_inits import available_fluorophores
 from .flimparams import FLIMParams

@@ -2,6 +2,7 @@
 from typing import Union
 import itertools
 import logging, os, pickle
+from functools import reduce
 
 import numpy as np
 
@@ -10,15 +11,15 @@ from siffreadermodule import SiffIO
 from . import io, timetools
 from .utils import ImParams
 from .utils.typecheck import *
+from .utils import registration
+from .utils.registration import register_frames, regularize_all_tuples
+from .flim import FlimUnits
+from ..siffmath.flim import FlimTrace
 
 ## Things to deprecate still
 from .. import siffutils
 from ..siffutils.exp_math import *
 from ..siffutils.flimparams import FLIMParams
-from ..siffmath.flim import FlimTrace, FlimUnits
-from ..siffutils import registration
-from ..siffutils.registration import register_frames, regularize_all_tuples
-
 # TODO:
 # __repr__
 # ret_type in multiple functions
@@ -1283,7 +1284,6 @@ class SiffReader(object):
         # and then stick everything together into one dict
         
         # merge the dicts
-        from functools import reduce
         reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
 
         # Decide if simultaneous frames from separate planes will be used to help align one another

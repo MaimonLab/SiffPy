@@ -46,18 +46,14 @@
 // this with the "include_dirs" argument in your setup.py but there's likely a smarter way using
 // anaconda interactions directly. I'll update this when I get around to figuring that out.
 
-//
 /*
 
 Warnings and utils
 
 */
 
-static PyObject* siffreader_suppress_warnings(PyObject* self, PyObject *args){
+static PyObject* siffreader_suppress_warnings(PyObject* self){
     // Suppresses warnings
-
-    if(!PyArg_ParseTuple(args, ":suppress_warnings")) return NULL;
-    // if there are any args, it shouldn't go through
     
     PyErr_SetString(
         PyExc_NotImplementedError,
@@ -69,10 +65,7 @@ static PyObject* siffreader_suppress_warnings(PyObject* self, PyObject *args){
     Py_RETURN_NONE;
 }
 
-static PyObject* siffreader_report_warnings(PyObject* self, PyObject *args){
-    // Suppresses warnings
-    if(!PyArg_ParseTuple(args, ":report_warnings")) return NULL;
-    // if there are any args, it shouldn't go through
+static PyObject* siffreader_report_warnings(PyObject* self){
     
     PyErr_SetString(
         PyExc_NotImplementedError,
@@ -86,18 +79,20 @@ static PyObject* siffreader_report_warnings(PyObject* self, PyObject *args){
 }
 
 static PyObject* siffreader_debug(PyObject* self, PyObject *args){
-    // Returns number of frames in file
 
-    if(!PyArg_ParseTuple(args, ":debug")) return NULL;
-    // if there are any args, it shouldn't go through
+    if(!PyArg_ParseTuple(args, "p:debug", &debug_SIFFIO)) {
+        PyErr_SetString(
+            PyExc_ValueError,
+            "Object passed to debug must be convertible to bool."
+        );
+        return NULL;
+    }
+
     PyErr_SetString(
         PyExc_NotImplementedError,
-        "Not implemented since the 0.6 rework"
-    );
+        "Sorry, haven't implemented the 0.6.0 version debug mode yet"
+    ); return NULL;
     
-    return NULL;
-
-    //Sf.setDebug(true);
     Py_RETURN_NONE;
 }
 
@@ -146,8 +141,8 @@ PyMethodDef, PyModuleDef
 
 static PyMethodDef SiffreaderMethods[] = {
 // Array of the methods and corresponding docstrings
-        {"suppress_warnings", siffreader_suppress_warnings, METH_VARARGS, SUPPRESS_WARNINGS_DOCSTRING},
-        {"report_warnings", siffreader_report_warnings, METH_VARARGS, REPORT_WARNINGS_DOCSTRING},
+        {"suppress_warnings", (PyCFunction) siffreader_suppress_warnings, METH_NOARGS, SUPPRESS_WARNINGS_DOCSTRING},
+        {"report_warnings", (PyCFunction) siffreader_report_warnings, METH_NOARGS, REPORT_WARNINGS_DOCSTRING},
         {"debug", siffreader_debug, METH_VARARGS, DEBUG_DOCSTRING},
         {"siff_to_tiff",(PyCFunction) siffreader_sifftotiff, METH_VARARGS|METH_KEYWORDS, SIFF_TO_TIFF_DOCSTRING},
         {NULL, NULL, 0, NULL}        /* Sentinel */

@@ -32,6 +32,9 @@ TODO: IMPLEMENT
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
 #include <numpy/arrayobject.h>
 
+// Shared across all SiffIOs
+extern bool debug_SIFFIO;
+
 typedef struct _SiffIO {
     PyObject_VAR_HEAD
     const char *tp_name; /* For printing, in format "<module>.<name>" */
@@ -109,13 +112,16 @@ static PyMethodDef siffio_methods[] = {
 };
 
 static PyObject* siffio_filename_get(SiffIO* self);
-static PyObject* siffio_filename_set(SiffIO* self, PyObject* args);
-static PyObject* siffio_status_get(SiffIO*self);
-static PyObject* siffio_status_set(SiffIO* self, PyObject* args);
+static int siffio_filename_set(SiffIO* self, PyObject* args);
+static PyObject* siffio_status_get(SiffIO* self);
+static int siffio_status_set(SiffIO* self, PyObject* args);
+static PyObject* siffio_debug_get(SiffIO* self);
+static int siffio_debug_set(SiffIO* self, PyObject* args);
 
 static PyGetSetDef siffio_getset[] = {
     {"filename", (getter) siffio_filename_get, (setter) siffio_filename_set, PyDoc_STR("Retrieves filename from C++ object.")},
     {"status" , (getter) siffio_status_get , (setter) siffio_status_set, PyDoc_STR("Checks the status of the SiffIO's SiffReader")},
+    {"debug" , (getter) siffio_debug_get, (setter) siffio_debug_set, PyDoc_STR("Determines whether or not the SiffIO object will store a debug log.")},
     {NULL},
 };
 

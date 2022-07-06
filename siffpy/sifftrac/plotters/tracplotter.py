@@ -1,6 +1,7 @@
 # Code for plotting trajectories
 #TODO: This
 from __future__ import annotations
+from abc import abstractmethod
 from typing import Union
 import os, pickle
 
@@ -271,6 +272,13 @@ class TracPlotter():
         
         return self.figure
 
+    def first_plot(self, *args, **kwargs)->hv.Element:
+        if self._multiple_plots:
+            return self.single_plot(self.logs[0][0])
+        else:
+            return self.single_plot(self.logs[0])
+
+    @abstractmethod
     def single_plot(self, log, *args, **kwargs) -> hv.Element:
         raise NotImplementedError("This method must be implemented separately in each derived class")
 
