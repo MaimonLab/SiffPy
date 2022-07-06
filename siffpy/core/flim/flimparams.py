@@ -1,4 +1,3 @@
-from re import A
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 
@@ -14,7 +13,7 @@ class FLIMParams():
     Currently only implements combinations of exponentials.
     """
     
-    def __init__(self, *args, color_channel : int = None, units = FlimUnits.ARRIVAL_BINS, noise : float = 0.0, **params):
+    def __init__(self, *args, color_channel : int = None, units = FlimUnits.COUNTBINS, noise : float = 0.0, **params):
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
         self.irf = next((x for x in args if isinstance(x, Irf)), None)
@@ -142,10 +141,8 @@ class FLIMParams():
         fit_tuple = fit_obj.x
 
         self.exps = [Exp(tau=fit_tuple[2*exp_idx], frac = fit_tuple[2*exp_idx + 1]) for exp_idx in range(num_exps)]
-        self.irf = Irf()
         
-        self.T_O = fit_tuple[-2]
-        self.IRF = Irf(tau_offset = fit_tuple[-2], tau_g = fit_tuple[-1])
+        self.irf = Irf(tau_offset = fit_tuple[-2], tau_g = fit_tuple[-1])
 
         return fit_obj
 
@@ -196,6 +193,8 @@ class FLIMParams():
         """
         if not len(self.exps):
             raise AttributeError("FLIMParams does not have at least one defined component.")
+        if not (x_range.dtype is float):
+            x_range = x_range.astype(float)
         arrival_p = np.zeros_like(x_range)
         for exp in self.exps:
             arrival_p += exp.frac * monoexponential_prob(
@@ -222,7 +221,7 @@ class FLIMParams():
         if attr == 'T_O':
             return self.tau_offset
         else:
-            super().__getattr__(attr)
+            return super().__getattribute__(attr)
 
     def __eq__(self, other)->bool:
         equal = False

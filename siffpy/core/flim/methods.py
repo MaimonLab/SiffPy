@@ -46,14 +46,13 @@ def channel_exp_fit(
             ) # pretty decent guess for Camui data
 
         if num_components == 1:
-
             initial_fit = (
                 Exp(tau = 140, frac = 1.0),
                 Irf(tau_offset = 20.0, tau_g = 4.0)
             ) # GCaMP / free GFP fluoroscence
 
     params = FLIMParams(
-        initial_fit,
+        *initial_fit,
         color_channel = color_channel,
         units = FlimUnits.COUNTBINS,
         allow_noise = False
@@ -61,11 +60,13 @@ def channel_exp_fit(
 
     params.fit_to_data(
         photon_arrivals,
-        num_components=num_components,
+        num_exps=num_components,
         initial_guess=params.param_tuple
     )
+    
     if not params.chi_sq(photon_arrivals) > 0:
         logging.warn("Returned FLIMParams object has a chi-squared of zero, check the fit to be sure!")
+    
     return params
 
 def fit_exp(
@@ -116,43 +117,47 @@ def fit_exp(
 
     """
 
+    # n_colors = 1
+    # if len(histograms.shape)>1:
+    #     n_colors = histograms.shape[0]
+
+    # if n_colors > 1:
+    #     if not (type(num_components) == list):
+    #         num_components = [num_components]
+    #     if len(num_components) < n_colors:
+    #         num_components += [2]*(n_colors - len(num_components)) # fill with 2s
+
+    # # type-checking -- HEY I thought this was Python!
+    # if not (isinstance(fluorophores, list) or isinstance(fluorophores, str)):
+    #     fluorophores = None
+
+    # # take care of the fluorophores arg
+    # if fluorophores is None:
+    #     fluorophores = [None] * n_colors
+
+    # if len(fluorophores) < n_colors:
+    #     fluorophores += [None] * (n_colors - len(fluorophores)) # pad with Nones
+
+    # # take these strings, turn them into initial guesses for the fit parameters
+    # availables = available_fluorophores(dtype=dict)
+
+    # for idx in range(len(fluorophores)):
+    #     if not (fluorophores[idx] in availables):
+    #         logging.warning("\n\nProposed fluorophore %s not in known fluorophore list. Using default params instead\n" % (fluorophores[idx]))
+    #         fluorophores[idx] = None
+
+    # list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]
+    # list_of_flimparams = [FLIMParams(param_dict = this_dict, use_noise = use_noise) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
+    # fluorophores_dict_list = [FlimP.param_dict() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
+
     n_colors = 1
-    if len(histograms.shape)>1:
-        n_colors = histograms.shape[0]
+    if len(histograms.shape) > 1:
+        n_colors = len(histograms)
 
     if n_colors > 1:
-        if not (type(num_components) == list):
-            num_components = [num_components]
-        if len(num_components) < n_colors:
-            num_components += [2]*(n_colors - len(num_components)) # fill with 2s
-
-    # type-checking -- HEY I thought this was Python!
-    if not (isinstance(fluorophores, list) or isinstance(fluorophores, str)):
-        fluorophores = None
-
-    # take care of the fluorophores arg
-    if fluorophores is None:
-        fluorophores = [None] * n_colors
-
-    if len(fluorophores) < n_colors:
-        fluorophores += [None] * (n_colors - len(fluorophores)) # pad with Nones
-
-    # take these strings, turn them into initial guesses for the fit parameters
-    availables = available_fluorophores(dtype=dict)
-
-    for idx in range(len(fluorophores)):
-        if not (fluorophores[idx] in availables):
-            logging.warning("\n\nProposed fluorophore %s not in known fluorophore list. Using default params instead\n" % (fluorophores[idx]))
-            fluorophores[idx] = None
-
-    list_of_dicts_of_fluorophores = [availables[tool_name] if isinstance(tool_name,str) else None for tool_name in fluorophores]
-    list_of_flimparams = [FLIMParams(param_dict = this_dict, use_noise = use_noise) if isinstance(this_dict, dict) else None for this_dict in list_of_dicts_of_fluorophores]
-    fluorophores_dict_list = [FlimP.param_dict() if isinstance(FlimP, FLIMParams) else None for FlimP in list_of_flimparams]
-
-    if n_colors>1:
-        fit_list = [channel_exp_fit( histograms[x,:],num_components[x], fluorophores_dict_list[x] , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( histograms[x,:], num_components = num_components[x], initial_fit = None , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
     else:
-        fit_list = [channel_exp_fit( histograms,num_components, fluorophores_dict_list[0], use_noise = use_noise )]
+        fit_list = [channel_exp_fit( histograms, num_components = num_components, initial_fit = None, use_noise = use_noise )]
 
     return fit_list
 

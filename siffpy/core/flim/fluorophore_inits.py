@@ -5,75 +5,32 @@ FLIM fluorophores.
 
 I'll try to remember to keep adding to this as I record more things.
 
-BAD STYLE! TODO: CLEAN THIS UP
 """
+from flimparams import Exp, Irf
 
-gCamui = {
-            'NCOMPONENTS' : 2,
-            'EXPPARAMS' : [
-                {'FRAC' : 0.7, 'TAU' : 115},
-                {'FRAC' : 0.3, 'TAU' : 25}
-            ],
-            'CHISQ' : 0.0,
-            'T_O' : 20,
-            'IRF' :
-                {
-                    'DIST' : 'GAUSSIAN',
-                    'PARAMS' : {
-                        'SIGMA' : 4
-                    }
-                }
-        }
 
-FLIM_AKAR = {
-            'NCOMPONENTS' : 2,
-            'EXPPARAMS' : [
-                {'FRAC' : 0.636, 'TAU' : 117.1466836},
-                {'FRAC' : 0.3633, 'TAU' : 39.8358}
-            ],
-            'CHISQ' : 0.0,
-            'T_O' : 30,
-            'IRF' :
-                {
-                    'DIST' : 'GAUSSIAN',
-                    'PARAMS' : {
-                        'SIGMA' : 8.0
-                    }
-                }
-        }
+gCamui = (
+    Exp(frac = 0.7, tau = 115),
+    Exp(frac = 0.3, tau = 25),
+    Irf(tau_offset = 20.0, tau_g = 4.0)    
+)
 
-jRCaMP1b = {
-            'NCOMPONENTS' : 2,
-            'EXPPARAMS' : [
-                {'FRAC' : 0.6, 'TAU' : 210.0},
-                {'FRAC' : 0.4, 'TAU' : 30.0}
-            ],
-            'CHISQ' : 0.0,
-            'T_O' : 62,
-            'IRF' :
-                {
-                    'DIST' : 'GAUSSIAN',
-                    'PARAMS' : {
-                        'SIGMA' : 3.4
-                    }
-                }
-        }
+FLIM_AKAR = (
+    Exp(frac = 0.636, tau = 117.14),
+    Exp(frac = .3633, tau = 39.8358),
+    Irf(tau_offset = 30.0, tau_g = 8.0)
+)
 
-jGCaMP7s = {
-            'NCOMPONENTS' : 1,
-            'EXPPARAMS' : [
-                {'FRAC' : 0.99, 'TAU' : 140.0}
-            ],
-            'CHISQ' : 0.0,
-            'T_O' : 26.0,
-            'IRF' :
-                {
-                    'DIST' : 'GAUSSIAN',
-                    'PARAMS' : {
-                        'SIGMA' : 3.0
-                    }
-                }
-        }
+jRCaMP1b = (
+    Exp(frac = 0.6, tau=210.0),
+    Exp(frac = 0.4, tau=30.0),
+    Irf(tau_offset = 62, tau_g = 3.4)
+)
+
+jGCaMP7s = (
+    Exp(frac = 0.99, tau = 140.0),
+    Irf(tau_offset = 26.0, tau_g = 3.0)
+)
 
 def available_fluorophores(dtype : type = list) -> list[str]:
     """ 

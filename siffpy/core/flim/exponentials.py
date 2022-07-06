@@ -53,7 +53,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
     tau_g = param_tuple[1]
 
     #iterate through components, adding up likelihood values
-    n_exps = len(param_tuple-2)//2
+    n_exps = (len(param_tuple)-2)//2
     for exp_idx in range(n_exps):
         arrival_p += param_tuple[2*exp_idx+1] * monoexponential_prob(
             np.arange(arrival_p.shape[0])-t_o, # x_range
