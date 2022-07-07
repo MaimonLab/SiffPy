@@ -2,9 +2,8 @@ from typing import Union, Callable
 
 import numpy as np
 
-from ....core import SiffReader
+from ....core import SiffReader, FLIMParams
 from ...roi_protocols.rois import ROI, subROI
-from ....siffutils import FLIMParams
 from ....siffmath.flim import FlimTrace
 from ...utils.exceptions import NoROIException
 
@@ -87,7 +86,7 @@ def compute_vector_timeseries(siffreader : SiffReader,
     Arguments
     ---------
 
-    flim_params : siffpy.siffutils.FLIMParams
+    flim_params : siffpy.core.FLIMParams
 
     roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
 

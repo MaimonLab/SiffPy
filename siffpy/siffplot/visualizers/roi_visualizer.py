@@ -289,7 +289,7 @@ class ROIVisualizer(SiffVisualizer):
         
         points_array = np.array(list(zip(points_dict['x'],points_dict['y']))) # To make the function easier.
 
-        tap_fn = lambda x, y, x2, y2 : select_on_tap(points_array, selected_points, x, y, x2, y2) # defined in siffutils
+        tap_fn = lambda x, y, x2, y2 : select_on_tap(points_array, selected_points, x, y, x2, y2) # defined in siffpy.core.utils
 
         # Create two streams into one DynamicMap
         tap_stream = hv.streams.SingleTap(transient=True , x=None, y = None)        

@@ -3,9 +3,8 @@ import logging
 
 import numpy as np
 
-from ...siffutils.flimparams import FLIMParams
 from ..fluorescence.traces import FluorescenceTrace
-from ...core.flim.flimunits import FlimUnits, MULTIHARP_BASE_RESOLUTION_IN_PICOSECONDS, convert_flimunits
+from ...core.flim import FLIMParams, FlimUnits, convert_flimunits
 
 class FlimTrace(np.ndarray):
     """

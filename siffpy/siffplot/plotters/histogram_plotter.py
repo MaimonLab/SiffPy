@@ -14,7 +14,6 @@ import holoviews as hv
 
 from ...core import *
 from ..siffplotter import SiffPlotter, apply_opts
-from ...siffutils import FLIMParams
 from ..utils import *
 
 __all__ = [
@@ -136,12 +135,12 @@ class HistogramPlotter(SiffPlotter):
             # happen if it's ill-behaved.
             FLIMparam = fit_exp(channel_histogram, **kwargs)[0]
             fit_count = 0
-            while ((FLIMparam.CHI_SQD > 10*n_frames) or (FLIMparam.CHI_SQD == 0)):
+            while ((FLIMparam.chi_sq(channel_histogram) > 10*n_frames) or (FLIMparam.chi_sq(channel_histogram) == 0)):
                 if fit_count > 10:
                     logging.warn("Giving up. Using last fit.")
                     break
 
-                logging.warn(f"Channel {col}: chi-squared / n_frames = {FLIMparam.CHI_SQD/n_frames}. " +
+                logging.warn(f"Channel {col}: chi-squared / n_frames = {FLIMparam.chi_sq(channel_histogram)/n_frames}. " +
                     "Repeating fit with new sample."
                 )
                 sampled_frames = random.sample(these_frames, sampled_number)
@@ -230,7 +229,7 @@ class HistogramPlotter(SiffPlotter):
             this_plt *= hv.Curve(
                 {
                     'x': BIN_SIZE*np.arange(NUM_BINS),
-                    'y':np.sum(histogram)*self.FLIMParams[col-1].p_dist(
+                    'y':np.sum(histogram)*self.FLIMParams[col-1].probability_dist(
                                 np.arange(0,NUM_BINS),cut_negatives=False
                         )
                 }
@@ -271,15 +270,15 @@ class HistogramPlotter(SiffPlotter):
         BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
 
         ret_string = ""
-        n_comp = FLIMParam.Ncomponents
+        n_comp = len(FLIMParam.exps)
         ret_string += f"Number of components: {n_comp}"
         for comp in range(n_comp):
-            exp = FLIMParam.Exp_params[comp]
+            exp = FLIMParam.exps[comp]
             ret_string += f"\nComponent {comp+1}: "
-            ret_string += f"Tau = " + "{:.2f}".format(exp['TAU']*BIN_SIZE) + " "
-            ret_string += f"Fraction = " + "{:.2f}".format(exp['FRAC']) + " "
+            ret_string += f"Tau = " + "{:.2f}".format(exp.tau*BIN_SIZE) + " "
+            ret_string += f"Fraction = " + "{:.2f}".format(exp.frac) + " "
         
-        ret_string += f"\nOffset: " + "{:.2f}".format(FLIMParam.T_O * BIN_SIZE)
-        ret_string += f"\nSigma : " + "{:.2f}".format(FLIMParam.IRF['PARAMS']['SIGMA'] * BIN_SIZE)
-        ret_string += f"\nChi-squared : " + "{:.2f}".format(FLIMParam.CHI_SQD)
+        ret_string += f"\nOffset: " + "{:.2f}".format(FLIMParam.irf.tau_offset * BIN_SIZE)
+        ret_string += f"\nSigma : " + "{:.2f}".format(FLIMParam.irf.tau_g * BIN_SIZE)
+        #ret_string += f"\nChi-squared : " + "{:.2f}".format(FLIMParam.CHI_SQD)
         return ret_string

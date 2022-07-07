@@ -6,13 +6,13 @@ import numpy as np
 import holoviews as hv
 
 from ...siffplot import LATEX
+from ...core import FLIMParams
 from .fluorescence_plotter import FluorescencePlotter, HeatMapDirection
 from ..siffplotter import apply_opts
 from ..roi_protocols.rois import ROI
 from ..utils.exceptions import NoROIException
 from ..utils.dims import *
 from ..plotmath.flim.roianalysis import *
-from ...siffutils import FLIMParams
 
 __all__ = [
     'FlimPlotter'

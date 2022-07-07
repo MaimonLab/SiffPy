@@ -306,7 +306,7 @@ class FLIMParameter():
         equal = False
         if type(self) is type(other):
             for par in self.__class__.class_params:
-                equal *= self.par == other.par
+                equal *= getattr(self,par) == getattr(other,par)
         return equal
 
 

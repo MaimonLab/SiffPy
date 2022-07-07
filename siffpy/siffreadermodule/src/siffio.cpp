@@ -516,7 +516,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     // defaults to 0's
     if(!registrationDict) registrationDict = PyDict_New(); // TODO: DECREF ME!!!!
 
-    // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
+    // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
 
         PyErr_SetString(PyExc_TypeError, 
@@ -822,7 +822,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         return NULL;
     }
 
-    // Check that FLIMParams is of type siffutils.flimparams.FLIMParams
+    // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
 
         PyErr_SetString(PyExc_TypeError, 

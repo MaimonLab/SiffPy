@@ -139,7 +139,7 @@ PyDoc_STRVAR(
 
 PyDoc_STRVAR(
     siffio_sum_roi_flim_doc,
-    "SiffIO.sum_roi_flim(mask : np.ndarray, params : `siffpy.siffutils.flimparams.FLIMParams, "
+    "SiffIO.sum_roi_flim(mask : np.ndarray, params : `siffpy.core.flim.flimparams.FLIMParams, "
     "frames : list[int] = None, registration : dict = None) -> np.ndarray\n"
     "--\n"
     "\n"
@@ -149,7 +149,7 @@ PyDoc_STRVAR(
     "frames requested. NOTE: the empirical lifetime is in units of TIME BINS.\n"
     "Arguments:\n\n"
     "\tmask: np.ndarray of dtype bool\n"
-    "\tparams : `siffpy.siffutils.flimparams.FLIMParams`\n"
+    "\tparams : `siffpy.core.flim.flimparams.FLIMParams`\n"
     "\tframes : list[int]\n"
     "\tregistration : dict\n"
     "Returns:\n"

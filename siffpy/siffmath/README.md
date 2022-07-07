@@ -185,7 +185,7 @@ and `lifetime` attributes (the `lifetime` attribute is the primary array as well
   - Not yet implemented. Will reflect confidence metrics in lifetime estimates
 
 - `FLIMParams : FLIMParams`
-  - A `siffutils.FLIMParams` object for tracking the fit parameters used to estimate the `lifetime`
+  - A `siffpy.core.FLIMParams` object for tracking the fit parameters used to estimate the `lifetime`
 
 - `method : str`
   - A `str` tracking the method used to generate the lifetime estimate (e.g. `empirical lifetime`).

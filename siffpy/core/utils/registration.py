@@ -30,7 +30,7 @@ def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str 
     kwargs : dict
 
         KWARGS are used only for suite2p reference images. Use the help docstring
-        for siffpy.siffutils.registration.suite2p_reference to learn more.
+        for siffpy.core.utils.registration.suite2p_reference to learn more.
 
     RETURNS
     -------
