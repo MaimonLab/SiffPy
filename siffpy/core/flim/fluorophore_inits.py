@@ -6,8 +6,7 @@ FLIM fluorophores.
 I'll try to remember to keep adding to this as I record more things.
 
 """
-from flimparams import Exp, Irf
-
+from .flimparams import Exp, Irf
 
 gCamui = (
     Exp(frac = 0.7, tau = 115),

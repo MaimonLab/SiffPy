@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 
 from .exponentials import chi_sq_exp, monoexponential_prob
-from .flimunits import FlimUnits
+from .flimunits import FlimUnits, convert_flimunits
 
 class FLIMParams():
     """
@@ -13,7 +13,7 @@ class FLIMParams():
     Currently only implements combinations of exponentials.
     """
     
-    def __init__(self, *args, color_channel : int = None, units = FlimUnits.COUNTBINS, noise : float = 0.0, **params):
+    def __init__(self, *args, color_channel : int = None, units = FlimUnits.COUNTBINS, noise : float = 0.0):
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
         self.irf = next((x for x in args if isinstance(x, Irf)), None)
@@ -31,6 +31,13 @@ class FLIMParams():
     def tau_offset(self)->float:
         if hasattr(self, 'irf'):
             return self.irf.tau_offset
+
+    @property
+    def params(self)->list['FLIMParameter']:
+        """ Returns a list of all FLIMParameter objects contained by this FLIMParams """
+        retlist = [x for x in self.exps]
+        retlist += [self.irf]
+        return retlist
 
     @property
     def param_tuple(self)->tuple:
@@ -62,13 +69,26 @@ class FLIMParams():
             A FlimInfo object that is necessary to determine how
             to interchange between arrival_bins and real time units
             like picoseconds and nanoseconds. If converting between
-            real time units, this parameter can be ignored
+            real time units, this parameter can be ignored. NOT
+            YET IMPLEMENTED ACTUALLY. TODO!!
 
         Returns
         -------
         None
         """
-        raise NotImplementedError("Haven't implemented unit conversions in FLIMParams yet.")
+        for param in self.params:
+            for param_name in param.unitful_params:    
+                setattr(
+                    param,
+                    param_name,
+                    convert_flimunits(
+                        getattr(param, param_name),
+                        param.units,
+                        to_units
+                    )
+                )
+            param.units = to_units
+        self.units = to_units
 
     @property
     def ncomponents(self)->int:
@@ -84,7 +104,9 @@ class FLIMParams():
         minimize the metric input. Default is CHI-SQUARED.
 
         Stores new parameter values IN PLACE, but will return
-        the scipy OptimizeResult object
+        the scipy OptimizeResult object.
+
+        TODO: KEEP THIS UNITFUL
 
         Inputs
         ------
@@ -151,15 +173,16 @@ class FLIMParams():
         return chi_sq_exp(data, self.param_tuple, cut_negatives=cut_negatives)
 
     @classmethod
-    def from_tuple(cls, param_tuple : tuple):
+    def from_tuple(cls, param_tuple : tuple, units : FlimUnits = FlimUnits.COUNTBINS):
         """ Instantiate a FLIMParams from the parameter tuple """
         num_components = len(param_tuple) - 2
 
         args = []
         args += [
             Exp(
-                tau=param_tuple[comp*num_components + 1],
-                frac =param_tuple[comp*num_components]
+                tau=param_tuple[comp*num_components],
+                frac =param_tuple[comp*num_components + 1],
+                units = units,
             )
             for comp in range(num_components)
         ]
@@ -168,6 +191,7 @@ class FLIMParams():
             Irf(
                 tau_offset = param_tuple[-2],
                 tau_g = param_tuple[-1],
+                units = units,
             )
         ]
         return cls(*args)
@@ -251,8 +275,10 @@ class FLIMParameter():
     for shared behavior.
     """
     class_params = []
+    unitful_params = []
 
     def __init__(self, **params):
+        self.units = FlimUnits.COUNTBINS # frankly I think the base unit should be UNITLESS but this is safer.
         # map and filter is cuter but this is more readable.
         for key, val in params.items():
             if key in self.__class__.class_params:
@@ -260,7 +286,7 @@ class FLIMParameter():
         for param in self.__class__.class_params:
             if not hasattr(self, param):
                 setattr(self, param, None)
-    
+
     @property
     def param_list(self)->list:
         return [getattr(self, attr) for attr in self.__class__.class_params]
@@ -271,6 +297,7 @@ class FLIMParameter():
 
     def __repr__(self):
         retstr = self.__class__.__name__ + "\n"
+        retstr += f"\tUNITS: {self.units}\n"
         for param in self.__class__.class_params:
             retstr += "\t" + str(param) + " : " + str(getattr(self,param)) + "\n"
         return retstr
@@ -286,16 +313,19 @@ class FLIMParameter():
 class Exp(FLIMParameter):
     """ Monoexponential parameter fits """
     class_params = ['tau', 'frac']
+    unitful_params = ['tau']
     def __init__(self, **params):
-        """ Exp(tau : float, frac : float) """
+        """ Exp(tau : float, frac : float, units : FlimUnits) """
         super().__init__(**params)
 
 
 class Irf(FLIMParameter):
     """ Instrument response function """
     class_params = ['tau_offset', 'tau_g']
+    unitful_params = ['tau_offset', 'tau_g']
+    
     def __init__(self, **params):
-        """ Irf(tau_offset : float, tau_g : float)"""
+        """ Irf(tau_offset : float, tau_g : float, units : FlimUnits)"""
         super().__init__(**params)
 
 
@@ -339,7 +369,7 @@ def generate_bounds(param_tuple : tuple)->Bounds:
 def generate_linear_constraints_trust(param_tuple : tuple)->LinearConstraint:
     """ Only one linear constraint, sum of fracs == 1"""
 
-    lin_op = np.zeros_like(param_tuple)
+    lin_op = np.zeros_like(param_tuple, dtype=float)
     n_exps = (len(param_tuple)-2)//2
     # Tuple looks like:
     # (tau, frac, tau, frac, ... , tau_o, tau_g)

@@ -8,13 +8,13 @@ import logging
 import numpy as np
 
 from .fluorophore_inits import available_fluorophores
-from .flimparams import FLIMParams, Exp, Irf
+from .flimparams import FLIMParameter, FLIMParams, Exp, Irf
 from .flimunits import FlimUnits
 
 def channel_exp_fit(
         photon_arrivals : np.ndarray,
         num_components : int = 2,
-        initial_fit : dict = None,
+        initial_fit : tuple[FLIMParameter] = None,
         color_channel : int = None,
         **kwargs
     ) -> FLIMParams:
@@ -30,7 +30,7 @@ def channel_exp_fit(
 
     num_components (int): Number of components to the exponential TODO: enable more diversity?
 
-    initial_fit (dict): FLIMParams formatted dict of first-guess FLIM fit.
+    initial_fit (tuple): FLIMParameter iterable
 
 
     RETURN VALUES
@@ -42,20 +42,24 @@ def channel_exp_fit(
             initial_fit = (
                 Exp(tau = 115, frac = 0.7),
                 Exp(tau = 25, frac = 0.3),
-                Irf(tau_offset = 20.0, tau_g = 4.0)
+                Irf(tau_offset = 100.0, tau_g = 4.0)
             ) # pretty decent guess for Camui data
 
         if num_components == 1:
             initial_fit = (
                 Exp(tau = 140, frac = 1.0),
-                Irf(tau_offset = 20.0, tau_g = 4.0)
+                Irf(tau_offset = 100.0, tau_g = 4.0)
             ) # GCaMP / free GFP fluoroscence
+
+    noise = 0.0
+    if 'use_noise' in kwargs:
+        noise = 0.01*kwargs['use_noise'] # should do this right... TODO
 
     params = FLIMParams(
         *initial_fit,
         color_channel = color_channel,
         units = FlimUnits.COUNTBINS,
-        allow_noise = False
+        noise = noise
     )
 
     params.fit_to_data(
@@ -64,7 +68,7 @@ def channel_exp_fit(
         initial_guess=params.param_tuple
     )
     
-    if not params.chi_sq(photon_arrivals) > 0:
+    if params.chi_sq(photon_arrivals) == 0:
         logging.warn("Returned FLIMParams object has a chi-squared of zero, check the fit to be sure!")
     
     return params
@@ -155,20 +159,8 @@ def fit_exp(
         n_colors = len(histograms)
 
     if n_colors > 1:
-        fit_list = [channel_exp_fit( histograms[x,:], num_components = num_components[x], initial_fit = None , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( histograms[x], num_components = num_components[x], initial_fit = None , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
     else:
         fit_list = [channel_exp_fit( histograms, num_components = num_components, initial_fit = None, use_noise = use_noise )]
 
     return fit_list
-
-def fit_flim_params(histogram : np.ndarray, initial_guess = None, **kwargs)->FLIMParams:
-    """
-    Takes a histogram of arrival times and returns a best guess of the photon
-    arrival time distribution, under the constraints provided.
-
-    Always check the fit against the histogram data itself to be sure it looks good
-    and makes sense!!
-
-    TODO: Document and implement!
-    """
-    raise NotImplementedError()

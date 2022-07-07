@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 
-from ..siffutils import FLIMParams
+from ..core import FLIMParams
 
 class SiffIO():
 

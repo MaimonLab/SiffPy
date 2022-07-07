@@ -47,7 +47,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
         
         Chi-squared statistic of the histogram data under the model of the FLIMParams object
     """
-    arrival_p = np.zeros(photon_arrivals.shape) # default, will be overwritten
+    arrival_p = np.zeros_like(photon_arrivals, dtype=float) # default, will be overwritten
 
     t_o = param_tuple[-2]
     tau_g = param_tuple[1]
@@ -56,7 +56,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
     n_exps = (len(param_tuple)-2)//2
     for exp_idx in range(n_exps):
         arrival_p += param_tuple[2*exp_idx+1] * monoexponential_prob(
-            np.arange(arrival_p.shape[0])-t_o, # x_range
+            np.arange(arrival_p.shape[0], dtype=float)-t_o, # x_range
             param_tuple[2*exp_idx], #tau
             tau_g,
             cut_negatives=cut_negatives
@@ -64,7 +64,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
 
     total_photons = np.sum(photon_arrivals)
 
-    chi_sq = ((photon_arrivals - total_photons*arrival_p)**2)/arrival_p
+    chi_sq = ((photon_arrivals - total_photons*arrival_p)**2)/(total_photons*arrival_p)
 
     chi_sq[np.isinf(chi_sq)]=0
 
