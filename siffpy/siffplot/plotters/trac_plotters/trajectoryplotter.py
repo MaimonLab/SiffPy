@@ -1,7 +1,7 @@
 import holoviews as hv
 import numpy as np
 
-from .tracplotter import *
+from ...tracplotter import *
 
 class TrajectoryPlotter(TracPlotter):
 

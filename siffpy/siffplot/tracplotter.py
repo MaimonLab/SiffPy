@@ -6,10 +6,8 @@ from typing import Union
 import os, pickle
 
 import holoviews as hv
-from holoviews import opts
 
-from numpy import add
-from ..log_interpreter import *
+from ..sifftrac.log_interpreter import *
 
 
 def apply_opts(func):

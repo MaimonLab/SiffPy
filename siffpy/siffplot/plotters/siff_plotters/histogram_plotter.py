@@ -12,9 +12,10 @@ import math
 import numpy as np
 import holoviews as hv
 
-from ...core import *
-from ..siffplotter import SiffPlotter, apply_opts
-from ..utils import *
+from ....core import *
+from ...siffplotter import SiffPlotter, apply_opts
+from ...utils import *
+from ...utils.dims import ArrivalTime, HistogramCounts
 
 __all__ = [
     'HistogramPlotter'
@@ -40,6 +41,18 @@ class HistogramPlotter(SiffPlotter):
     ----------
 
     """
+
+    DEFAULT_OPTS = {
+        'Curve' : {
+                    'width' : 800,
+                    'colorbar' : True,
+                    'ylabel' : 'Number of\nphotons',
+                    'xlabel': 'Arrival time\n(nanoseconds)',
+                    'fontsize': 15,
+                    'toolbar' : 'above',
+                    'line_width' : 4
+                }
+    }
 
     def __init__(self, *args, **kwargs):
         f"""
@@ -71,15 +84,7 @@ class HistogramPlotter(SiffPlotter):
             self._local_opts = {**self._local_opts, **kwargs['opts']}
         else:
             self._local_opts = {**self._local_opts,
-                'Curve' : {
-                    'width' : 800,
-                    'colorbar' : True,
-                    'ylabel' : 'Number of\nphotons',
-                    'xlabel': 'Arrival time\n(nanoseconds)',
-                    'fontsize': 15,
-                    'toolbar' : 'above',
-                    'line_width' : 4
-                }
+               **self.__class__.DEFAULT_OPTS 
             }
 
     def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs):
@@ -159,7 +164,7 @@ class HistogramPlotter(SiffPlotter):
             self.FLIMParams[col-1] = FLIMparam
             
     @apply_opts
-    def visualize(self, channel : 'int|list[int]' = None, text : bool = True) -> hv.Layout:
+    def visualize(self, channel : 'int|list[int]' = None, text : bool = True, **kwargs) -> hv.Layout:
         """
         Plots arrival time histograms over the entire imaging sessions
         along with fits. If text is true, overlays text describing the fits.
@@ -197,7 +202,7 @@ class HistogramPlotter(SiffPlotter):
 
         # If there are no fits provided yet, fit them all! Or the channels requested, at least.
         if not len(self.FLIMParams):
-            self.fit(channel = channel)        
+            self.fit(channel = channel, **kwargs)        
 
         BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
 
@@ -222,17 +227,21 @@ class HistogramPlotter(SiffPlotter):
             # plot the data    
             this_plt = hv.Curve(
                 {
-                    'x': BIN_SIZE*np.arange(NUM_BINS),
-                    'y':histogram
-                }
+                    'ArrivalTime': BIN_SIZE*np.arange(NUM_BINS),
+                    'HistogramCounts':histogram
+                },
+                kdims=[ArrivalTime()],
+                vdims = [HistogramCounts()],
             ).opts(line_color = "#000000") 
             this_plt *= hv.Curve(
                 {
-                    'x': BIN_SIZE*np.arange(NUM_BINS),
-                    'y':np.sum(histogram)*self.FLIMParams[col-1].probability_dist(
-                                np.arange(0,NUM_BINS),cut_negatives=False
+                    'ArrivalTime': BIN_SIZE*np.arange(NUM_BINS),
+                    'HistogramCounts': np.sum(histogram)*self.FLIMParams[col-1].probability_dist(
+                                np.arange(0,NUM_BINS), negative_scope = 2.0
                         )
-                }
+                },
+                kdims=[ArrivalTime()],
+                vdims = [HistogramCounts()],
             ).opts(line_dash='dashed')
             this_plt.opts(
                 hv.opts.Curve(
@@ -246,7 +255,7 @@ class HistogramPlotter(SiffPlotter):
                 this_plt *= hv.Text(
                     BIN_SIZE*(0.98*NUM_BINS),
                     0.95*y_bounds[-1],
-                    self.pretty_params(self.FLIMParams[col-1])
+                    self.pretty_params(self.FLIMParams[col-1]),
                 ).opts(text_align='right', text_baseline='top' ,text_font_style = 'normal')
                 pass
 
@@ -255,8 +264,8 @@ class HistogramPlotter(SiffPlotter):
         final_plot = reduce(add, curveplots).opts(
             hv.opts.Curve(
                 width=900, 
-                xlabel='Arrival time (nanoseconds)', 
-                ylabel='Photon counts'
+                #xlabel='Arrival time (nanoseconds)', 
+                #ylabel='Photon counts'
             )
         )
         if isinstance(final_plot, hv.Layout): # if there are multiple plots

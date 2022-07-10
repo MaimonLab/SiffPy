@@ -51,9 +51,11 @@ def channel_exp_fit(
                 Irf(tau_offset = 100.0, tau_g = 4.0)
             ) # GCaMP / free GFP fluoroscence
 
+    # BAD TODO!!
     noise = 0.0
     if 'use_noise' in kwargs:
         noise = 0.01*kwargs['use_noise'] # should do this right... TODO
+        kwargs.pop('use_noise')
 
     params = FLIMParams(
         *initial_fit,
@@ -65,7 +67,8 @@ def channel_exp_fit(
     params.fit_to_data(
         photon_arrivals,
         num_exps=num_components,
-        initial_guess=params.param_tuple
+        initial_guess=params.param_tuple,
+        **kwargs
     )
     
     if params.chi_sq(photon_arrivals) == 0:
@@ -77,7 +80,8 @@ def fit_exp(
         histograms : np.ndarray,
         num_components: 'int|list[int]' = 2,
         fluorophores : list[str] = None,
-        use_noise : bool = False
+        use_noise : bool = False,
+        **kwargs
     ) -> list[FLIMParams]:
 
     """
@@ -112,6 +116,8 @@ def fit_exp(
 
         Whether or not to put noise in the FLIMParameter fit by default
     
+    **kwargs are passed to the FLIMParams.fit_to_data function
+
     RETURN VALUES
     -------------
 
@@ -159,8 +165,8 @@ def fit_exp(
         n_colors = len(histograms)
 
     if n_colors > 1:
-        fit_list = [channel_exp_fit( histograms[x], num_components = num_components[x], initial_fit = None , color_channel = x, use_noise = use_noise) for x in range(n_colors)]
+        fit_list = [channel_exp_fit( histograms[x], num_components = num_components[x], initial_fit = None , color_channel = x, use_noise = use_noise, **kwargs) for x in range(n_colors)]
     else:
-        fit_list = [channel_exp_fit( histograms, num_components = num_components, initial_fit = None, use_noise = use_noise )]
+        fit_list = [channel_exp_fit( histograms, num_components = num_components, initial_fit = None, use_noise = use_noise, **kwargs )]
 
     return fit_list

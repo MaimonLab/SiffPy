@@ -15,31 +15,34 @@ class FluorescenceAxis(hv.Dimension):
     label is 'dF/F'.
     """
     def __init__(self, method : str = None, **kwargs):
+        """ hv.Dimension('FluorescenceAxis', method) """
         if not isinstance(method, str):
             method = "dF/F" # default
         super().__init__(("FluorescenceAxis", method), **kwargs)
 
 class FlimAxis(hv.Dimension):
     def __init__(self, method : str = None, **kwargs):
+        """ hv.Dimension('Flim', method) """
         if not isinstance(method, str):
             method = 'Empirical lifetime'
-        super().__init__(("Flim", "Empirical lifetime"), **kwargs)
+        super().__init__(("Flim", method), **kwargs)
 
 class ArrivalTime(hv.Dimension):
     """
     A dimension class for plotting photon arrival times
     """
     def __init__(self, **kwargs):
+        """ hv.Dimension('ArrivalTime', 'Photon arrival time', unit='nanoseconds') """
         if not "unit" in kwargs:
             kwargs["unit"] = "nanoseconds"
         super().__init__(("ArrivalTime", "Photon arrival time"), **kwargs)
-
 
 class HistogramCounts(hv.Dimension):
     """
     A dimension class for plotting photon histogram bins
     """
     def __init__(self, **kwargs):
+        """ "hv.Dimension('HistogramCounts', 'Photons') """
         super().__init__(("HistogramCounts", "Photons"), **kwargs)
 
 
@@ -51,6 +54,7 @@ class ImageTime(hv.Dimension):
     that varies across an imaging experiment.
     """
     def __init__(self, **kwargs):
+        """ hv.Dimension('ImageTime', 'Time', unit='sec') """
         if not "unit" in kwargs:
             kwargs["unit"] = "sec"
         super().__init__(("ImageTime", "Time"), **kwargs)
@@ -64,6 +68,7 @@ class AngularSpace(hv.Dimension):
     """
 
     def __init__(self, **kwargs):
+        """ hv.Dimension('Angular', 'Angular\ncoordinate', unit='radians', range=(0, 2*np.pi))"""
         if not "unit" in kwargs:
             kwargs["unit"] = "radians"
         if not "range" in kwargs:
@@ -78,6 +83,7 @@ class UnwrappedHeading(hv.Dimension):
     """
 
     def __init__(self, label : str = "Unwrapped heading", **kwargs):
+        """ hv.Dimension('UnwrappedAngle', label, unit='revolutions') """
         if not "unit" in kwargs:
             kwargs["unit"] = "revolutions"
         super().__init__(("UnwrappedAngle", label), **kwargs)
@@ -89,6 +95,7 @@ class AnnotationAxis(hv.Dimension):
     """
 
     def __init__(self, **kwargs):
+        """ hv.Dimension('Annotation', " ", unit=None, range=(0,10))"""
         if "unit" in kwargs:
             kwargs["unit"] = None
         if not "range" in kwargs:

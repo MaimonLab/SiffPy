@@ -1,5 +1,5 @@
-from .phase_plotter import PhasePlotter
-from .fluorescence_plotter import FluorescencePlotter
-from .histogram_plotter import HistogramPlotter
-from .registration_plotter import RegistrationPlotter
-from .event_plotter import EventPlotter
+from .siff_plotters import *
+
+# To import TracPlotters and specific EventPlotters,
+# you should explicitly import them from 
+# siffpy.siffplot.trac_plotters or event_plotters

@@ -1,16 +1,15 @@
-from cmath import phase
-from functools import reduce
-from typing import Callable, Union
-
 import numpy as np
 import holoviews as hv
 
-from ..siffplotter import apply_opts, SiffPlotter
-from ..utils import *
-from ...siffplot.roi_protocols.rois import ROI, subROI
-from ...siffplot.utils.dims import *
-from ...siffmath import estimate_phase
-from ...core.utils.circle_fcns import *
+
+from ...plotmath.fluorescence.roianalysis import *
+from ...siffplotter import apply_opts, SiffPlotter
+from ...utils import *
+from ...utils.dims import *
+
+from ....siffmath.fluorescence import FluorescenceVector
+from ....siffmath.phase import estimate_phase
+from ....core.utils.circle_fcns import *
 
 __all__ = [
     'PhasePlotter'
@@ -39,7 +38,21 @@ class PhasePlotter(SiffPlotter):
     ( e.g. phase_p = PhasePlotter(siff_plotter)) )
     """
 
-    def __init__(self, *args, **kwargs):
+    DEFAULT_OPTS = {
+        'Path' : {
+                    'line_color':'#3FA50F',
+                    'line_width' : 1,
+                    'width' : 1000,
+                    'height' : 150,
+                    'yaxis' : None,
+                    'fontsize': 15,
+                    'toolbar' : 'above',
+                    'show_frame' : False,
+                    'invert_yaxis' : False,
+                },
+    }
+
+    def __init__(self, *args, fluorescence_vector : FluorescenceVector = None, **kwargs):
         f"""
         May be initialized from another SiffPlotter to inherit its
         attributes. Inherited attributes are:
@@ -61,24 +74,17 @@ class PhasePlotter(SiffPlotter):
                 if hasattr(plotter, param):
                     setattr(self, param, getattr(plotter, param))
         
+        if not fluorescence_vector is None:
+            self.data = fluorescence_vector
+        
         if 'opts' in kwargs:
             self._local_opts = {**self._local_opts, **kwargs['opts']}
         else:
             self._local_opts = {**self._local_opts,
-                'Path' : {
-                    'line_color':'#3FA50F',
-                    'line_width' : 1,
-                    'width' : 1000,
-                    'height' : 150,
-                    'yaxis' : None,
-                    'fontsize': 15,
-                    'toolbar' : 'above',
-                    'show_frame' : False,
-                    'invert_yaxis' : False,
-                },
+                **self.__class__.DEFAULT_OPTS
             }
 
-    def estimate_phase(self, vector_timeseries : np.ndarray, phase_method : str = None, **kwargs)->np.ndarray:
+    def estimate_phase(self, vector_timeseries : np.ndarray = None, phase_method : str = None, **kwargs)->np.ndarray:
         """
         Wraps the estimate_phase methods of siffmath, taking an extracted vector
         of fluorescence measurements across timepoints
@@ -105,16 +111,51 @@ class PhasePlotter(SiffPlotter):
             A numpy array corresponding to the estimated phase of the passed
             vector_timeseries signal.
         """
+        if vector_timeseries is None:
+            if self.data is None:
+                raise ValueError("Must provide a vector_timeseries argument if not initialized with data")
+            vector_timeseries = self.data
+
         if phase_method is None:
             self.phase = estimate_phase(vector_timeseries, **kwargs)
         else:
             self.phase = estimate_phase(vector_timeseries, method = phase_method, **kwargs)
         return self.phase
 
-    def visualize(self) -> hv.Layout:
-        """ Not yet implemented """
+    def visualize(self, **kwargs) -> hv.Layout:
+        """
+        Default behavior. kwargs are passed to estimate_phase method.
+
+        NOT IMPLEMENTED -- HAVEN'T DECIDED WHAT ARE EVEN REASONABLE DEFAULTS.
+        """
+        if self.rois is None:
+            raise NoROIException("No ROIs defined for this PhasePlotter.")
+        
+        rois = self.rois
+        for roi in self.rois: 
+            if not hasattr(roi, 'subROIs'):
+                rois.remove(roi)
+        
+        if len(rois) == 0:
+            raise NoROIException("No ROIs provided that have subROIs attribute.")
+
+        if not(all(len(roi.subROIs) == len(rois[0].subROIs) for roi in rois)):
+            raise ValueError("Not all provided ROIs have the same number of subROIs!")
+
+#        pooled = [compute_vector_timeseries(self.siffreader, roi) for roi in rois]
+
+#        pooled  = []
+#        # combine like ROIs TODO: use the self-identification of each subROI!
+#        for segment_idx in range(len(rois[0].subROIs)):
+#            subROI_pool = [roi.subROIs[segment_idx] for roi in rois]
+#            pooled.append(compute_roi_timeseries(self.siffreader, subROI_pool, *args, **kwargs))
+#
+#        time_axis = self.siffreader.t_axis()
+
+        
+        #phase = self.estimate_phase( **kwargs)
+        #if any()
         raise NotImplementedError()
-        return super().visualize()
 
     @apply_opts
     def plot_phase(self, time : np.ndarray, phase : np.ndarray)->hv.element.Path:

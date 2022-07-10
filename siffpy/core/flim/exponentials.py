@@ -25,7 +25,7 @@ SCT March 27 2021
 import numpy as np
 from scipy import special
 
-def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives : bool = True)->float:
+def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope : float = 0.0)->float:
     """
     Returns the chi-squared statistic
     of a photon arrival data set, given
@@ -40,6 +40,10 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
     param_tuple : tuple
         
         A tuple consistent with the FLIMParams property "param_tuple"
+
+    negative_scope : float
+
+        As in monoexponential_prob.
     
     RETURN VALUES
     ----------
@@ -59,8 +63,15 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
             np.arange(arrival_p.shape[0], dtype=float)-t_o, # x_range
             param_tuple[2*exp_idx], #tau
             tau_g,
-            cut_negatives=cut_negatives
+            negative_scope = negative_scope
         )
+
+    # Don't include the points outside of the negative_scope parameter
+    bottom_bin = np.floor(negative_scope/tau_g)
+    #bottom_bin = int(max(t_o - bottom_bin, 0))
+    #bottom_bin = int(max(t_o, 0))
+    #photon_arrivals = photon_arrivals[bottom_bin:]
+    #arrival_p = arrival_p[bottom_bin:]
 
     total_photons = np.sum(photon_arrivals)
 
@@ -70,7 +81,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, cut_negatives 
 
     return np.nansum(chi_sq)
 
-def monoexponential_prob(x_range : np.ndarray, tau : float, tau_g : float, cut_negatives : bool = True)->float:
+def monoexponential_prob(x_range : np.ndarray, tau : float, tau_g : float, negative_scope : float = 0.0)->float:
     """
     
     Takes in parameters of an exponential distribution
@@ -97,6 +108,12 @@ def monoexponential_prob(x_range : np.ndarray, tau : float, tau_g : float, cut_n
         Width of the Gaussian with which the exponential
         distribution has been convolved (IN UNITS OF BINS OF THE ARRAY)
 
+    negative_scope : float
+
+        How many units of tau_g to go in the negative direction in provided the
+        probability distribution. E.g. negative_scope = 1.0 means will also provide
+        a non-zero number for up to tau_g bins before the 0 point. If negative_scope < 0,
+        then 0 is used.
 
     RETURN VALUES
     ----------
@@ -109,9 +126,9 @@ def monoexponential_prob(x_range : np.ndarray, tau : float, tau_g : float, cut_n
     normalization = special.erfc( -(tau * x_range - tau_g**2)/ (np.sqrt(2)*tau_g*tau) )
     exp_dist = np.exp(-x_range/tau)
 
-    if cut_negatives:
-        p_out = gauss_coeff * normalization * exp_dist * (x_range > 0) # for above tau_o
+    if negative_scope > 0.0:
+        p_out = gauss_coeff * normalization * exp_dist * (x_range > -(negative_scope/tau_g)) # for above tau_o
     else:
-        p_out = gauss_coeff * normalization * exp_dist
+        p_out = gauss_coeff * normalization * exp_dist * (x_range > 0)
     
     return p_out

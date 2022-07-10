@@ -15,8 +15,9 @@ import holoviews as hv
 import numpy as np
 
 from .roi_protocols import rois
-from ..core import SiffReader
 from .utils.exceptions import *
+
+from ..core import SiffReader
 
 NAPARI = False
 try:

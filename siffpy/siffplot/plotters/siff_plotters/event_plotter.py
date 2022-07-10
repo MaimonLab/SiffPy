@@ -10,10 +10,10 @@ from abc import abstractmethod
 
 import holoviews as hv
 
-from ...core import SiffReader
-from ...core.io import SiffEvent
-from ..siffplotter import SiffPlotter, apply_opts
-from ..utils.dims import *
+from ....core import SiffReader
+from ....core.io import SiffEvent
+from ...siffplotter import SiffPlotter, apply_opts
+from ...utils.dims import *
 
 
 __all__ = [
@@ -39,6 +39,37 @@ class EventPlotter(SiffPlotter):
     The visualize method returns a HoloViews Overlay object
     with all events stored by the SiffReader annotated.
     """
+
+    DEFAULT_OPTS = {
+        'Arrow' : {
+            'width' : 1000,
+            'show_frame' : False,
+            'yaxis' : None,
+            'xaxis' : None,
+            'height' : 50,
+            'padding' : 0,
+            'border' : 0,
+        },
+        'Text' : {
+            'width' : 1000,
+            'fontsize' : 15,
+            'show_frame' : False,
+            'yaxis' : None,
+            'xaxis' : None,
+            'height' : 50,
+            'padding' : 0,
+            'border' : 0,
+        },
+        'Overlay' : {
+            'width' : 1000,
+            'show_frame' : False,
+            'yaxis' : None,
+            'xaxis' : None,
+            'height' : 50,
+            'padding' : 0,
+            'border' : 0
+        }
+    }
 
     def __init__(self, *args, **kwargs):
         f"""
@@ -66,34 +97,7 @@ class EventPlotter(SiffPlotter):
             self._local_opts = {**self._local_opts, **kwargs['opts']}
         else:
             self._local_opts = {**self._local_opts,
-                'Arrow' : {
-                    'width' : 1000,
-                    'show_frame' : False,
-                    'yaxis' : None,
-                    'xaxis' : None,
-                    'height' : 50,
-                    'padding' : 0,
-                    'border' : 0,
-                },
-                'Text' : {
-                    'width' : 1000,
-                    'fontsize' : 15,
-                    'show_frame' : False,
-                    'yaxis' : None,
-                    'xaxis' : None,
-                    'height' : 50,
-                    'padding' : 0,
-                    'border' : 0,
-                },
-                'Overlay' : {
-                    'width' : 1000,
-                    'show_frame' : False,
-                    'yaxis' : None,
-                    'xaxis' : None,
-                    'height' : 50,
-                    'padding' : 0,
-                    'border' : 0
-                }
+                **self.__class__.DEFAULT_OPTS
             }
         
     @apply_opts
@@ -116,8 +120,8 @@ class EventPlotter(SiffPlotter):
     def annotate(self, element : hv.Element)->hv.Layout:
         """ Returns a HoloViews Layout object that has been annotated with the EventPlotter """
         annotations = self.annotation_element() 
-        if len(element.kdims):
-            annotations = annotations
+        #if len(element.kdims): # no idea what this was meant to do, leaving it in in case I remember.
+            #annotations = annotations
         if annotations is None:
             return element
         return (

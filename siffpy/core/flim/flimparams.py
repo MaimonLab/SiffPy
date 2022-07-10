@@ -97,7 +97,7 @@ class FLIMParams():
             return len(self.exps)
         return 0
 
-    def fit_to_data(self, data : np.ndarray, num_exps : int = 2, initial_guess : tuple = None, metric : callable = None)->OptimizeResult:
+    def fit_to_data(self, data : np.ndarray, num_exps : int = 2, initial_guess : tuple = None, metric : callable = None, **kwargs)->OptimizeResult:
         """
         Takes in the data and adjusts the internal
         parameters of this FLIMParams object to
@@ -131,6 +131,12 @@ class FLIMParams():
 
             Argument 2: PARAMS (tuple)
 
+            All other arguments must be KWARGS.
+
+        **kwargs
+
+            Passed to the metric function.
+
         Returns
         -------
 
@@ -140,10 +146,10 @@ class FLIMParams():
         """
 
         if metric is None:
-            objective = lambda x: chi_sq_exp(data, x)
+            objective = lambda x: chi_sq_exp(data, x, **kwargs)
 
         else:
-            objective = lambda x: metric(data, x)
+            objective = lambda x: metric(data, x, **kwargs)
 
         if initial_guess is None:
             if not ((len(self.exps) == 0) and (self.irf is None)):
@@ -168,9 +174,9 @@ class FLIMParams():
 
         return fit_obj
 
-    def chi_sq(self, data : np.ndarray, cut_negatives : bool = True)->float:
+    def chi_sq(self, data : np.ndarray, negative_scope : float = 0.0)->float:
         """ Presumes all units are in ARRIVAL_BIN units """
-        return chi_sq_exp(data, self.param_tuple, cut_negatives=cut_negatives)
+        return chi_sq_exp(data, self.param_tuple, negative_scope =negative_scope )
 
     @classmethod
     def from_tuple(cls, param_tuple : tuple, units : FlimUnits = FlimUnits.COUNTBINS):

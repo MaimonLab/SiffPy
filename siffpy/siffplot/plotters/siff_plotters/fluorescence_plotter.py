@@ -1,21 +1,22 @@
 from functools import reduce
 from typing import Callable, Union
 import operator
+from enum import Enum
 
 import numpy as np
 import holoviews as hv
 
-from ...siffplot import LATEX
-from ...core import FLIMParams
-from .fluorescence_plotter import FluorescencePlotter, HeatMapDirection
-from ..siffplotter import apply_opts
-from ..roi_protocols.rois import ROI
-from ..utils.exceptions import NoROIException
-from ..utils.dims import *
-from ..plotmath.flim.roianalysis import *
+from ....siffplot import LATEX
+from ...siffplotter import SiffPlotter, apply_opts
+from ...plotmath.fluorescence.roianalysis import *
+from ...roi_protocols.rois import ROI
+from ...utils.exceptions import NoROIException
+from ...utils.dims import *
+from ...utils.enums import Direction
+from ....siffmath.fluorescence import *
 
 __all__ = [
-    'FlimPlotter'
+    'FluorescencePlotter'
 ]
 
 inherited_params = [
@@ -25,10 +26,10 @@ inherited_params = [
     'rois'
 ]
 
-class FlimPlotter(FluorescencePlotter):
+class FluorescencePlotter(SiffPlotter):
     """
-    Extends the FluorescencePlotter functionality to allow
-    a focus on FLIM data relating to a 
+    Extends the SiffPlotter functionality to allow
+    analysis of fluorescence information relating to a 
     population of neurons or subROIs. Makes use
     of siffmath functionality, so all that can stay
     under the hood if you don't want to chase down
@@ -37,7 +38,7 @@ class FlimPlotter(FluorescencePlotter):
     Can be initialized with an existing SiffPlotter
     to inherit its properties
 
-    ( e.g. flim_p = FlimPlotter(siff_plotter)) )
+    ( e.g. fluor_p = FluorescencePlotter(siff_plotter)) )
 
     Contains methods to read frames with a SiffReader and return
     timeseries and plots. But most methods will also accept a
@@ -47,20 +48,68 @@ class FlimPlotter(FluorescencePlotter):
     The visualize method returns a holoviews Layout object
     of a heatmap of fluorescence, customizable with various
     args and kwargs that can be read in the documentation or
-    with help(flim_p.visualize).
+    with help(fluor_p.visualize).
     """
 
-    def __init__(self, *args,
-        FLIMParams : Union[FLIMParams,list[FLIMParams]] = None,
-        **kwargs
-    ):
-        """
-        Initialized like a FluorescencePlotter, though accepts additional
-        kwarg FLIMParams
-        """
-        super().__init__(*args, **kwargs)
-        self.FLIMParams = FLIMParams
+    DEFAULT_OPTS = {
+        'HeatMap' : {
+                    'cmap':'Greens',
+                    'width' : 1000,
+                    'height' : 150,
+                    'colorbar' : False,
+                    'colorbar_position' : 'left',
+                    'colorbar_opts' : {
+                        'height': 200,
+                        'width' : 20,
+                        'border_line_alpha':0,
+                    },
+                    'yaxis' : None,
+                    'fontsize': 15,
+                    'toolbar' : 'above',
+                    'show_frame' : False,
+                    'invert_yaxis' : False,
+                    #'hooks' : [bounds_hook],
+            },
+        'Curve' : {
+            'line_color' : '#000000',
+            'line_width' : 1,
+            'width' : 1000,
+            'fontsize' : 15,
+            'toolbar' : 'above',
+            'show_frame' : False,
+            #'hooks' : [bounds_hook, ],
+            },
+    }
 
+    def __init__(self, *args, **kwargs):
+        f"""
+        May be initialized from another SiffPlotter to inherit its
+        attributes. Inherited attributes are:
+
+            {inherited_params}
+        """
+        if not any([isinstance(arg,SiffPlotter) for arg in args]):
+            # From scratch
+            super().__init__(*args, **kwargs)
+        else:
+            for arg in args:
+                # Iterate until you get to the first SiffPlotter object.
+                if isinstance(arg, SiffPlotter):
+                    plotter = arg
+                    break
+            
+            # inherits parameters from the provided plotter
+            for param in inherited_params:
+                if hasattr(plotter, param):
+                    setattr(self, param, getattr(plotter, param))
+        
+        if 'opts' in kwargs:
+            self._local_opts = {**self._local_opts, **kwargs['opts']}
+        else:
+            self._local_opts = {**self._local_opts,
+                **self.__class__.DEFAULT_OPTS
+            }
+        
     @apply_opts
     def plot_roi_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None, **kwargs)->hv.element.Curve:
         """
@@ -70,7 +119,6 @@ class FlimPlotter(FluorescencePlotter):
 
         Accepts args and kwargs of `FluorescencePlotter.compute_roi_timeseries`
         """
-        raise NotImplementedError()
         if rois is None:
             if hasattr(self, 'rois'):
                 rois = self.rois
@@ -78,7 +126,8 @@ class FlimPlotter(FluorescencePlotter):
         if not isinstance(rois, (ROI, list)):
             raise TypeError(f"Invalid rois argument. Must be of type `ROI` or a list of `ROI`s")
 
-        trace = self.compute_roi_timeseries(
+        trace = compute_roi_timeseries(
+            self.siffreader,
             rois,
             *args,
             **kwargs
@@ -102,7 +151,7 @@ class FlimPlotter(FluorescencePlotter):
 
         yaxis = FluorescenceAxis(yaxis_label)
 
-        if isinstance(trace, fluorescence.FluorescenceTrace):
+        if isinstance(trace, FluorescenceTrace):
             yaxis_label = trace.method
             if LATEX and (yaxis_label == 'dF/F'):
                 yaxis_label = r"$$\Delta \text{F}/\text{F}$$"
@@ -123,7 +172,7 @@ class FlimPlotter(FluorescencePlotter):
         ).opts(title=title)
             
     def plot_vector_timeseries(self, *args, rois : Union[ROI, list[ROI]] = None,
-        direction = HeatMapDirection.HORIZONTAL, 
+        direction = Direction.HORIZONTAL, 
         show_f0 : bool = False,
         **kwargs
         )->hv.element.HeatMap:
@@ -138,7 +187,7 @@ class FlimPlotter(FluorescencePlotter):
         This allows additional annotation of the F and F0 aspects of the traces that might use different
         opts.
         """
-        raise NotImplementedError()
+
         if rois is None:
             rois = self.rois
 
@@ -156,13 +205,13 @@ class FlimPlotter(FluorescencePlotter):
         if not(all(len(roi.subROIs) == len(rois[0].subROIs) for roi in rois)):
             raise ValueError("Not all provided ROIs have the same number of subROIs!")
 
-        vertical : bool = (direction == HeatMapDirection.VERTICAL) or (direction == HeatMapDirection.VERTICAL.value)
+        vertical : bool = (direction == Direction.VERTICAL) or (direction == Direction.VERTICAL.value)
 
         pooled  = []
         # combine like ROIs TODO: use the self-identification of each subROI!
         for segment_idx in range(len(rois[0].subROIs)):
             subROI_pool = [roi.subROIs[segment_idx] for roi in rois]
-            pooled.append(self.compute_roi_timeseries(subROI_pool, *args, **kwargs))
+            pooled.append(compute_roi_timeseries(self.siffreader, subROI_pool, *args, **kwargs))
 
         time_axis = self.siffreader.t_axis()
 
@@ -231,51 +280,86 @@ class FlimPlotter(FluorescencePlotter):
         element = element.opts(self._local_opts)
         # Annotate F0        
         if show_f0 and all(isinstance(x, FluorescenceTrace) for x in pooled):
-            angle_vals = element.data['Angular'].flatten()
-            f0s = np.array([x.F0 for x in pooled]).flatten()
-            if not vertical: 
-                f0HeatMap = hv.HeatMap(
-                    (
-                        np.zeros_like(f0s),
-                        angle_vals,
-                        f0s
-                    ),
-                    kdims = [hv.Dimension("F0_x"), AngularSpace()],
-                    vdims = [FluorescenceAxis('Photons')],
-                )
-            if vertical:
-                f0HeatMap = hv.HeatMap(
-                    (
-                        angle_vals,
-                        np.zeros_like(f0s),
-                        f0s
-                    ),
-                    kdims = [AngularSpace(), hv.Dimension("F0_x")],
-                    vdims = [FluorescenceAxis('Photons')],
-                )
-            f0HeatMap = f0HeatMap.opts(
-                cmap='Greys',
-                clabel = "Photons",
-                clim = (0,None),
-                xaxis=None,
-                yaxis=None,
-                colorbar=True,
-                width=100,
-                height=150,
-                title='F0',
-                colorbar_opts = {
-                    'width' : 10,
-                    'height' : 40,
-                    'title_text_font' : 'arial',
-                    'title_text_font_style' : 'normal',
-                    'title_text_font_size' : '6pt',
-                    'major_tick_line_width' : 0
+            f0HeatMap = self.plot_f0(
+                pooled,
+                angular_axis = angle_axis,
+                vertical = not vertical, # inverse direction
+                opts = {
+                    'cmap' : "Greys",
+                    'clabel' : "Photons",
+                    'clim' : (0, None),
+                    'xaxis' : None,
+                    'yaxis' : None,
+                    'colorbar' : True,
+                    'width' : 100,
+                    'height' : 150,
+                    'title' : 'F0',
+                    'colorbar_opts' : {
+                        'width' : 10,
+                        'height' : 40,
+                        'title_text_font' : 'arial',
+                        'title_text_font_style' : 'normal',
+                        'title_text_font_size' : '6pt',
+                        'major_tick_line_width' : 0,
+                    },
                 },
             )
-
             element += f0HeatMap
 
         return element
+
+    @classmethod
+    def plot_f0(self,
+            f_vec : Union[FluorescenceVector,list[FluorescenceTrace]],
+            angular_axis : tuple = None,
+            vertical : bool = True, 
+            opts : dict = None
+        )->hv.Layout:
+        """
+        Class method because it doesn't rely on any internal functionality.
+
+        Takes an iterable of FluorescenceTraces and returns a heatmap showing
+        all of their F0 values.
+
+        TODO: FINISH DOCSTRING
+        """
+        if not (
+            isinstance(f_vec, FluorescenceVector)
+            or
+            all(isinstance(x, FluorescenceTrace) for x in f_vec)
+        ):
+            raise ValueError("plot_f0 only defined for "
+                "FluorescenceVector argument or"
+                "iterable of FluorescenceTrace"
+            )
+
+        f0s = np.array([x.F0 for x in f_vec]).flatten()
+        if angular_axis is None:
+            angular_axis = [x.angle for x in f_vec]
+        if vertical: 
+            f0HeatMap = hv.HeatMap(
+                (
+                    np.zeros_like(f0s),
+                    angular_axis,
+                    f0s
+                ),
+                kdims = [hv.Dimension("F0_x"), AngularSpace()],
+                vdims = [FluorescenceAxis('Photons')],
+            )
+        else:
+            f0HeatMap = hv.HeatMap(
+                (
+                    angular_axis,
+                    np.zeros_like(f0s),
+                    f0s
+                ),
+                kdims = [AngularSpace(), hv.Dimension("F0_x")],
+                vdims = [FluorescenceAxis('Photons')],
+            )
+        f0HeatMap = f0HeatMap.opts(
+            **opts
+        )
+        return f0HeatMap
 
     @apply_opts
     def visualize(self, *args, timeseries = None, t_axis = None, **kwargs)->Union[hv.Layout,hv.element.Curve]:

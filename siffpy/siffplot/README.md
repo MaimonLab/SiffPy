@@ -2,7 +2,8 @@
 
 TODO:
 
-- Link `SiffPlot` and `SiffTrac`, or create a tool for permitting their interactions.
+- Finish `IntegratedPlotter` functionality and document it.
+- Migrate `TracPlotter` documentation.
 
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
@@ -189,3 +190,24 @@ as a common interface to all of the functions that might want to use the various
 
 TODO: Document me!!
 
+## TracPlotter
+
+`TracPlotter`s and their subclasses implement a `save(path : str = None)`  method that allows you
+to pickle each `TracPlotter` so that you can resume analysis later, or at least save the results of
+the analyses you performed (most importantly, stored attributes).
+
+Plotters inherit from the `TracPlotter`, which interfaces with the `siffpy.sifftrac.FicTracLog`,
+to plot and combine different types of data in the `FicTracLog`. Most override
+shared methods of the `TracPlotter` class, e.g. `plot`. At least so far, expects @tmohren's 
+universal_fictrac_logger framework, so be careful about how your dataframes are parsed! 
+
+Plotters rely on `HoloViews` for data set management and `Bokeh` for plotting. But if your environment
+can't import those packages, you can still import this module. You can't use the plotting functions,
+and when you import those tools, it will raise `ImportError`s, but you can still use the `FicTracLog`.
+
+### TrajectoryPlotter
+
+### HeadingPlotter
+
+Plots the *wrapped* heading using `FicTracLog`'s `integrated_heading_lab` column. The `plot` function takes
+the keyword `offset` to offset the heading by a set value

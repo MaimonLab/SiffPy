@@ -2,7 +2,7 @@
 Analyses on extracted phase information
 """
 
-from typing import Union
+from typing import Union, Iterable
 import random
 
 import numpy as np
@@ -10,6 +10,41 @@ from scipy.stats import circmean
 
 from ...core.utils.circle_fcns import *
 from .traces import PhaseTrace
+from . import phase_estimates
+
+def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estimate = False, **kwargs)->np.ndarray:
+    """
+    Takes a time series of vectors (dimensions x time) and, assuming they
+    correspond to a circularized signal, returns a 'phase' estimate, according
+    to the method selected.
+
+    Arguments
+    ---------
+
+    vector_series : np.ndarray
+
+        An array of shape (D,T) where T is time bins and D is discretized elements of a 1-dimensional ring.
+
+    method : str
+
+        Available methods:
+
+            - pva : Population vector average
+
+    """
+
+    if error_estimate:
+        raise NotImplementedError("Error estimate on the phase is not yet implemented.")
+
+    try:
+        if not callable(getattr(phase_estimates, method)): # check that the method IS callable
+            raise ValueError(f"No phase estimate method {method} in SiffMath module {phase_estimates}")
+    except AttributeError as e:
+        raise ValueError(f"No phase estimate method {method} in SiffMath module {phase_estimates}." +
+        "To see available methods, call siffmath.phase_alignment_functions()")
+
+    phase_method = getattr(phase_estimates, method)
+    return phase_method(vector_series, *args, error_estimate = error_estimate, **kwargs)
 
 def fit_offset(
         fictrac_trace : np.ndarray,
@@ -118,3 +153,46 @@ def sliding_correlation(
                 sliding_window_view(trace_2, window_width, axis = 0),
                 axis=1,
             ).flatten()
+
+def multiscale_circ_corr(
+    trace_1 : np.ndarray,
+    trace_2 : np.ndarray,
+    windows : Iterable[float]
+)->list[np.ndarray]:
+    """
+    Returns a sliding window computation of the circular correlation
+    between two traces across a selection of window widths. Calls
+    siffpy.siffmath.phase.phase_analyses.sliding_correlation
+
+    Arguments
+    --------
+
+    trace_1 : np.ndarray
+
+        The first of two circular variables to correlation
+
+    trace_2 : np.ndarray
+
+        The second of two circular variables to correlate.
+
+    windows : Iterable[float]
+
+        Iterable of all windows to apply. Windows must be in units
+        of ELEMENTS OF THE TRACES, not units of time.
+
+    Returns
+    -------
+
+    circ_corrs : list[np.ndarray]
+
+        A list of numpy arrays, one for each element of 'windows'.
+        Each numpy array is of length t - w_n, where w_n is the
+        value of the nth element of 'windows'.
+    """
+    return [sliding_correlation(
+            trace_1,
+            trace_2,
+            w
+        )
+        for w in windows
+    ]

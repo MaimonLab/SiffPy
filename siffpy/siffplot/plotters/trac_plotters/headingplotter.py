@@ -4,9 +4,10 @@ import holoviews as hv
 import numpy as np
 import logging
 
-from ..log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
-from .tracplotter import *
-from ...core.utils.circle_fcns import split_angles_to_dict
+from ....core.utils.circle_fcns import split_angles_to_dict
+from ....sifftrac.log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
+from ...tracplotter import *
+from ...utils.dims import ImageTime, AngularSpace
 
 class HeadingPlotter(TracPlotter):
     """
@@ -127,7 +128,15 @@ class HeadingPlotter(TracPlotter):
         else:
             OPTS_DICT = DEFAULT_OPTS
 
-        return hv.Path(split_angles_to_dict(t, bar_position)).opts(**OPTS_DICT)
+        return hv.Path(
+            split_angles_to_dict(
+                t,
+                bar_position,
+                xlabel = "ImageTime",
+                ylabel = "Angular",
+                ),
+            kdims = [ImageTime(), AngularSpace()] 
+        ).opts(**OPTS_DICT)
         
 
 

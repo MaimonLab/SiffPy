@@ -9,6 +9,7 @@ import holoviews as hv
 
 from ...siffmath import fluorescence
 from .exceptions import *
+from .enums import *
 
 def select_on_tap(pt_array, tapped_points, x, y, x2, y2):
     """
