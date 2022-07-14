@@ -115,6 +115,8 @@ class EventPlotter(SiffPlotter):
         """ Returns a single element for all the events together """
         if self.siffreader.events is None:
             return None
+        if len(self.siffreader.events) == 0:
+            return None
         return reduce(mul, (self.plot_event(event) for event in self.siffreader.events))
 
     def annotate(self, element : hv.Element)->hv.Layout:

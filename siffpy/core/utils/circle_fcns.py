@@ -29,7 +29,47 @@ def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: f
     return np.sqrt(d_x**2 + d_y**2)
 
 def circ_diff(arr : np.ndarray)->np.ndarray:
+    """
+    Takes the difference of presumed circular variables.
+    Returned array is 1 element shorter than the input array.
+
+    Arguments
+    --------
+
+    arr : np.ndarray
+
+        A 1d array circular variable
+
+    Returns
+    -------
+
+    diff : np.ndarray
+
+        The circular difference between successive time points.
+        Length of the array is 1 
+    """
+
     return np.angle(np.exp(arr[1:]*1j)/np.exp(arr[:-1]*1j))
+
+def circ_unwrap(arr: np.ndarray, offset : float = 0.0)->np.ndarray:
+    """
+    Takes a circular variable and converts it to an unwrapped circular variable
+    (i.e. sums the cumulative differences, so that instead of ranging over an 
+    interval of width 2*pi, it ranges from -inf to +inf). Sets the first point
+    to offset
+
+    Arguments
+    --------
+
+    arr : np.ndarray
+
+        A circular variable with periodicity 2*pi.
+
+    offset : float = 0.0
+
+        What the value of the first point should be
+    """
+    return np.insert(np.cumsum(circ_diff(arr)),0,offset)
 
 def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
     """
@@ -168,6 +208,33 @@ def circ_interpolate_between_endpoints(x_samp : np.ndarray, endpts_x : np.ndarra
             np.exp(frac_in*naive_diff*1j)
         )
     ).flatten() # offset by the difference, then recircularize
+
+def circ_interpolate_to_sample_points(x_samp : np.ndarray, x_axis : np.ndarray, y_axis: np.ndarray)->np.ndarray:
+    """
+    Takes two arrays corresponding to the x_axis and y_axis of some data, and circ-linearly interpolates
+    the y_axis to sample at the values of x_samp.
+
+    Return range is -pi to +pi
+
+    Returns
+    -------
+
+    interpolated_y : np.ndarray
+
+        Same shape as x_samp
+    """
+
+    # get the nearest x_axis points to interpolate between
+    x_axis_endpts_idxs = [np.argpartition(np.abs(x_samp[x]-x_axis),2)[:2] for x in range(len(x_samp))]
+    x_axis_endpts = x_axis[x_axis_endpts_idxs]
+    y_axis_endpts = y_axis[x_axis_endpts_idxs]
+
+    # now interpolate between the endpoints
+    return circ_interpolate_between_endpoints(
+        x_samp,
+        x_axis_endpts,
+        y_axis_endpts
+    )
 
 def split_angles_to_list(x_var : np.ndarray, y_var : np.ndarray)->list[tuple]:
     """

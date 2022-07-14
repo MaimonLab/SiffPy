@@ -573,7 +573,6 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                 PyList_Append(TupleOutList,Py_None);
                 Py_DECREF(Py_None);
             }
-
             FrameData firstFrameData = getTagData(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], params, siff);
 
             // Have to get all the reads together in one place.
@@ -604,15 +603,13 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                     shift_tuple
                 );
             }
-//
             PyObject* flimMap = readVectorToNumpyTuple(photonReadsTogether,
                 firstFrameData, FLIMParams, conf_measure
             );
-
             PyList_Append(TupleOutList, flimMap); // ADDS a reference
             Py_DECREF(flimMap); // prevent memory leaks on this object            
         }
-        
+        //
         return TupleOutList;
     }
     REPORT_ERR("Error in flimMap");

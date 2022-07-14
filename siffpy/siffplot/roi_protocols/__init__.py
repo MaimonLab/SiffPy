@@ -3,7 +3,7 @@ import logging
 import inspect, textwrap
 
 from .rois import ROI
-from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli
+from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli, generic
 
 # Default method for each brain region of interest
 # Written this way so I can use the same names for
@@ -130,6 +130,10 @@ NODULI = [
     'nod'
 ]
 
+GENERIC = [
+    'generic'
+]
+
 REGIONS = {
     'Ellipsoid body' : 
         {
@@ -157,5 +161,12 @@ REGIONS = {
             'alias_list'  : NODULI,
             'module'      : noduli,
             'default_fcn' : 'hemispheres'
+        },
+
+    'Generic' : 
+        {
+            'alias_list'  : GENERIC,
+            'module'      : generic,
+            'default_fcn' : 'outline_roi'
         }
 }

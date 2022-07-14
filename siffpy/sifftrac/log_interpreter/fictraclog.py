@@ -4,7 +4,9 @@ import os, logging
 
 from ...core import SiffReader
 from ...core.timetools import SEC_TO_NANO, NANO_TO_SEC
+from ...core.utils import circle_fcns
 from ..utils import BallParams
+
 
 _ORIGINAL_FICTRAC_ROS_ZERO_HEADING = 3.053108549228689 # an error in the original projector_driver ROS2 code resulted in an
 # incorrect map between fictrac heading and the bar position relative to the fly.
@@ -297,7 +299,20 @@ class FictracLog():
                 return copied_df.groupby('aligned_volume').mean()
         
         raise RuntimeError("Unanticipated error in source code argument checking, slipped through the cracks.")
-        
+    
+    def unwrap_heading(self)->np.ndarray:
+        """
+        Unwraps the heading in the internal dataframe, making a new column ('unwrapped_heading'), but also returns
+        a reference to its values
+        """
+
+        hd = self._dataframe['integrated_heading_lab']
+
+        unwrapped = circle_fcns.circ_unwrap(hd)
+
+        self._dataframe['unwrapped_heading'] = unwrapped
+        return unwrapped
+
     def __getattr__(self, name: str) -> object:
         """
         For safe copying of dataframes, FORCES you to copy.

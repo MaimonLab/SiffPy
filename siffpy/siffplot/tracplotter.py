@@ -19,9 +19,9 @@ def apply_opts(func):
     called with every new plot.
     """
     def local_opts(*args, **kwargs):
-        if hasattr(args[0],'local_opts'):
+        if hasattr(args[0],'_local_opts'):
             try:
-                opts = args[0].local_opts # get the local_opts param from self
+                opts = args[0]._local_opts # get the local_opts param from self
                 return func(*args, **kwargs).opts(*opts)
             except Exception as e:
                 raise RuntimeError(f"Error applying local opts!:\n{e}")
@@ -38,6 +38,8 @@ class TracPlotter():
     Overloads the +, +=, *, *= operators to combine trajectories (and plots).
     
     """
+
+    DEFAULT_LOCAL_OPTS = {}
 
     def __init__(self, *args, opts : dict = None):
         """
@@ -66,11 +68,14 @@ class TracPlotter():
             FLog = next(filter(lambda x: isinstance(x, (FictracLog, list)) , args))
         else:
             FLog = None
-
-        self.figure = None
-        if not opts is None:
-            self.local_opts = opts
         
+        self._local_opts = {}
+        if opts is None:
+            self._local_opts = {**self._local_opts, **self.__class__.DEFAULT_LOCAL_OPTS}
+        else:
+            self._local_opts = opts
+        
+        self.figure = None
         # Now do whatever instantiation is necessary
         if not FLog is None:
             if isinstance(FLog, FictracLog):

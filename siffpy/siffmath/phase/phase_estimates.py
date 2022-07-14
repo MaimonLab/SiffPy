@@ -21,9 +21,11 @@ __all__ = [
 ]
 
 def pva(
-        vector_timeseries : Union[np.ndarray, FluorescenceTrace], time : np.ndarray = None,
-        error_function : Union[Callable,str] = None,
-        filter_fcn : Union[Callable,str] = None, **kwargs
+        vector_timeseries : Union[np.ndarray, FluorescenceTrace],
+        time              : np.ndarray                              = None,
+        error_function    : Union[Callable,str]                     = None,
+        filter_fcn        : Union[Callable,str]                     = None,
+        **kwargs
     ) -> PhaseTrace:
     """
     Population vector average, a la Jayaraman lab
@@ -112,7 +114,7 @@ def pva(
 
     return PhaseTrace(phase, method = 'pva', time = time)
 
-def relative_magnitude(vector_timeseries, pva_val) -> np.ndarray:
+def relative_magnitude(vector_timeseries : np.ndarray, pva_val : np.ndarray) -> np.ndarray:
     """
     Ranges from zero to pi, 0 when every vector component is 0 except 
     for one, and pi when every component is of equal magnitude.

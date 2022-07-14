@@ -69,10 +69,9 @@ class Ellipse(ROI):
 
         if not isinstance(polygon, hv.element.path.Ellipse):
             raise ValueError("Ellipse ROI must be initialized with an Ellipse polygon")
-        super().__init__(polygon, **kwargs)
+        super().__init__(polygon, slice_idx = slice_idx, **kwargs)
         self.source_polygon = source_polygon
         self.center_poly = center_poly
-        self.slice_idx = slice_idx
         self.plotting_opts = {}
 
     def center(self)->tuple[float, float]:

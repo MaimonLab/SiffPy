@@ -430,7 +430,11 @@ class ROIViewer(NapariInterface):
                 segmentation_kwarg_dict[widget.name] = widget.value
 
             for roi in rois:
-                roi.segment(**segmentation_kwarg_dict)
+                try:
+                    roi.segment(**segmentation_kwarg_dict)
+                except NotImplementedError:
+                    pass
+
 
             if hasattr(self.visualizer, 'rois'):
                 if type(self.visualizer.rois) is list:

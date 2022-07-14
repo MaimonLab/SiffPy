@@ -77,6 +77,7 @@ class FluorescencePlotter(SiffPlotter):
             'fontsize' : 15,
             'toolbar' : 'above',
             'show_frame' : False,
+            'height' : 200,
             #'hooks' : [bounds_hook, ],
             },
     }

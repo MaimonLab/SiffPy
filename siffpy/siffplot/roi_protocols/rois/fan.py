@@ -66,8 +66,7 @@ class Fan(ROI):
 
         if not isinstance(polygon, hv.element.path.Polygons):
             raise ValueError("Fan ROI must be initialized with a polygon")
-        super().__init__(polygon, **kwargs)
-        self.slice_idx = slice_idx
+        super().__init__(polygon, slice_idx = slice_idx, **kwargs)
         self.plotting_opts = {}
 
         if not bounding_paths is None:

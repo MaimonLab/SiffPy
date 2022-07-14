@@ -51,8 +51,7 @@ class Blobs(ROI):
 
         if not isinstance(polygon, hv.element.Polygons):
             raise ValueError("Blobs ROI must be initialized with a polygons object!")
-        super().__init__(polygon, **kwargs)
-        self.slice_idx = slice_idx
+        super().__init__(polygon, slice_idx = slice_idx, **kwargs)
         self.plotting_opts = {}
 
     def segment(self, viewed_from : ViewDirection = ViewDirection.ANTERIOR, **kwargs) -> None:

@@ -77,7 +77,12 @@ class ROI():
 
 
     """
-    def __init__(self, polygon : hv.element.path.Polygons = None, image : np.ndarray = None, name : str = None):
+    def __init__(self,
+            polygon     : hv.element.path.Polygons  = None,
+            image       : np.ndarray                = None,
+            name        : str                       = None,
+            slice_idx   : int                       = None,
+        ):
         """
         Defines an ROI whose geometry is determined by the source polygon. Can be associated with
         an image to plot on top of, and can also be associated with a 'name' for when it's plotted
@@ -91,6 +96,8 @@ class ROI():
 
         if not name is None:
             self._name = name
+        
+        self.slice_idx = slice_idx
         
         self.plotting_opts = {} # called during visualize
 
@@ -324,9 +331,9 @@ class ROI():
     def __len__(self):
         return 1
 
-    @abc.abstractmethod
     def segment(self) -> None:
         """ Abstract method, to be implemented by individual ROIs """
+        raise NotImplementedError()
 
 class subROI(ROI):
     """

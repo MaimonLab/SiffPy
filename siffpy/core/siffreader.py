@@ -1,4 +1,3 @@
-""" TODO Move the SiffReader class here """
 from typing import Union
 import itertools
 import logging, os, pickle
@@ -16,13 +15,8 @@ from .utils import registration
 from .utils.registration import register_frames, regularize_all_tuples
 from ..siffmath.flim import FlimTrace
 
-## Things to deprecate still
 # TODO:
 # __repr__
-# ret_type in multiple functions
-# "map to standard order"
-
-__all__ = ['SiffReader','fit_exp']
 
 class SiffReader(object):
     """
@@ -1096,6 +1090,8 @@ class SiffReader(object):
         if not isinstance(flimfit, FLIMParams):
             raise TypeError("Argument flimfit not of type FLIMParams")
         
+        # MAKE SURE IT'S IN COUNTBINS, IF NOT MAKE A COPY
+        #if not ()
     
         num_slices = self.im_params.num_slices
         
@@ -1179,23 +1175,6 @@ class SiffReader(object):
                     for arr in list_of_arrays
                 ]
             )
-
-
-### ORGANIZATIONAL METHODS
- 
-    def frames_to_single_array(self, frames=None):
-        """
-        TODO: IMPLEMENT
-        Retrieves the frames in the list frames and uses the information retrieved from the header
-        to parse them into an appropriately shaped (i.e. "standard order" tczyxtau) single array,
-        rather than returning a list of numpy arrays
-
-        INPUTS
-        ------
-        frames (array-like): list or array of the frame numbers to pool. If none, returns the full file.
-        """
-        raise NotImplementedError()
-
 
 ### REGISTRATION METHODS
     def register(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 

@@ -5,6 +5,8 @@ from ...tracplotter import *
 
 class TrajectoryPlotter(TracPlotter):
 
+    DEFAULT_LOCAL_OPTS = {}
+
     def __init__(self, *args, **kwargs):
         super(TrajectoryPlotter, self).__init__(*args, **kwargs)
 

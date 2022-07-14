@@ -45,7 +45,6 @@ class HistogramCounts(hv.Dimension):
         """ "hv.Dimension('HistogramCounts', 'Photons') """
         super().__init__(("HistogramCounts", "Photons"), **kwargs)
 
-
 class ImageTime(hv.Dimension):
     """
     A Dimension class that tracks
@@ -75,6 +74,16 @@ class AngularSpace(hv.Dimension):
             kwargs["range"] = (0, 2*np.pi)
         super().__init__(("Angular", "Angular\ncoordinate"), **kwargs)
 
+class CircCorr(hv.Dimension):
+    """
+    A dimension class that tracks the circular correlation between
+    two circular variables
+    """
+    def __init__(self, **kwargs):
+        """ hv.Dimension('CircCorr', 'Circular correlation', range=(-1.0,1.0)) """
+        if not "range" in kwargs:
+            kwargs["range"] = (0, 2*np.pi)
+        super().__init__(("CircCorr","Circular correlation"), **kwargs)
 
 class UnwrappedHeading(hv.Dimension):
     """

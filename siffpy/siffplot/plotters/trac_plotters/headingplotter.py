@@ -1,13 +1,16 @@
 # Heading direction plots
+from enum import Enum
 
 import holoviews as hv
 import numpy as np
 import logging
 
+
 from ....core.utils.circle_fcns import split_angles_to_dict
 from ....sifftrac.log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 from ...tracplotter import *
 from ...utils.dims import ImageTime, AngularSpace
+from ...utils.exceptions import StyleError
 
 class HeadingPlotter(TracPlotter):
     """
@@ -27,6 +30,12 @@ class HeadingPlotter(TracPlotter):
 
     wrap_heading()
     """
+
+    DEFAULT_LOCAL_OPTS = {}
+
+    class HeadingPosition(Enum):
+        BAR     = 'bar'
+        HEADING = 'heading'
 
     def __init__(self, *args, **kwargs):
         super(HeadingPlotter, self).__init__(*args, **kwargs)
@@ -85,8 +94,13 @@ class HeadingPlotter(TracPlotter):
         raise NotImplementedError()
         return self.offset
 
-    @apply_opts
-    def single_plot(self, log : LogToPlot, offset : float = None, scalebar : float = None, **kwargs) -> hv.element.path.Path:
+    def single_plot(self,
+            log : LogToPlot,
+            offset : float = None,
+            scalebar : float = None,
+            style : Union[str,HeadingPosition] = HeadingPosition.BAR,
+            **kwargs
+        ) -> hv.element.path.Path:
         """
         
         Plots the wrapped heading of the fly, as reported by FicTrac as a Path element
@@ -97,19 +111,21 @@ class HeadingPlotter(TracPlotter):
         else:
             self.offset = offset
 
+        if not isinstance(style, self.HeadingPosition):
+            try:
+                style = self.HeadingPosition(style)
+            except ValueError:
+                raise StyleError(self.HeadingPosition)
+
+
         if log._OLD_PROJECTOR_DRIVER: # back compatibility
             offset += _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
 
         DEFAULT_OPTS = {
-            'xlabel' : 'Time',
-            'width'  : 1000,
-            'line_color' : 'black',
-            'yticks' : [
-                (offset, 'Rear'),
-                ((np.pi + offset)%(2*np.pi), 'Front'),
-            ],
-            'ylabel' : 'Bar position',
-            'xlim' : (0.0, None),
+                'xlabel' : 'Time',
+                'width'  : 1000,
+                'line_color' : 'black',
+                'xlim' : (0.0, None),
         }
 
         if offset == 0:
@@ -120,8 +136,18 @@ class HeadingPlotter(TracPlotter):
         wrapped_heading = log.get_dataframe_copy()['integrated_heading_lab'] # get the copy if you're modifying
         wrapped_heading -= offset
         wrapped_heading = wrapped_heading % (2*np.pi)
-
-        bar_position = 2*np.pi-wrapped_heading
+        
+        if style is self.HeadingPosition.BAR:
+            plot_var = 2*np.pi-wrapped_heading
+            DEFAULT_OPTS['ylabel'] = 'Bar position'
+            DEFAULT_OPTS['yticks'] = [
+                (offset, 'Rear'),
+                ((np.pi + offset)%(2*np.pi), 'Front'),
+            ]
+        
+        if style is self.HeadingPosition.HEADING:
+            plot_var = wrapped_heading
+            DEFAULT_OPTS['ylabel'] = 'Heading'
 
         if 'opts' in kwargs:
             OPTS_DICT = kwargs['opts']
@@ -131,7 +157,7 @@ class HeadingPlotter(TracPlotter):
         return hv.Path(
             split_angles_to_dict(
                 t,
-                bar_position,
+                plot_var,
                 xlabel = "ImageTime",
                 ylabel = "Angular",
                 ),

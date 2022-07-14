@@ -87,13 +87,13 @@ class HistogramPlotter(SiffPlotter):
                **self.__class__.DEFAULT_OPTS 
             }
 
-    def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs):
+    def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs)->list[FLIMParams]:
         """
         Fits the arrival time distributions for the color channel(s) requested.
         Takes n_frames number of frames to perform the fit. Also accepts all kwargs
         of `siffpy.fit_exp` (for more info, refer to the `fit_exp` documentation).
 
-        Stores the results in self.FLIMParams
+        Stores the results in self.FLIMParams and returns a pointer to the same.
 
         Parameters
         ----------
@@ -108,6 +108,11 @@ class HistogramPlotter(SiffPlotter):
             Color channels to fit. By default fits all color channels available. 1-indexed
             because ScanImage is MATLAB based...
 
+        Returns
+        -------
+
+        params : a list of FLIMParams fit to the data requested.
+
         """
 
         if channel is None:
@@ -121,6 +126,7 @@ class HistogramPlotter(SiffPlotter):
             )
         if any(color == 0 for color in channel):
             raise ValueError("Provided channel number 0! Remember, these are 1-indexed not 0-indexed!")
+
 
         for col in channel: 
             these_frames = self.siffreader.im_params.framelist_by_color(col-1)
@@ -162,9 +168,11 @@ class HistogramPlotter(SiffPlotter):
                 self.FLIMParams += [[]]*(col - len(self.FLIMParams))
             
             self.FLIMParams[col-1] = FLIMparam
+
+        return self.FLIMParams
             
     @apply_opts
-    def visualize(self, channel : 'int|list[int]' = None, text : bool = True, **kwargs) -> hv.Layout:
+    def visualize(self, params : list[FLIMParams] = None, channel : 'int|list[int]' = None, text : bool = True, **kwargs) -> hv.Layout:
         """
         Plots arrival time histograms over the entire imaging sessions
         along with fits. If text is true, overlays text describing the fits.
@@ -186,7 +194,13 @@ class HistogramPlotter(SiffPlotter):
 
             A Holoviews Layout object (single column) of all color channel fits
         """
-
+        # If there are no fits provided yet, fit them all! Or the channels requested, at least.
+        if params is None:
+            if not len(self.FLIMParams):
+                self.FLIMParams = self.fit(channel = channel, **kwargs)        
+            params = self.FLIMParams
+        if not isinstance(params, list):
+            params = [params]
         if channel is None:
             channel = self.siffreader.im_params.colors
         if not isinstance(channel, list):
@@ -200,17 +214,13 @@ class HistogramPlotter(SiffPlotter):
         if any(color == 0 for color in channel):
             raise ValueError("Provided channel number 0! Remember, these are 1-indexed not 0-indexed!")
 
-        # If there are no fits provided yet, fit them all! Or the channels requested, at least.
-        if not len(self.FLIMParams):
-            self.fit(channel = channel, **kwargs)        
-
         BIN_SIZE = self.siffreader.im_params.picoseconds_per_bin/1e3
 
         curveplots = []
         for col in channel:
-            if col > len(self.FLIMParams):
+            if col > len(params):
                 continue
-            if not isinstance(self.FLIMParams[col-1], FLIMParams):
+            if not isinstance(params[col-1], FLIMParams):
                 continue
 
             # full data histograms
@@ -236,7 +246,7 @@ class HistogramPlotter(SiffPlotter):
             this_plt *= hv.Curve(
                 {
                     'ArrivalTime': BIN_SIZE*np.arange(NUM_BINS),
-                    'HistogramCounts': np.sum(histogram)*self.FLIMParams[col-1].probability_dist(
+                    'HistogramCounts': np.sum(histogram)*params[col-1].probability_dist(
                                 np.arange(0,NUM_BINS), negative_scope = 2.0
                         )
                 },
@@ -255,7 +265,7 @@ class HistogramPlotter(SiffPlotter):
                 this_plt *= hv.Text(
                     BIN_SIZE*(0.98*NUM_BINS),
                     0.95*y_bounds[-1],
-                    self.pretty_params(self.FLIMParams[col-1]),
+                    self.pretty_params(params[col-1]),
                 ).opts(text_align='right', text_baseline='top' ,text_font_style = 'normal')
                 pass
 
