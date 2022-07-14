@@ -81,7 +81,7 @@ class FlimViewer(NapariInterface):
             **kwargs
         ):
         raise NotImplementedError()
-        super().__init__(siffreader, *args, **kwargs, title = 'Frame viewer')
+        super().__init__(siffreader, *args, **kwargs, title = 'Flim frame viewer')
         # dumb bug prevents setting this in the init
         self.viewer.dims.axis_labels = siffreader.im_params.axis_labels
 
