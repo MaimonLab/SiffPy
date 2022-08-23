@@ -1,10 +1,8 @@
-from enum import Enum
-
 from ..metadata import FrameMetaData
-from .siffevent import SiffEvent, _matlab_to_utc
+from .siffevent import SiffEvent, EventType, _matlab_to_utc
 
 
-class BarEventType(Enum):
+class BarEventType(EventType):
     """
     There are types of Bar Events.
     At present, they're On/Off, but

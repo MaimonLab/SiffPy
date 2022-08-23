@@ -20,12 +20,6 @@ __all__ = [
     'EventPlotter'
 ]
 
-inherited_params = [
-    'local_opts',
-    'siffreader',
-    'reference_frames',
-]
-
 class EventPlotter(SiffPlotter):
     """
     Extends the SiffPlotter functionality to allow
@@ -71,34 +65,11 @@ class EventPlotter(SiffPlotter):
         }
     }
 
-    def __init__(self, *args, **kwargs):
-        f"""
-        May be initialized from another SiffPlotter to inherit its
-        attributes. Inherited attributes are:
-
-            {inherited_params}
-        """
-        if not any([isinstance(arg,SiffPlotter) for arg in args]):
-            # From scratch
-            super().__init__(*args, **kwargs)
-        else:
-            for arg in args:
-                # Iterate until you get to the first SiffPlotter object.
-                if isinstance(arg, SiffPlotter):
-                    plotter = arg
-                    break
-            
-            # inherits parameters from the provided plotter
-            for param in inherited_params:
-                if hasattr(plotter, param):
-                    setattr(self, param, getattr(plotter, param))
-        
-        if 'opts' in kwargs:
-            self._local_opts = {**self._local_opts, **kwargs['opts']}
-        else:
-            self._local_opts = {**self._local_opts,
-                **self.__class__.DEFAULT_OPTS
-            }
+    INHERITED_PARAMS = [
+        'local_opts',
+        'siffreader',
+        'reference_frames',
+    ]
         
     @apply_opts
     def plot_event(self, event : SiffEvent, direction = 'v')->hv.Overlay:

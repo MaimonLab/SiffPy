@@ -21,11 +21,6 @@ __all__ = [
     'HistogramPlotter'
 ]
 
-inherited_params = [
-    'local_opts',
-    'siffreader'
-]
-
 class HistogramPlotter(SiffPlotter):
     """
     Extends the SiffPlotter functionality to allow
@@ -54,38 +49,24 @@ class HistogramPlotter(SiffPlotter):
                 }
     }
 
+    INHERITED_PARAMS = [
+        'local_opts',
+        'siffreader'
+    ]
+
     def __init__(self, *args, **kwargs):
         f"""
         May be initialized from another SiffPlotter to inherit its
         attributes. Inherited attributes are:
 
-            {inherited_params}
+            {self.__class__.INHERITED_PARAMS}
         """
-        if not any([isinstance(arg,SiffPlotter) for arg in args]):
-            # From scratch
-            super().__init__(*args, **kwargs)
-        else:
-            for arg in args:
-                # Iterate until you get to the first SiffPlotter object.
-                if isinstance(arg, SiffPlotter):
-                    plotter = arg
-                    break
-            
-            # inherits parameters from the provided plotter
-            for param in inherited_params:
-                if hasattr(plotter, param):
-                    setattr(self, param, getattr(plotter, param))
+        super().__init__(*args, **kwargs)
 
         self.FLIMParams = []
         self.FLIMParams += [param for arg in args if isinstance(arg, Iterable) for param in arg if all(arg, lambda z: isinstance(z, FLIMParams))]
         self.FLIMParams += [x for x in args if isinstance(x, FLIMParams)]
 
-        if 'opts' in kwargs:
-            self._local_opts = {**self._local_opts, **kwargs['opts']}
-        else:
-            self._local_opts = {**self._local_opts,
-               **self.__class__.DEFAULT_OPTS 
-            }
 
     def fit(self, n_frames : int = 1000, channel : 'int|list[int]' = None, **kwargs)->list[FLIMParams]:
         """

@@ -33,39 +33,7 @@ class RegistrationPlotter(SiffPlotter):
 
     ( e.g. reg_p = RistogramPlotter(siff_plotter)) )
     """
-
-    def __init__(self, *args, **kwargs):
-        f"""
-        May be initialized from another SiffPlotter to inherit its
-        attributes. Inherited attributes are:
-
-            {inherited_params}
-        """
-        if not any([isinstance(arg,SiffPlotter) for arg in args]):
-            # From scratch
-            super().__init__(*args, **kwargs)
-        else:
-            for arg in args:
-                # Iterate until you get to the first SiffPlotter object.
-                if isinstance(arg, SiffPlotter):
-                    plotter = arg
-                    break
-            
-            # inherits parameters from the provided plotter
-            for param in inherited_params:
-                if hasattr(plotter, param):
-                    setattr(self, param, getattr(plotter, param))
-
-        if 'opts' in kwargs:
-            self._local_opts = {**self._local_opts, **kwargs['opts']}
-        else:
-            self._local_opts = {**self._local_opts,
-                'Points' : {
-                    'color' : '#000000',
-                    'alpha' : 0.3
-                }
-            }
-
+    
     def register(self, *args, **kwargs)->hv.Layout:
         """ Performs registration and then shows output. Takes args and kwargs of self.siffreader.register"""
         self.siffreader.register(*args, **kwargs)

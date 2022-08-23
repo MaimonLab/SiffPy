@@ -19,13 +19,6 @@ __all__ = [
     'FlimPlotter'
 ]
 
-inherited_params = [
-    'local_opts',
-    'siffreader',
-    'reference_frames',
-    'rois'
-]
-
 class FlimPlotter(FluorescencePlotter):
     """
     Extends the FluorescencePlotter functionality to allow
@@ -50,6 +43,13 @@ class FlimPlotter(FluorescencePlotter):
     args and kwargs that can be read in the documentation or
     with help(flim_p.visualize).
     """
+
+    INHERITED_PARAMS = [
+        'local_opts',
+        'siffreader',
+        'reference_frames',
+        'rois'
+    ]
 
     def __init__(self, *args,
         FLIMParams : Union[FLIMParams,list[FLIMParams]] = None,

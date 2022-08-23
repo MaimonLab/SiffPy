@@ -1,9 +1,7 @@
-from enum import Enum
-
 from ..metadata import FrameMetaData
-from .siffevent import SiffEvent, _matlab_to_utc
+from .siffevent import SiffEvent, EventType, _matlab_to_utc
 
-class LEDEventType(Enum):
+class LEDEventType(EventType):
     """
     There are types of LED Events.
     At present, they're On/Off, but

@@ -100,8 +100,10 @@ class SiffPlotter():
         }
     }
 
+    INHERITED_PARAMS = []
+
     def __init__(self, siffreader : SiffReader, *args, **kwargs):
-        """
+        f"""
         Possible initializations:
 
         SiffPlotter(siffreader : siffpy.SiffReader, **kwargs)
@@ -110,6 +112,9 @@ class SiffPlotter():
             reference frames, searching for accompanying saved ROIs,
             and selecting a viewer backend.
         
+        May be initialized from another SiffPlotter. Inherits
+        {self.__class__.INHERITED_PARAMS}
+
         HIDDEN KWARGS
         ------
 
@@ -121,12 +126,25 @@ class SiffPlotter():
         """
         self.siffreader : SiffReader = siffreader
         self.reference_frames = None
-        if 'opts' in kwargs:
-            if not isinstance(kwargs['opts'], dict):
-                raise ValueError("Must pass dictionary for keyword argument opts")
-            self._local_opts = kwargs['opts']
+
+        self._local_opts = {}
+
+        if not any([isinstance(arg,SiffPlotter) for arg in args]):
+            pass
         else:
-            self._local_opts = SiffPlotter.DEFAULT_OPTS
+            plotter = next((arg for arg in args if isinstance(arg, SiffPlotter)))
+            # inherits parameters from the provided plotter
+            for param in self.__class__.INHERITED_PARAMS:
+                if hasattr(plotter, param):
+                    setattr(self, param, getattr(plotter, param))
+        
+        if 'opts' in kwargs:
+            self._local_opts = {**self._local_opts, **kwargs['opts']}
+        else:
+            self._local_opts = {**self._local_opts,
+                **self.__class__.DEFAULT_OPTS
+            }
+
         self.events = []
         self.data = None
 

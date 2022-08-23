@@ -3,8 +3,8 @@ from operator import mul
 
 import holoviews as hv
 
+from ..siff_plotters import EventPlotter
 from ....core import SiffReader
-from ..event_plotter import EventPlotter
 from ....core.io.events.ledevent import LEDEvent, LEDEventType
 
 class LEDPulsePlotter(EventPlotter):

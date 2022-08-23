@@ -378,7 +378,7 @@ class FictracLog():
 
         filedir = os.path.split(filepath)[0]
         potential_specs = [fname for fname in os.listdir(filedir) if fname.endswith("_specifications.yaml")]
-        if len(potential_specs < 1):
+        if len(potential_specs) < 1:
             return
         if len(potential_specs) > 1:
             logging.warning(f"More than one potential spec file identified! Using: {potential_specs[0]}")
