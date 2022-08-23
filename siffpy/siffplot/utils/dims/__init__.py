@@ -58,7 +58,6 @@ class ImageTime(hv.Dimension):
             kwargs["unit"] = "sec"
         super().__init__(("ImageTime", "Time"), **kwargs)
         
-
 class AngularSpace(hv.Dimension):
     """
     A dimension class that tracks the angular coordinates of,
@@ -73,6 +72,14 @@ class AngularSpace(hv.Dimension):
         if not "range" in kwargs:
             kwargs["range"] = (0, 2*np.pi)
         super().__init__(("Angular", "Angular\ncoordinate"), **kwargs)
+
+class AngularVelocityAxis(hv.Dimension):
+
+    def __init__(self, **kwargs):
+        """ hv.Dimension(('AngularVelocity','Angular\nvelocity'), unit = '°/sec') """
+        if not 'unit' in kwargs:
+            kwargs['unit'] = '°/sec'
+        super().__init__(("AngularVelocity", 'Angular\nvelocity'), **kwargs)
 
 class CircCorr(hv.Dimension):
     """
@@ -97,6 +104,16 @@ class UnwrappedHeading(hv.Dimension):
             kwargs["unit"] = "revolutions"
         super().__init__(("UnwrappedAngle", label), **kwargs)
 
+class SpeedAxis(hv.Dimension):
+    """
+    A dimension for types of speed.
+    """
+
+    def __init__(self, label : str, **kwargs):
+        """ hv.Dimension('SpeedAxis', label, unit = 'mm/sec', **kwargs) """
+        if not "unit" in kwargs:
+            kwargs['unit'] = 'mm/sec'
+        super().__init__(("SpeedAxis", label), **kwargs)
 
 class AnnotationAxis(hv.Dimension):
     """

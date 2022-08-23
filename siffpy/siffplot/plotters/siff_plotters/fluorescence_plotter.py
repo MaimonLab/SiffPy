@@ -1,7 +1,4 @@
-from functools import reduce
-from typing import Callable, Union
-import operator
-from enum import Enum
+from typing import  Union
 
 import numpy as np
 import holoviews as hv

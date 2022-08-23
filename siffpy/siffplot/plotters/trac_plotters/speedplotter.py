@@ -6,8 +6,10 @@ import numpy as np
 import logging
 
 from ...tracplotter import *
-from ...utils.dims import ImageTime, AngularSpace
+from ...utils.dims import AngularVelocityAxis, ImageTime, SpeedAxis
 from ...utils.exceptions import StyleError
+from ....core.timetools import rolling_avg
+from ....core.utils.circle_fcns import circ_diff
 
 class SpeedPlotter(TracPlotter):
     """
@@ -15,37 +17,58 @@ class SpeedPlotter(TracPlotter):
 
     """
 
-    DEFAULT_LOCAL_OPTS = {}
+    DEFAULT_LOCAL_OPTS = {
+        'width'  : 1000,
+        'height' : 150,
+        'line_color' : '#0071BC',
+        'xlim' : (0.0, None),
+    }
 
     class SpeedStyle(Enum):
         FORWARD_SPEED    = "forward_speed"
         SIDESLIP         = "sideslip"
         ANGULAR_VELOCITY = "angular_velocity"
         SPEED            = "speed"
+        ALL              = "all"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def forward_speed(self):
-        raise NotImplementedError()
-
-    def sideslip(self):
-        raise NotImplementedError()
-
-    def angular_velocity(self):
-        raise NotImplementedError()
-
-    def speed(self):
-        raise NotImplementedError()
-
     def single_plot(self,
             log : LogToPlot,
-            style : Union[str,SpeedStyle] = SpeedStyle.SPEED,
+            style : Union[str,SpeedStyle] = SpeedStyle.ALL,
+            rolling_avg : float = 1.0, # units are SECONDS
             **kwargs
         ) -> hv.element.path.Path:
         """
         
         Plots the wrapped heading of the fly, as reported by FicTrac as a Path element
+
+        Arguments
+        ---------
+
+        log : LogToPlot
+
+            Annotated FictracLog with image_time coordinates
+
+        style : str | speedplotter.SpeedStyle
+
+            SpeedStyle enum or a string that can be initialized as such, defined as a class
+            attribute of the SpeedPlotter. Options can be identified with help(SpeedPlotter.SpeedStyle).
+
+        rolling_avg : float
+
+            Timescale over which to take a rolling average. Default is 1.0 seconds. Units are presumed to
+            be seconds (but in practice are whatever units the timebase of the argument `log` are!).
+
+        Returns
+        -------
+
+        speed_plot : hv.Path | hv.Layout
+
+            Returns an hv.Path object, unless SpeedStyle.ALL is passed for the style, in which case it
+            returns a Layout with all of the plots stacked vertically.
+
         
         """
         if not isinstance(style, self.SpeedStyle):
@@ -54,49 +77,71 @@ class SpeedPlotter(TracPlotter):
             except ValueError:
                 raise StyleError(self.SpeedStyle)
 
-        raise NotImplementedError()
-        # DEFAULT_OPTS = {
-        #         'xlabel' : 'Time',
-        #         'width'  : 1000,
-        #         'line_color' : '#0071BC',
-        #         'xlim' : (0.0, None),
-        # }
+        # Handled separately.
+        if style is self.SpeedStyle.ALL:
+            return (
+                self.single_plot(log, style = 'forward_speed', rolling_avg=rolling_avg) +
+                self.single_plot(log, style ='sideslip', rolling_avg=rolling_avg) + 
+                self.single_plot(log, style = 'angular_velocity', rolling_avg=rolling_avg) +
+                self.single_plot(log, style = 'speed', rolling_avg=rolling_avg)
+            ).cols(1) # vertical overlay
 
-        # t = log._dataframe['image_time']
+        if style is self.SpeedStyle.FORWARD_SPEED:
+            (t_axis, speed) = forward_speed_from_log(log, rolling_avg)
+            label = "Forward speed\n"
+            unit = 'mm/sec'
+        if style is self.SpeedStyle.SIDESLIP:
+            (t_axis, speed) = sideslip_from_log(log, rolling_avg)
+            label = "Sideslip\n"
+            unit = "mm/sec"
+        if style is self.SpeedStyle.ANGULAR_VELOCITY:
+            (t_axis, speed) = angular_velocity_from_log(log, rolling_avg)
+            yaxis = AngularVelocityAxis()
+        if style is self.SpeedStyle.SPEED:
+            (t_axis, speed) = speed_from_log(log, rolling_avg)
+            label = "Movement speed\n"
+            unit = "mm/sec"
+            yaxis = SpeedAxis(label, unit=unit)
 
-        # wrapped_heading = log.get_dataframe_copy()['integrated_heading_lab'] # get the copy if you're modifying
-        # wrapped_heading -= offset
-        # wrapped_heading = wrapped_heading % (2*np.pi)
+        return hv.Path(
+            (t_axis, speed),
+            kdims = [
+                ImageTime(),
+                yaxis
+            ]
+        )
         
-        # if style is self.HeadingPosition.BAR:
-        #     plot_var = 2*np.pi-wrapped_heading
-        #     DEFAULT_OPTS['ylabel'] = 'Bar position'
-        #     DEFAULT_OPTS['yticks'] = [
-        #         (offset, 'Rear'),
-        #         ((np.pi + offset)%(2*np.pi), 'Front'),
-        #     ]
-        
-        # if style is self.HeadingPosition.HEADING:
-        #     plot_var = wrapped_heading
-        #     DEFAULT_OPTS['ylabel'] = 'Heading'
+def forward_speed_from_log(log, window_width : float)->tuple:
+    raise NotImplementedError()
 
-        # if 'opts' in kwargs:
-        #     OPTS_DICT = kwargs['opts']
-        # else:
-        #     OPTS_DICT = DEFAULT_OPTS
+def sideslip_from_log(log, window_width : float)->tuple:
+    raise NotImplementedError()
 
-        # return hv.Path(
-        #     split_angles_to_dict(
-        #         t,
-        #         plot_var,
-        #         xlabel = "ImageTime",
-        #         ylabel = "Angular",
-        #         ),
-        #     kdims = [ImageTime(), AngularSpace()] 
-        # ).opts(**OPTS_DICT)
-        
+def angular_velocity_from_log(log, window_width : float)->tuple:
+    if not 'image_time' in log._dataframe:
+        logging.warning("No image time axis! Using timestamps instead!")
+        time_axis = log._dataframe['timestamps'].values
+    else:
+        time_axis = log._dataframe['image_time'].values
+    heading = log._dataframe['integrated_heading_lab'].values
+    v_axis = circ_diff(heading)
+    v_axis = v_axis*180.0/np.pi # degrees
+    delta_t = np.mean(np.diff(time_axis))
+    time_axis = time_axis[:-1]
 
+    return (time_axis, rolling_avg(v_axis, time_axis, window_width)/delta_t)
 
-        
+def speed_from_log(log, window_width : float)->tuple:
+    if not 'image_time' in log._dataframe:
+        logging.warning("No image time axis! Using timestamps instead!")
+        time_axis = log._dataframe['timestamps'].values
+    else:
+        time_axis = log._dataframe['image_time'].values
+
+    v_axis = log._dataframe['animal_movement_speed'].values
+    delta_t = np.mean(np.diff(time_axis))
+
+    return (time_axis, rolling_avg(v_axis,time_axis,window_width)/delta_t)
+    
 
 

@@ -345,7 +345,6 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
 
 static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw) {
     // Pools frames together, returns list of pooled frames.
-
     static char* POOL_FRAMES_KEYWORDS[] = {"pool_lists", "type", "flim", "registration", "discard_bins", NULL};
 
     PyObject* listOfFramesListed = NULL;

@@ -1,4 +1,5 @@
 import logging
+from tkinter import E
 from typing import Callable, Iterable
 
 import numpy as np
@@ -29,7 +30,7 @@ class FrameViewer(NapariInterface):
 
     siffreader : siffpy.SiffReader
 
-        A SiffReader object linekd to an open
+        A SiffReader object linked to an open
         .siff or .tiff file.
 
     Keyword arguments
@@ -70,6 +71,9 @@ class FrameViewer(NapariInterface):
 
     """
 
+    IMAGE_LAYER_NAME = 'Raw images (one FOV)'
+    WINDOW_TITLE     = 'Frame Viewer'
+
     def __init__(
             self,
             siffreader : SiffReader,
@@ -81,17 +85,12 @@ class FrameViewer(NapariInterface):
             **kwargs
         ):
 
-        super().__init__(siffreader, *args, **kwargs, title = 'Frame viewer')
+        super().__init__(siffreader, *args, **kwargs, title = self.__class__.WINDOW_TITLE)
         # dumb bug prevents setting this in the init
         self.viewer.dims.axis_labels = siffreader.im_params.axis_labels
 
         if load_frames:
-            logging.warn("Loading all frames. This might take a while...\n")
-            
-            stack = np.array(siffreader.get_frames(
-                frames=list(range(siffreader.num_frames)),
-                registration_dict= siffreader.registrationDict
-            )).reshape(siffreader.im_params.stack)
+            stack = self._default_preload_frames()
         
         else:
             # uses dask to load volumes at a time.
@@ -109,20 +108,11 @@ class FrameViewer(NapariInterface):
                         """
                     )
                 # each batch is a volume, this iter says which volume to grab
-                batch_iter = range(siffreader.im_params.num_volumes)
+                batch_iter = self._default_batch_iter()
             
             # function to get with each output of batch_iter
             if batch_fcn is None:
-                def volume_get(volume_idx):
-                    # Local function executed over and over
-                    frame_start = volume_idx * siffreader.im_params.frames_per_volume
-                    return np.array(
-                        siffreader.get_frames(
-                            frames=list(range(frame_start,frame_start+siffreader.im_params.frames_per_volume)),
-                            registration_dict=siffreader.registration_dict
-                        )
-                    ).reshape(siffreader.im_params.volume)
-                batch_fcn = volume_get
+                batch_fcn = self._default_volume_get()
             
             dask_delayed_reads = [delayed(batch_fcn)(sample) for sample in batch_iter]
 
@@ -144,15 +134,47 @@ class FrameViewer(NapariInterface):
         if siffreader.im_params.num_colors > 1:
             channel_axis = 2
 
-        self.add_image(
+        self.viewer.add_image(
             data=stack,
-            name='Raw images (one FOV)',
+            name=self.__class__.IMAGE_LAYER_NAME,
             scale = siffreader.im_params.scale,
             multiscale=False,
             channel_axis=channel_axis,
             contrast_limits = contrast,
             rgb = False
         )
+
+    def _default_volume_get(self)->Callable:
+        """
+        Returns the default function for the batch function of the get_frames layer.
+
+        To be implemented differently by other subclasses.
+        """
+        def volume_get(volume_idx):
+            # Local function executed over and over
+            frame_start = volume_idx * self.siffreader.im_params.frames_per_volume
+            return np.array(
+                self.siffreader.get_frames(
+                    frames=list(range(frame_start,frame_start+self.siffreader.im_params.frames_per_volume)),
+                    registration_dict=self.siffreader.registration_dict
+                )
+            ).reshape(self.siffreader.im_params.volume)
+
+        return volume_get
+
+    def _default_batch_iter(self)->Iterable:
+        return range(self.siffreader.im_params.num_volumes)
+
+    def _default_preload_frames(self)->np.ndarray:
+        """
+        Returns all frames loaded at the initiation of the reader.
+        """
+        logging.warn("Loading all frames. This might take a while...\n")
+            
+        return np.array(self.siffreader.get_frames(
+                frames=list(range(self.siffreader.im_params.num_frames)),
+                registration_dict= self.siffreader.registration_dict
+        )).reshape((-1,*self.siffreader.im_params.stack))
 
         #self.show_roi_widget = _make_show_roi_widget()
 
@@ -164,4 +186,3 @@ class FrameViewer(NapariInterface):
 #     layout = QtWidgets.QHBoxLayout()
 #     layout.addWidget(QtWidgets.QPushButton("Show ROIs"))
 #     return layout
-

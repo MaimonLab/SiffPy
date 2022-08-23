@@ -97,7 +97,15 @@ class FLIMParams():
             return len(self.exps)
         return 0
 
-    def fit_to_data(self, data : np.ndarray, num_exps : int = 2, initial_guess : tuple = None, metric : callable = None, **kwargs)->OptimizeResult:
+    def fit_to_data(
+            self,
+            data            : np.ndarray,
+            num_exps        : int       = 2,
+            initial_guess   : tuple     = None,
+            metric          : callable  = None,
+            solver          : callable  = None,
+            **kwargs
+        )->OptimizeResult:
         """
         Takes in the data and adjusts the internal
         parameters of this FLIMParams object to
@@ -133,6 +141,13 @@ class FLIMParams():
 
             All other arguments must be KWARGS.
 
+        solver : callable
+
+            A function that takes the metric and an initial guess and returns
+            some object that has an attribute called 'x' that is a tuple with
+            the same format as the FIT result of the param_tuple. This is the
+            format of the default scipy.optimize.minimize functions.
+
         **kwargs
 
             Passed to the metric function.
@@ -160,13 +175,28 @@ class FLIMParams():
                     x0 += [60*(exp+1),1.0/num_exps]
                 x0 += [40, 2.0] # tau_offset, tau_g
                 initial_guess = tuple(x0) 
+        
+        if solver is None:
+            solver = _default_solver
 
-        fit_obj = minimize(objective, initial_guess, method='trust-constr',
-               constraints=generate_linear_constraints_trust(initial_guess),
-               bounds=generate_bounds(initial_guess)
-        )
+        # initial_guess = list(initial_guess)
+
+        # for x in range(self.ncomponents):
+        #     initial_guess[2*x]=initial_guess[2*x]/100.0
+
+        # initial_guess[-2] = initial_guess[-2]/100.0
+
+        fit_obj = solver(objective, initial_guess)
 
         fit_tuple = fit_obj.x
+
+        # fit_tuple = list(fit_tuple)
+
+        # for x in range(self.ncomponents):
+        #     fit_tuple[2*x]=fit_tuple[2*x]*100.0
+
+        # fit_tuple[-2] = fit_tuple[-2]*100.0
+        # fit_tuple = tuple(fit_tuple)
 
         self.exps = [Exp(tau=fit_tuple[2*exp_idx], frac = fit_tuple[2*exp_idx + 1]) for exp_idx in range(num_exps)]
         
@@ -175,7 +205,7 @@ class FLIMParams():
         return fit_obj
 
     def chi_sq(self, data : np.ndarray, negative_scope : float = 0.0)->float:
-        """ Presumes all units are in ARRIVAL_BIN units """
+        """ Presumes all units are in ARRIVAL_BIN units. TODO make this unitful!"""
         return chi_sq_exp(data, self.param_tuple, negative_scope =negative_scope )
 
     @classmethod
@@ -336,9 +366,13 @@ class Irf(FLIMParameter):
 
 
 ### LOCAL FUNCTIONS
+def _default_solver(objective : callable, initial_guess : tuple):
+    return minimize(objective, initial_guess, method='trust-constr',
+            constraints=generate_linear_constraints_trust(initial_guess),
+            bounds=generate_bounds_scipy(initial_guess)
+        )
 
-
-def generate_bounds(param_tuple : tuple)->Bounds:
+def generate_bounds_scipy(param_tuple : tuple)->Bounds:
     """
     All params > 0
     

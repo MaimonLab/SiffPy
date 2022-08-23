@@ -3,6 +3,8 @@
 from __future__ import annotations
 from abc import abstractmethod
 from typing import Union
+from functools import reduce
+from operator import add, mul
 import os, pickle
 
 import holoviews as hv
@@ -22,7 +24,7 @@ def apply_opts(func):
         if hasattr(args[0],'_local_opts'):
             try:
                 opts = args[0]._local_opts # get the local_opts param from self
-                return func(*args, **kwargs).opts(*opts)
+                return func(*args, **kwargs).opts(**opts)
             except Exception as e:
                 raise RuntimeError(f"Error applying local opts!:\n{e}")
         else:
@@ -262,15 +264,11 @@ class TracPlotter():
         if self._multiple_plots:
             self.figure = hv.Layout()
             for sublist in self.logs:
-                overlay = hv.Overlay()
-                for log in sublist:
-                    overlay *= self.single_plot(log, **kwargs)
+                overlay = reduce(mul, (self.single_plot(log, **kwargs) for log in sublist))
                 overlay = add_scalebar(overlay, scalebar = scalebar)
                 self.figure += overlay
         else:
-            self.figure = hv.Overlay()
-            for log in self.logs[0]:
-                self.figure *= self.single_plot(log, **kwargs)
+            self.figure = reduce(mul, (self.single_plot(log, **kwargs) for log in self.logs[0]))
             self.figure = add_scalebar(self.figure, scalebar = scalebar)
         
         return self.figure

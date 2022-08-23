@@ -11,6 +11,8 @@ using functions that have a `registrationDict` keyword argument IF you don't pas
 No leaks if you always provide one (`PyTuple_Pack` and `_SetItem` steal references).
 It's because these functions make a registrationDict of all 0s (which
 is silly, since I define a version of the functions that don't use a registrationDict too...).
+TO FIX THIS: Write a version of the `siffreader.cpp` functions that do not use a `registrationDict`
+argument, then call those if `registrationDict == NULL`.
 
 - Implement a debug logger file so that as this toolkit grows it's easy to follow errors and crashes.
 

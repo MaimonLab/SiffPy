@@ -31,7 +31,12 @@ class HeadingPlotter(TracPlotter):
     wrap_heading()
     """
 
-    DEFAULT_LOCAL_OPTS = {}
+    DEFAULT_LOCAL_OPTS = {
+        'xlabel' : 'Time',
+        'width'  : 1000,
+        'line_color' : 'black',
+        'xlim' : (0.0, None),
+    }
 
     class HeadingPosition(Enum):
         BAR     = 'bar'

@@ -96,10 +96,12 @@ class SiffReader
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin, PyArrayObject* mask);
         
+        PyObject* poolFrames(PyObject* listOfList, bool flim); // TODO: IMPLEMENT
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, PyArrayObject* mask, bool flim = false, PyObject* registrationDict = NULL);
 
+        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists); // TODO: IMPLEMENT
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq
         PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyArrayObject* mask, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq, but restricted to a MASKED region

@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.ndimage.filters import uniform_filter1d
+
 import logging
 
 from ..io import FrameMetaData, frame_metadata_to_dict
@@ -74,3 +76,34 @@ def to_t_axis(
     return np.array([frame['frameTimestamps_sec']
         for frame in frame_metadata_to_dict(frame_metadata)
     ])
+
+def rolling_avg(trace : np.ndarray, time_axis : np.ndarray, window_length : float)->np.ndarray:
+    """
+    Computes a rolling average of a 1d timeseries
+
+    Arguments
+    ---------
+    
+    trace : np.ndarray
+
+        An axis of points to take the rolling average of
+
+    time_axis : np.ndarray
+
+        An axis of the same shape as trace with corresponding timepoints
+
+    window_length : float
+
+        How long the rolling average should be taken over, in the same units as time_axis
+
+    Returns
+    -------
+
+    avgd : np.ndarray
+
+    The rolling average of the input array trace
+    """
+    dt = np.mean(np.diff(time_axis))
+    bin_width = max(int(window_length//dt),1)
+
+    return uniform_filter1d(trace, bin_width,)

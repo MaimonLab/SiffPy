@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import os, logging
 
+import ruamel.yaml
+
 from ...core import SiffReader
 from ...core.timetools import SEC_TO_NANO, NANO_TO_SEC
 from ...core.utils import circle_fcns
@@ -77,6 +79,7 @@ class FictracLog():
             radius = self.ballparams.radius
             self._dataframe['integrated_position_lab_0']*=radius
             self._dataframe['integrated_position_lab_1']*=radius
+            self._dataframe['animal_movement_speed'] *= radius
 
             df_copy = self.get_dataframe_copy()
 
@@ -371,6 +374,23 @@ class FictracLog():
         to-image map
         """
 
-        # To be implemented.
+        self._OLD_PROJECTOR_DRIVER = True # Default behavior presumes the old spec
 
-        self._OLD_PROJECTOR_DRIVER = True
+        filedir = os.path.split(filepath)[0]
+        potential_specs = [fname for fname in os.listdir(filedir) if fname.endswith("_specifications.yaml")]
+        if len(potential_specs < 1):
+            return
+        if len(potential_specs) > 1:
+            logging.warning(f"More than one potential spec file identified! Using: {potential_specs[0]}")
+        
+        ruamel_yaml = ruamel.yaml.YAML(typ="safe")
+        ruamel_yaml.default_flow_style = False
+        
+        presumed_spec = os.path.join(filedir,potential_specs[0])
+        with open(presumed_spec) as f:
+            spec_dict = ruamel_yaml.load(f)
+
+        if spec_dict['start_bar_in_front']:
+            self._OLD_PROJECTOR_DRIVER = False
+
+

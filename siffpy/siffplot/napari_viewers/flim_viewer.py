@@ -1,15 +1,12 @@
 import logging
-from typing import Callable, Iterable
+from typing import Callable, Union, Iterable
 
 import numpy as np
-from dask import delayed
-import dask.array as da
-from qtpy import QtWidgets
 
-from ...core import SiffReader
-from .napari_interface import NapariInterface
+from ...core import SiffReader, FLIMParams
+from .frame_viewer import FrameViewer
 
-class FlimViewer(NapariInterface):
+class FlimViewer(FrameViewer):
     """
     Gives access to a napari Viewer to
     create a window with settings optimized
@@ -31,6 +28,8 @@ class FlimViewer(NapariInterface):
 
         A SiffReader object linekd to an open
         .siff or .tiff file.
+
+    params : siffpy.FLIMParams or list of FLIMParams
 
     Keyword arguments
     -----------------
@@ -70,98 +69,70 @@ class FlimViewer(NapariInterface):
 
     """
 
+    IMAGE_LAYER_NAME = "Fluorescence lifetime (one FOV)"
+    WINDOW_TITLE     = "Flim frame viewer"
+
     def __init__(
             self,
             siffreader : SiffReader,
+            params : Union[list[FLIMParams], FLIMParams],
             *args,
-            load_frames : bool = False,
-            batch_fcn : Callable = None,
-            batch_iter : Iterable = None,
             image_opts : dict = None,
-            **kwargs
+            **kwargs,
         ):
-        raise NotImplementedError()
-        super().__init__(siffreader, *args, **kwargs, title = 'Flim frame viewer')
-        # dumb bug prevents setting this in the init
-        self.viewer.dims.axis_labels = siffreader.im_params.axis_labels
 
-        if load_frames:
-            logging.warn("Loading all frames. This might take a while...\n")
-            
-            stack = np.array(siffreader.get_frames(
-                frames=list(range(siffreader.num_frames)),
-                registration_dict= siffreader.registrationDict
-            )).reshape(siffreader.im_params.stack)
-        
-        else:
-            # uses dask to load volumes at a time.
-            if batch_iter is None: # batch_iter is an iterable describing each batch
-                if not batch_fcn is None:
-                    logging.warn(
-                        """"
-                        \n\n\t
-                        Using a custom function for
-                        viewing frames, but did not provide
-                        a custom iterable. Default to
-                        iterating through volumes -- make
-                        sure this is the intended behavior!
-                        \n\n
-                        """
-                    )
-                # each batch is a volume, this iter says which volume to grab
-                batch_iter = range(siffreader.im_params.num_volumes)
-            
-            # function to get with each output of batch_iter
-            if batch_fcn is None:
-                def volume_get(volume_idx):
-                    # Local function executed over and over
-                    frame_start = volume_idx * siffreader.im_params.frames_per_volume
-                    return np.array(
-                        siffreader.get_frames(
-                            frames=list(range(frame_start,frame_start+siffreader.im_params.frames_per_volume)),
-                            registration_dict=siffreader.registration_dict
-                        )
-                    ).reshape(siffreader.im_params.volume)
-                batch_fcn = volume_get
-            
-            dask_delayed_reads = [delayed(batch_fcn)(sample) for sample in batch_iter]
-
-            dask_ars = [
-                da.from_delayed(reader, shape = siffreader.im_params.volume, dtype=np.uint16)
-                for reader in dask_delayed_reads
-            ]
-
-            stack = da.stack(dask_ars, axis =0)
-        
-        contrast = None
+        if not isinstance(params, list):
+            params = [params]
         if not image_opts is None:
-            if 'clim' in image_opts:
-                contrast = image_opts['clim']
-                if not any(contrast):
-                    contrast = None
+            if not 'clim' in image_opts:
+                image_opts['clim'] = (1.0, siffreader.im_params.num_bins)
 
-        channel_axis = None
+        self.use_flim = True # starting parameter, I intend this to be changed with a button
+        self.params = params
+        self.POOL_WIDTH = 10
         if siffreader.im_params.num_colors > 1:
-            channel_axis = 2
+            self.warning_window(
+                "Haven't yet implemented multicolor FlimViewer",
+                NotImplementedError("Haven't yet implemented multi-color-channel FlimViewer!")
+            )
 
-        self.add_image(
-            data=stack,
-            name='Raw images (one FOV)',
-            scale = siffreader.im_params.scale,
-            multiscale=False,
-            channel_axis=channel_axis,
-            contrast_limits = contrast,
-            rgb = False
-        )
+        super().__init__(siffreader, *args, image_opts = image_opts, **kwargs)
 
-        #self.show_roi_widget = _make_show_roi_widget()
+    def _default_volume_get(self)->Callable:
+        """
+        Returns the default function for the batch function of the get_frames layer.
 
+        To be implemented differently by other subclasses.
+        """
+        intensity_get = super()._default_volume_get()
 
-        #self.viewer.window.add_dock_widget(self.show_roi_widget,name='Show ROIs')
+        def volume_get(volume_idx):
+            # Local function executed over and over
 
-# def _make_show_roi_widget()->QtWidgets.QHBoxLayout:
-#     """ Returns the appropriately formatted QHBoxLayout object """
-#     layout = QtWidgets.QHBoxLayout()
-#     layout.addWidget(QtWidgets.QPushButton("Show ROIs"))
-#     return layout
+            if self.use_flim:
+                return self.siffreader.flimmap_across_time(
+                    self.params[0],
+                    timepoint_start = volume_idx,
+                    timepoint_end = volume_idx + self.POOL_WIDTH,
+                    timespan = self.POOL_WIDTH,
+                    registration=self.siffreader.registration_dict
+                ).reshape(*self.siffreader.im_params.volume)
+            else:
+                return intensity_get(volume_idx)
 
+        return volume_get
+
+    def _default_batch_iter(self)->Iterable:
+        return range(self.siffreader.im_params.num_volumes-self.POOL_WIDTH)
+
+    def _default_preload_frames(self)->np.ndarray:
+        """
+        Returns all frames loaded at the initiation of the reader.
+        """
+
+        logging.warn("Loading all frames. This might take a while...\n")
+        
+        if self.use_flim:
+            raise NotImplementedError("Haven't implemented for the FlimViewer yet.")
+        else:
+            return super()._default_preload_frames()

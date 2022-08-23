@@ -63,7 +63,7 @@ def compute_roi_timeseries(siffreader : SiffReader,
     """
     registration_dict = None
 
-    if not hasattr(siffreader, 'registration_dict'):
+    if hasattr(siffreader, 'registration_dict'):
         registration_dict = siffreader.registration_dict
 
     if isinstance(roi, (list, tuple)):

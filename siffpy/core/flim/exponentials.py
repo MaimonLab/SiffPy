@@ -25,7 +25,7 @@ SCT March 27 2021
 import numpy as np
 from scipy import special
 
-def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope : float = 0.0)->float:
+def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope : float = 0.0, rescale_bins : bool = False)->float:
     """
     Returns the chi-squared statistic
     of a photon arrival data set, given
@@ -52,12 +52,18 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope
         Chi-squared statistic of the histogram data under the model of the FLIMParams object
     """
     arrival_p = np.zeros_like(photon_arrivals, dtype=float) # default, will be overwritten
+    n_exps = (len(param_tuple)-2)//2
+    
+    if rescale_bins: # if the countbins have been rescaled by a scale factor of 100.0 TODO MAKE LESS HACKY
+        param_tuple = list(param_tuple)
+        param_tuple[-2] = param_tuple[-2]*100.0
+        for x in range(n_exps):
+            param_tuple[2*x] = param_tuple[2*x]*100.0
 
     t_o = param_tuple[-2]
     tau_g = param_tuple[1]
 
     #iterate through components, adding up likelihood values
-    n_exps = (len(param_tuple)-2)//2
     for exp_idx in range(n_exps):
         arrival_p += param_tuple[2*exp_idx+1] * monoexponential_prob(
             np.arange(arrival_p.shape[0], dtype=float)-t_o, # x_range
@@ -67,7 +73,7 @@ def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope
         )
 
     # Don't include the points outside of the negative_scope parameter
-    bottom_bin = np.floor(negative_scope/tau_g)
+    #bottom_bin = np.floor(negative_scope/tau_g)
     #bottom_bin = int(max(t_o - bottom_bin, 0))
     #bottom_bin = int(max(t_o, 0))
     #photon_arrivals = photon_arrivals[bottom_bin:]
