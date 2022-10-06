@@ -12,7 +12,8 @@ import holoviews as hv
 
 from ....core import SiffReader
 from ....core.io import SiffEvent
-from ...siffplotter import SiffPlotter, apply_opts
+from ...siffplotter import SiffPlotter
+from ...utils import apply_opts
 from ...utils.dims import *
 
 
@@ -121,7 +122,6 @@ class EventPlotter(SiffPlotter):
         raise NotImplementedError()
 
     @classmethod
-    @abstractmethod
     def qualifying(cls, siffreader : SiffReader) -> bool:
         """
         Takes a SiffReader and determines if it contains info valid

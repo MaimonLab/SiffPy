@@ -3,7 +3,7 @@ import holoviews as hv
 
 
 from ...plotmath.fluorescence.roianalysis import *
-from ...siffplotter import apply_opts, SiffPlotter
+from ...siffplotter import SiffPlotter
 from ...utils import *
 from ...utils.dims import *
 

@@ -3,6 +3,7 @@ Convenience functions for Plotter type classes
 """
 from itertools import tee
 import inspect
+from functools import wraps
 
 import numpy as np
 import holoviews as hv
@@ -11,6 +12,30 @@ from ...siffmath import fluorescence
 from .exceptions import *
 from .enums import *
 
+def apply_opts(func):
+    """
+    Decorator function to apply a SiffPlotter's
+    'local_opts' attribute to methods which return
+    objects that might want them. Allows this object
+    to supercede applied defaults, because this gets
+    called with every new plot. Does nothing if local_opts
+    is not defined.
+    """
+    @wraps(func)
+    def local_opts(*args, **kwargs):
+        if hasattr(args[0],'_local_opts'):
+            try:
+                opts = args[0]._local_opts # get the local_opts param from self
+                if isinstance(opts, list):
+                    return func(*args, **kwargs).opts(*opts)
+                if isinstance(opts, dict):
+                    return func(*args, **kwargs).opts(opts)
+            except:
+                return func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    return local_opts
+ 
 def select_on_tap(pt_array, tapped_points, x, y, x2, y2):
     """
     Add nearest point on singletap, remove nearest point on doubletap.

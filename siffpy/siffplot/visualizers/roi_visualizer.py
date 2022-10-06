@@ -3,7 +3,7 @@ import functools, re, logging
 import holoviews as hv
 import numpy as np
 
-from ..siffvisualizer import SiffVisualizer, apply_opts
+from ..siffvisualizer import SiffVisualizer
 from ..napari_viewers import ROIViewer
 from .. import roi_protocols
 from ..roi_protocols import rois

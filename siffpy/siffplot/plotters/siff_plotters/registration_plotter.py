@@ -9,7 +9,7 @@ import numpy as np
 import holoviews as hv
 import operator
 
-from ...siffplotter import SiffPlotter, apply_opts
+from ...siffplotter import SiffPlotter
 from ...utils import *
 from ....core.utils.circle_fcns import zeroed_circ
 

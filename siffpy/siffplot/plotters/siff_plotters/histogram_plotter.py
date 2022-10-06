@@ -13,7 +13,7 @@ import numpy as np
 import holoviews as hv
 
 from ....core import *
-from ...siffplotter import SiffPlotter, apply_opts
+from ...siffplotter import SiffPlotter
 from ...utils import *
 from ...utils.dims import ArrivalTime, HistogramCounts
 

@@ -8,7 +8,6 @@ import numpy as np
 CORE_PARAMS = {
     'NUM_SLICES' : int,
     'FRAMES_PER_SLICE' : int,
-    'STEP_SIZE' : float,
     'Z_VALS' : list,
     'COLORS' : list
 }
@@ -22,7 +21,8 @@ OPTIONAL_PARAMS = {
     'ZOOM' : float, 
     'PICOSECONDS_PER_BIN' : int,
     'NUM_BINS' : int,
-    'NUM_FRAMES' : int
+    'NUM_FRAMES' : int,
+    'STEP_SIZE' : float,
 }
 
 class ImParams():

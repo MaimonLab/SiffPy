@@ -1008,6 +1008,7 @@ class SiffReader(object):
             confidence_metric='chi_sq', discard_bins = None
         )-> FlimTrace:
         """
+
         Exactly as in sum_across_time but returns a FlimArray instead
 
         TODO: IMPLEMENT RET_TYPE
@@ -1171,6 +1172,7 @@ class SiffReader(object):
                         intensity = arr[1],
                         FLIMParams = flimfit,
                         method = 'empirical lifetime',
+                        units = FlimUnits.COUNTBINS,
                     )
                     for arr in list_of_arrays
                 ]

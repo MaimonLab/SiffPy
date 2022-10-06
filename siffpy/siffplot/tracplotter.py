@@ -1,7 +1,7 @@
 # Code for plotting trajectories
 #TODO: This
 from __future__ import annotations
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Union
 from functools import reduce
 from operator import add, mul
@@ -10,28 +10,9 @@ import os, pickle
 import holoviews as hv
 
 from ..sifftrac.log_interpreter import *
+from .utils import apply_opts
 
-
-def apply_opts(func):
-    """
-    Decorator function to apply a TracPlotter's
-    'local_opts' attribute to methods which return
-    objects that might want them. Allows this object
-    to supercede applied defaults, because this gets
-    called with every new plot.
-    """
-    def local_opts(*args, **kwargs):
-        if hasattr(args[0],'_local_opts'):
-            try:
-                opts = args[0]._local_opts # get the local_opts param from self
-                return func(*args, **kwargs).opts(**opts)
-            except Exception as e:
-                raise RuntimeError(f"Error applying local opts!:\n{e}")
-        else:
-            return func(*args,**kwargs)
-    return local_opts
-
-class TracPlotter():
+class TracPlotter(ABC):
     """
     
     Uses HoloViews for interactive display of FicTrac trajectories,

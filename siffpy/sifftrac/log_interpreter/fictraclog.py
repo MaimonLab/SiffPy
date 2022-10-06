@@ -366,7 +366,6 @@ class FictracLog():
             return False
         return self.__hash__() == other.__hash__()
 
-    # TODO: ONCE THE PROJECTOR SPECIFICATION FILE IS FINISHED, IMPLEMENT THIS!
     def __find_projector_specification(self, filepath : str)->None:
         """
         Needed for backwards compatibility. If there's no projector specification

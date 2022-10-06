@@ -17,14 +17,14 @@ def sum_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
     intensity_sum = np.sum(flimtrace.intensity, **kwargs)
     if out is None:
         return FlimTrace(
-            np.sum(product_array, **kwargs)/intensity_sum,
+            np.nansum(product_array, **kwargs)/intensity_sum,
             intensity = intensity_sum,
             **flimtrace._inheritance_dict
         )
     else:
         if not (out.shape == intensity_sum.shape):
             raise ValueError("Provided FlimTrace must have same shape as returned sum")
-        out[...] = np.sum(product_array, **kwargs)/intensity_sum
+        out[...] = np.nansum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_sum
         return out
 
@@ -55,11 +55,11 @@ def mean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
     
     product_array = flimtrace.lifetime * flimtrace.intensity
     intensity_sum = np.sum(flimtrace.intensity, **kwargs)
-    intensity_mean = np.mean(flimtrace.intensity, **kwargs)
+    intensity_mean = np.nanmean(flimtrace.intensity, **kwargs)
     
     if out is None:
         return FlimTrace(
-            np.sum(product_array, **kwargs)/intensity_sum,
+            np.nansum(product_array, **kwargs)/intensity_sum,
             intensity = intensity_mean,
             **flimtrace._inheritance_dict
         )
@@ -67,7 +67,7 @@ def mean_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):
     else:
         if not (out.shape == intensity_sum.shape):
             raise ValueError("Provided FlimTrace must have same shape as returned array")
-        out[...] = np.sum(product_array, **kwargs)/intensity_sum
+        out[...] = np.nansum(product_array, **kwargs)/intensity_sum
         out.intensity = intensity_mean
         return out
 
@@ -163,8 +163,10 @@ def convolve_flimtrace(a, v, mode = 'full')->FlimTrace:
         a, v = v, a
     
     prod_trace = a.__array__() * a.intensity
+    prod_trace = np.nan_to_num(prod_trace) # must be 0s for the convolution to behave well
     intensity_conv = np.convolve(a.intensity, v, mode)
     prod_conv = np.convolve(prod_trace, v, mode)
+    # will be returned to nan where intensity is 0 by the division step
     return FlimTrace(
         prod_conv/intensity_conv,
         intensity = intensity_conv,

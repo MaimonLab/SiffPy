@@ -17,34 +17,11 @@ import holoviews as hv
 from .siffplotter import SiffPlotter
 from .tracplotter import TracPlotter
 from .utils.dims import *
+from .utils import apply_opts
 
 __all__ = [
     'IntegratedPlotter'
 ]
-
-def apply_opts(func):
-    """
-    Decorator function to apply a SiffPlotter's
-    'local_opts' attribute to methods which return
-    objects that might want them. Allows this object
-    to supercede applied defaults, because this gets
-    called with every new plot. Does nothing if local_opts
-    is not defined.
-    """
-    @wraps(func)
-    def local_opts(*args, **kwargs):
-        if hasattr(args[0],'_local_opts'):
-            try:
-                opts = args[0]._local_opts # get the local_opts param from self
-                if isinstance(opts, list):
-                    return func(*args, **kwargs).opts(*opts)
-                if isinstance(opts, dict):
-                    return func(*args, **kwargs).opts(opts)
-            except:
-                return func(*args, **kwargs)
-        else:
-            return func(*args, **kwargs)
-    return local_opts
 
 class IntegratedPlotter(ABC):
     """

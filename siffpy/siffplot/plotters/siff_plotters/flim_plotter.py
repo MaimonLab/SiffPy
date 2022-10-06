@@ -8,8 +8,8 @@ import holoviews as hv
 from ....siffplot import LATEX
 from ....core import FLIMParams
 from .fluorescence_plotter import FluorescencePlotter
-from ...siffplotter import apply_opts
 from ...roi_protocols.rois import ROI
+from ...utils import apply_opts
 from ...utils.exceptions import NoROIException
 from ...utils.dims import *
 from ...utils.enums import Direction

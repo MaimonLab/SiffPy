@@ -16,6 +16,7 @@ import numpy as np
 
 from .roi_protocols import rois
 from .utils.exceptions import *
+from .utils import apply_opts
 
 from ..core import SiffReader
 
@@ -29,27 +30,6 @@ except ImportError as e:
     hv.extension('bokeh') # no need to do this unless
     # we're defaulting to holoviews, just because there
     # is some headache with napari and hv at the moment.
-
-def apply_opts(func):
-    """
-    Decorator function to apply a SiffPlotter's
-    'local_opts' attribute to methods which return
-    objects that might want them. Allows this object
-    to supercede applied defaults, because this gets
-    called with every new plot. Does nothing if local_opts
-    is not defined.
-    """
-    @functools.wraps(func)
-    def local_opts(*args, **kwargs):
-        if hasattr(args[0],'local_opts'):
-            try:
-                opts = args[0].local_opts # get the local_opts param from self
-                return func(*args, **kwargs).opts(*opts)
-            except:
-                return func(*args, **kwargs)
-        else:
-            return func(*args, **kwargs)
-    return local_opts
 
 
 class SiffVisualizer():

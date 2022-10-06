@@ -5,13 +5,14 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 from bokeh.models import FixedTicker
 
-from ...integratedplotter import IntegratedPlotter, apply_opts
+from ...integratedplotter import IntegratedPlotter
 from ..siff_plotters import PhasePlotter
 from ..trac_plotters import HeadingPlotter
 
 from ...utils.exceptions import StyleError
 from ...utils.enums import CorrStyle
 from ...utils.dims import ImageTime, CircCorr
+from ...utils import apply_opts
 
 from ....core import SiffReader
 from ....sifftrac import FictracLog
@@ -420,8 +421,12 @@ class HeadingPhasePlotter(IntegratedPlotter):
         )
         
         return path.opts(
-            color = "Timescale",
-            ylim = (-1.0, 1.0)
+            {
+                'Path': {
+                    'color' : "Timescale",
+                    'ylim' : (-1.0, 1.0),
+                }
+            }
         )
 
     def plot(self):
