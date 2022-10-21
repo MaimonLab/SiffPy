@@ -73,6 +73,12 @@ def circ_unwrap(arr: np.ndarray, offset : float = 0.0)->np.ndarray:
 
 def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
     """
+    Warning: recommend putting your angles in the complex plane
+    FIRST and using circ_corr_complex, because putting your time series
+    into the complex plane is the most expensive operation here.
+    But this function is for if you don't want to deal with complex numbers
+    in your code. Still runs faster than if you do it purely with real numbers.
+
     Compute circular correlation a la Green, Adachi, Maimon 2017,
     itself borrowing a circular correlation toolkit from 
     Jessica B. Hamrick and Peter W. Battaglia, who in turn
@@ -97,9 +103,8 @@ def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
     x and y are presumed to be in radians, but there's no
     need to use mod.
 
-    Can't help but suspect there's an even more elegant way to
-    implement this using complex numbers. There's never a time that
-    circular functions are better implemented in R than in C.
+    Implemented with complex numbers instead of cos and sine as in the original
+    paper because it runs faster and is far more elegant.
 
     ARGUMENTS
     ---------
@@ -117,27 +122,108 @@ def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
     """
-    if not (x.shape == y.shape):
-        raise ValueError("Arrays must be of same size.")
-
-    diffed = x - y
-    summed = x + y
-
+    
+    plus = np.exp(1j*(x+y))
+    minus = np.exp(1j*(x-y))
+    
     # The first half of the term is the prediction of a POSITIVE association between x and y, i.e. x ~ y + alpha,
     # the second half is the prediction of a NEGATIVE association between x and y, i.e. x ~ -y + alpha.
     # Each term is the magnitude of the resultant mean vector of the sum vs. the difference of the two series
+
+    plussum = np.sum(plus,axis = axis)
+    minussum = np.sum(minus, axis = axis)
+    
     numerator = (
-        np.nansum(np.cos(diffed) + np.cos(summed), axis = axis) * np.nansum(np.cos(diffed)-np.cos(summed), axis = axis) -
-        np.nansum(np.sin(summed) - np.sin(diffed), axis = axis) * np.nansum(np.sin(summed)+np.sin(diffed), axis = axis)
+        minussum*np.conjugate(minussum) -
+        plussum*np.conjugate(plussum)
     )
 
-    # Sqrt( (n^2 - Sum(cos(2x))^2 - Sum(sin(2x))^2)(n^2 - Sum(cos(2y))^2 - Sum(sin(2y))^2) )
+    xsum = np.sum(plus*minus, axis=axis)
+    ysum = np.sum(plus/minus, axis=axis)
+
+    # normalization factor
+    
     denominator = np.sqrt(
-        (x.shape[axis]**2 - (np.nansum(np.cos(2*x), axis = axis)**2 + np.nansum(np.sin(2*x), axis = axis)**2) ) *
-        (y.shape[axis]**2 - (np.nansum(np.cos(2*y), axis = axis)**2 + np.nansum(np.sin(2*y), axis = axis)**2) )
+        (x.shape[axis]**2 - xsum*np.conjugate(xsum)) *
+        (y.shape[axis]**2 - ysum*np.conjugate(ysum))
+    )
+    
+    return np.real(numerator/denominator)
+
+def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis = 0)->float:
+    """
+    Presumes x and y are already complex numbers on the unit circle!
+    This one is even faster because it skips the exp step. Recommended
+    if you're going to run the function many times that you put it in
+    the complex plane first and then execute this.
+
+    Compute circular correlation a la Green, Adachi, Maimon 2017,
+    itself borrowing a circular correlation toolkit from 
+    Jessica B. Hamrick and Peter W. Battaglia, who in turn
+    built their function after the MATLAB circ functions,
+    themselves deriving this function from Fisher et al. 1983.
+
+    rho = 2*( (E[cos(x-y)]**2 + E[sin(x-y)]**2) - (E[cos(x+y)]**2 + E[sin(x+y)]**2) ) / Z
+
+    Z is the normalization constant
+
+    This measure reflects the difference between an estimated positive exact relationship
+    between x and y vs. an estimated negative relationship. Each term is the expected magnitude of
+    a resultant vector made from either x - y (a constant if there's a positive relationship
+    between the two) or x + y (a constant if there's a negative relationship between the two.)
+    The expected magnitude of the constant vector is 1, and so if rho is approximately 0 if the
+    two have no relationship, 1 if the two have a constant positive relationship, and -1 if
+    the two have a constant negative offset
+
+    TODO: figure out good bounds
+    on the error.
+
+    Implemented with complex numbers instead of cos and sine as in the original
+    paper because it runs faster and is far more elegant.
+
+    ARGUMENTS
+    ---------
+
+    x : np.ndarray
+
+        One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
+
+    y : np.ndarray
+
+        The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
+
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+    """
+    
+    plus = x*y
+    minus = x/y
+    
+    # The first half of the term is the prediction of a POSITIVE association between x and y, i.e. x ~ y + alpha,
+    # the second half is the prediction of a NEGATIVE association between x and y, i.e. x ~ -y + alpha.
+    # Each term is the magnitude of the resultant mean vector of the sum vs. the difference of the two series
+
+    plussum = np.sum(plus,axis = axis)
+    minussum = np.sum(minus, axis = axis)
+    
+    numerator = (
+        minussum*np.conjugate(minussum) -
+        plussum*np.conjugate(plussum)
     )
 
-    return numerator / denominator
+    xsum = np.sum(x**2, axis=axis)
+    ysum = np.sum(y**2, axis=axis)
+
+    # normalization factor
+    
+    denominator = np.sqrt(
+        (x.shape[axis]**2 - xsum*np.conjugate(xsum)) *
+        (y.shape[axis]**2 - ysum*np.conjugate(ysum))
+    )
+    
+    return np.real(numerator/denominator)
 
 def circ_corr_non_parametric(x : np.ndarray, y : np.ndarray)->float:
     """

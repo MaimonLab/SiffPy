@@ -182,9 +182,12 @@ def sliding_correlation(
     if not (trace_1.shape == trace_2.shape):
         raise ValueError("Arguments must have same shape")
 
-    return circle_fcns.circ_corr(
-                sliding_window_view(trace_1, window_width, axis = 0),
-                sliding_window_view(trace_2, window_width, axis = 0),
+    expd_1 = np.exp(1j*trace_1)
+    expd_2 = np.exp(1j*trace_2)
+
+    return circle_fcns.circ_corr_complex(
+                sliding_window_view(expd_1, window_width, axis = 0),
+                sliding_window_view(expd_2, window_width, axis = 0),
                 axis=1,
             ).flatten()
 
