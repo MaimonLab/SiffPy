@@ -1,22 +1,26 @@
 [build-system]
-requires = ["setuptools", "wheel", "numpy >= 1.15", "scipy"]
+requires = [
+    "setuptools",
+    "wheel",
+    "numpy >= 1.15",
+    "scipy",
+    "cython",
+]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages]
-find = {}
-#packages = [
-#    "siffpy",
-    #"siffpy.siffreadermodule"
-#]
 
 [tool.setuptools_scm]
 write_to = "siffpy/core/_version.py"
 
 [project]
 name = "siffpy"
-#version = "0.6.0"
 dynamic = ["version"]
+readme = "README.md"
+description = "A package for reading and analyzing .siff data"
+authors = [
+    {email = "thornquist@rockefeller.edu"},
+    {name = "Stephen Thornquist"},
+]
 
 [project.optional-dependencies]
-all = ["napari","holoviews", "bokeh"]
-image = ["napari"]
+all = ["napari[all]","holoviews", "bokeh"]
+image = ["napari[image]"]
