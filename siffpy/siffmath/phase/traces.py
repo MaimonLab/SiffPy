@@ -1,4 +1,9 @@
 import numpy as np
+from enum import Enum
+
+class PhaseUnits(Enum):
+    pass
+
 
 class PhaseTrace(np.ndarray):
     """
@@ -10,6 +15,8 @@ class PhaseTrace(np.ndarray):
 
     Always bound from 0 to 2pi on creation -- unless you do
     some numpy operations to it!
+
+    TODO: USE COMPLEX NUMBERS INSTEAD OF RAW ANGLES
 
     __new__ signature is:
 
@@ -31,12 +38,13 @@ class PhaseTrace(np.ndarray):
         # We first cast to be our class type
         arr = np.asarray(input_array)
         arr = arr % (2.0*np.pi)
-        obj = arr.view(cls)
+        obj : PhaseTrace = arr.view(cls)
         
         # add the new attributes to the created instance
         obj.method = method
         obj.error_array = error_array # lower bound, upper bound
         obj.time = time
+        obj.units = 'radians'
         obj.info_string = info_string
 
         # Finally, we must return the newly created object:

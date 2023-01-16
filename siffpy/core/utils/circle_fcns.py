@@ -71,7 +71,7 @@ def circ_unwrap(arr: np.ndarray, offset : float = 0.0)->np.ndarray:
     """
     return np.insert(np.cumsum(circ_diff(arr)),0,offset)
 
-def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
+def circ_corr(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     """
     Warning: recommend putting your angles in the complex plane
     FIRST and using circ_corr_complex, because putting your time series
@@ -122,35 +122,12 @@ def circ_corr(x : np.ndarray, y : np.ndarray, axis = 0)->float:
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
     """
-    
-    plus = np.exp(1j*(x+y))
-    minus = np.exp(1j*(x-y))
-    
-    # The first half of the term is the prediction of a POSITIVE association between x and y, i.e. x ~ y + alpha,
-    # the second half is the prediction of a NEGATIVE association between x and y, i.e. x ~ -y + alpha.
-    # Each term is the magnitude of the resultant mean vector of the sum vs. the difference of the two series
+    expd_1 = np.exp(1j*x)
+    expd_2 = np.exp(1j*y)
 
-    plussum = np.sum(plus,axis = axis)
-    minussum = np.sum(minus, axis = axis)
-    
-    numerator = (
-        minussum*np.conjugate(minussum) -
-        plussum*np.conjugate(plussum)
-    )
+    return circ_corr_complex(expd_1, expd_2)
 
-    xsum = np.sum(plus*minus, axis=axis)
-    ysum = np.sum(plus/minus, axis=axis)
-
-    # normalization factor
-    
-    denominator = np.sqrt(
-        (x.shape[axis]**2 - xsum*np.conjugate(xsum)) *
-        (y.shape[axis]**2 - ysum*np.conjugate(ysum))
-    )
-    
-    return np.real(numerator/denominator)
-
-def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis = 0)->float:
+def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     """
     Presumes x and y are already complex numbers on the unit circle!
     This one is even faster because it skips the exp step. Recommended
@@ -209,8 +186,8 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis = 0)->float:
     minussum = np.sum(minus, axis = axis)
     
     numerator = (
-        minussum*np.conjugate(minussum) -
-        plussum*np.conjugate(plussum)
+        minussum* np.conjugate(minussum) -
+        plussum * np.conjugate(plussum)
     )
 
     xsum = np.sum(x**2, axis=axis)

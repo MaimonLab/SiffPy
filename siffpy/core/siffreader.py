@@ -95,8 +95,14 @@ class SiffReader(object):
         if hasattr(self, "reference_frames"):
             ret_string += "Reference images loaded\n"
         return ret_string
-    
+
     def __repr__(self):
+        """
+        Prints a pretty representation of the SiffReader
+        where the open file, if any, is listed first, followed by the image parameters,
+        whether a registration dictionary is loaded, and whether reference images are loaded.
+        
+        """
         # TODO
         return self.__str__()
 
@@ -1245,6 +1251,7 @@ class SiffReader(object):
             color_channel = 0
 
         frames_list = self.im_params.framelist_by_slice(color_channel=color_channel)
+
         try:
             if __IPYTHON__: # check if we're running in a notebook. One of the nice things about an interpreted language!
                 import tqdm

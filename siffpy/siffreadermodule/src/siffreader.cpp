@@ -294,7 +294,9 @@ PyArrayObject* SiffReader::sumFLIMMask(uint64_t frames[], uint64_t framesN, PyOb
 
 // TODO!!!!!
 PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict) {
-    // Returns a 1d numpy array of only the within-mask values.
+    // Returns a 1d numpy array of only the pixels within the mask of the mask object
+
+    
 
     try{
         throw std::runtime_error("Roi mask method not yet implemented.");

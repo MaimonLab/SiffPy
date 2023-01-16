@@ -1,3 +1,15 @@
 [build-system]
 requires = ["setuptools", "wheel", "numpy >= 1.15", "scipy"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "siffpy/core/_version.py"
+
+[project]
+name = "siffpy"
+#version = "0.6.0"
+dynamic = ["version"]
+
+[project.optional-dependencies]
+all = ["napari","holoviews", "bokeh"]
+image = ["napari"]

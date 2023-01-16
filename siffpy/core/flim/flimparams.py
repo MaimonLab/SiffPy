@@ -13,14 +13,20 @@ class FLIMParams():
     Currently only implements combinations of exponentials.
     """
     
-    def __init__(self, *args, color_channel : int = None, units = FlimUnits.COUNTBINS, noise : float = 0.0):
+    def __init__(self,
+        *args,
+        color_channel : int = None,
+        units = FlimUnits.COUNTBINS,
+        noise : float = 0.0,
+        name : str = None,
+        ):
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
         self.irf = next((x for x in args if isinstance(x, Irf)), None)
         self.color_channel = color_channel
-        self.units = units
         self.allow_noise = noise>0
         self.noise = noise
+        self.name = name
 
     @property
     def tau_g(self)->float:
@@ -51,6 +57,14 @@ class FLIMParams():
         retlist += self.irf.param_list
         return tuple(retlist)    
 
+    @property
+    def units(self)->FlimUnits:
+        if not all((x.units == self.params[0].units for x in self.params)):
+            return None
+        else:
+            return self.params[0].units
+
+
     def convert_units(self, to_units : FlimUnits, flim_info = None):
         """
         Converts the units of all the parameters of this FLIMParams to
@@ -77,18 +91,18 @@ class FLIMParams():
         None
         """
         for param in self.params:
-            for param_name in param.unitful_params:    
-                setattr(
-                    param,
-                    param_name,
-                    convert_flimunits(
-                        getattr(param, param_name),
-                        param.units,
-                        to_units
-                    )
-                )
-            param.units = to_units
-        self.units = to_units
+            param.convert_units(to_units)
+
+    def nondimensionalize(self):
+        """ Converts to a non-dimensionalized unit """
+        for param in self.params:
+            param.nondimensionalize()
+            
+
+    def redimensionalize(self, to_units : FlimUnits):
+        """ Takes a non-dimensionalized FLIMParams and converts it to the specified units """
+        for param in self.params:
+            param.redimensionalize(to_units)
 
     @property
     def ncomponents(self)->int:
@@ -330,6 +344,36 @@ class FLIMParameter():
     @property
     def param_tuple(self)->tuple:
         return tuple(self.param_list)
+
+    def convert_units(self, to_units : FlimUnits)->None:
+        """ Converts unitful params """
+        for param_name in self.unitful_params:    
+            setattr(
+                self,
+                param_name,
+                convert_flimunits(
+                    getattr(self, param_name),
+                    self.units,
+                    to_units
+                )
+            )
+        self.units = to_units
+
+    def redimensionalize(self, to_units : FlimUnits):
+        """
+        Converts UNITLESS params to to_units
+        
+        Alias for convert_units
+        """
+        self.convert_units(to_units)
+
+    def nondimensionalize(self)->None:
+        """
+        Converts unitful params to nondimensional
+        
+        Alias for convert_units(FlimUnits.UNITLESS)
+        """
+        self.convert_units(FlimUnits.UNITLESS)
 
     def __repr__(self):
         retstr = self.__class__.__name__ + "\n"
