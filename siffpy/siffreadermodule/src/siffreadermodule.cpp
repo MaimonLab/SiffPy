@@ -151,7 +151,7 @@ static PyMethodDef SiffreaderMethods[] = {
 static struct PyModuleDef siffreadermodule = {
 // Defines the module, created during initialization function below
     PyModuleDef_HEAD_INIT, // must be the first property
-    "siffreadermodule",   /* name of module, this is what you type for "import XX" */
+    "siffpy.siffreadermodule",   /* name of module, this is what you type for "import XX" */
     PyDoc_STR(MODULE_DOC), /* module documentation, may be NULL*/ 
     -1,       /* size of per-interpreter state of the module,
                  or -1 if the module keeps state in global variables. */

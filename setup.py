@@ -30,7 +30,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 # written for Darwin. Probably should write a Windows and/or GNU compatible
-siffmodule = Extension('siffreadermodule',
+siffmodule = Extension('siffpy.siffreadermodule',
                     sources = glob.glob('./siffpy/siffreadermodule/src/*.cpp'),
                     include_dirs = [
                         numpy.get_include()
@@ -41,19 +41,7 @@ siffmodule = Extension('siffreadermodule',
                     language="c++"
                     )
 
-setup (name = 'siffpy',
-       version = _version(),
-       install_requires = [
-           'numpy',
-           'scipy'
-       ],
-       setup_requires = [
-           'numpy',
-           'scipy'
-       ],
-       extras_require = {
-           'all' : ['holoviews','bokeh','napari']
-       },
+setup (
        description = 'Python package for reading and processing .siffs and ScanImage .tiffs',
        ext_modules = [siffmodule],
        data_files= [
