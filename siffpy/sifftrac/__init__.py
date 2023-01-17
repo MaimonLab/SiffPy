@@ -1,1 +1,1 @@
-from .log_interpreter import FictracLog
+from sifftrac.log_interpreter import FictracLog
