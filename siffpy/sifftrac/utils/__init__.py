@@ -1,1 +1,1 @@
-from .ballparams import BallParams
+from siffpy.sifftrac.utils.ballparams import BallParams

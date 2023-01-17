@@ -36,7 +36,11 @@ To really spell it out:
 - Clone the repo a location of your choosing with `git clone https://github.com/maimonlab/SiffPy`
 - Enter the newly created directory with `cd SiffPy`.
 - Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I've been using `>3.9` with `futures` but none of that seems essential.
-- Type `python3 -m pip install .`.
+- Type `pip install .`.
+
+You can also install the full feature set with `pip install siffpy[all]` once
+`siffpy` has been installed as above. If I ever put it on `PyPI`, then it that
+should work even without an original `siffpy` install.
 
 This will also compile the C extension module `siffreadermodule` that does most of the heavy lifting, stick the library into your path for this environment, and then make the SiffPy Python code accessible.
 
@@ -47,12 +51,12 @@ So it can be run on laptops with relative ease.
 
 ### Dependencies 
 
-- If you don't have numpy, or scipy it will complain during install and tell you to install `numpy` or `scipy` first (rather than downloading it yourself). To do so, you can either install it with `pip` by typing `pip install numpy` or with `conda` by typing `conda install -c anaconda numpy`. Uses only basic `numpy` includes, so version won't matter. `numpy` is necessary for `siffreadermodule` to compile, because many of its functions return pointers to `PyArrayObject`s. `scipy` is required for the `registration` submodule, which to me seems like a basic `SiffPy` functionality so I decided to make it a dependency.
+- If you don't have numpy, this will install it. Uses only basic `numpy` includes, so version won't matter. `numpy` is necessary for `siffreadermodule` to compile, because many of its functions return pointers to `PyArrayObject`s. `scipy` is required for the `registration` submodule, which to me seems like a basic `SiffPy` functionality so I decided to make it a dependency.
 
-- If you don't have `bokeh` or `holoviews` it will *warn* you during install, but will not prevent installation. These libraries are used by the `siffplot` submodule, which (while written in `holoviews`) relies on a `bokeh` backend. This is optional so that if you want to use your own plotting
+- If you don't have `bokeh` or `holoviews` you can't use some functionalities, but will not prevent installation. These libraries are used by the `siffplot` submodule, which (while written in `holoviews`) relies on a `bokeh` backend. This is optional so that if you want to use your own plotting
 procedures, you're not forced to install a bunch of other libraries to your virtualenv.
 
-- If you don't have `napari` it will also *warn* you during install, but will not prevent installation. At the time of writing, all `siffplot` functionality
+- If you don't have `napari` it will also not prevent installation. At the time of writing, all `siffplot` functionality
 *can* use `napari` and will *default* to `napari` if it's available, but will not complain if it cannot import `napari`. It will simply fall back to `holoviews`
 and `bokeh` and function just fine. Still, `napari` is probably a better experience, and I may not always support both implementations forever, so it's
 probably wiser to install `napari` (I just know some might not like it because it can be a bit of a headache when notebooks get involved).

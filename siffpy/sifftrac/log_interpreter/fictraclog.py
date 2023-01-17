@@ -4,10 +4,10 @@ import os, logging
 
 import ruamel.yaml
 
-from ...core import SiffReader
-from ...core.timetools import SEC_TO_NANO, NANO_TO_SEC
-from ...core.utils import circle_fcns
-from ..utils import BallParams
+from siffpy.core import SiffReader
+from siffpy.core.timetools import SEC_TO_NANO, NANO_TO_SEC
+from siffpy.core.utils import circle_fcns
+from siffpy.sifftrac.utils import BallParams
 
 
 _ORIGINAL_FICTRAC_ROS_ZERO_HEADING = 3.053108549228689 # an error in the original projector_driver ROS2 code resulted in an
