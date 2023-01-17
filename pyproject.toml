@@ -1,10 +1,11 @@
 [build-system]
 requires = [
     "setuptools",
+    "setuptools_scm",
     "wheel",
     "numpy >= 1.15",
     "scipy",
-    "cython",
+    #"siffreadermodule",
 ]
 build-backend = "setuptools.build_meta"
 
