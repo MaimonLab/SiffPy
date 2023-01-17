@@ -12,7 +12,7 @@ from typing import Iterable, Union
 import holoviews as hv
 import numpy as np
 
-from ..extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
 def point_inside_rays(ray1 : np.ndarray, ray2 : np.ndarray, point : tuple[float,float], origin : tuple[float,float]) -> bool:
     """

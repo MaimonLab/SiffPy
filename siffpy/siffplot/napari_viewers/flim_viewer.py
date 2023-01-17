@@ -3,8 +3,8 @@ from typing import Callable, Union, Iterable
 
 import numpy as np
 
-from ...core import SiffReader, FLIMParams
-from .frame_viewer import FrameViewer
+from siffpy.core import SiffReader, FLIMParams
+from siffpy.siffplot.napari_viewers.frame_viewer import FrameViewer
 
 class FlimViewer(FrameViewer):
     """

@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 
-from .exponentials import chi_sq_exp, monoexponential_prob
-from .flimunits import FlimUnits, convert_flimunits
+from siffpy.core.flim.exponentials import chi_sq_exp, monoexponential_prob
+from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits
 
 class FLIMParams():
     """

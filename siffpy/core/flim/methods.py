@@ -7,9 +7,9 @@ import logging
 
 import numpy as np
 
-from .fluorophore_inits import available_fluorophores
-from .flimparams import FLIMParameter, FLIMParams, Exp, Irf
-from .flimunits import FlimUnits
+from siffpy.core.flim.fluorophore_inits import available_fluorophores
+from siffpy.core.flim.flimparams import FLIMParameter, FLIMParams, Exp, Irf
+from siffpy.core.flim.flimunits import FlimUnits
 
 def channel_exp_fit(
         photon_arrivals : np.ndarray,

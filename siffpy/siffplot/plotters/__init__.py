@@ -1,4 +1,4 @@
-from .siff_plotters import *
+from siffpy.siffplot.plotters.siff_plotters import *
 
 # To import TracPlotters and specific EventPlotters,
 # you should explicitly import them from 

@@ -6,12 +6,12 @@ from inspect import Parameter
 import numpy as np
 import magicgui.widgets as widgets
 
-from .napari_interface import NapariInterface
-from ...core import SiffReader
-from ..utils.exceptions import NoROIException
-from ..roi_protocols import ROI_extraction_methods, REGIONS, roi_protocol
-from ..roi_protocols.rois import ROI
-from ..roi_protocols.utils import napari_fcns
+from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
+from siffpy.core import SiffReader
+from siffpy.siffplot.utils.exceptions import NoROIException
+from siffpy.siffplot.roi_protocols import ROI_extraction_methods, REGIONS, roi_protocol
+from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffplot.roi_protocols.utils import napari_fcns
 
 CINNABAR = '#db544b'
 DRAWN_SHAPE_LAYER_NAME = "ROI shapes"

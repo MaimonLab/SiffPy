@@ -14,11 +14,11 @@ import functools, operator, logging, pickle, os, math
 import holoviews as hv
 import numpy as np
 
-from .roi_protocols import rois
-from .utils.exceptions import *
-from .utils import apply_opts
+from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.utils.exceptions import *
+from siffpy.siffplot.utils import apply_opts
 
-from ..core import SiffReader
+from siffpy.core import SiffReader
 
 NAPARI = False
 try:

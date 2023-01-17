@@ -6,9 +6,9 @@ from scipy.stats import circmean
 import colorcet
 import logging
 
-from .roi import ROI, Midline, subROI, ViewDirection
-from ..extern.pairwise import pairwise
-from ..utils import *
+from siffpy.siffplot.roi_protocols.rois.roi import ROI, Midline, subROI, ViewDirection
+from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.utils import *
 
 class FanSegmentationMethod(Enum):
     TRIANGLES = "triangles"

@@ -22,6 +22,7 @@ siffmodule = Extension(
 )
 
 setup (
-    name='siffpy.siffreadermodule',
+    name='siffpy',
     ext_modules = [siffmodule],
+    packages = ['siffpy', 'siffreadermodule']
 )

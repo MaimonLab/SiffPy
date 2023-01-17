@@ -5,19 +5,19 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 from bokeh.models import FixedTicker
 
-from ...integratedplotter import IntegratedPlotter
-from ..siff_plotters import PhasePlotter
-from ..trac_plotters import HeadingPlotter
+from siffpy.siffplot.integratedplotter import IntegratedPlotter
+from siffpy.siffplot.plotters.siff_plotters import PhasePlotter
+from siffpy.siffplot.plotters.trac_plotters import HeadingPlotter
 
-from ...utils.exceptions import StyleError
-from ...utils.enums import CorrStyle
-from ...utils.dims import ImageTime, CircCorr
-from ...utils import apply_opts
+from siffpy.siffplot.utils.exceptions import StyleError
+from siffpy.siffplot.utils.enums import CorrStyle
+from siffpy.siffplot.utils.dims import ImageTime, CircCorr
+from siffpy.siffplot.utils import apply_opts
 
-from ....core import SiffReader
-from ....sifftrac import FictracLog
-from ....siffmath.fluorescence.traces import FluorescenceVector
-from ....siffmath.phase import phase_analyses
+from siffpy.core import SiffReader
+from siffpy.sifftrac import FictracLog
+from siffpy.siffmath.fluorescence.traces import FluorescenceVector
+from siffpy.siffmath.phase import phase_analyses
 
 
 class HeadingPhasePlotter(IntegratedPlotter):

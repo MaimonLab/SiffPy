@@ -1,1 +1,1 @@
-from .roi_visualizer import ROIVisualizer
+from siffpy.siffplot.visualizers.roi_visualizer import ROIVisualizer

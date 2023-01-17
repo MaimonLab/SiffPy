@@ -4,10 +4,10 @@ import operator
 
 import numpy as np
 
-from ....core import SiffReader
-from ...utils.exceptions import NoROIException
-from ...roi_protocols.rois import ROI, subROI
-from ....siffmath import fluorescence, fluorescence_fcns
+from siffpy.core import SiffReader
+from siffpy.siffplot.utils.exceptions import NoROIException
+from siffpy.siffplot.roi_protocols.rois import ROI, subROI
+from siffpy.siffmath import fluorescence, fluorescence_fcns
 
 def compute_roi_timeseries(siffreader : SiffReader, 
     roi : Union[ROI, list[ROI]], *args,

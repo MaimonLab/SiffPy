@@ -1,8 +1,8 @@
 import inspect, textwrap
 
-from .phase import phase_alignment_functions
-from .fluorescence import *
-from .utils import *
+from siffpy.siffmath.phase import phase_alignment_functions
+from siffpy.siffmath.fluorescence import *
+from siffpy.siffmath.utils import *
 
 def fluorescence_fcns(print_docstrings : bool = True) -> list[str]:
     """

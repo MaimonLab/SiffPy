@@ -5,11 +5,11 @@ import holoviews as hv
 import numpy as np
 import logging
 
-from ...tracplotter import *
-from ...utils.dims import AngularVelocityAxis, ImageTime, SpeedAxis
-from ...utils.exceptions import StyleError
-from ....core.timetools import rolling_avg
-from ....core.utils.circle_fcns import circ_diff
+from siffpy.siffplot.tracplotter import *
+from siffpy.siffplot.utils.dims import AngularVelocityAxis, ImageTime, SpeedAxis
+from siffpy.siffplot.utils.exceptions import StyleError
+from siffpy.core.timetools import rolling_avg
+from siffpy.core.utils.circle_fcns import circ_diff
 
 class SpeedPlotter(TracPlotter):
     """

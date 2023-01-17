@@ -14,10 +14,10 @@ from typing import Union
 
 import holoviews as hv
 
-from .siffplotter import SiffPlotter
-from .tracplotter import TracPlotter
-from .utils.dims import *
-from .utils import apply_opts
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.tracplotter import TracPlotter
+from siffpy.siffplot.utils.dims import *
+from siffpy.siffplot.utils import apply_opts
 
 __all__ = [
     'IntegratedPlotter'

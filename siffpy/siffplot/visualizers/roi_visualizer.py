@@ -3,13 +3,13 @@ import functools, re, logging
 import holoviews as hv
 import numpy as np
 
-from ..siffvisualizer import SiffVisualizer
-from ..napari_viewers import ROIViewer
-from .. import roi_protocols
-from ..roi_protocols import rois
-from ..utils import *
+from siffpy.siffplot.siffvisualizer import SiffVisualizer
+from siffpy.siffplot.napari_viewers import ROIViewer
+from siffpy.siffplot import roi_protocols
+from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.utils import *
 
-from ...core import SiffReader
+from siffpy.core import SiffReader
 
 class ROIVisualizer(SiffVisualizer):
     """

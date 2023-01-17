@@ -10,9 +10,9 @@ import random
 
 import numpy as np
 
-from .traces import *
-from ..fluorescence import FluorescenceTrace
-from .phase_analyses import *
+from siffpy.siffmath.phase.traces import *
+from siffpy.siffmath.fluorescence import FluorescenceTrace
+from siffpy.siffmath.phase.phase_analyses import *
 #from ..fluorescence import FluorescenceVector
 
 __all__ = [

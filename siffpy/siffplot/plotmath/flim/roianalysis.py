@@ -2,10 +2,10 @@ from typing import Union, Callable
 
 import numpy as np
 
-from ....core import SiffReader, FLIMParams
-from ...roi_protocols.rois import ROI, subROI
-from ....siffmath.flim import FlimTrace
-from ...utils.exceptions import NoROIException
+from siffpy.core import SiffReader, FLIMParams
+from siffpy.siffplot.roi_protocols.rois import ROI, subROI
+from siffpy.siffmath.flim import FlimTrace
+from siffpy.siffplot.utils.exceptions import NoROIException
 
 def compute_roi_timeseries(siffreader : SiffReader, roi : Union[ROI, list[ROI]],
     flim_params : Union[FLIMParams, list[FLIMParams]],

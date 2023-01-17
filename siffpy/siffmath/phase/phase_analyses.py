@@ -9,9 +9,9 @@ import numpy as np
 from scipy.stats import circmean
 from numpy.lib.stride_tricks import sliding_window_view
 
-from ...core.utils import circle_fcns
-from .traces import PhaseTrace
-from . import phase_estimates
+from siffpy.core.utils import circle_fcns
+from siffpy.siffmath.phase.traces import PhaseTrace
+import siffpy.siffmath.phase.phase_estimates as phase_estimates
 
 def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estimate = False, **kwargs)->np.ndarray:
     """

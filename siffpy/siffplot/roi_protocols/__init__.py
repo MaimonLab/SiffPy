@@ -2,8 +2,8 @@ import re
 import logging
 import inspect, textwrap
 
-from .rois import ROI
-from . import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli, generic
+from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffplot.roi_protocols import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli, generic
 
 # Default method for each brain region of interest
 # Written this way so I can use the same names for

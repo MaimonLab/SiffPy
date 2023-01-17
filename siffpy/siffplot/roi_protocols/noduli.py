@@ -1,6 +1,6 @@
 # Code for ROI extraction from the noduli after manual input
 
-from . import rois
+from siffpy.siffplot.roi_protocols import rois
 import holoviews as hv
 
 def hemispheres(reference_frames : list, polygon_source : dict, *args, slice_idx : int = None, **kwargs) -> rois.Blobs:

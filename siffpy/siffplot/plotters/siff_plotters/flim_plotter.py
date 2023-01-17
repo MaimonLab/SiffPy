@@ -5,15 +5,15 @@ import operator
 import numpy as np
 import holoviews as hv
 
-from ....siffplot import LATEX
-from ....core import FLIMParams
-from .fluorescence_plotter import FluorescencePlotter
-from ...roi_protocols.rois import ROI
-from ...utils import apply_opts
-from ...utils.exceptions import NoROIException
-from ...utils.dims import *
-from ...utils.enums import Direction
-from ...plotmath.flim.roianalysis import *
+from siffpy.siffplot import LATEX
+from siffpy.core import FLIMParams
+from siffpy.siffplot.plotters.siff_plotters.fluorescence_plotter import FluorescencePlotter
+from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffplot.utils import apply_opts
+from siffpy.siffplot.utils.exceptions import NoROIException
+from siffpy.siffplot.utils.dims import *
+from siffpy.siffplot.utils.enums import Direction
+from siffpy.siffplot.plotmath.flim.roianalysis import *
 
 __all__ = [
     'FlimPlotter'

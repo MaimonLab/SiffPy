@@ -1,6 +1,6 @@
 # Code for ROI extraction from the fan-shaped body after manual input
 
-from . import rois
+from siffpy.siffplot.roi_protocols import rois
 
 def outline_fan(reference_frames : list, polygon_source : dict, *args, slice_idx : int = None, **kwargs)-> rois.Fan:
     """

@@ -4,8 +4,8 @@ Base class of SiffEvents
 from enum import Enum
 from abc import abstractmethod
 
-from ..metadata import FrameMetaData
-from ...timetools import SEC_TO_NANO, NANO_TO_SEC
+from siffpy.core.io.metadata import FrameMetaData
+from siffpy.core.timetools import SEC_TO_NANO, NANO_TO_SEC
 
 class EventType(Enum):
     """

@@ -10,11 +10,11 @@ from abc import abstractmethod
 
 import holoviews as hv
 
-from ....core import SiffReader
-from ....core.io import SiffEvent
-from ...siffplotter import SiffPlotter
-from ...utils import apply_opts
-from ...utils.dims import *
+from siffpy.core import SiffReader
+from siffpy.core.io import SiffEvent
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.utils import apply_opts
+from siffpy.siffplot.utils.dims import *
 
 
 __all__ = [

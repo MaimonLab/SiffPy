@@ -1,3 +1,3 @@
-from .headingplotter import HeadingPlotter
-from .trajectoryplotter import TrajectoryPlotter
-from .speedplotter import SpeedPlotter
+from siffpy.siffplot.plotters.trac_plotters.headingplotter import HeadingPlotter
+from siffpy.siffplot.plotters.trac_plotters.trajectoryplotter import TrajectoryPlotter
+from siffpy.siffplot.plotters.trac_plotters.speedplotter import SpeedPlotter

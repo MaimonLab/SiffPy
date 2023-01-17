@@ -3,15 +3,15 @@ from typing import  Union
 import numpy as np
 import holoviews as hv
 
-from ....siffplot import LATEX
-from ...siffplotter import SiffPlotter
-from ...plotmath.fluorescence.roianalysis import *
-from ...roi_protocols.rois import ROI
-from ...utils import apply_opts
-from ...utils.exceptions import NoROIException
-from ...utils.dims import *
-from ...utils.enums import Direction
-from ....siffmath.fluorescence import *
+from siffpy.siffplot import LATEX
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.plotmath.fluorescence.roianalysis import *
+from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffplot.utils import apply_opts
+from siffpy.siffplot.utils.exceptions import NoROIException
+from siffpy.siffplot.utils.dims import *
+from siffpy.siffplot.utils.enums import Direction
+from siffpy.siffmath.fluorescence import *
 
 __all__ = [
     'FluorescencePlotter'

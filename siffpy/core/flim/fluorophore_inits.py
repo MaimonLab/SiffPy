@@ -8,7 +8,7 @@ I'll try to remember to keep adding to this as I record more things.
 """
 from typing import Union
 
-from .flimparams import Exp, Irf, FLIMParams
+from siffpy.core.flim.flimparams import Exp, Irf, FLIMParams
 
 FLUOROPHORE_INITIALIZATIONS = [
     FLIMParams(

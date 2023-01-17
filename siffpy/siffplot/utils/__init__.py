@@ -8,9 +8,9 @@ from functools import wraps
 import numpy as np
 import holoviews as hv
 
-from ...siffmath import fluorescence
-from .exceptions import *
-from .enums import *
+from siffpy.siffmath import fluorescence
+from siffpy.siffplot.utils.exceptions import *
+from siffpy.siffplot.utils.enums import *
 
 def apply_opts(func):
     """

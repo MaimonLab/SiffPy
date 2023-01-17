@@ -4,8 +4,8 @@ Dedicated code for data that is purely fluorescence analysis
 
 import numpy as np
 
-from .traces import *
-from ..utils import fifth_percentile
+from siffpy.siffmath.fluorescence.traces import *
+from siffpy.siffmath.utils import fifth_percentile
         
 def photon_counts(fluorescence : np.ndarray, *args, **kwargs)->FluorescenceTrace:
     """ Simply returns raw photon counts. This is just the array that's passed in, wrapped in a FluorescenceTrace. """

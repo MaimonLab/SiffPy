@@ -12,7 +12,7 @@ import numpy as np
 import logging
 from scipy.stats import circmean
 
-from ...tracplotter import *
+from siffpy.siffplot.tracplotter import *
 
 class FullPlotter(TracPlotter):
     """

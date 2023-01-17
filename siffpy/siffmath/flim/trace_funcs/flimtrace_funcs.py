@@ -7,7 +7,7 @@ To be added to whenever I encounter something strange.
 from functools import reduce
 from operator import add
 import numpy as np
-from ..traces import FlimTrace
+from siffpy.siffmath.flim.traces import FlimTrace
 
 @FlimTrace.implements_func(np.sum)
 def sum_flimtrace(flimtrace : FlimTrace, out = None, **kwargs):

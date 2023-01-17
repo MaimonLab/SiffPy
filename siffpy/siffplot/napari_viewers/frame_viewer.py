@@ -1,5 +1,4 @@
 import logging
-from tkinter import E
 from typing import Callable, Iterable
 
 import numpy as np
@@ -7,8 +6,8 @@ from dask import delayed
 import dask.array as da
 from qtpy import QtWidgets
 
-from ...core import SiffReader
-from .napari_interface import NapariInterface
+from siffpy.core import SiffReader
+from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
 
 class FrameViewer(NapariInterface):
     """

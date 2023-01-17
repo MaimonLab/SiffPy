@@ -1,11 +1,9 @@
 from typing import Any
 import holoviews as hv
 import numpy as np
-import colorcet
-import logging
 
-from .roi import ROI, Midline, subROI
-from ..extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.rois.roi import ROI, subROI
+from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
 class Mustache(ROI):
     """

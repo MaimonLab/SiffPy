@@ -8,7 +8,7 @@ import scipy.ndimage
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
-from .circle_fcns import *
+from siffpy.core.utils.circle_fcns import *
 from siffreadermodule import SiffIO
 
 def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:

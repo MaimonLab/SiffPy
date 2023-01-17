@@ -4,8 +4,8 @@ from enum import Enum
 
 import holoviews as hv
 
-from . import rois
-from .extern import smallest_circle
+from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols.extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
 class ExtraRois(Enum):

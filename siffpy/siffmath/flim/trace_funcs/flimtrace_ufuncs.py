@@ -7,8 +7,8 @@ import logging
 
 import numpy as np
 
-from ..traces import FlimTrace
-from ....core.flim import FlimUnits
+from siffpy.siffmath.flim.traces import FlimTrace
+from siffpy.core.flim import FlimUnits
 
 ### CALL_UFUNC #####
 

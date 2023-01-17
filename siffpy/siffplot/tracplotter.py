@@ -9,8 +9,8 @@ import os, pickle
 
 import holoviews as hv
 
-from ..sifftrac.log_interpreter import *
-from .utils import apply_opts
+from siffpy.sifftrac.log_interpreter import *
+from siffpy.siffplot.utils import apply_opts
 
 class TracPlotter(ABC):
     """

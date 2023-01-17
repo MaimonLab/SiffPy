@@ -4,8 +4,8 @@ import numpy as np
 from scipy.stats import circmean
 import colorcet
 
-from .roi import ROI, Midline, subROI, apply_image, ViewDirection
-from ..extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.rois.roi import ROI, Midline, subROI, apply_image, ViewDirection
+from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
 EB_OFFSET = (1/2) * np.pi # EPG going to left of each PB (when viewed from posterior) is the first ROI
 

@@ -12,10 +12,10 @@ import math
 import numpy as np
 import holoviews as hv
 
-from ....core import *
-from ...siffplotter import SiffPlotter
-from ...utils import *
-from ...utils.dims import ArrivalTime, HistogramCounts
+from siffpy.core import *
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.utils import *
+from siffpy.siffplot.utils.dims import ArrivalTime, HistogramCounts
 
 __all__ = [
     'HistogramPlotter'

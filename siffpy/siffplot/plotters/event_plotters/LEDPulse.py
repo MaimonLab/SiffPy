@@ -3,9 +3,9 @@ from operator import mul
 
 import holoviews as hv
 
-from ..siff_plotters import EventPlotter
-from ....core import SiffReader
-from ....core.io.events.ledevent import LEDEvent, LEDEventType
+from siffpy.siffplot.plotters.siff_plotters import EventPlotter
+from siffpy.core import SiffReader
+from siffpy.core.io.events.ledevent import LEDEvent, LEDEventType
 
 class LEDPulsePlotter(EventPlotter):
     """

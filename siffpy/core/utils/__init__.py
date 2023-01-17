@@ -1,1 +1,1 @@
-from .imparams import ImParams
+from siffpy.core.utils.imparams import ImParams

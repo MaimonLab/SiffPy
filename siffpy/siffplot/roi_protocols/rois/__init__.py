@@ -11,14 +11,14 @@ import numpy as np
 import matplotlib
 import holoviews as hv
 
-from ..extern.smallest_circle import make_circle
-from .roi import *
-from .ellipse import *
-from .fan import *
-from .blob import *
+from siffpy.siffplot.roi_protocols.extern.smallest_circle import make_circle
+from siffpy.siffplot.roi_protocols.rois.roi import *
+from siffpy.siffplot.roi_protocols.rois.ellipse import *
+from siffpy.siffplot.roi_protocols.rois.fan import *
+from siffpy.siffplot.roi_protocols.rois.blob import *
 
 try:
-    from ..utils.napari_fcns import * # only works if napari is installed
+    from siffpy.siffplot.roi_protocols.utils.napari_fcns import * # only works if napari is installed
 except ImportError:
     pass
 

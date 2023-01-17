@@ -2,14 +2,14 @@ import numpy as np
 import holoviews as hv
 
 
-from ...plotmath.fluorescence.roianalysis import *
-from ...siffplotter import SiffPlotter
-from ...utils import *
-from ...utils.dims import *
+from siffpy.siffplot.plotmath.fluorescence.roianalysis import *
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.utils import *
+from siffpy.siffplot.utils.dims import *
 
-from ....siffmath.fluorescence import FluorescenceVector
-from ....siffmath.phase import estimate_phase
-from ....core.utils.circle_fcns import *
+from siffpy.siffmath.fluorescence import FluorescenceVector
+from siffpy.siffmath.phase import estimate_phase
+from siffpy.core.utils.circle_fcns import *
 
 __all__ = [
     'PhasePlotter'

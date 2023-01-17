@@ -24,7 +24,7 @@ from napari.layers.shapes import Shapes
 import holoviews as hv
 import holoviews.element.path as hvpath
 
-from ..rois import ROI
+from siffpy.siffplot.roi_protocols.rois import ROI
 
 __all__ = [
     'get_largest_lines_napari',

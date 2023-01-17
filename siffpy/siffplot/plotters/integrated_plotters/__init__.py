@@ -1,1 +1,1 @@
-from .headingphaseplotter import HeadingPhasePlotter
+from siffpy.siffplot.plotters.integrated_plotters.headingphaseplotter import HeadingPhasePlotter

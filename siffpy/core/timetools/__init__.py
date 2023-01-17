@@ -3,8 +3,8 @@ from scipy.ndimage.filters import uniform_filter1d
 
 import logging
 
-from ..io import FrameMetaData, frame_metadata_to_dict
-from ..utils import ImParams
+from siffpy.core.io import FrameMetaData, frame_metadata_to_dict
+from siffpy.core.utils import ImParams
 
 SEC_TO_NANO = 1e9
 NANO_TO_SEC = 1e-9

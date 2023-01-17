@@ -1,14 +1,14 @@
 import inspect
 
-from ...utils import ImParams
-from .siffevent import SiffEvent
-from .barevent import *
-from .ledevent import *
+from siffpy.core.utils import ImParams
+from siffpy.core.io.events.siffevent import SiffEvent
+from siffpy.core.io.events.barevent import *
+from siffpy.core.io.events.ledevent import *
 
 
 EVENT_MODULES = [
-    barevent,
-    ledevent
+    #siffpy.core.io.events.barevent,
+    #siffpy.core.io.events.ledevent
 ]
 
 def _isSiffEvent(obj):

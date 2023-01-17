@@ -2,8 +2,8 @@ from typing import Any
 import holoviews as hv
 import numpy as np
 
-from .roi import ROI, subROI, ViewDirection
-from ..extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.rois.roi import ROI, subROI, ViewDirection
+from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
 class Blobs(ROI):
     """

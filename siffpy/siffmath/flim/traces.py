@@ -1,10 +1,7 @@
-from typing import Union
-import logging
-
 import numpy as np
 
-from ..fluorescence.traces import FluorescenceTrace
-from ...core.flim import FLIMParams, FlimUnits, convert_flimunits
+from siffpy.siffmath.fluorescence.traces import FluorescenceTrace
+from siffpy.core.flim import FLIMParams, FlimUnits, convert_flimunits
 
 class FlimTrace(np.ndarray):
     """

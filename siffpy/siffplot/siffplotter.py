@@ -16,11 +16,11 @@ from typing import Dict
 import holoviews as hv
 from holoviews.core.io import Pickler, Unpickler
 
-from .roi_protocols import rois
-from .utils import *
-from .utils.exceptions import NoROIException
+from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.utils import *
+from siffpy.siffplot.utils.exceptions import NoROIException
 
-from ..core import SiffReader
+from siffpy.core import SiffReader
 
 def apply_events(func):
     """

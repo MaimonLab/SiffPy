@@ -7,13 +7,12 @@ import numpy as np
 
 from siffreadermodule import SiffIO
 
-from . import io, timetools
-from .flim import FLIMParams, FlimUnits
-from .utils import ImParams
-from .utils.typecheck import *
-from .utils import registration
-from .utils.registration import register_frames, regularize_all_tuples
-from ..siffmath.flim import FlimTrace
+from siffpy.core import io, timetools
+from siffpy.core.flim import FLIMParams, FlimUnits
+from siffpy.core.utils import ImParams, registration
+from siffpy.core.utils.typecheck import *
+from siffpy.core.utils.registration import register_frames, regularize_all_tuples
+from siffpy.siffmath.flim import FlimTrace
 
 # TODO:
 # __repr__

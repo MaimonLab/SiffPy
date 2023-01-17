@@ -6,11 +6,11 @@ import numpy as np
 import logging
 
 
-from ....core.utils.circle_fcns import split_angles_to_dict
-from ....sifftrac.log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
-from ...tracplotter import *
-from ...utils.dims import ImageTime, AngularSpace
-from ...utils.exceptions import StyleError
+from siffpy.core.utils.circle_fcns import split_angles_to_dict
+from siffpy.sifftrac.log_interpreter import _ORIGINAL_FICTRAC_ROS_ZERO_HEADING
+from siffpy.siffplot.tracplotter import *
+from siffpy.siffplot.utils.dims import ImageTime, AngularSpace
+from siffpy.siffplot.utils.exceptions import StyleError
 
 class HeadingPlotter(TracPlotter):
     """

@@ -1,5 +1,5 @@
-from ..metadata import FrameMetaData
-from .siffevent import SiffEvent, EventType, _matlab_to_utc
+from siffpy.core.io.metadata import FrameMetaData
+from siffpy.core.io.events.siffevent import SiffEvent, EventType, _matlab_to_utc
 
 
 class BarEventType(EventType):
