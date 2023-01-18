@@ -1,6 +1,6 @@
 import logging, re
 
-from ..utils import ImParams
+from siffpy.core.utils import ImParams
 
 MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
 

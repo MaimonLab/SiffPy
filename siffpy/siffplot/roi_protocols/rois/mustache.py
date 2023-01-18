@@ -5,6 +5,21 @@ import numpy as np
 from siffpy.siffplot.roi_protocols.rois.roi import ROI, subROI
 from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
+class GlobularMustache(ROI):
+    """
+    A mustache-shaped ROI for individually circuled glomeruli
+    """
+
+    def __init__(
+        self,
+        polygon: hv.element.path.Polygons = None,
+        image: np.ndarray = None,
+        name: str = None,
+        slice_idx: int = None
+    ):
+        super().__init__(polygon, image, name, slice_idx)
+
+
 class Mustache(ROI):
     """
     Mustache-shaped ROI used for the protocerebral bridge
@@ -52,6 +67,12 @@ class Mustache(ROI):
         super().__init__(polygon, slice_idx = slice_idx, **kwargs)
         self.plotting_opts = {}
         raise NotImplementedError()
+
+    def segment(self) -> None:
+        """
+        Already segmented by default
+        """
+        return
 
     class Glomerulus(subROI):
         """

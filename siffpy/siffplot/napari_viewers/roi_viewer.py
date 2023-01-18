@@ -9,7 +9,7 @@ import magicgui.widgets as widgets
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
 from siffpy.core import SiffReader
 from siffpy.siffplot.utils.exceptions import NoROIException
-from siffpy.siffplot.roi_protocols import ROI_extraction_methods, REGIONS, roi_protocol
+from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol
 from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils import napari_fcns
 
@@ -102,25 +102,25 @@ class ROIViewer(NapariInterface):
         anatomical_region_box = widgets.ComboBox(
             name = 'AnatomicalRegionBox',
             label='Anatomical region',
-            choices = REGIONS.keys(),
+            choices = list((region.region_enum.value for region in REGIONS)),
             tooltip = 'The anatomical region determines which segmentation protocols can be used'
         )
 
         starting_region = anatomical_region_box.current_choice
 
-        starting_choices = ROI_extraction_methods(print_output=False)[starting_region]
-        default_fcn = REGIONS[starting_region]['default_fcn']
+        region = next(region for region in REGIONS if region.region_enum.value == starting_region)
+
+        starting_choices_str = list(fn.name for fn in region.functions)
+        default_fcn = region.default_fcn
 
         # name of returned class
-        starting_roi_class = typing.get_type_hints(
-            inspect.getmembers(REGIONS[starting_region]['module'], lambda x: inspect.isfunction(x) and x.__name__ == default_fcn)[0][1]
-        )['return']
+        starting_roi_class = typing.get_type_hints(region.default_fcn)['return']
 
         extraction_method_box = widgets.ComboBox(
             name = 'ExtractionMethodBox',
             label='Extraction method',
-            choices = starting_choices,
-            value = default_fcn,
+            choices = starting_choices_str,
+            value = region.default_fcn_str,
             tooltip = "Which protocol to use to extract the ROI. For more information on each, TODO MAKE A USEFUL INFO TOOL, MAYBE A (?) icon"
         )
 
@@ -195,17 +195,12 @@ class ROIViewer(NapariInterface):
         # WARNING: these are all stateful! even if not referenced by self directly.
         # they all have references from the Container widgets.
 
-        def populate_extraction_params(extraction_params_container : widgets.Container, extraction_method : str):
+        def populate_extraction_params(extraction_params_container : widgets.Container, extraction_method : Callable):
             """ Updates the parameters for the extraction method by parsing the Python code for the extraction function"""
             extraction_params_container.clear()
-            new_module = REGIONS[anatomical_region_box.value]['module']
-            try:
-                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == extraction_method)
-            except Exception as e:
-                return
             
             params = [
-                kw for key, kw in inspect.signature(method_itself).parameters.items()
+                kw for key, kw in inspect.signature(extraction_method).parameters.items()
                 if kw.kind is Parameter.KEYWORD_ONLY
             ]
 
@@ -296,23 +291,21 @@ class ROIViewer(NapariInterface):
 
         def update_region(region_name : str):
             """ Update callback when the selected brain region is changed. """
-            extraction_method_box.choices = ROI_extraction_methods(print_output=False)[region_name]
-            extraction_method_box.value = REGIONS[region_name]['default_fcn']
+            region = next(x for x in REGIONS if region_name in x.alias_list)
+            extraction_method_box.choices = list(fn.name for fn in region.functions)
+            extraction_method_box.value = region.default_fcn_str
 
         def update_extraction_method(method_name : str):
             """ Updates the parameters for the extraction method """
-            populate_extraction_params(extraction_params_container, method_name)
-            update_segmentation_method(method_name)
+            region = next(x for x in REGIONS if anatomical_region_box.value in x.alias_list)
+            method = next(x for x in region.functions if x.name == method_name)
+            populate_extraction_params(extraction_params_container, method.func)
+            update_segmentation_method(method.func)
 
-        def update_segmentation_method(method_name : str):
+        def update_segmentation_method(method : Callable):
             """ Updates the string naming the class of the returned ROI and the roi_widget container """
-            new_module = REGIONS[anatomical_region_box.value]['module']
             try:
-                method_itself = next(x[1] for x in inspect.getmembers(new_module, inspect.isfunction) if x[0] == method_name)
-            except Exception as e:
-                return
-            try:
-                returned_class = typing.get_type_hints(method_itself)['return']
+                returned_class = typing.get_type_hints(method)['return']
             except KeyError:
                 roi_class.value = "None (invalid function)"
                 populate_segmentation_params(segmentation_params_container, None)
@@ -429,6 +422,7 @@ class ROIViewer(NapariInterface):
             for widget in self.segmentation_params_container:
                 segmentation_kwarg_dict[widget.name] = widget.value
 
+            roi : ROI
             for roi in rois:
                 try:
                     roi.segment(**segmentation_kwarg_dict)
@@ -496,7 +490,6 @@ class ROIViewer(NapariInterface):
                     if (not hasattr(subroi, 'slice_idx')) and hasattr(roi,'slice_idx'):
                         subroi.slice_idx = roi.slice_idx
                     napari_fcns.rois_into_shapes_layer(subroi, self.segmented_rois_layer)
-
 
     def save_rois_callback(self, save_rois_val : int) : 
         """ Called when Save ROIs button is pushed """

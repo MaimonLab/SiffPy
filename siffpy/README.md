@@ -7,7 +7,11 @@ to need is `siffpy.SiffReader`, its obligate helper module `siffreadermodule`, a
 some more elaborate tools for dealing with fluorescence and FLIM data.
 
 ## Core
-TODO: Document
+
+The `core` submodule contains functions for reading `.siff` files and
+converting them into `numpy` arrays. Its functionality revolves around
+the `SiffReader` class, which wraps the various methods of the
+`siffreadermodule` and returns nicely formatted arrays.
 
 ## SiffTrac
 
@@ -24,9 +28,3 @@ takes place.
 Numerical code that does not depend on or directly interact with any plotting functionality. Operates almost exclusively with
 `numpy` arrays and creates several `np.ndarray` subclasses that track accompanying metadata of vector-type data usefully (for 
 example, adding and subtracting scalars or summing two such arrays).
-
-## SiffReaderModule
-
-The `C/C++` code underlying direct interactions with the `.siff` filetype. It produces `numpy.ndarray` objects for image data 
-as well as native Python objects for framewise (or experiment-wise) metadata. This mostly is for reading from the file, but
-there are a few "smart" things it does, like computing pixel-wise empirical lifetimes given a `FLIMParams` object.

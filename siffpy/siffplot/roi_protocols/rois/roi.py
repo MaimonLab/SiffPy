@@ -5,9 +5,21 @@ import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
 
+# Between these sets of enums,
+# can uniquely define the orientation
+# of the ROI in the brain
+
 class ViewDirection(Enum):
     ANTERIOR = "anterior"
     POSTERIOR = "posterior"
+    UNDEFINED = "undefined"
+
+class Orientation(Enum):
+    LEFT = "left"
+    RIGHT = "right"
+    UP = "up"
+    DOWN = "down"
+    UNDEFINED = "undefined"
 
 def apply_image(func):
     """ If the ROI has an image attribute, applies the image """

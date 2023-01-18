@@ -187,3 +187,9 @@ to a `SiffReader` object which retains access to (and performs actual reading of
 Warning: `SiffPlotter`s are `holoviews` only, but `SiffVisualizer`s use either `napari` or `holoviews` (ideally will always
 implement both, but no promises!). Some builds of Jupyter, IPython, `holoviews` and `napari` do not play nice together and
 you'll experience strange lags in cell evaluation because `holoviews` and `napari` both interface with Jupyter's event loop.
+
+## SiffReaderModule
+
+The `C/C++` code underlying direct interactions with the `.siff` filetype. It produces `numpy.ndarray` objects for image data 
+as well as native Python objects for framewise (or experiment-wise) metadata. This mostly is for reading from the file, but
+there are a few "smart" things it does, like computing pixel-wise empirical lifetimes given a `FLIMParams` object.
