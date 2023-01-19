@@ -13,6 +13,16 @@ import holoviews as hv
 import numpy as np
 
 from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
+from siffpy.siffplot.roi_protocols.utils.polygon_sources import PolygonSource
+
+try:
+    from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
+except ImportError:
+    pass
+try:
+    from siffpy.siffplot.roi_protocols.utils.holoviews_fcns import PolygonSourceHoloViews
+except ImportError:
+    pass
 
 def point_inside_rays(ray1 : np.ndarray, ray2 : np.ndarray, point : tuple[float,float], origin : tuple[float,float]) -> bool:
     """

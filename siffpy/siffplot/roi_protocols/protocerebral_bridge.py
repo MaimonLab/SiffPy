@@ -1,5 +1,6 @@
 # Code for ROI extraction from the protocerebral bridge after manual input
 
+from siffpy.siffplot.roi_protocols.utils import PolygonSource
 from siffpy.siffplot.roi_protocols import rois
 
 def circle_glomeruli(
@@ -46,23 +47,27 @@ def circle_glomeruli(
 
     if type(polygon_source) is dict: # use holoviews
         annotation_dict = polygon_source
-
-
-
-    if type(polygon_source) is dict: # use holoviews
-        annotation_dict = polygon_source
-        largest_polygon, slice_idx, _ = rois.get_largest_polygon_hv(annotation_dict, slice_idx = slice_idx)
+        largest_polygons, slice_idx, _ = rois.get_largest_polygon_hv(
+            annotation_dict, 
+            slice_idx = slice_idx,
+            n_polygons = n_glomeruli,
+        )
         source_image = rois.annotation_dict_to_numpy(annotation_dict,slice_idx)
 
-        return rois.Fan(
-            largest_polygon,
+        return rois.GlobularMustache(
+            None,
             slice_idx = slice_idx,
-            image = source_image
+            image = source_image,
+            globular_glomeruli=largest_polygons,
         )
 
     else: # using napari
 
-        largest_polygon, slice_idx, _ = rois.get_largest_polygon_napari(polygon_source, shape_layer_name = 'ROI shapes', slice_idx = slice_idx)
+        largest_polygon, slice_idx, _ = rois.get_largest_polygon_napari(
+            polygon_source,
+            shape_layer_name = 'ROI shapes',
+            slice_idx = slice_idx
+        )
         reference_frame_layer = next(filter(lambda x: x.name == 'Reference frames', polygon_source.layers)) # get the layer with the reference frames
         source_image = reference_frame_layer.data[slice_idx, :, :]
         

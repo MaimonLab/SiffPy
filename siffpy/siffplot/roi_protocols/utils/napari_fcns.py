@@ -20,13 +20,16 @@ SCT 12/11/2021
 from typing import Callable, Iterable, Union
 import numpy as np
 import napari
+from napari import Viewer
 from napari.layers.shapes import Shapes
 import holoviews as hv
 import holoviews.element.path as hvpath
 
 from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffplot.roi_protocols.utils.polygon_sources import PolygonSource, VizBackend
 
 __all__ = [
+    'PolygonSourceNapari',
     'get_largest_lines_napari',
     'get_largest_polygon_napari',
     'get_largest_ellipse_napari',
@@ -34,6 +37,41 @@ __all__ = [
     'napari_shapes_to_holoviews',
     'rois_into_shapes_layer',
 ]
+
+class PolygonSourceNapari(PolygonSource):
+    def __init__(self, napari_source : napari.Viewer, layer_name = 'ROI shapes'):
+        super().__init__(VizBackend.NAPARI, napari_source)
+        self.layer_name = layer_name
+
+    @property
+    def polygons(self):
+        return self.source.layers[self.layer_name].data
+
+    def get_largest_polygon(self, slice_idx = None, n_polygons = 1):
+        return get_largest_polygon_napari(
+            self.source,
+            shape_layer_name=self.layer_name,
+            slice_idx = slice_idx,
+            n_polygons = n_polygons,
+        )
+
+    def get_largest_lines(self, slice_idx = None, n_lines = 2):
+        return get_largest_lines_napari(
+            self.source,
+            shape_layer_name = self.layer_name,
+            slice_idx=slice_idx,
+            n_polygons=n_lines,
+        )
+
+    def get_largest_ellipse(self, slice_idx = None, n_ellipses = 1):
+        return get_largest_ellipse_napari(
+            self.source,
+            shape_layer_name=self.layer_name,
+            slice_idx=slice_idx,
+            n_ellipses = n_ellipses,
+        )
+
+
 
 class _NapariLike():
     """

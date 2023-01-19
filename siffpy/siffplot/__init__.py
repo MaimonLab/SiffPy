@@ -19,11 +19,11 @@ if BOKEH:
     LATEX = (bokeh.__version__ >= '2.4') and (hv.__version__ > '1.14.6')
 
 
-from .siffplotter import SiffPlotter
-from .siffvisualizer import SiffVisualizer
-from .plotters import *
-from .visualizers import *
-from .roi_protocols import ROI_extraction_methods, ROI
+from siffpy.siffplot.siffplotter import SiffPlotter
+from siffpy.siffplot.siffvisualizer import SiffVisualizer
+from siffpy.siffplot.plotters import *
+from siffpy.siffplot.visualizers import *
+from siffpy.siffplot.roi_protocols import ROI_extraction_methods, ROI
 
 def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None:
     """

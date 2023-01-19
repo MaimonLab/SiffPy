@@ -2,6 +2,7 @@ import re
 import logging
 import inspect, textwrap
 
+from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils.regions import RegionEnum, Region
 from siffpy.siffplot.roi_protocols import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli, generic
 

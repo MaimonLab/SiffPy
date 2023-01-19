@@ -255,18 +255,12 @@ class Fan(ROI):
             column.plotting_opts['fill_alpha'] = 0.3
             idx += 1
 
-    def __getattr__(self, attr)->Any:
+    @property
+    def _subROIs(self):
         """
-        Custom subROI call to return columns
-        as the subROI
+        Returns the subROIs of the Fan
         """
-        if attr == '_subROIs':
-            if hasattr(self,'columns'):
-                return self.columns
-            else:
-                raise AttributeError(f"No columns attribute assigned for Fan")
-        else:
-            return object.__getattribute__(self, attr)
+        return self.columns
 
     def __repr__(self)->str:
         """

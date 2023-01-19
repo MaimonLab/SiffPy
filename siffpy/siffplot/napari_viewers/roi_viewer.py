@@ -12,6 +12,7 @@ from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol
 from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils import napari_fcns
+from siffpy.siffplot.roi_protocols.utils import PolygonSourceNapari
 
 CINNABAR = '#db544b'
 DRAWN_SHAPE_LAYER_NAME = "ROI shapes"
@@ -413,7 +414,7 @@ class ROIViewer(NapariInterface):
                 region,
                 method_name,
                 self.siffreader.reference_frames,
-                self,
+                PolygonSourceNapari(self),
                 **extraction_kwarg_dict
             )
 

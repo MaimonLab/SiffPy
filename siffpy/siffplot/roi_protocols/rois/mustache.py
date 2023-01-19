@@ -15,9 +15,38 @@ class GlobularMustache(ROI):
         polygon: hv.element.path.Polygons = None,
         image: np.ndarray = None,
         name: str = None,
-        slice_idx: int = None
+        slice_idx: int = None,
+        globular_glomeruli: list[hv.element.path.Polygons] = None,
     ):
         super().__init__(polygon, image, name, slice_idx)
+        self.glomeruli = [
+            GlobularMustache.GlomerulusROI(
+                polygon=glom, image=image, name=name, slice_idx=slice_idx
+            ) for glom in globular_glomeruli
+        ]
+    
+    def segment(self) -> None:
+        """
+        Does nothing : this class is initialized with the glomeruli!
+        """
+        pass
+
+    @property
+    def _subROIs(self):
+        return self.glomeruli
+
+    class GlomerulusROI(subROI):
+        """
+        A single glomerulus
+        """
+        def __init__(
+            self,
+            polygon: hv.element.path.Polygons = None,
+            image: np.ndarray = None,
+            name: str = None,
+            slice_idx: int = None
+        ):
+            super().__init__(polygon, image, name, slice_idx)
 
 
 class Mustache(ROI):
@@ -70,7 +99,7 @@ class Mustache(ROI):
 
     def segment(self) -> None:
         """
-        Already segmented by default
+        TODO: come up with way to implement these
         """
         return
 
