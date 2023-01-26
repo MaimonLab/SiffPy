@@ -30,27 +30,48 @@ from siffpy.siffplot.roi_protocols.utils.polygon_sources import PolygonSource, V
 
 __all__ = [
     'PolygonSourceNapari',
-    'get_largest_lines_napari',
-    'get_largest_polygon_napari',
-    'get_largest_ellipse_napari',
     'holoviews_to_napari_shapes',
     'napari_shapes_to_holoviews',
     'rois_into_shapes_layer',
 ]
 
 class PolygonSourceNapari(PolygonSource):
-    def __init__(self, napari_source : napari.Viewer, layer_name = 'ROI shapes'):
+    def __init__(
+            self,
+            napari_source : napari.Viewer,
+            shapes_layer_name :str = 'ROI shapes',
+            reference_layer : str = 'Reference frames',
+            anatomy_layer : str = 'Anatomy references'
+        ):
         super().__init__(VizBackend.NAPARI, napari_source)
-        self.layer_name = layer_name
+        self.shapes_layer_name = shapes_layer_name
+        self.reference_layer = reference_layer
+        self.anatomy_layer = anatomy_layer
 
-    @property
-    def polygons(self):
-        return self.source.layers[self.layer_name].data
+    def to_napari(self):
+        return
+
+    def to_holoviews(self):
+        raise NotImplementedError("Conversion not yet implemented")
+
+    def polygons(self, slice_idx : int = None)->list[np.ndarray]:
+        if slice_idx is None:
+            return self.source.layers[self.shapes_layer_name].data
+        return [
+            shape_array
+            for shape_array in self.source.layers[self.shapes_layer_name].data
+            if (
+                (shape_array.shape[1] > 2) and # has a z plane
+                all(
+                    int(point[0]) == slice_idx for point in shape_array
+                ) # restricted to z plane we want
+            )
+        ]
 
     def get_largest_polygon(self, slice_idx = None, n_polygons = 1):
         return get_largest_polygon_napari(
             self.source,
-            shape_layer_name=self.layer_name,
+            shape_layer_name=self.shapes_layer_name,
             slice_idx = slice_idx,
             n_polygons = n_polygons,
         )
@@ -58,7 +79,7 @@ class PolygonSourceNapari(PolygonSource):
     def get_largest_lines(self, slice_idx = None, n_lines = 2):
         return get_largest_lines_napari(
             self.source,
-            shape_layer_name = self.layer_name,
+            shape_layer_name = self.shapes_layer_name,
             slice_idx=slice_idx,
             n_polygons=n_lines,
         )
@@ -66,10 +87,67 @@ class PolygonSourceNapari(PolygonSource):
     def get_largest_ellipse(self, slice_idx = None, n_ellipses = 1):
         return get_largest_ellipse_napari(
             self.source,
-            shape_layer_name=self.layer_name,
+            shape_layer_name=self.shapes_layer_name,
             slice_idx=slice_idx,
             n_ellipses = n_ellipses,
         )
+
+    def source_image(self, slice_idx = None):
+        if slice_idx is None:
+            return self.source.layers[self.reference_layer].data
+        return self.source.layers[self.reference_layer].data[slice_idx, : , :]
+
+    @property
+    def orientation(self)->float:
+        """
+        Angle to rotate the image by to put the anterior or ventral brain down,
+        depending on the viewing angle.
+
+        Returns
+        ------
+
+        offset : float
+
+            Angle (from 0 to 2 pi) to rotate the image by
+            to put the anterior or ventral brain down.
+            Image will be rotated COUNTERCLOCKWISE by this
+            angle.
+        """
+        if self.anatomy_layer in self.source.layers:
+            anatomy_layer : Shapes = self.source.layers[self.anatomy_layer]
+            shape_info = zip(anatomy_layer.data, anatomy_layer.shape_type)
+            lines = [
+                shape
+                for (shape, shape_type) in shape_info
+                if shape_type == 'line'
+            ]
+            if len(lines) == 0:
+                return 0.0 # assumes no rotation...
+            if not (len(lines) == 1):
+                raise RuntimeError(
+                    f"""
+                    Anatomy layer must have exactly one line, going from posterior
+                    to anterior. Found {len(lines)} lines.
+                    """
+                )
+            reference_line = lines[0]
+            # just y,x -- discard z if there is one
+            if reference_line.shape[-1] == 3:
+                reference_line = reference_line[:, 1:]
+
+            # Now we have two points: [(y1, x1), (y2, x2)]
+            (y1, x1), (y2, x2) = reference_line
+            back_to_front = x2 - x1 + (y2 - y1)*1j
+
+            # +y is down
+            down = 1j
+
+            # angle to rotate back_to_front by to 
+            # point it downward
+            offset = np.angle(down / back_to_front)
+            return offset % (2*np.pi)
+        else:
+            raise RuntimeError(f"No anatomy layer named {self.anatomy_layer} found")
 
 
 

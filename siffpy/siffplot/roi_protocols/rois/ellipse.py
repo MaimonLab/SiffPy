@@ -34,6 +34,12 @@ class Ellipse(ROI):
 
         Integer reference to the z-slice that the source polygon was drawn on.
 
+    orientation    : float | None
+
+        The orientation of the ellipse, in radians. Indicates
+        the angle by which the image must be rotated to put the
+        ventralmost side of the ellipse at the bottom of the image.
+
     .......
 
     Methods
@@ -64,6 +70,7 @@ class Ellipse(ROI):
             source_polygon : hv.element.path.Polygons = None,
             center_poly : hv.element.path.Polygons = None, 
             slice_idx : int = None,
+            orientation : float = 0.0,
             **kwargs
         ):
 
@@ -73,6 +80,7 @@ class Ellipse(ROI):
         self.source_polygon = source_polygon
         self.center_poly = center_poly
         self.plotting_opts = {}
+        self.orientation = orientation
 
     def center(self)->tuple[float, float]:
         """ Returns a tuple of the x and y coordinates of the Ellipse center """
@@ -127,8 +135,9 @@ class Ellipse(ROI):
             angles = np.linspace(EB_OFFSET , EB_OFFSET + 2*np.pi, n_segments+1)
         else:
             raise ValueError(f"Argument 'viewed_from' is {viewed_from}, must be in {[x.value for x in ViewDirection]}")
-            
+        angles -= self.orientation 
         self.perspective = viewed_from
+        # eek, bad terminology with my orientation variable from the class itself
         offset = ell.orientation
 
         # Go 360/n_segments degrees around the ellipse

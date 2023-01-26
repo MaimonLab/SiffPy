@@ -24,5 +24,16 @@ authors = [
 ]
 
 [project.optional-dependencies]
-all = ["napari[all]","holoviews", "bokeh", "dask"]
-image = ["napari[image]", "dask"]
+all = [
+    "napari[all]",
+    "holoviews",
+    "bokeh",
+    "dask",
+    "pandas",
+#    "polars",
+]
+image = ["napari[all]", "dask", "bokeh", "holoviews"]
+trac = [
+    "pandas",
+    #"polars",
+]

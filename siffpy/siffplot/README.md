@@ -4,10 +4,14 @@ TODO:
 
 - Finish `IntegratedPlotter` functionality and document it.
 - Migrate `TracPlotter` documentation.
+- Dramatically improve the `napari` annotation backend... maybe phase
+out `Holoviews` polygon stuff.
 
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.
-`HoloViews` and `Bokeh`, by contrast, are required imports. `napari` seems to be the more pleasant experience, though, and I'll
+`HoloViews` and `Bokeh`, by contrast, are required imports,
+because they behave better with all the types of data you may plot.
+`napari` seems to be the more pleasant experience, though, and I'll
 try my best to maintain full functionality for both, at least as long as I'm the primary programmer on this project (SCT).
 
 Almost none of this relies on any serious `SiffReader` functionality, and as a result many of the classes can actually be used
@@ -16,9 +20,7 @@ for .tiff files read by a `SiffReader`, or even previously processed `numpy` arr
 If the user has `napari` available, all `SiffVisualizer` classes will DEFAULT to `napari`, unless initialized with the keyword
 argument `backend = 'HoloViews'`. 
 If `napari` is not available, the keyword is not required -- everything will use `HoloViews` by default. To use
-options, and to actually visualize the `HoloViews` objects, be sure to call `hv.extension('bokeh')` in a notebook or script. Just
-as a warning, at the time of writing (SCT Dec. 28 2021), the `extension` call doesn't play nicely with `napari` and Notebooks, and
-it makes you have to manually execute individual cells, which is kind of a pain.
+options, and to actually visualize the `HoloViews` objects, be sure to call `hv.extension('bokeh')` in a notebook or script.
 
 The primary class for analysis is the `SiffPlotter`,
 while the primary class for viewing image streams is the `SiffVisualizer`.

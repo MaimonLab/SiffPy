@@ -1184,8 +1184,16 @@ class SiffReader(object):
             )
 
 ### REGISTRATION METHODS
-    def register(self, reference_method="suite2p", color_channel : int = None, save : bool = True, 
-        align_zplanes : bool = False, elastic_slice : float = np.nan, save_dict_name : str = None, **kwargs) -> dict:
+    def register(
+        self,
+        reference_method="suite2p",
+        color_channel : int = None,
+        save : bool = True, 
+        align_zplanes : bool = False,
+        elastic_slice : float = np.nan,
+        save_dict_name : str = None,
+        **kwargs
+        ) -> dict:
         """
         Performs image registration by finding the rigid shift of each frame that maximizes its
         phase correlation with a reference image. The reference image is constructed according to 

@@ -17,6 +17,7 @@ from siffpy.siffplot.roi_protocols.utils import PolygonSourceNapari
 CINNABAR = '#db544b'
 DRAWN_SHAPE_LAYER_NAME = "ROI shapes"
 SUBROI_LAYER_NAME = "Segmented ROIs"
+ANATOMY_SHAPE_LAYER_NAME = "Anatomy references"
 
 class ROIViewer(NapariInterface):
     """
@@ -95,6 +96,14 @@ class ROIViewer(NapariInterface):
             scale = self.scale,
             visible = False,
             opacity = 0.3
+        )
+
+        self.viewer.add_shapes(
+            face_color = "transparent",
+            name=ANATOMY_SHAPE_LAYER_NAME,
+            ndim = 3,
+            edge_color = "#FFFFFF",
+            scale = self.scale
         )
 
     def initialize_segmentation_widget(self):

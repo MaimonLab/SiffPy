@@ -16,7 +16,7 @@ the `SiffReader` class, which wraps the various methods of the
 ## SiffTrac
 
 Code for `FicTrac` files output by @tmohren's ROS implementations of `FicTrac`. Also contains functionality linking these
-data to imaging data from the `.siff`. Used by the `SiffPlot` submodule but only in its `TracPlot` classes.
+data to imaging data from the `.siff`. Used by the `SiffPlot` submodule but only in its `TracPlot` classes. Currently uses `pandas`, soon to migrate to `polars`
 
 ## SiffPlot
 

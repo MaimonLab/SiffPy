@@ -5,7 +5,7 @@ from siffpy.siffplot.roi_protocols import rois
 
 def circle_glomeruli(
         reference_frames : list,
-        polygon_source : dict,
+        polygon_source : PolygonSource,
         *args,
         n_glomeruli : int = 16,
         slice_idx : int = None,
@@ -14,7 +14,7 @@ def circle_glomeruli(
     """
     Takes the n largest ROIs and stitches them together to form a mustache
 
-    TODO: define the reference direction
+    TODO: define the reference direction and use it to order the glomeruli
 
     Parameters
     ----------
@@ -45,49 +45,18 @@ def circle_glomeruli(
 
     #first check if using holoviews
 
-    if type(polygon_source) is dict: # use holoviews
-        annotation_dict = polygon_source
-        largest_polygons, slice_idx, _ = rois.get_largest_polygon_hv(
-            annotation_dict, 
-            slice_idx = slice_idx,
-            n_polygons = n_glomeruli,
-        )
-        source_image = rois.annotation_dict_to_numpy(annotation_dict,slice_idx)
+    largest_polygons, slice_idx, _ = polygon_source.get_largest_polygon(
+        slice_idx = slice_idx, n_polygons=n_glomeruli
+    )
+    source_image = polygon_source.source_image(slice_idx)
 
-        return rois.GlobularMustache(
-            None,
-            slice_idx = slice_idx,
-            image = source_image,
-            globular_glomeruli=largest_polygons,
-        )
-
-    else: # using napari
-
-        largest_polygon, slice_idx, _ = rois.get_largest_polygon_napari(
-            polygon_source,
-            shape_layer_name = 'ROI shapes',
-            slice_idx = slice_idx
-        )
-        reference_frame_layer = next(filter(lambda x: x.name == 'Reference frames', polygon_source.layers)) # get the layer with the reference frames
-        source_image = reference_frame_layer.data[slice_idx, :, :]
+    return rois.GlobularMustache(
+        None,
+        slice_idx = slice_idx,
+        image = source_image,
+        name = 'Protocerebral bridge',
+        globular_glomeruli=largest_polygons,
+    )
         
-        fan_lines = rois.get_largest_lines_napari(polygon_source, shape_layer_name = 'ROI shapes', slice_idx=slice_idx, n_lines = 2)
-
-        if not (fan_lines is None): # use them if you have them
-            return rois.Fan(
-                largest_polygon,
-                slice_idx = slice_idx,
-                image = source_image,
-                bounding_paths = fan_lines,
-                name='Fan-shaped body'
-            )
-        else:
-            return rois.Fan(
-                largest_polygon,
-                slice_idx = slice_idx,
-                image = source_image,
-                name='Fan-shaped body'
-            )
-
 def dummy_method(*args, **kwargs):
     print("I'm just a placeholder!")
