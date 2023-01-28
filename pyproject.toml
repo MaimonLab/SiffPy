@@ -6,7 +6,6 @@ requires = [
     "numpy >= 1.15",
     "scipy",
     "ruamel.yaml",
-    #"siffreadermodule",
 ]
 build-backend = "setuptools.build_meta"
 
