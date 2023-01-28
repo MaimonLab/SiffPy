@@ -18,7 +18,6 @@ class PolygonSource(ABC):
     object!
     """
 
-    
     def __init__(self, interface : VizBackend, source : object):
         self.interface = interface
         self.source = source

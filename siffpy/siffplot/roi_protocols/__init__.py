@@ -22,7 +22,7 @@ REGIONS = [
     Region(
         ['pb','pcb','protocerebral bridge','bridge', 'Protocerebral bridge'],
         protocerebral_bridge,
-        'dummy_method',
+        'circle_glomeruli',
         RegionEnum.PROTOCEREBRAL_BRIDGE
     ),
     Region(

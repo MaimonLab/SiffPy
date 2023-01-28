@@ -48,6 +48,3 @@ def outline_fan(reference_frames : list, polygon_source : PolygonSource, *args, 
         fan_lines=fan_lines,
         name = 'Fan-shaped body',
     )
-
-def dummy_method(*args, **kwargs):
-    print("I'm just a placeholder!")

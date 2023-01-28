@@ -4,6 +4,8 @@ The SiffPy interface for FicTrac data that can be aligned to siff data
 
 The central class is the `FicTracLog`.
 
+- TODO: POLARS!
+
 ## FicTracLog
 
 Parses the `ROS2` node output specified by @tmohen and stores the information as a `pandas` `DataFrame` object.

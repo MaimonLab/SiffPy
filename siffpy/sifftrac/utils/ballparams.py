@@ -1,5 +1,5 @@
 # parameters describing a fictrac ball
-
+from dataclasses import dataclass
 DEFAULT_PARAMS = {
     'radius'   : 3,
     'units'    : 'mm',
@@ -7,15 +7,9 @@ DEFAULT_PARAMS = {
     'material' : 'foam'
 }
 
+@dataclass
 class BallParams():
-
-    def __init__(self, **kwargs):
-
-        for kwarg in kwargs:
-            setattr(self, kwarg, kwargs[kwarg])
-
-        for default_param in DEFAULT_PARAMS:
-            if not hasattr(self, default_param):
-                setattr(self, default_param, DEFAULT_PARAMS[default_param])
-        
-        
+    radius : float = 3
+    units : str = 'mm'
+    axis : str = 'free'
+    material : str = 'foam'

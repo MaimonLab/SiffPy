@@ -28,6 +28,8 @@ class ROIsContainer(widgets.Container):
             return
         if not hasattr(self.window.visualizer, 'rois'):
             return
+        if self.window.visualizer.rois is None:
+            return
         if len(self.window.visualizer.rois) == 0:
             return
 

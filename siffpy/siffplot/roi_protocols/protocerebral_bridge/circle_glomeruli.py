@@ -57,6 +57,3 @@ def circle_glomeruli(
         name = 'Protocerebral bridge',
         globular_glomeruli=largest_polygons,
     )
-        
-def dummy_method(*args, **kwargs):
-    print("I'm just a placeholder!")
