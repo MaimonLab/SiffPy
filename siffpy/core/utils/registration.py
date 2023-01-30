@@ -136,6 +136,7 @@ def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarr
             seed_ref_count = 100
             warnings.warn("Suite2p alignment arg 'seed_ref_count' is greater than number "
                           f"of frames being aligned. Defaulting to {seed_ref_count}.")
+    seed_ref_count = min(seed_ref_count, len(nimg_init))
     seed_idx = np.argpartition(err_val, seed_ref_count)[:seed_ref_count]
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 

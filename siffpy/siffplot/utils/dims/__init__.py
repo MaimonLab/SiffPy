@@ -79,7 +79,8 @@ class AngularVelocityAxis(hv.Dimension):
         """ hv.Dimension(('AngularVelocity','Angular\nvelocity'), unit = '°/sec') """
         if not 'unit' in kwargs:
             kwargs['unit'] = '°/sec'
-        super().__init__(("AngularVelocity", 'Angular\nvelocity'), **kwargs)
+        label = kwargs.pop('label', 'Angular\nvelocity')
+        super().__init__(("AngularVelocity", label), **kwargs)
 
 class CircCorr(hv.Dimension):
     """

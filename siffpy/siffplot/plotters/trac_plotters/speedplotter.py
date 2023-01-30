@@ -28,6 +28,7 @@ class SpeedPlotter(TracPlotter):
         FORWARD_SPEED    = "forward_speed"
         SIDESLIP         = "sideslip"
         ANGULAR_VELOCITY = "angular_velocity"
+        ANGULAR_SPEED    = "angular_speed"
         SPEED            = "speed"
         ALL              = "all"
 
@@ -97,6 +98,10 @@ class SpeedPlotter(TracPlotter):
         if style is self.SpeedStyle.ANGULAR_VELOCITY:
             (t_axis, speed) = angular_velocity_from_log(log, rolling_avg)
             yaxis = AngularVelocityAxis()
+        if style is self.SpeedStyle.ANGULAR_SPEED:
+            (t_axis, speed) = angular_velocity_from_log(log, rolling_avg)
+            speed = np.abs(speed)
+            yaxis = AngularVelocityAxis(label='Angular\nspeed')
         if style is self.SpeedStyle.SPEED:
             (t_axis, speed) = speed_from_log(log, rolling_avg)
             label = "Movement speed\n"
