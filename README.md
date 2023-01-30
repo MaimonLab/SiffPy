@@ -36,11 +36,15 @@ To really spell it out:
 - Clone the repo a location of your choosing with `git clone https://github.com/maimonlab/SiffPy`
 - Enter the newly created directory with `cd SiffPy`.
 - Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I've been using `>3.9` with `futures` but none of that seems essential.
-- Type `pip install .`.
+- Type `pip install "."`.
 
-You can also install the full feature set with `pip install siffpy[all]` once
+You can also install the full feature set with `pip install ".[all]"` or 
+`pip install "siffpy[all]"` once
 `siffpy` has been installed as above. If I ever put it on `PyPI`, then it that
 should work even without an original `siffpy` install.
+
+If you don't have `PyQt5` installed already, it will need to install `qmake`,
+which might take a while... 
 
 This will also compile the C extension module `siffreadermodule` that does most of the heavy lifting, stick the library into your path for this environment, and then make the SiffPy Python code accessible.
 

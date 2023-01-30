@@ -3,9 +3,8 @@ requires = [
     "setuptools",
     "setuptools_scm",
     "wheel",
-    "numpy >= 1.15",
+    "numpy",
     "scipy",
-    "ruamel.yaml",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -22,17 +21,25 @@ authors = [
     {name = "Stephen Thornquist"},
 ]
 
+dependencies = [
+    "numpy >= 1.15",
+    "scipy",
+    "ruamel.yaml",
+    "matplotlib",
+]
+
 [project.optional-dependencies]
+
 all = [
     "napari[all]",
     "holoviews",
     "bokeh",
     "dask",
     "pandas",
-#    "polars",
+    #polars
 ]
 image = ["napari[all]", "dask", "bokeh", "holoviews"]
 trac = [
     "pandas",
-    #"polars",
+    #polars,
 ]
