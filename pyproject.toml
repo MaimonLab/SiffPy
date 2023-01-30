@@ -15,7 +15,6 @@ write_to = "siffpy/core/_version.py"
 name = "siffpy"
 dynamic = ["version"]
 readme = "README.md"
-license = "GPL-3.0-or-later"
 description = "A package for reading and analyzing .siff data"
 authors = [
     {email = "thornquist@rockefeller.edu"},
