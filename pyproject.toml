@@ -4,7 +4,6 @@ requires = [
     "setuptools_scm",
     "wheel",
     "numpy",
-    "scipy",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -16,6 +15,7 @@ name = "siffpy"
 dynamic = ["version"]
 readme = "README.md"
 description = "A package for reading and analyzing .siff data"
+license = {text="GPL-3.0-or-later"}
 authors = [
     {email = "thornquist@rockefeller.edu"},
     {name = "Stephen Thornquist"},

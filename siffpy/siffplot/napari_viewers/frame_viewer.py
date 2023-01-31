@@ -2,12 +2,19 @@ import logging
 from typing import Callable, Iterable
 
 import numpy as np
-from dask import delayed
-import dask.array as da
 from qtpy import QtWidgets
 
 from siffpy.core import SiffReader
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
+
+DASK = False
+try:
+    from dask import delayed
+    import dask.array as da
+    DASK = True
+except ImportError:
+    pass
+
 
 class FrameViewer(NapariInterface):
     """
@@ -88,7 +95,7 @@ class FrameViewer(NapariInterface):
         # dumb bug prevents setting this in the init
         self.viewer.dims.axis_labels = siffreader.im_params.axis_labels
 
-        if load_frames:
+        if load_frames or (not DASK):
             stack = self._default_preload_frames()
         
         else:
@@ -169,11 +176,14 @@ class FrameViewer(NapariInterface):
         Returns all frames loaded at the initiation of the reader.
         """
         logging.warn("Loading all frames. This might take a while...\n")
-            
-        return np.array(self.siffreader.get_frames(
-                frames=list(range(self.siffreader.im_params.num_frames)),
-                registration_dict= self.siffreader.registration_dict
-        )).reshape((-1,*self.siffreader.im_params.stack))
+        
+        frames = self.siffreader.get_frames(
+            frames=list(range(self.siffreader.im_params.num_frames)),
+            registration_dict= self.siffreader.registration_dict
+        )
+        return np.array(
+            frames[:self.siffreader.im_params.final_full_volume_frame]
+        ).reshape((-1,*self.siffreader.im_params.stack))
 
         #self.show_roi_widget = _make_show_roi_widget()
 

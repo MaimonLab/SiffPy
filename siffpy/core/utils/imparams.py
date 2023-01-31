@@ -146,6 +146,10 @@ class ImParams():
         else:
             return 1
 
+    @property
+    def final_full_volume_frame(self)->int:
+        return self.num_frames - self.num_frames % self.frames_per_volume
+
     def __getitem__(self, key : str) -> None:
         if hasattr(self, key.lower()):
             return getattr(self, key.lower())
