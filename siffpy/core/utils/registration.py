@@ -453,7 +453,8 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
 
     # Repeat the same process -- build a reference, re-align
     for ref_iter in range(n_ref_iters - 1):
-        pbar.set_postfix({"Alignment iteration" : ref_iter})
+        if use_tqdm:
+            pbar.set_postfix({"Alignment iteration" : ref_iter})
         t = time.time()
         ref_im = build_reference_image(siffio, frames, registration_dict = reg_dict, **kwargs)
 

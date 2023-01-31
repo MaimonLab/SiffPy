@@ -2,6 +2,8 @@ from typing import Union
 import itertools
 import logging, os, pickle
 from functools import reduce
+from pathlib import Path
+import builtins
 
 import numpy as np
 
@@ -61,7 +63,7 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : str = None):
+    def __init__(self, filename : Union[str, Path] = None):
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
@@ -70,6 +72,8 @@ class SiffReader(object):
         self.debug = False
         self.events = None
         self.siffio = SiffIO()
+        if isinstance(filename, Path):
+            filename = str(filename)
         if filename is None:
             self.filename = ''
         else:
@@ -105,7 +109,7 @@ class SiffReader(object):
         # TODO
         return self.__str__()
 
-    def open(self, filename: str = None) -> None:
+    def open(self,  filename : Union[str, Path] = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -119,10 +123,11 @@ class SiffReader(object):
         """
         if filename is None:
             raise NotImplementedError("Dialog to navigate to file not yet implemented")
-            
+        if isinstance(filename, Path):            
+            filename = str(filename)            
         if self.opened and not (filename == self.filename):
             self.siffio.close()
-
+        
         self.siffio.open(filename)
         self.filename = filename
 
@@ -1260,7 +1265,7 @@ class SiffReader(object):
         frames_list = self.im_params.framelist_by_slice(color_channel=color_channel)
 
         try:
-            if __IPYTHON__: # check if we're running in a notebook. One of the nice things about an interpreted language!
+            if hasattr(builtins, "__IPYTHON__"): # check if we're running in a notebook. One of the nice things about an interpreted language!
                 import tqdm
                 pbar = tqdm.tqdm(frames_list)
                 slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
