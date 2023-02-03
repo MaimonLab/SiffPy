@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from siffpy.core import SiffReader, fit_exp, __version__ as _version
+from siffpy.core import SiffReader, fit_exp, __version__
 
 #TODO: IMPLEMENT SIFFTOTIFF import siffreader
-
-__version__ = _version
 
 def siff_to_tiff(source_file : str, target_file : str = None)->None:
     """

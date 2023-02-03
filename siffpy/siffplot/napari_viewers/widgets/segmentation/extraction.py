@@ -106,7 +106,11 @@ class ExtractionMethodBox(widgets.ComboBox):
             returned_class
         )
 
-        self.roi_class_label.value = returned_class.__name__
+        try:
+            self.roi_class_label.value = returned_class.__name__
+        except:
+            self.roi_class_label = "None (invalid function)"
+            returned_class = None
 
 
     def update_region(self, region_name : str):

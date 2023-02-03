@@ -6,9 +6,11 @@ plus a button for executing the extraction method + segmentation.
 import magicgui.widgets as widgets
 import typing
 import numpy as np
+import inspect
 
 from napari.layers import Shapes
 
+from siffpy import SiffReader
 from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol, ROI
 
@@ -115,11 +117,25 @@ class SegmentationWidget(widgets.Container):
             for widget in self.extraction_params_container:
                 extraction_kwarg_dict[widget.name] = widget.value
 
+            # See if any other args are needed for that method
+            additional_args = []
+
+            reg_obj = next((reg_obj for reg_obj in REGIONS if reg_obj.region_enum.value == region), None)
+            func : typing.Callable = next((segfunc.func for segfunc in reg_obj.functions if segfunc.name == method_name), None)
+            
+            # Checks if it's a siffreader, because we know what to do with those
+            if any(
+                par.annotation == SiffReader
+                for par in inspect.signature(func).parameters.values()
+            ):
+                additional_args.append(self.window.siffreader)
+
             rois = roi_protocol(
                 region,
                 method_name,
                 self.reference_frames,
                 PolygonSourceNapari(self.window.viewer),
+                *additional_args,
                 **extraction_kwarg_dict,
             )
 

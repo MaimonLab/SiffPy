@@ -24,6 +24,14 @@ class Region():
 
     @property
     def functions(self)->list[SegmentationFunction]:
+        """
+        A list of `SegmentationFunction` objects, which
+        stores the returned values of `inspect.getmembers`
+        on all functions in the module for this region.
+
+        SegmentationFunctions have a `name` and a `func` attribute,
+        with `name` being a string name and `func` being a callable. 
+        """
         return list(
             SegmentationFunction(*func_tup) for func_tup in
             inspect.getmembers(self.module, inspect.isfunction)

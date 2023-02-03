@@ -6,6 +6,10 @@ TODO:
 - Migrate `TracPlotter` documentation.
 - Dramatically improve the `napari` annotation backend... maybe phase
 out `Holoviews` polygon stuff.
+- Make `SegmentationFunction` a more generic procedure, with an
+abstract class and individualized functionality entirely from
+subclasses, rather than being passed through the clumsy
+`roi_protocol(*args, **kwargs)` framework.
 
 Plotting interface for `SiffPy`. Uses `HoloViews` and a `Bokeh` backend, and/or `napari` if it can be successfully imported.
 `napari` use is restricted for images themselves (e.g. annotating ROIs, visualizing frames) and is optional for all functionality.

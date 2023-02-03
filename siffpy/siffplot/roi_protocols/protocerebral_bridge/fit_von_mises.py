@@ -8,6 +8,7 @@ from siffpy.siffplot.roi_protocols import rois
 def fit_von_mises(
         reference_frames : list,
         polygon_source : PolygonSource,
+        siffreader : SiffReader,
         *args,
         n_glomeruli : int = 16,
         slice_idx : int = None,
@@ -22,24 +23,22 @@ def fit_von_mises(
 
     # Get the siffreader to acquire the actual
     # individual time frames
-    siffreader = SiffReader() #= get_siffreader()
     im_params = siffreader.im_params
+
+    print(im_params)
 
     # Gets all polygons, irrespective of slice
     seed_polys = polygon_source.polygons()
 
-    # Iterate over polygons,
-    # take the correlation between the image stack
-    # and its presumed activity profile, and use
-    # that as a mask?
+    # Compute the correlation matrix between
+    # each profile across the time series
 
-    # Sort polygons by presumed peak tuning
+    # Compute a von Mises model with the same
+    # number of seeds that matches the correlation
+    # matrix between the true data seeds
 
-    # Take FFT of the correlations
-
-    # Initializes kernels
-
-    #???
-
+    # Take the FFT of each pixel's correlation against
+    # the seeds and extract a phase (from the fundamental
+    # frequency) of the FFT
 
     raise NotImplementedError("Sorry!")

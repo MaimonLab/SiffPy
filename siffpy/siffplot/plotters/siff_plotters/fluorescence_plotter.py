@@ -209,7 +209,7 @@ class FluorescencePlotter(SiffPlotter):
             if not (pooled[0].method is None):
                 z_axis_name = pooled[0].method
                 if LATEX and (z_axis_name == 'dF/F'):
-                    z_axis_name = r"$$\DeltaF/F$$"
+                    z_axis_name = r"$$\DeltaF/F_0$$"
                 if pooled[0].normalized:
                     z_axis_name += "\n(normalized)"
 
