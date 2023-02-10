@@ -60,7 +60,7 @@ def correct_flyback(f):
             
             true_frames = shift_by_flyback(
                 frames,
-                imparams.frames_to_discard,
+                imparams.frames_per_volume,
                 imparams.num_discard_flyback_frames,
                 imparams.num_frames
             )
@@ -178,7 +178,7 @@ class ImParams():
     @property
     def num_true_frames(self)->int:
         """ Number of frames that are NOT flyback """
-        int(self.num_frames * (
+        return int(self.num_frames * (
             self.frames_per_volume/(
                 self.frames_per_volume + self.num_discard_flyback_frames
                 )

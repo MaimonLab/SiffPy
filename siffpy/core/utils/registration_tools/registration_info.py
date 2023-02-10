@@ -11,6 +11,7 @@ from siffreadermodule import SiffIO
 class RegistrationType(Enum):
     Caiman = 'caiman'
     Suite2p = 'suite2p'
+    Siffpy = 'siffpy'
     Average = 'average'
     Other = 'other'
 
