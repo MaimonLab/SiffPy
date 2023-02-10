@@ -36,10 +36,19 @@ all = [
     "bokeh",
     "dask",
     "pandas",
-    #polars
+    "polars",
+    #"suite2p",
 ]
-image = ["napari[all]", "dask", "bokeh", "holoviews"]
+
+image = [
+    "napari[all]",
+    "dask",
+    "bokeh",
+    "holoviews",
+    #"suitep2"
+]
+
 trac = [
     "pandas",
-    #polars,
+    "polars",
 ]

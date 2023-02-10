@@ -15,8 +15,9 @@ from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol, ROI
 
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
-from siffpy.siffplot.roi_protocols.utils import PolygonSourceNapari
-from siffpy.siffplot.roi_protocols.utils.napari_fcns import rois_into_shapes_layer
+from siffpy.siffplot.roi_protocols.utils.napari_fcns import (
+    rois_into_shapes_layer, PolygonSourceNapari
+)
 import siffpy.siffplot.napari_viewers.widgets.segmentation as segmentation
 
 

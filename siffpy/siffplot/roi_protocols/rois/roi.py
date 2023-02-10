@@ -1,9 +1,11 @@
 import abc, pickle, logging, os
 from enum import Enum
-from siffpy.siffplot.utils.exceptions import NoROIException
 import numpy as np
 import holoviews as hv
 from matplotlib.path import Path as mplPath
+
+from siffpy.siffplot.utils.exceptions import NoROIException
+from siffpy.siffplot.roi_protocols.utils import polygon_to_mask
 
 # Between these sets of enums,
 # can uniquely define the orientation
@@ -146,23 +148,8 @@ class ROI():
                     ), dtype=np.uint8)
             except Exception as e:
                 raise ValueError(f"Incompatible HoloViews object.\nException:\n\t{e}")
-
-        if isinstance(self.polygon,hv.element.Polygons):
-            poly_as_path = mplPath(list(zip(self.polygon.data[0]['x'],self.polygon.data[0]['y'])), closed=True)
-        elif self.polygon is None:
-            return np.zeros_like(image).astype(bool)
-        else:
-            poly_as_path = mplPath(self.polygon.data[0], closed = True) # these are usually stored as arrays
-       
-        xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image.T.shape])
-        x, y = xx.flatten(), yy.flatten()
-
-        rasterpoints = np.vstack((x,y)).T
-
-        grid = poly_as_path.contains_points(rasterpoints)
-        grid = grid.reshape(image.shape)
         
-        return grid
+        return polygon_to_mask(self.polygon, image.shape)
 
     def get_subroi_masks(self, image : np.ndarray = None, ret_type : type = list) -> list[np.ndarray]:
         """
@@ -357,10 +344,7 @@ class subROI(ROI):
     So far, no custom functionality other than it being
     a subclass identifiable with isinstance.
     """
-    def __init__(self, *args, **kwargs):
-        """ Standard ROI init """
-        ROI.__init__(self, *args, **kwargs)
-
+    pass
 
 
 class Midline():

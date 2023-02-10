@@ -12,7 +12,7 @@ from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol
 from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils import napari_fcns
-from siffpy.siffplot.roi_protocols.utils import PolygonSourceNapari
+from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
 from siffpy.siffplot.napari_viewers.widgets import SegmentationWidget
 
 CINNABAR = '#db544b'

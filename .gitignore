@@ -8,6 +8,10 @@
 *.csv
 *.DS_Store
 .DS_Store
+siffpy/core/_version.py
+!/demo_notebooks/*.ipynb
+!/demo_notebooks/demo_data/*.siff
+!/demo_notebooks/demo_data/*.tiff
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -61,4 +65,3 @@ coverage.xml
 docs/_build/
 rdict.csv
 flimenv.yml
-siffpy/core/_version.py

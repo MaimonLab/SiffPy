@@ -2,8 +2,6 @@ import logging, re
 
 from siffpy.core.utils import ImParams
 
-MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
-
 def vector_to_list(vector, vec_num : int = 0, ret_type=float):
     """
     list = vector_to_list(vector, type=float)
@@ -78,62 +76,26 @@ def header_data_to_roi_string(hd : str) -> dict:
     return eval(hd['ROI string'].replace("null", "None"))
 
 def header_to_imparams(header : str, num_frames : int = None)->ImParams:
-    """ Returns a dict of the most important data.
-    KEYS are strings, VALUES as defined below.
-    TODO: Add all the values I want. I'm sure it'll
-    come up as I do analysis
-
-    RETURNS
-    -------
-    siffpy.core.utils.imparams.ImParams:
-
-        Attributes:
-        ----------
-        NUM_SLICES -- (int)
-        FRAMES_PER_SLICE -- (int)
-        STEP_SIZE -- (float)
-        Z_VALS -- (list of floats)
-        COLORS -- (list of ints)
-        XSIZE -- (int)
-        YSIZE -- (int)
-        TODO:XRESOLUTION -- (float)
-        TODO:YRESOLUTION -- (float)
-        ZOOM -- (float)
-        PICOSECONDS_PER_BIN -- (int)
-        NUM_BINS -- (int)
+    """
+    Returns an object containing the most important image parameters
     """
     header_dict = header_data_to_nvfd(header)
-    im_params = {}
-    im_params["NUM_SLICES"] = int(header_dict["SI.hStackManager.actualNumSlices"])
-    im_params["FRAMES_PER_SLICE"] = int(header_dict["SI.hStackManager.framesPerSlice"])
-    if im_params["NUM_SLICES"] > 1:
-        im_params["STEP_SIZE"] = float(header_dict["SI.hStackManager.actualStackZStepSize"])
-    im_params["Z_VALS"] = vector_to_list(header_dict['SI.hStackManager.zsRelative'], ret_type=float)
-    im_params["COLORS"] = vector_to_list(header_dict["SI.hChannels.channelSave"], ret_type = int)
-    im_params["ZOOM"] = float(header_dict['SI.hRoiManager.scanZoomFactor'])
-    im_params["IMAGING_FOV"] = matrix_to_listlist(header_dict['SI.hRoiManager.imagingFovUm'])
-    try:
-        im_params["PICOSECONDS_PER_BIN"] = MULTIHARP_BASE_RES*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
-        im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
-    except:
-        logging.warning(
-            """
-            File lacks header data relating to PicoQuant MultiHarps -- this may be a non-FLIM
-            ScanImage build. FLIM-dependent code may not work for these images!!
-            """
-        )
+
+    #im_params = {}
+    # try:
+    #     im_params["PICOSECONDS_PER_BIN"] = MULTIHARP_BASE_RES*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
+    #     im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
+    # except:
+    #     logging.warning(
+    #         """
+    #         File lacks header data relating to PicoQuant MultiHarps -- this may be a non-FLIM
+    #         ScanImage build. FLIM-dependent code may not work for these images!!
+    #         """
+    #     )
 
     ROI_group_data = header_data_to_roi_string(header)
-    try:
-        xy = ROI_group_data['RoiGroups']['imagingRoiGroup']['rois']['scanfields']['pixelResolutionXY']
-        im_params["XSIZE"] = xy[0]
-        im_params["YSIZE"]= xy[1]
-    except:
-        raise Exception("ROI header information is more complicated. Probably haven't implemented the reader"
-        " to be comaptible with mROI scanning. Don't worry -- if you're getting this error, I'm already"
-        " planning on addressing it."
-        )
-    finally:
-        im_params['NUM_FRAMES'] = num_frames
-        im_pars = ImParams(**im_params)
-        return im_pars
+    #im_params['NUM_FRAMES'] = num_frames
+    #im_pars = ImParams(**im_params)
+    im_pars = ImParams.from_dict(header_dict, num_frames = num_frames)
+    im_pars.add_roi_data(ROI_group_data)
+    return im_pars

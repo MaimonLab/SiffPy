@@ -10,19 +10,78 @@ SCT Dec 29 2021
 from typing import Iterable, Union
 
 import holoviews as hv
+from holoviews import Polygons, Ellipse, Path
+from matplotlib.path import Path as mplPath
 import numpy as np
 
 from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 from siffpy.siffplot.roi_protocols.utils.polygon_sources import PolygonSource
 
 try:
-    from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
-except ImportError:
-    pass
-try:
     from siffpy.siffplot.roi_protocols.utils.holoviews_fcns import PolygonSourceHoloViews
 except ImportError:
     pass
+
+def polygon_to_z(polygon : Union[Polygons, Ellipse, np.ndarray])->int:
+    """
+    Returns the z coordinate of a polygon. If it's a list of polygons, returns the z coordinate of the first one.
+    """
+    if isinstance(polygon, Polygons):
+        return polygon.data[0]['z'][0]
+    elif isinstance(polygon, Ellipse):
+        return polygon.data['z'][0]
+    elif isinstance(polygon, np.ndarray):
+        if polygon.shape[-1] != 3:
+            raise ValueError("Polygon passed does not contain z information")
+        if not all(
+            vert[0] == polygon[0][0]    
+            for vert in polygon
+        ):
+            raise ValueError("Polygon passed does not have the same z coordinate for all vertices")
+        return polygon[0][0]
+    else:
+        raise TypeError("Input must be a holoviews Polygons object, a holoviews Ellipse object, or a numpy array")
+
+def polygon_to_mask(polygon : Union[Polygons,Ellipse], image_shape : tuple[int,int]) -> np.ndarray:
+    """
+    polygon : a holoviews.element.Polygons object
+    image_shape : a tuple of (height, width)
+    """
+    mask = np.zeros(image_shape, dtype=bool)
+    if isinstance(polygon, Polygons):
+        for edges in polygon.data:
+            path = mplPath(list(zip(edges['x'], edges['y'])),closed=True)
+            mask = mask | path_to_mask(path, image_shape)
+
+    elif isinstance(polygon, Path):
+        path = mplPath(polygon.data[0], closed = True)
+        mask = mask | path_to_mask(path, image_shape)
+
+    elif isinstance(polygon, np.ndarray):
+        # From Napari.
+        # presumes the _last two_ dimensions are y and x
+        if polygon.shape[-1] != 2:
+            # Ignore the z dimension, or any others
+            polygon = polygon[..., -2:]
+
+        polygon = polygon[..., 1::-1]  # flip y, x to x, y
+
+        path = mplPath(polygon, closed = False)
+        mask = mask | path_to_mask(path, image_shape)
+
+    return mask
+
+def path_to_mask(path : mplPath, image_shape : tuple[int,int]) -> np.ndarray:
+    """
+    path : a holoviews.element.Path object
+    image_shape : a tuple of (height, width)
+    """
+    xx, yy = np.meshgrid(*[np.arange(0,dimlen,1) for dimlen in image_shape[::-1]])
+    x, y = xx.flatten(), yy.flatten()
+    points = np.vstack((x,y)).T
+    mask = path.contains_points(points)
+    mask = mask.reshape(image_shape)
+    return mask
 
 def point_inside_rays(ray1 : np.ndarray, ray2 : np.ndarray, point : tuple[float,float], origin : tuple[float,float]) -> bool:
     """

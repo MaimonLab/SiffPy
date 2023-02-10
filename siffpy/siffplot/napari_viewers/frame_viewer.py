@@ -158,10 +158,12 @@ class FrameViewer(NapariInterface):
         """
         def volume_get(volume_idx):
             # Local function executed over and over
-            frame_start = volume_idx * self.siffreader.im_params.frames_per_volume
             return np.array(
                 self.siffreader.get_frames(
-                    frames=list(range(frame_start,frame_start+self.siffreader.im_params.frames_per_volume)),
+                    frames=self.siffreader.im_params.flatten_by_timepoints(
+                        timepoint_start = volume_idx,
+                        timepoint_end = volume_idx+1,
+                    ),
                     registration_dict=self.siffreader.registration_dict
                 )
             ).reshape(self.siffreader.im_params.volume)
@@ -178,7 +180,7 @@ class FrameViewer(NapariInterface):
         logging.warn("Loading all frames. This might take a while...\n")
         
         frames = self.siffreader.get_frames(
-            frames=list(range(self.siffreader.im_params.num_frames)),
+            frames=self.siffreader.im_params.all_frames,
             registration_dict= self.siffreader.registration_dict
         )
         return np.array(

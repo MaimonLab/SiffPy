@@ -24,6 +24,7 @@ from napari import Viewer
 from napari.layers.shapes import Shapes
 import holoviews as hv
 import holoviews.element.path as hvpath
+from holoviews import Polygons
 
 from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils.polygon_sources import PolygonSource, VizBackend

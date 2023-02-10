@@ -128,6 +128,7 @@ class SiffReader(object):
         if self.opened and not (filename == self.filename):
             self.siffio.close()
         
+        print(f"Opening {filename}, collecting metadata...")
         self.siffio.open(filename)
         self.filename = filename
 
@@ -145,7 +146,7 @@ class SiffReader(object):
             with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
                 reg_dict = pickle.load(dict_file)
             if isinstance(reg_dict, dict):
-                logging.warning("\n\n\tFound a registration dictionary for this image and importing it.\n")
+                print("\n\n\tFound a registration dictionary for this image and importing it.\n")
                 self.registration_dict = reg_dict
             else:
                 logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
@@ -153,7 +154,7 @@ class SiffReader(object):
             with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
                 ref_ims = pickle.load(images_list)
             if isinstance(ref_ims, list):
-                logging.warning("\n\n\tFound a reference image list for this file and importing it.\n")
+                print("\n\n\tFound a reference image list for this file and importing it.\n")
                 self.reference_frames = ref_ims
             else:
                 logging.warning("\n\n\tPutative reference images object for this file is not of type list.\n", stacklevel=2)
@@ -382,11 +383,91 @@ class SiffReader(object):
 
         raise ValueError(f"Invalid ret_type argument {ret_type}")
 
+    def sum_mask(
+            self,
+            mask : np.ndarray,
+            timepoint_start : int = 0,
+            timepoint_end : int = None,
+            z_list : list[int] = None,
+            color_channel :  int = 1,
+            registration_dict : dict = None,
+            discard_bins : int = None,
+        )->np.ndarray:
+        """
+        Computes the sum photon counts within a numpy mask over timesteps.
+        Takes _timepoints_ as arguments, not frames.
+
+        Arguments
+        ---------
+        mask : np.ndarray[bool]
+
+            Mask to sum over. Must be the same shape as the image.
+
+        timepoint_start : int
+            
+            Starting timepoint for the sum. Default is 0.
+
+        timepoint_end : int
+
+            Ending timepoint for the sum. Default is None, which means the last timepoint.
+
+        z_list : list[int]
+
+            List of z-slices to sum over. Default is None, which means all z-slices.
+
+        color_channel : int
+
+            Color channel to sum over. Default is 1, which means the FIRST color channel.
+        
+        registration_dict : dict
+
+            Registration dictionary, if used
+
+        discard_bins : int
+
+            Arrival time bin beyond which to discard photons (if arrival times were measured).
+
+        Returns
+        -------
+        np.ndarray
+
+            Summed photon counts as an array of shape (n_timepoints, mask.shape[0])
+        """
+
+        if timepoint_end is None:
+            timepoint_end = self.im_params.num_timepoints
+
+        if z_list is None:
+            z_list = list(range(self.im_params.num_slices))
+
+        if isinstance(z_list, int):
+            z_list = [z_list]
+
+        if registration_dict is None and hasattr(self, 'registration_dict'):
+            registration_dict = self.registration_dict
+
+        if not (discard_bins is None):
+            logging.warning("Discard_bins keyword argument not implemented, ignoring")
+
+        frames = self.im_params.framelist_by_slices(color_channel = color_channel-1, slices = z_list, lower_bound=timepoint_start, upper_bound=timepoint_end)
+        
+        summed_data = self.siffio.sum_roi(
+            mask,
+            frames = frames,
+            registration = registration_dict
+        )
+
+        # more than one slice, sum across slices
+        return np.sum(summed_data.reshape((len(z_list),-1)),axis=0)
+            
     def sum_roi(self, roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
         timepoint_start : int = 0, timepoint_end : int = None,
         color_list : list[int] = None, registration_dict : dict = None,
         )->Union[np.ndarray,list[np.ndarray]]:
         """
+
+        TODO: Rewrite to use sum_mask.
+
         Computes the sum photon counts within an ROI over timesteps.
 
         Color_list should be organized by CHANNELS not by the INDEX,
@@ -425,6 +506,7 @@ class SiffReader(object):
                 frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
             else:
                 frames = frames[timepoint_start:timepoint_end]
+            
             try:
                 mask = roi.mask()
             except ValueError:
