@@ -2,6 +2,8 @@ from functools import reduce
 from operator import add
 import re
 
+from siffpy.core.utils.im_params.from_matlab import *
+
 def _unsafe_eval(val):
     """
     NOT ACTUALLY TOTALLY SAFE just won't crash the interpreter
@@ -12,7 +14,10 @@ def _unsafe_eval(val):
     except NameError:
         if isinstance(val, str):
             try:
-                ret = eval(val.capitalize())
+                if contains_vector(val):
+                    ret = matrix_to_listlist(val)
+                else:
+                    ret = eval(val.capitalize())
             except:
                 ret = val
         else:
