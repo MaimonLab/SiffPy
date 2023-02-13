@@ -30,4 +30,4 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             image : np.ndarray,
             z_plane : int
         )->tuple[int,int]:
-        pass
+        raise NotImplementedError()

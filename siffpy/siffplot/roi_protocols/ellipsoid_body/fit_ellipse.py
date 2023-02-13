@@ -6,7 +6,7 @@ import holoviews as hv
 from siffpy.siffplot.roi_protocols.ellipsoid_body.extra_rois import ExtraRois
 from siffpy.siffplot.roi_protocols.utils.holoviews_fcns import fit_ellipse_to_poly
 from siffpy.siffplot.roi_protocols.utils import PolygonSource
-from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols.rois.ellipse import Ellipse
 from siffpy.siffplot.roi_protocols.extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
 
@@ -16,7 +16,7 @@ def fit_ellipse(
     *args,
     slice_idx : int = None,
     extra_rois : ExtraRois = ExtraRois.CENTER,
-    **kwargs) -> rois.Ellipse:
+    **kwargs) -> Ellipse:
     """
     Fits the largest polygon drawn in the annotators to an ellipse, 
     and uses that as the outside of the ellipsoid body estimate.
@@ -104,7 +104,7 @@ def fit_ellipse(
         pass
     # If you're using napari instead
     else:
-        rois.Ellipse(
+        Ellipse(
             ellip,
             source_polygon = largest_polygon,
             center_poly = center_poly,
@@ -115,7 +115,7 @@ def fit_ellipse(
         )
         logging.warning("Haven't gotten around to implementing the center ROI stuff fit to a Polygon in napari.")
     
-    return rois.Ellipse(
+    return Ellipse(
         ellip.opts(**kwargs),
         source_polygon = largest_polygon,
         center_poly = center_poly,

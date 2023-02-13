@@ -39,7 +39,10 @@ def correct_flyback(f):
                 shift_frame
                 for frame in framelist
                 if (
-                shift_frame := frame + num_flyback_frames*(frame//num_frames_per_volume)
+                shift_frame := (
+                    frame + num_flyback_frames*
+                    (frame//num_frames_per_volume)
+                )
                 ) < max_frames
             ]
             return true_frames
@@ -124,6 +127,17 @@ class ImParams():
             if not roi_group_data is None:
                 self.roi_groups[roi_group_name] = ROIGroup(roi_group_data)
 
+    def _repr_pretty_(self, p, cycle):
+        """
+        Special pretty-print method for IPython notebooks.
+
+        Not typehinted because it's IPython-specific...
+        """
+        if cycle:
+            p.text(self.__repr__())
+            return
+        p.text(self.__repr__())
+
     @property
     def discard_frames(self)->bool:
         if hasattr(self, 'FastZ'):
@@ -132,7 +146,7 @@ class ImParams():
     @property
     def num_discard_flyback_frames(self)->int:
         if hasattr(self, 'FastZ'):
-            return self.FastZ.numDiscardFlybackFrames
+            return self.FastZ.numDiscardFlybackFrames*self.num_colors
 
     @property
     def flyback_frames(self)->list[int]:

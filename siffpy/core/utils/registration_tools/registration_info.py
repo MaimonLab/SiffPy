@@ -16,6 +16,7 @@ class RegistrationType(Enum):
     Other = 'other'
 
 class RegistrationInfo(ABC):
+    """ Base class for all Registration implementations """
 
     def __init__(self, siffio : SiffIO, backend : Union[RegistrationType,str]):
         if isinstance(backend, str):
@@ -30,11 +31,20 @@ class RegistrationInfo(ABC):
         return self.yx_shifts[idx]
     
     @abstractmethod
-    def register(self, *args, **kwargs):
+    def register(
+        self,
+        siffio : SiffIO,
+        *args,
+        **kwargs
+        ):
         raise NotImplementedError()
 
     @abstractmethod
-    def align_to_reference(self, images : np.ndarray, z_plane : int)->tuple[int,int]:
+    def align_to_reference(
+        self,
+        images : np.ndarray,
+        z_plane : int
+        )->tuple[int,int]:
         raise NotImplementedError()
 
     def save(self, save_path : Union[str, Path]):
@@ -51,6 +61,9 @@ class RegistrationInfo(ABC):
             )
         with path.open('rb') as f:
             return pickle.load(f)
+        
+    def __repr__(self):
+        return f"{self.registration_type} RegistrationInfo for {self.filename}"
         
 class CustomRegistrationInfo(RegistrationInfo):
     """

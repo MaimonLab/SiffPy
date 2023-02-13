@@ -4,17 +4,17 @@ from siffreadermodule import SiffIO
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType
 )
-from siffpy.core.utils.registration_tools.siffpy.alignment import (
-    align_to_reference
-)
-from siffpy.core.utils.registration_tools.siffpy.registration_method import (
-    register_frames
-)
+#from siffpy.core.utils.registration_tools.siffpy.alignment import (
+#    align_to_reference
+#)
+#rom siffpy.core.utils.registration_tools.siffpy.registration_method import (
+#    register_frames
+#)
 
-class SiffpyRegistrationInfo(RegistrationInfo):
+class CaimanRegistrationInfo(RegistrationInfo):
 
     def __init__(self, siffio : SiffIO):
-        super().__init__(siffio, RegistrationType.Siffpy)
+        super().__init__(siffio, RegistrationType.Caiman)
 
     def register(self, *args, **kwargs):
         raise NotImplementedError()
@@ -26,8 +26,4 @@ class SiffpyRegistrationInfo(RegistrationInfo):
             z_plane : int,
             *args, **kwargs
         )->tuple[int,int]:
-        return align_to_reference(
-            self.reference_frames[z_plane],
-            image,
-            *args, **kwargs
-        )
+        raise NotImplementedError()

@@ -5,7 +5,7 @@ import holoviews as hv
 
 from siffpy.siffplot.roi_protocols.ellipsoid_body.extra_rois import ExtraRois
 from siffpy.siffplot.roi_protocols.utils import PolygonSource
-from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols.rois.ellipse import Ellipse
 from siffpy.siffplot.roi_protocols.extern import smallest_circle
 
 
@@ -15,7 +15,7 @@ def use_ellipse(
     *args,
     slice_idx : int = None,
     extra_rois : ExtraRois = ExtraRois.CENTER,
-    **kwargs) -> rois.Ellipse:
+    **kwargs) -> Ellipse:
     """
     Simply takes the largest ellipse type shape in a viewer
     and uses it as the bound! polygon_source has to be a
@@ -110,7 +110,7 @@ def use_ellipse(
     except NotImplementedError:
         pass
 
-    return rois.Ellipse(
+    return Ellipse(
         ellip,
         source_polygon = None,
         center_poly = center_poly,

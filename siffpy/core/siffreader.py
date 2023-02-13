@@ -12,6 +12,9 @@ from siffreadermodule import SiffIO
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
 from siffpy.core.utils import ImParams, registration
+from siffpy.core.utils.registration_tools import (
+    to_registration_info, RegistrationType
+)
 from siffpy.core.utils.typecheck import *
 from siffpy.core.utils.registration import register_frames, regularize_all_tuples
 from siffpy.siffmath.flim import FlimTrace
@@ -802,7 +805,7 @@ class SiffReader(object):
             1 dimensional histogram of arrival times
         """
         if frames is None:
-            return self.siffio.get_histogram()
+            return self.siffio.get_histogram(frames=self.im_params.all_frames)
         return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]
 
     def histograms(self, color_channel : 'int|list' = None, frame_endpoints : tuple[int,int] = [None,None]) -> np.ndarray:
