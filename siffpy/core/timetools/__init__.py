@@ -43,34 +43,21 @@ def to_t_axis(
         timepoint_end : int = None,
         reference_z : int = 0,
     )->np.ndarray:
-    num_slices = im_params['NUM_SLICES']
     
-    num_colors = 1
-    if im_params is list:
-        num_colors = len(im_params['COLORS'])
-
-    fps = im_params['FRAMES_PER_SLICE']
-    
-    timestep_size = num_slices*num_colors*fps # how many frames constitute a timepoint
-    
-    # figure out the start and stop points we're analyzing.
-    frame_start = timepoint_start * timestep_size
-    
-    if timepoint_end is None:
-        frame_end = im_params['NUM_FRAMES']
-    else:
-        if timepoint_end > im_params['NUM_FRAMES']//timestep_size:
-            logging.warning(
-                "\ntimepoint_end greater than total number of frames.\n"+
-                "Using maximum number of complete timepoints in image instead.\n"
-            )
-            timepoint_end = im_params['NUM_FRAMES']//timestep_size
+    if timepoint_end > im_params.num_timepoints:
+        logging.warning(
+            "\ntimepoint_end greater than total number of frames.\n"+
+            "Using maximum number of complete timepoints in image instead.\n"
+        )
+        timepoint_end = im_params.num_timepoints
         
-        frame_end = timepoint_end * timestep_size
-
     # now convert to a list of all the frames whose metadata we want
-    framelist = [frame for frame in range(frame_start, frame_end) 
-        if (((frame-frame_start) % timestep_size) == (num_colors*reference_z))
+    framelist = [
+        im_params.framelist_by_slice(
+            im_params.colors[0], # colors are simultaneous
+            upper_bound = timepoint_end,
+            slice_idx = reference_z
+        )
     ]
     
     return np.array([frame['frameTimestamps_sec']

@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from siffreadermodule import SiffIO
+from siffpy.core.utils.im_params import ImParams
 
 class RegistrationType(Enum):
     Caiman = 'caiman'
@@ -18,14 +19,19 @@ class RegistrationType(Enum):
 class RegistrationInfo(ABC):
     """ Base class for all Registration implementations """
 
-    def __init__(self, siffio : SiffIO, backend : Union[RegistrationType,str]):
+    def __init__(
+            self,
+            siffio : SiffIO,
+            im_params : ImParams,
+            backend : Union[RegistrationType,str]
+        ):
         if isinstance(backend, str):
             backend = RegistrationType(backend)
         self.registration_type = backend
         self.filename = siffio.filename
-        self.siffio = siffio
         self.yx_shifts : list[tuple[int,int]]= []
         self.reference_frames : np.ndarray = None
+        self.im_params = im_params
 
     def __get_item__(self, idx):
         return self.yx_shifts[idx]
@@ -53,6 +59,13 @@ class RegistrationInfo(ABC):
         with save_path.open('wb') as f:
             pickle.dump(self, f)
     
+    def assign_siffio(self, siffio : SiffIO):
+        """
+        Required to call if you load a `RegistrationInfo`
+        from a file and want to use new frames.
+        """
+        self.siffio = siffio
+
     @classmethod
     def load(cls, path : Union[str, Path]):
         if not path.suffix == '.rdct':

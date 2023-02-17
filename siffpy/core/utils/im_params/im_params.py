@@ -8,7 +8,6 @@ from functools import wraps
 import numpy as np
 
 from siffpy.core.utils.im_params.scanimage import ScanImageModule, ROIGroup
-from siffpy.core.utils.im_params.from_matlab import *
 
 MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
 
@@ -34,7 +33,8 @@ def correct_flyback(f):
                 max_frames
             ):
             """
-            Discards frames if they are flyback frames
+            Adds the number of flyback frames that should
+            have elapsed to each frame in the list of frames
             """
             true_frames = [
                 shift_frame
@@ -133,6 +133,8 @@ class ImParams():
         Special pretty-print method for IPython notebooks.
 
         Not typehinted because it's IPython-specific...
+
+        Not implemented because I don't know how to do it yet.
         """
         if cycle:
             p.text(self.__repr__())
@@ -160,7 +162,7 @@ class ImParams():
 
     @property
     def all_frames(self)->list[int]:
-        return set(range(self.num_frames)) - set(self.flyback_frames)
+        return list(set(range(self.num_frames)) - set(self.flyback_frames))
 
     @property
     def picoseconds_per_bin(self)->int:
@@ -248,7 +250,7 @@ class ImParams():
     @property
     def imaging_fov(self)->list[float]:
         if hasattr(self, 'RoiManager'):
-            return matrix_to_listlist(self.RoiManager.imagingFovUm)
+            return self.RoiManager.imagingFovUm
 
     @property
     def xsize(self)->int:
@@ -388,6 +390,7 @@ class ImParams():
                 retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n" 
         return retstr
     
+    @property
     def array_shape(self) -> tuple[int]:
         """ Returns the shape that an array would be in standard order """
         return (
@@ -410,8 +413,6 @@ class ImParams():
         If reference_z is None, returns _all_ frames, irrespective of z.
         """
 
-        num_colors = self.num_colors
-        
         timestep_size = self.frames_per_volume # how many frames constitute a timepoint
         
         # figure out the start and stop points we're analyzing.
@@ -431,10 +432,13 @@ class ImParams():
         frame_end = timepoint_end * timestep_size
 
         if reference_z is None:
-            framelist = list(range(frame_start, frame_end, self.num_colors))
+            framelist = list(range(frame_start, frame_end))
         else:
             framelist = [frame for frame in range(frame_start, frame_end) 
-                if (((frame-frame_start) % timestep_size) == (num_colors*reference_z))
+                if (
+                (
+                    ((frame-frame_start) % timestep_size)//self.num_colors
+                ) == reference_z)
             ]
 
         return framelist

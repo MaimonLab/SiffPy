@@ -80,22 +80,9 @@ def header_to_imparams(header : str, num_frames : int = None)->ImParams:
     Returns an object containing the most important image parameters
     """
     header_dict = header_data_to_nvfd(header)
-
-    #im_params = {}
-    # try:
-    #     im_params["PICOSECONDS_PER_BIN"] = MULTIHARP_BASE_RES*2**(int(header_dict['SI.hScan2D.hAcq.binResolution']))
-    #     im_params["NUM_BINS"] = int(header_dict['SI.hScan2D.hAcq.Tau_bins'])
-    # except:
-    #     logging.warning(
-    #         """
-    #         File lacks header data relating to PicoQuant MultiHarps -- this may be a non-FLIM
-    #         ScanImage build. FLIM-dependent code may not work for these images!!
-    #         """
-    #     )
-
     ROI_group_data = header_data_to_roi_string(header)
-    #im_params['NUM_FRAMES'] = num_frames
-    #im_pars = ImParams(**im_params)
+    
     im_pars = ImParams.from_dict(header_dict, num_frames = num_frames)
     im_pars.add_roi_data(ROI_group_data)
+    
     return im_pars

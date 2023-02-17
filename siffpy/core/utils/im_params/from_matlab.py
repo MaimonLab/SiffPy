@@ -1,7 +1,7 @@
 import re
 import logging
 
-def vector_to_list(vector, vec_num : int = 0, ret_type=float):
+def vector_to_list(vector, vec_num : int = 0):
     """
     list = vector_to_list(vector, type=float)
 
@@ -25,7 +25,12 @@ def vector_to_list(vector, vec_num : int = 0, ret_type=float):
     """
     # if it's just a number, then we don't need to worry about this
     try:
-        return ret_type(vector)
+        return int(vector)
+    except ValueError:
+        try:
+            return float(vector)
+        except:
+            pass
     except:
         pass
     
@@ -39,17 +44,37 @@ def vector_to_list(vector, vec_num : int = 0, ret_type=float):
 
     if (len(col_split) > 1) and (len(row_split) > 1):
         raise ValueError("Input string could not be parsed into a row vector or column vector.")
-    if len(col_split)>1:
-        return [ret_type(element) for element in col_split]
-    else:
-        return [ret_type(element) for element in row_split]
+    ret_arr = []
 
-def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> list[list]:
+    # This sucks and is ugly
+    if len(col_split)>1:
+        for element in col_split:
+            try:
+                val = int(element)
+            except ValueError:
+                val = float(element)
+        ret_arr.append(val)
+        return ret_arr
+    else:
+        for element in row_split:
+            try:
+                val = int(element)
+            except ValueError:
+                val = float(element)
+        ret_arr.append(val)
+        return ret_arr
+
+def matrix_to_listlist(matrix : str, vec_num : int = 0) -> list[list]:
     """
     Converts the string representation of a MATLAB matrix into a list of lists
     """
     try:
-        return ret_type(matrix)
+        return int(matrix)
+    except ValueError:
+        try:
+            return float(matrix)
+        except:
+            pass
     except:
         pass
     
@@ -62,10 +87,20 @@ def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> lis
     row_split = betwixt_brackets[vec_num].split(' ')
 
     if (len(col_split) > 1) and (len(row_split) > 1):
-        return [[ret_type(element) for element in column.split(" ")] for column in col_split]
+        retlist = []
+        for column in col_split:
+            collist = []
+            for element in column.split(" "):
+                try:
+                    val = int(element)
+                except ValueError:
+                    val = float(element)
+                collist.append(val)
+            retlist.append(collist)
+        return retlist
     # if it's just a vector, use the vector parser
     else:
-        return vector_to_list(matrix, ret_type)
+        return vector_to_list(matrix, vec_num)
     
 def contains_vector(in_string : str)->bool:
     return re.match(r"^.*\[(.*)\].*$",in_string) is not None

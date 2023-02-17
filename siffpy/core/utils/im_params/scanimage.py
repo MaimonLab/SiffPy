@@ -11,7 +11,7 @@ def _unsafe_eval(val):
     """
     try:
         ret = eval(val)
-    except NameError:
+    except (NameError, SyntaxError):
         if isinstance(val, str):
             try:
                 if contains_vector(val):
@@ -89,6 +89,12 @@ class Scanfield():
         for key, val in scanfield_dict.items():
             setattr(self, key, _unsafe_eval(val))
 
+    def __str__(self):
+        return f"Scanfield {self.name} with parameters:\n\t{self.__dict__}"
+    
+    def __repr__(self):
+        return self.__str__()
+
 class SIROI():
     """
     ScanImage ROIs -- NOT to be confused with siffpy ROIs
@@ -110,6 +116,18 @@ class SIROI():
             else:
                 setattr(self, key, _unsafe_eval(val))
 
+    def __repr__(self):
+        return self.__str__()
+    
+    def __str__(self) -> str:
+        return f"""
+        ROI {self.name} with
+        {len(self.scanfields)
+        if hasattr(self.scanfields, '__iter__')
+        else 1} scanfield(s):\n
+        {self.scanfields}
+        """
+
 class ROIGroup():
     """ Generic ROI group for ScanImage ROI groups """
     def __init__(self, roi_dict : dict):
@@ -128,3 +146,16 @@ class ROIGroup():
                 self.rois = SIROI(val)
             else:    
                 setattr(self, key, _unsafe_eval(val))
+    
+    def __str__(self):
+        return f"""
+        ROI group {self.name} with
+        {len(self.rois)
+        if hasattr(self.rois, '__iter__')
+        else 1} ROI(s):\n
+        {self.rois}
+        """
+    
+
+    def __repr__(self)->str:
+        return self.__str__()
