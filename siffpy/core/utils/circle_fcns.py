@@ -125,7 +125,7 @@ def circ_corr(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     expd_1 = np.exp(1j*x)
     expd_2 = np.exp(1j*y)
 
-    return circ_corr_complex(expd_1, expd_2)
+    return circ_corr_complex(expd_1, expd_2, axis=axis)
 
 def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     """

@@ -163,6 +163,7 @@ class SiffReader(object):
                 logging.warning("\n\n\tPutative reference images object for this file is not of type list.\n", stacklevel=2)
         
         self.events = io.find_events(self.im_params, self.get_frames_metadata())
+        print("Finished opening and reading file")
 
     def close(self) -> None:
         """ Closes opened file """

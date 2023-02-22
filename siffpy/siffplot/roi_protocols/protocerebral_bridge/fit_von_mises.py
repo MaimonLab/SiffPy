@@ -1,10 +1,17 @@
 # Code for ROI extraction from the protocerebral bridge after manual input
 import numpy as np
 from holoviews import Polygons
+from scipy.optimize import minimize
+from scipy.special import i0
 
 from siffpy import SiffReader
-from siffpy.siffplot.roi_protocols.utils import PolygonSource, polygon_to_mask, polygon_to_z
 from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols.utils import (
+    PolygonSource, polygon_to_mask, polygon_to_z
+)
+from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.numpy_implementation import (
+    cluster_by_correlation, match_to_von_mises, polys_to_corr
+)
 
 def fit_von_mises(
         reference_frames : list,
@@ -13,59 +20,107 @@ def fit_von_mises(
         *args,
         n_glomeruli : int = 16,
         slice_idx : int = None,
-        circular_variance : float = 1.0,
+        kappa : float = 1.0, # kappa is the concentration parameter of the von Mises distribution
+        timepoint_lower_bound : int = 0,
+        timepoint_upper_bound : int = None,
         **kwargs
     )-> rois.GlobularMustache:
     """
     Uses Hessam's algorithm to try to fit an n_glomerulus vector
     presuming each has a von Mises distributed tuning curve with
-    mean distributed uniformly around the circle. Pseudo-code:
-
-    rois : list[ROI] = select_seed_rois() # k seed ROIs
-
-    def order_rois(rois : list[ROI])->list[ROI]:
-        
-        seed_corr : np.ndarray = correlation(rois, rois)
-        
-        vonMisesParams : list[tuple[float, float]] = match_correlation_matrix_to_von_Mises(seed_corr) # k von Mises
-        
-        _, indices = sort(vonMisesParams, by = 'circular_mean') # orders the von Mises distributions by mean and        figure out how to order them -- the von Mises are just to parameterize the ROIs by a `mean`
-        
-        return rois[indices] # reorders the ROI list so that they're ordered around a circle, instead of random ordering
-
-    rois = order_rois(rois)
-
-    intensity : np.ndarray = get_all_frames() # t timepoints by n pixels
-    corr = correlation(intensity, rois) # returns an n by k matrix of correlations with each seed ROI, now ordered around a circular so that you can take the FFT meaningfully
-
-    ftt_corr = fft(corr, axis = 1) # each pixel's correlation with the ROIs' FFT along the circle
-    fundamental_freq : np.ndarray[np.complex] = fft_corr[:,1] # the frequency component that completes one full revolution along the circle, an n by 1 vector
-    # each element of fundamental_freq is a complex number whose amplitude reflects how periodic its correlation matrix is and whose phase corresponds to its alignment to the seed ROIs
-
-    new_rois = cluster_phases(fundamental_freq)
-
-    new_rois = order_rois(new_rois)
+    mean distributed uniformly around the circle.
     """
+    if timepoint_upper_bound == 0:
+        timepoint_upper_bound = siffreader.im_params.shape[0]
 
     # Gets all polygons, irrespective of slice
     seed_polys = polygon_source.polygons()
 
     # Compute the correlation matrix between
     # each profile across the time series
-    polys_to_corr(seed_polys, siffreader)
-
+    corr_mat, seed_time_series = polys_to_corr(
+        seed_polys,
+        siffreader,
+        timepoint_lower_bound=timepoint_lower_bound,
+        timepoint_upper_bound=timepoint_upper_bound
+    )
 
     # Compute a von Mises model with the same
     # number of seeds that matches the correlation
     # matrix between the true data seeds
 
+    v_means = match_to_von_mises(corr_mat)
+
     # Take the FFT of each pixel's correlation against
     # the seeds and extract a phase (from the fundamental
     # frequency) of the FFT
 
+    framelist = siffreader.im_params.flatten_by_timepoints(
+        timepoint_start = timepoint_lower_bound,
+        timepoint_end = timepoint_upper_bound
+    )
+
+    # Flattened
+    frame_array = np.array(
+        siffreader.get_frames(
+            frames = framelist,
+            registration_dict = siffreader.registration_dict if hasattr(siffreader, 'registration_dict') else None
+        )
+    ).reshape((-1, np.prod(siffreader.im_params.stack[1:])))
+
+    zscored_frames = (frame_array - frame_array.mean(axis=0)) / frame_array.std(axis=0)
+    zscored_seed = (seed_time_series - seed_time_series.mean(axis=0)) / seed_time_series.std(axis=0)
+
+    pxwise_fft = (np.exp(1j*v_means) @ (zscored_frames.T @ zscored_seed)).reshape(siffreader.im_params.stack[1:])
+
+
     raise NotImplementedError("Sorry!")
 
-def polys_to_corr(polys : list[Polygons], siffreader : SiffReader)->np.ndarray:
+
+def von_mises_corr(mu1 : float, mu2: float, kappa : float, noise_var : float = 0.0)->float:
+    """
+    Computes the correlation between two von Mises
+    distributions with means mu1 and mu2 and circular
+    variance kappa. Noise var is the variance of random noise
+    applied to all measurements (presumed to be independent
+    and mean-zero! Both assumptions are not likely to be true:
+    noise will usually come from motion, autofluorescence, etc.
+    which is both positive mean _and_ correlated).
+
+    Formula for the von Mises (relatively easy to derive):
+
+    I0( 2κ cos((μ2-μ1)/2)) ) - I0(κ)^2
+
+    --------------------------------
+    
+        I0(2κ) - I0(κ)^2
+
+    where I0(x) is the modified Bessel function of the first kind of order 0,
+    defined as (1/2π) times the integral from -π to +π of exp(κ cos(t))dt.
+
+    An independent source of noise simply adds to the variance of each
+    individual von Mises without affecting their covariance. 
+    """
+    #var_1 = 
+    vm_var = i0(2*kappa) - i0(kappa)**2
+    vm_corr = (
+        (i0(2*kappa*np.cos((mu2-mu1)/2)) - i0(kappa)**2)/
+        vm_var
+    )
+
+    #noise_factor = np.sqrt(1+2*noise_var/vm_var + (noise_var/vm_var)**2)
+
+    #Faster, approximate though
+    noise_factor = 1 + noise_var/vm_var
+
+    return vm_corr/noise_factor
+
+def polys_to_corr(
+        polys : list[Polygons],
+        siffreader : SiffReader,
+        timepoint_lower_bound : int = 0,
+        timepoint_upper_bound : int = None
+    )->tuple[np.ndarray, np.ndarray]:
     """
     Computes the correlation matrix between each polygon
     and the time series of the siffreader
@@ -73,12 +128,16 @@ def polys_to_corr(polys : list[Polygons], siffreader : SiffReader)->np.ndarray:
 
     masks = [polygon_to_mask(poly, siffreader.im_params.shape) for poly in polys]
     zs = [polygon_to_z(poly) for poly in polys]
+    if timepoint_upper_bound is None:
+        timepoint_upper_bound = siffreader.im_params.num_timepoints
     seed_t_series : np.ndarray = np.array([
         siffreader.sum_mask(
             mask,
-            z_list = z
+            z_list = z if isinstance(z, list) else [z],
+            timepoint_start = timepoint_lower_bound,
+            timepoint_end = timepoint_upper_bound
         )
         for mask, z in zip(masks,zs)
     ])
 
-    return np.corrcoef(seed_t_series)
+    return (np.corrcoef(seed_t_series), seed_t_series)

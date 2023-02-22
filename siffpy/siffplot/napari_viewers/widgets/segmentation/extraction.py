@@ -1,5 +1,5 @@
 import typing
-from inspect import Parameter, signature, _empty
+from inspect import Parameter, signature, _empty, getdoc
 from enum import Enum
 
 import magicgui.widgets as widgets
@@ -68,7 +68,7 @@ class ExtractionMethodBox(widgets.ComboBox):
             label='Extraction method',
             choices = choices,
             value = value,
-            tooltip = "Which protocol to use to extract the ROI. For more information on each, TODO MAKE A USEFUL INFO TOOL, MAYBE A (?) icon"
+            tooltip = "Which protocol to use to extract the ROI."
         )
 
     def connect_other_widgets(
@@ -96,8 +96,10 @@ class ExtractionMethodBox(widgets.ComboBox):
             if x.name == method_name
         )
         self.extraction_params_container.set_current_method(method.func)
+        self.tooltip = getdoc(method.func)
         try:
             returned_class = typing.get_type_hints(method.func)['return']
+            self.roi_class_label.tooltip = getdoc(returned_class)
         except KeyError:
             self.roi_class_label.value = "None (invalid function)"
             returned_class = None

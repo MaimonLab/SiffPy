@@ -48,7 +48,8 @@ class SegmentationWidget(widgets.Container):
         self.roi_class = widgets.Label(
             name = "ROIClass",
             label = "ROI Class : ",
-            value = starting_roi_class.__name__
+            value = starting_roi_class.__name__,
+            tooltip = inspect.getdoc(starting_roi_class)
         )
 
         self.extraction_params_container = segmentation.ExtractionParamsContainer(

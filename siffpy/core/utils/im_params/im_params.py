@@ -483,7 +483,7 @@ class ImParams():
             frame_list = all_frames[:,(slice_idx*fps):((slice_idx+1)*fps),color_channel].flatten().tolist() # just a list
         return frame_list
     
-    @correct_flyback
+    #@correct_flyback flyback is already corrected in framelist_by_slice
     def framelist_by_slices(self, color_channel : int = None, lower_bound : int = 0, upper_bound : int = None, slices : list[int] = None)->list[int]:
         """
         Flattened list of all frames corresponding to the color channel and slices provided

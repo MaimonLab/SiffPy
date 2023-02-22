@@ -123,3 +123,8 @@ class ROIViewer(NapariInterface):
             None
         )
         return roi_object_layer
+    
+    @property
+    def polygon_source(self) -> PolygonSourceNapari:
+        """ May not exist for all viewers or even may be deleted for some reason. """
+        return PolygonSourceNapari(self.viewer)
