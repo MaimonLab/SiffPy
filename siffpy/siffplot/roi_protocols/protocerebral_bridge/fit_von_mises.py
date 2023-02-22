@@ -10,7 +10,7 @@ from siffpy.siffplot.roi_protocols.utils import (
     PolygonSource, polygon_to_mask, polygon_to_z
 )
 from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.numpy_implementation import (
-    cluster_by_correlation, match_to_von_mises, polys_to_corr
+    cluster_by_correlation, match_to_von_mises
 )
 
 def fit_von_mises(
