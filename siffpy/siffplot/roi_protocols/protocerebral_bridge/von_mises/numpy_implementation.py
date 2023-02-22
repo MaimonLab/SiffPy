@@ -172,7 +172,7 @@ def get_seed_phases(seed_roi_timeseries : np.ndarray, kappa : float = 1.0)->list
     return match_to_von_mises(seed_corr, kappa = kappa)
 
 
-def corr_between_von_mises(mu1 : float, mu2: float, kappa : float = 1.0)->float:
+def corr_between_von_mises(mu1 : np.ndarray, mu2: np.ndarray, kappa : float = 1.0)->float:
     """
     Computes the correlation between two von Mises
     distributions with means mu1 and mu2 and circular
@@ -191,10 +191,9 @@ def corr_between_von_mises(mu1 : float, mu2: float, kappa : float = 1.0)->float:
     where I0(x) is the modified Bessel function of the first kind of order 0,
     defined as (1/2π) times the integral from -π to +π of exp(κ cos(t))dt
     """
-    DC_offset = i0(kappa)**2
     return (
-        (i0(2*kappa*np.cos(np.subtract.outer(mu2,mu1)/2)) - DC_offset)/
-        (i0(2*kappa) - DC_offset)
+        (i0(2*kappa*np.cos(np.subtract.outer(mu2,mu1)/2)) - i0(kappa)**2)/
+        (i0(2*kappa) - i0(kappa)**2)
     )
 
 def match_to_von_mises(corr_mat : np.ndarray, kappa : float)->np.ndarray:
@@ -212,7 +211,7 @@ def match_to_von_mises(corr_mat : np.ndarray, kappa : float)->np.ndarray:
         return np.sum(
             np.subtract.outer(   
                 corr_mat,
-                corr_between_von_mises(mus, mus, kappa) # prediction
+                corr_between_von_mises(mus, mus, kappa = kappa) # prediction
             ) ** 2
         )
     
