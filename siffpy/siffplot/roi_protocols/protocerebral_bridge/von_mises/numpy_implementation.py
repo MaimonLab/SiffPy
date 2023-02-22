@@ -209,9 +209,8 @@ def match_to_von_mises(corr_mat : np.ndarray, kappa : float)->np.ndarray:
     # could probably JAX this to make it faster
     def loss(mus : np.ndarray):
         return np.sum(
-            np.subtract.outer(   
-                corr_mat,
-                corr_between_von_mises(mus, mus, kappa = kappa) # prediction
+            ( corr_mat -
+            corr_between_von_mises(mus, mus, kappa = kappa)
             ) ** 2
         )
     
