@@ -131,86 +131,27 @@ class SiffReader(object):
         if self.opened and not (filename == self.filename):
             self.siffio.close()
         
-        print(f"Opening {filename}, collecting metadata...")
+#        print(f"Opening {filename}, collecting metadata...")
+
         self.siffio.open(filename)
         self.filename = filename
 
         header = self.siffio.get_file_header()
-        if self.debug:
-            print("Header read")
 
         self.im_params = io.header_to_imparams(header, self.siffio.num_frames())
 
         self.ROI_group_data = io.header_data_to_roi_string(header)
         self.opened = True
 
-        # TODO: PUT THIS SOMEWHERE LESS CLUMSY
-        if os.path.exists(os.path.splitext(filename)[0] + ".dict"):
-            with open(os.path.splitext(filename)[0] + ".dict", 'rb') as dict_file:
-                reg_dict = pickle.load(dict_file)
-            if isinstance(reg_dict, dict):
-                print("\n\n\tFound a registration dictionary for this image and importing it.\n")
-                self.registration_dict = reg_dict
-            else:
-                logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
-        if os.path.exists(os.path.splitext(filename)[0] + ".ref"):
-            with open(os.path.splitext(filename)[0] + ".ref", 'rb') as images_list:
-                ref_ims = pickle.load(images_list)
-            if isinstance(ref_ims, list):
-                print("\n\n\tFound a reference image list for this file and importing it.\n")
-                self.reference_frames = ref_ims
-            else:
-                logging.warning("\n\n\tPutative reference images object for this file is not of type list.\n", stacklevel=2)
-        
+        self.registration_dict, self.reference_frames = io.load_registration(filename)
         self.events = io.find_events(self.im_params, self.get_frames_metadata())
-        print("Finished opening and reading file")
+        #print("Finished opening and reading file")
 
     def close(self) -> None:
         """ Closes opened file """
         self.siffio.close()
         self.opened = False
         self.filename = ''
-
-### LOADING SAVED RELEVANT DATA METHODS
-    def assign_registration_dict(self, path : str = None):
-        """
-        Assign a .dict file, overrides the automatically opened one.
-
-        If no path is provided, looks for one with the same name as the opened filename
-        """
-        if path is None:
-            if os.path.exists(os.path.splitext(self.filename)[0] + ".dict"):
-                path = os.path.splitext(self.filename)[0] + ".dict"
-
-        if not os.path.splitext(path)[-1] == '.dict':
-            raise TypeError("File must be of extension .dict")
-        
-        with open(path, 'rb') as dict_file:
-            reg_dict = pickle.load(dict_file)
-        if isinstance(reg_dict, dict):
-            self.registration_dict = reg_dict
-        else:
-            logging.warning("\n\n\tPutative registration dict for this file is not of type dict.\n")
-
-    def load_reference_frames(self, path : str = None):
-        """
-        Assign a .ref file, overrides the automatically opened one.
-
-        If no path is provided, looks for one with the same name as the opened filename
-        """
-        if path is None:
-            if os.path.exists(os.path.splitext(self.filename)[0] + ".ref"):
-                path = os.path.splitext(self.filename)[0] + ".ref"
-
-        if not os.path.splitext(path)[-1] == '.ref':
-            raise TypeError("File must be of extension .ref")
-        
-        with open(path, 'rb') as images_list:
-            ref_ims = pickle.load(images_list)
-        if isinstance(ref_ims, list):
-            self.reference_frames = ref_ims
-        else:
-            logging.warning("\n\nPutative reference images object for this file is not of type list.\n", stacklevel=2)
 
 ### TIME AXIS METHODS
     def t_axis(self,
