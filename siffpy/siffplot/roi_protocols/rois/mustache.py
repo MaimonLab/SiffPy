@@ -44,9 +44,11 @@ class GlobularMustache(ROI):
             polygon: hv.element.path.Polygons = None,
             image: np.ndarray = None,
             name: str = None,
-            slice_idx: int = None
+            slice_idx: int = None,
+            pseudophase : float = None,
         ):
             super().__init__(polygon, image, name, slice_idx)
+            self.pseudophase = pseudophase
 
 
 class Mustache(ROI):

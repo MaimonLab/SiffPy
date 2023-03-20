@@ -14,6 +14,7 @@ class RegionEnum(Enum):
 class SegmentationFunction():
     name : str
     func : Callable
+    on_select : Callable = None
     
 @dataclass
 class Region():

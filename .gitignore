@@ -5,6 +5,7 @@
 *.dict
 *.ref
 *.roi
+*.*roi
 *.csv
 *.DS_Store
 .DS_Store

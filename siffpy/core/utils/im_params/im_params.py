@@ -85,18 +85,8 @@ class ImParams():
     intuitive to people (myself included).
     """
 
-    OPTIONAL_PARAMS = {
-        'XSIZE' : int,
-        'YSIZE' : int,
-        'XRESOLUTION' : float,
-        'YRESOLUTION' : float,
-        'IMAGING_FOV' : list,
-        'ZOOM' : float, 
-        'PICOSECONDS_PER_BIN' : int,
-        'NUM_BINS' : int,
-        'NUM_FRAMES' : int,
-        'STEP_SIZE' : float,
-    }
+    CHANNEL_AXIS : int = 1 # index of the color channel dimension
+
     def __init__(self, num_frames = None, **param_dict):
         """
         x
@@ -111,10 +101,6 @@ class ImParams():
 
         if not param_dict:
             return
-
-        for key in self.__class__.OPTIONAL_PARAMS:
-            if (key in param_dict) or (key.lower() in param_dict):
-                setattr(self, key.lower(), param_dict[key])
 
         try:
             self.frames_per_volume = self.num_slices * self.frames_per_slice * self.num_colors

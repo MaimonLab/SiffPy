@@ -159,10 +159,15 @@ void SiffReader::discernFrames() {
     // and stores all the IFDs for quick lookup.
     uint64_t nextIFD = params.firstIFDAddress;
     uint64_t currIFD = 0;
+
+
     while(nextIFD>0) {
         // iterates through all the IFDs until it gets to the end
         if (nextIFD == params.fileSize) break;
-        siff.seekg(nextIFD, siff.beg); // go there first
+
+        // go to the next IFD
+        siff.seekg(nextIFD - siff.tellg(), std::ios::cur); // go there first
+
         if (siff.eof()) {
             break;
         }
