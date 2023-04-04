@@ -1,3 +1,6 @@
+import builtins
+import logging
+
 import numpy as np
 
 from siffreadermodule import SiffIO
@@ -6,7 +9,7 @@ from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType
 )
 from siffpy.core.utils.registration_tools.siffpy.alignment import (
-    align_to_reference
+    align_to_reference, suite2p_reference
 )
 from siffpy.core.utils.registration_tools.siffpy.registration_method import (
     register_frames
@@ -25,7 +28,15 @@ class SiffpyRegistrationInfo(RegistrationInfo):
     def __init__(self, siffio : SiffIO, im_params : ImParams):
         super().__init__(siffio, im_params, RegistrationType.Siffpy)
 
-    def register(self, siffio, *args, num_cycles : int = 2, **kwargs):
+    def register(
+            self,
+            siffio,
+            *args,
+            alignment_color_channel : int = 0,
+            num_cycles : int = 2,
+            align_z : bool = False,
+            **kwargs
+        ):
         """
         Registers using the siffpy registration method, which
         is fairly similar to suite2p's registration method.
@@ -57,8 +68,61 @@ class SiffpyRegistrationInfo(RegistrationInfo):
             above.
 
         """
-        raise NotImplementedError()
-        #return super().register(*args, **kwargs)
+        framelists = self.im_params.framelist_by_slice(
+            color_channel=alignment_color_channel
+        )
+
+        self.reference_frames = np.zeros(
+            self.im_params.volume
+        ).squeeze()
+
+        pbar = None
+        if hasattr(builtins, "__IPYTHON__"):
+            from tqdm import tqdm
+            pbar = tqdm(total=len(framelists))
+
+        for z_idx, z_plane_frames in enumerate(framelists):
+            print(f"Registering z-plane {z_idx}")
+            for cycle in range(num_cycles):
+
+                self.reference_frames[z_idx,...] = suite2p_reference(
+                    siffio,
+                    z_plane_frames,
+                    yx_shifts = self.yx_shifts,
+                    **kwargs,
+                )
+                self.yx_shifts = {
+                    **self.yx_shifts,
+                    **register_frames(
+                        siffio,
+                        self.reference_frames[z_idx, ...],
+                        z_plane_frames,
+                        self.yx_shifts,
+                        *args,
+                        pbar = pbar,
+                        **kwargs
+                    )
+                }
+
+        if align_z:
+            logging.warn(
+                "align_z is not yet implemented for siffpy registration. Ignoring."
+            )
+
+        self.registration_color_channel = alignment_color_channel
+        # Now register the other color channels
+        # using their corresponding element from the
+        # original color channel
+        reference_frame_list = self.im_params.framelist_by_color(color_channel=alignment_color_channel)
+        for color_matlab_int in self.im_params.color_list:
+            color_channel = color_matlab_int - 1
+            if color_channel != alignment_color_channel:
+                this_color_framelist = self.im_params.framelist_by_color(
+                    color_channel=color_channel
+                )
+                for this_frame, old_frame in zip(this_color_framelist, reference_frame_list):
+                    self.yx_shifts[this_frame] = self.yx_shifts[old_frame]
+                                        
 
     def align_to_reference(
             self,

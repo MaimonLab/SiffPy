@@ -1,24 +1,23 @@
+from pathlib import Path
 from typing import Union
+
+from siffreadermodule import SiffIO
+from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools.registration_info import (
-    RegistrationType
+    RegistrationType, RegistrationInfo
 )
 
-def to_registration_info(
-        registration_type : Union[str,RegistrationType],
-    )->type:
-    """
-    Returns a registration info object of the specified type.
+def to_reg_info_class(
+    stringname : str
+)->type:
+    """ Returns a class of registration info """
+    registration_type = RegistrationType(stringname)
 
-    To view options, select any from the
-    siffpy.core.utils.registration_tools.registration_info.RegistrationType
-    enum.
-    """
-    if isinstance(registration_type, str):
-        registration_type = RegistrationType(registration_type)
-
+    cls = None
     if registration_type == RegistrationType.Caiman:
         try:
             from siffpy.core.utils.registration_tools.caiman import CaimanRegistrationInfo
+            cls = CaimanRegistrationInfo
         except ImportError as e:
             raise ImportError(
                 f"""Failed to import caiman registration info.
@@ -26,10 +25,10 @@ def to_registration_info(
                 {e.with_traceback(e.__traceback__)}
                 """
             )
-        return CaimanRegistrationInfo
     elif registration_type == RegistrationType.Suite2p:
         try:
             from siffpy.core.utils.registration_tools.suite2p import Suite2pRegistrationInfo
+            cls = Suite2pRegistrationInfo
         except ImportError as e:
             raise ImportError(
                 f"""Failed to import Suite2p registration info.
@@ -37,10 +36,9 @@ def to_registration_info(
                 {e.with_traceback(e.__traceback__)}
                 """
             )
-        return Suite2pRegistrationInfo
     elif registration_type == RegistrationType.Siffpy:
         from siffpy.core.utils.registration_tools.siffpy import SiffpyRegistrationInfo
-        return SiffpyRegistrationInfo
+        cls = SiffpyRegistrationInfo
     elif registration_type == RegistrationType.Average:
         raise NotImplementedError("Haven't implemented average registration yet.")
     elif registration_type == RegistrationType.Other:
@@ -54,3 +52,29 @@ def to_registration_info(
         )
     else:
         raise ValueError(f"Unrecognized registration type: {registration_type}")
+    return cls
+
+def to_registration_info(
+        path : Union[str,Path], 
+        siffio : SiffIO = None,
+        im_params : ImParams = None,
+    )->RegistrationInfo:
+    """
+    Returns a registration info object from a path
+    """
+    if isinstance(path, str):
+        path = Path(path)
+
+    as_dict = RegistrationInfo.load_as_dict(path)
+    registration_type = as_dict['registration_type']
+
+    cls = to_reg_info_class(registration_type)
+    
+    reginfo = cls(
+        siffio = siffio,
+        im_params = im_params,
+    )
+
+    reginfo.from_dict(as_dict)
+    return reginfo
+    

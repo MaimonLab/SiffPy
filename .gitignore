@@ -7,6 +7,8 @@
 *.roi
 *.*roi
 *.csv
+*.h5
+*.hdf5
 *.DS_Store
 .DS_Store
 siffpy/core/_version.py

@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import numpy.random as random
-from numpy.fft import fft
+from numpy import fft
 import scipy.ndimage
 
 from siffreadermodule import SiffIO
@@ -43,7 +43,13 @@ def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str 
 
     raise TypeError("Method passed for constructing average not valid")
 
-def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarray:
+def suite2p_reference(
+        siffio : SiffIO, 
+        frames : list[int],
+        yx_shifts : dict = {},
+        discard_bins : int = None,
+        **kwargs
+    ) -> np.ndarray:
     """
     Implements the alignment procedure used by suite2p, iteratively averaging
     the frames most correlated with all other frames in a random subset.
@@ -77,40 +83,22 @@ def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarr
 
     """
 
-    nimg_init = min(int(len(frames)/10), 200)
-    if 'nimg_init' in kwargs:
-        nimg_init = kwargs['nimg_init']
-        if not isinstance(nimg_init, int):
-            logging.warning("Suite2p alignment arg 'nimg_init' is not of type int. "
-                          "Using default value instead.")
-            nimg_init = min(int(len(frames/10)),200)
-        if nimg_init > len(frames):
-            logging.warning("Suite2p alignment arg 'nimg_init' is greater than number "
+    nimg_init = kwargs['nimg_init'] if 'nimg_init' in kwargs else min(int(len(frames)/10), 200)
+   
+    if nimg_init > len(frames):
+        logging.warning("Suite2p alignment arg 'nimg_init' is greater than number "
                           f"of frames being aligned. Defaulting to {len(frames)}.")
-            nimg_init = len(frames)
-
-    registration_dict = {}
-    if 'registration_dict' in kwargs:
-        registration_dict = kwargs['registration_dict']
-        if not isinstance(registration_dict, dict):
-            logging.warn("Suite2p alignment arg 'registration_dict' is not of type dict."
-                          " Using an empty dict instead")
-            registration_dict = {}
+        nimg_init = len(frames)
 
     # randomly sample nimg_init frames    
 
-    init_frames_idx = random.sample(frames, nimg_init)
-
-    if 'discard_bins' in kwargs:
-        discard_bins = None
-        if isinstance(kwargs['discard_bins'], int):
-            discard_bins = kwargs['discard_bins']
+    init_frames_idx = random.choice(frames, nimg_init).tolist()
 
     init_frames = np.array(
                     siffio.get_frames(
                         frames = init_frames_idx, 
                         flim = False,
-                        registration = registration_dict
+                        registration = yx_shifts,
                     )
                   )
     
@@ -121,13 +109,8 @@ def suite2p_reference(siffio : SiffIO, frames : list[int], **kwargs) -> np.ndarr
     err_val = np.sum(mean_subbed,axis=(1,2))
 
     # how many of the most correlated frames to take
-    seed_ref_count = 100
-    if 'seed_ref_count' in kwargs:
-        seed_ref_count = kwargs['seed_ref_count']
-        if not isinstance(seed_ref_count, int):
-            seed_ref_count = 100
-            logging.warning("Suite2p alignment arg 'seed_ref_count' is not of type int. "
-                          f"Using {seed_ref_count} instead.")
+    seed_ref_count = kwargs['seed_ref_count'] if ('seed_ref_count' in kwargs) else 100
+    
     if seed_ref_count > nimg_init:
         seed_ref_count = nimg_init - 1
         logging.warning("Suite2p alignment arg 'seed_ref_count' is greater than number "

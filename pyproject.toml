@@ -29,6 +29,7 @@ dependencies = [
     "scipy",
     "ruamel.yaml",
     "matplotlib",
+    "h5py",
 ]
 
 [project.optional-dependencies]

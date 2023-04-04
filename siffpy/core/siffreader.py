@@ -13,7 +13,7 @@ from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
 from siffpy.core.utils import ImParams, registration
 from siffpy.core.utils.registration_tools import (
-    to_registration_info, RegistrationType
+    to_reg_info_class, RegistrationInfo
 )
 from siffpy.core.utils.typecheck import *
 from siffpy.core.utils.registration import register_frames, regularize_all_tuples
@@ -70,8 +70,6 @@ class SiffReader(object):
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
-        self.registration_dict = None
-        self.reference_frames = None
         self.debug = False
         self.events = None
         self.siffio = SiffIO()
@@ -143,7 +141,14 @@ class SiffReader(object):
         self.ROI_group_data = io.header_data_to_roi_string(header)
         self.opened = True
 
-        self.registration_dict, self.reference_frames = io.load_registration(filename)
+        r_info = io.load_registration(
+            self.siffio,
+            self.im_params,
+            filename
+        )
+        if r_info is not None:
+            self.registration_info = r_info
+
         self.events = io.find_events(self.im_params, self.get_frames_metadata())
         #print("Finished opening and reading file")
 
@@ -1207,12 +1212,10 @@ class SiffReader(object):
 ### REGISTRATION METHODS
     def register(
         self,
-        reference_method="suite2p",
-        color_channel : int = None,
+        registration_method="siffpy",
+        color_channel : int = 0,
         save : bool = True, 
-        align_zplanes : bool = False,
-        elastic_slice : float = np.nan,
-        save_dict_name : str = None,
+        align_z : bool = False,
         **kwargs
         ) -> dict:
         """
@@ -1234,7 +1237,7 @@ class SiffReader(object):
 
             What method to use to construct the reference image for alignment. Options are:
                 'average' -- Take the average over all frames in each z plane.
-                'suite2p' -- Suite2p iterative alignment procedure. Much slower, much better.
+                'siffpy' -- A minimal version of suite2p's alignment procedure
 
         color_channel : int
 
@@ -1259,139 +1262,45 @@ class SiffReader(object):
             What to name the saved pickled registration dict. Defaults to filename.dict
 
         Other kwargs are as in siffpy.core.utils.registration.register_frames
-
-        RETURN
-        ------
-
-        dict :
-
-            A dict explaining the rigid transformation to apply to each frame. Form is:
-                { FRAME_NUM_1 : (Y_SHIFT, X_SHIFT), FRAME_NUM_2 : (Y_SHIFT, X_SHIFT), ...}
-
-                Can be passed directory to siffreader functionality that takes a registrationDict.
         """
 
         logging.warn("\n\n \t Don't forget to fix the zplane alignment!!")
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 
-        if color_channel is None:
-            color_channel = 0
+        registration_info : RegistrationInfo = to_reg_info_class(registration_method)(
+            self.siffio,
+            self.im_params
+        )
 
-        frames_list = self.im_params.framelist_by_slice(color_channel=color_channel)
-
-        try:
-            if hasattr(builtins, "__IPYTHON__"): # check if we're running in a notebook. One of the nice things about an interpreted language!
-                import tqdm
-                pbar = tqdm.tqdm(frames_list)
-                slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, tqdm = pbar, **kwargs) for slice_element in pbar]
-            else:
-                slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
-        except (ImportError,NameError):
-            slicewise_reg =[register_frames(self.siffio, slice_element, ref_method=reference_method, **kwargs) for slice_element in frames_list]
-        
-        # each element of the above is of the form:
-        #   [registration_dict, difference_between_alignment_movements, reference image]
-
-        # all we have to do now is do diagnostics to make sure there weren't any badly aligned frames
-        # and then stick everything together into one dict
-        
-        # merge the dicts
-        reg_dict = reduce(lambda a, b : {**a, **b}, [slicewise_reg[n][0] for n in range(len(slicewise_reg))])
-
-        # Decide if simultaneous frames from separate planes will be used to help align one another
-        if not isinstance(elastic_slice,float):
-            elastic_slice = 0.0
-        if elastic_slice > 0.0:
-            if np.abs(elastic_slice - np.sqrt(self.im_params.num_slices-3)) < 0.3:
-                logging.warning("\n\nELASTIC SLICE REGULARIZATION IS SINGULAR WHEN PARAMETER IS NEAR SQRT(N_SLICES-3)"
-                              f"\nYOU USED {elastic_slice}"
-                              f"\nDEFAULTING TO {elastic_slice+1.0} INSTEAD\n"
-                             )
-                elastic_slice = elastic_slice+1.0
-            simultaneous_frames = self.im_params.framelist_by_timepoint(color_channel=color_channel)
-            for framelist in simultaneous_frames:
-                regularized = regularize_all_tuples(
-                    [reg_dict[frame] for frame in framelist],
-                    self.im_params.ysize,
-                    self.im_params.xsize,
-                    elastic_slice
-                )
-                for frame_idx in range(len(framelist)):
-                    reg_dict[framelist[frame_idx]] = regularized[frame_idx]                    
-
-        # Now align the reference frames so that all z planes are consistent, and shift all
-        # planes by that amount
-        if align_zplanes:
-            logging.warn("Using the new align-stack-reference-frames feature. Double check to be sure it didn't mess things up!")
-
-            # Hidden keyword argument:
-            # ignore_first can be invoked here
-            if 'ignore_first' in kwargs:
-                refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg], ignore_first = bool(kwargs['ignore_first']))
-            else:
-                refshift = registration.align_references([reg_tuple[2] for reg_tuple in slicewise_reg])
-            
-            slicewise = self.im_params.framelist_by_slice()
-            for z in range(len(slicewise)):
-                slicewise_reg[z] = (
-                    slicewise_reg[z][0],
-                    slicewise_reg[z][1],
-                    np.roll(slicewise_reg[z][2],refshift[z]) # roll the reference frames before they're saved
-                )
-                for frame in slicewise[z]:
-                    reg_dict[frame] = ( # shift all the registration tuples
-                            int((reg_dict[frame][0] + refshift[z][0])%self.im_params.ysize),
-                            int((reg_dict[frame][1] + refshift[z][1])%self.im_params.xsize)
-                        )
-
-
-        # Apply to contemporaneous color channels if there are some
-        if isinstance(self.im_params.colors, list):
-            # the color-1 is to 0-index
-            # if color_channel is 1, offsets is [-1, 0]
-            # if color_channel is 0, offsets is [0, 1]
-            offsets = [(color-1) - color_channel for color in self.im_params.colors]
-            keylist = list(reg_dict.keys())
-            
-            for key in keylist:
-                for offset in offsets:
-                    reg_dict[key + offset] = reg_dict[key]
+        registration_info.register(
+            self.siffio,
+            alignment_color_channel=color_channel,
+            align_z = align_z,
+            **kwargs
+        )
 
         # Now store the registration dict
-        self.registration_dict = reg_dict
-        self.reference_frames = [reg_tuple[2] for reg_tuple in slicewise_reg]
+        self.registration_info = registration_info
 
         if save:
-            if save_dict_name is None:
-                save_dict_name = os.path.splitext(self.filename)[0] 
-            with open(save_dict_name + ".dict",'wb') as dict_path:
-                pickle.dump(reg_dict, dict_path)
-            with open(save_dict_name + ".ref",'wb') as ref_images_path:
-                pickle.dump(self.reference_frames, ref_images_path)
+            registration_info.save()
 
-        return reg_dict
+        return self.registration_dict
+    
+    @property
+    def registration_dict(self) -> dict:
+        if hasattr(self, 'registration_info'):
+            return self.registration_info.yx_shifts
+        return None
 
-    def align_reference_frames(self, ignore_first : bool = True, overwrite = True, **kwargs):
-        """
-        Used to align reference frames (and shift the registration dictionary)
-        after registration has already been performed without the align_zplanes
-        option. Overwrites saved dicts if they exist by default, can be adjusted
-        with the parameter overwrite.
-
-        Arguments
-        ---------
-        
-        ignore_first : bool (optional)
-
-            Whether or not to ignore the first z plane during alignment. Usually this contains
-            a lot of artifacts due to the piezo flyback, so it's set to True by default
-
-        overwrite : bool (optional)
-
-            Whether or not overwrite any existing registration dictionary.
-        """
-        raise NotImplementedError()
+    @property
+    def reference_frames(self)->np.ndarray:
+        if hasattr(self, 'registration_info'):
+            if self.registration_info.reference_frames is None:
+                raise RuntimeError("No reference frames have been computed. Run register() first.")
+            return self.registration_info.reference_frames
+        return None
 
 ### DEBUG METHODS   
     def set_debug(self, debug : bool):

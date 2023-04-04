@@ -1,9 +1,9 @@
 from enum import Enum
 from typing import Union, Callable
 from pathlib import Path
-import pickle
 from abc import ABC, abstractmethod
 
+from h5py import File as h5File
 import numpy as np
 
 from siffreadermodule import SiffIO
@@ -19,6 +19,8 @@ class RegistrationType(Enum):
 class RegistrationInfo(ABC):
     """ Base class for all Registration implementations """
 
+    REGISTRATION_INFO_SUFFIX = ".h5"
+
     def __init__(
             self,
             siffio : SiffIO,
@@ -28,12 +30,13 @@ class RegistrationInfo(ABC):
         if isinstance(backend, str):
             backend = RegistrationType(backend)
         self.registration_type = backend
-        self.filename = siffio.filename
-        self.yx_shifts : list[tuple[int,int]]= []
+        self.filename = siffio.filename if not siffio is None else None
+        self.yx_shifts : dict[int, tuple[int,int]]= {}
         self.reference_frames : np.ndarray = None
         self.im_params = im_params
+        self.registration_color_channel = None
 
-    def __get_item__(self, idx):
+    def __get_item__(self, idx : int):
         return self.yx_shifts[idx]
     
     @abstractmethod
@@ -41,6 +44,7 @@ class RegistrationInfo(ABC):
         self,
         siffio : SiffIO,
         *args,
+        alignment_color_channel : int = 0,
         **kwargs
         ):
         raise NotImplementedError()
@@ -53,11 +57,41 @@ class RegistrationInfo(ABC):
         )->tuple[int,int]:
         raise NotImplementedError()
 
-    def save(self, save_path : Union[str, Path]):
+    def save(self, save_path : Union[str, Path] = None):
+        if save_path is None:
+            save_path = Path(self.filename).with_suffix("")
         save_path = Path(save_path)
-        save_path = save_path / f"{self.filename}.rdct"
-        with save_path.open('wb') as f:
-            pickle.dump(self, f)
+        save_path = save_path / f"{Path(self.filename).stem}_registration_info{self.REGISTRATION_INFO_SUFFIX}"
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with h5File(save_path, 'w') as f:
+            f.attrs['filename'] = Path(self.filename).stem
+            f.attrs['registration_type'] = self.registration_type.value
+            f.attrs['registration_color'] = self.registration_color_channel
+            
+            # Store shifts
+            yx_shifts = f.create_group(
+                'yx_shifts',
+            )
+
+            yx_shifts.create_dataset(
+                'frame_index',
+                data = np.array(list(self.yx_shifts.keys())),
+                dtype = np.int64,
+            )
+
+            yx_shifts.create_dataset(
+                'shift_values',
+                data = np.array(list(self.yx_shifts.values())),
+                dtype = np.int64,
+            )
+
+            # Store reference frames
+            f.create_dataset(
+                "reference_frames",
+                data = self.reference_frames,
+                dtype = np.float32,   
+            )
     
     def assign_siffio(self, siffio : SiffIO):
         """
@@ -65,15 +99,46 @@ class RegistrationInfo(ABC):
         from a file and want to use new frames.
         """
         self.siffio = siffio
+        self.filename = siffio.filename
+
+    def from_dict(self, dict : dict):
+        self.filename = dict['filename']
+        self.registration_color = dict['registration_color']
+        self.yx_shifts = dict['yx_shifts']
+        self.reference_frames = dict['reference_frames']
 
     @classmethod
-    def load(cls, path : Union[str, Path]):
-        if not path.suffix == '.rdct':
+    def load_as_dict(
+        cls,
+        path : Union[str, Path],   
+    )->dict:
+        """
+        Returns a dict that can be used to instantiate a `RegistrationInfo` subclass
+        """
+        path = Path(path)
+        if not path.suffix == cls.REGISTRATION_INFO_SUFFIX:
             raise ValueError(
                 f"File {path} does not have the correct extension for a RegistrationInfo file."
             )
-        with path.open('rb') as f:
-            return pickle.load(f)
+        
+        with h5File(path, 'r') as f:
+            filename = f.attrs['filename']
+            registration_type = f.attrs['registration_type']
+            registration_type = RegistrationType(registration_type)
+            registration_color = f.attrs['registration_color']
+            yx_shifts = f['yx_shifts']
+            frame_index = yx_shifts['frame_index'][:]
+            shift_values = yx_shifts['shift_values'][:]
+            yx_shifts = dict(zip(frame_index, shift_values))
+            reference_frames = f['reference_frames'][:]
+
+        return {
+            'filename' : filename,
+            'registration_type' : registration_type,
+            'registration_color' : registration_color,
+            'yx_shifts' : yx_shifts,
+            'reference_frames' : reference_frames,
+        }
         
     def __repr__(self):
         return f"{self.registration_type} RegistrationInfo for {self.filename}"

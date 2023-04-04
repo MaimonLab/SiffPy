@@ -9,68 +9,48 @@ from scipy.sparse.linalg import spsolve
 from siffreadermodule import SiffIO
 from siffpy.core.utils.circle_fcns import circ_d, re_circ, roll_d
 from siffpy.core.utils.registration_tools.siffpy.alignment import (
-    align_to_reference, build_reference_image
+    align_to_reference
 )
 
-def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, np.ndarray, np.ndarray]:
+def register_frames(
+        siffio : SiffIO,
+        reference_frame : np.ndarray,
+        frames : list[int],
+        discard_bins : int = None,
+        pbar = None,
+        regularize_sigma : float = 2.0,
+        **kwargs)->dict[int, tuple[int, int]]:
     """
     Registers the frames described by the list of indices in the input
     argument frames. This is for a single slice. To register multiple slices
     to one another, I register each slice independently and then align their
     reference frames (and use that to add a constant offset to each).
 
-    Returns a tuple containing the registration dictionary, an array 
-    of the distance between successive frames, and the reference image
-    used for alignment. 
+    Returns the registration dictionary
 
     Accepts kwargs for alignment as described below:
 
     INPUTS
     ------
 
+    siffio : SiffIO
+
+        The filereader which reads the frames to be aligned.
+
+    reference_frame : np.ndarray
+
+        A single reference image to which the frames will be aligned.
+
     frames : list[int]
 
         The indices of the frames to be aligned.
-
-    ref_method (optional) : str
-
-        The method used to compute the reference frame. Options are
-        detailed in the docstring for registration.build_reference_image.
-        Currently available:
-
-            'average'
-            'suite2p'
-
-    nimg_init (optional) : int
-
-        Only used if ref_method is suite2p. Describes the number of frames
-        from which the reference image may be constructed. Fewer is faster.
-
-    seed_ref_count (optional) : int
-
-        Only used if ref_method is suite2p. Describes the number of frames
-        averaged to construct the reference image. Fewer is a sharper image.
-        More is a more robust image.
-
-    n_ref_iters (optional) : int
-
-        Number of times to iteratively align. So it computes a reference image,
-        aligns each frame to that reference image, but then can go back and compute
-        a new reference image from aligned frames. n_ref_iters determines how many
-        times to repeat this process. Default is 2: one naive and one with an aligned
-        registration.
-
-    subpx (optional) : bool
-
-        Utilizes subpixel alignment in the Fourier phase correlation. NOT
-        YET IMPLEMENTED!
 
     discard_bins (optional) : int
 
         Time bin above which photons should be discarded. Useful for known noise sources
         and known fluorophore IDs.
     
-    tqdm (optional) : tqdm.tqdm
+    pbar (optional) : tqdm.tqdm
 
         For prettier output formatting in a notebook or script. Pass the tqdm.tqdm object.
 
@@ -82,43 +62,16 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
     RETURNS
     -------
 
-    (rdict, distances, ref_image)
-
-        rdict : dict
+    rdict : dict
             
-            registration dict that can be passed to other siffpy functions
-
-        distances : 1-d np.ndarray
-
-            The distances between each successive frame during alignment.
-            Useful for diagnosing the quality of the registration. If this
-            is changing a lot, there's probably a bad alignment.
-
-        ref_image : 2d np.ndarray
-
-            The reference image used for the alignment.
+        registration dict that can be passed to other siffpy functions
     """
 
-    if 'discard_bins' in kwargs:
-        discard_bins = None
-        if isinstance(kwargs['discard_bins'], int):
-            discard_bins = kwargs['discard_bins']
     frames_np = siffio.get_frames(frames = frames, flim = False)
-    use_tqdm = False
-    if 'tqdm' in kwargs:
-        import tqdm
-        if isinstance(kwargs['tqdm'], tqdm.tqdm):
-            use_tqdm = True
-            pbar : tqdm.tqdm = kwargs['tqdm']
+    use_tqdm = not (pbar is None)
     
-    regularize_sigma = 2.0
-    if 'regularize_sigma' in kwargs:
-        if isinstance(kwargs['regularize_sigma'], float):
-            regularize_sigma = kwargs['regularize_sigma']
-
     import time
     t = time.time()
-    ref_im = build_reference_image(siffio, frames, **kwargs)
     if use_tqdm:
         pbar.set_description(f"Ref image (1): {time.time() - t} seconds")
 
@@ -128,7 +81,7 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
     t = time.time()
 
     # Faster to just transform ref_im once
-    ref_im_NORMED = fft.fft2(ref_im)
+    ref_im_NORMED = fft.fft2(reference_frame)
     ref_im_NORMED /= np.abs(ref_im_NORMED)
     if use_tqdm:    
         pbar.set_postfix({"Alignment iteration" : 1})
@@ -137,42 +90,15 @@ def register_frames(siffio : SiffIO, frames : list[int], **kwargs)->tuple[dict, 
     
     if regularize_sigma > 0:
         # adjacent timepoints should be near each other.
-        rolls = regularize_adjacent_tuples(rolls, ref_im.shape[0], ref_im.shape[1], sigma = regularize_sigma)
+        rolls = regularize_adjacent_tuples(
+            rolls,
+            reference_frame.shape[0],
+            reference_frame.shape[1],
+            sigma = regularize_sigma
+        )
         
-    reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
+    return {frames[n] : rolls[n] for n in range(len(frames))}
     
-    n_ref_iters = 2
-    if 'n_ref_iters' in kwargs:
-        if isinstance(kwargs['n_ref_iters'], int):
-            n_ref_iters = kwargs['n_ref_iters']
-
-    # Repeat the same process -- build a reference, re-align
-    for ref_iter in range(n_ref_iters - 1):
-        if use_tqdm:
-            pbar.set_postfix({"Alignment iteration" : ref_iter})
-        t = time.time()
-        ref_im = build_reference_image(siffio, frames, registration_dict = reg_dict, **kwargs)
-
-        t = time.time()
-        ref_im_NORMED = fft.fft2(ref_im)
-        ref_im_NORMED /= np.abs(ref_im_NORMED)
-        rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
-        
-        if regularize_sigma > 0:
-            # adjacent timepoints should be near each other.
-            rolls = regularize_adjacent_tuples(rolls, ref_im.shape[0], ref_im.shape[1], sigma = regularize_sigma)
-
-        reg_dict = {frames[n] : rolls[n] for n in range(len(frames))}
-
-    ysize,xsize = frames_np[0].shape
-
-    # rebuild the reference images for storage.
-    ref_im = build_reference_image(siffio, frames, registration_dict = reg_dict, **kwargs)
-
-    roll_d_array = np.array([roll_d(rolls[n], rolls[n+1], ysize, xsize) for n in range(len(frames)-1)])
-
-    return (reg_dict, roll_d_array, ref_im)
-
 def regularize_adjacent_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : float = 2.0) -> list[tuple]:
     """
     Take a list of tuples, pretend adjacent ones are coupled by springs and to their original values.
