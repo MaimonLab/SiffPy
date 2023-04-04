@@ -26,9 +26,11 @@ def load_registration(
         return to_registration_info(regpath, siffio, im_params)
     if (regpath := path.with_suffix(".dict")).exists():
         reg_dict, ref_frames = load_registration_legacy(filename)
-        ret_val = to_reg_info_class('siffpy')(siffio, im_params)
+        ret_val : RegistrationInfo = to_reg_info_class('siffpy')(siffio, im_params)
         ret_val.yx_shifts = reg_dict
         ret_val.reference_frames = ref_frames
+        ret_val.registration_color_channel = 0
+        ret_val.save()
         return ret_val
 
 def load_registration_legacy(filename : str)->tuple:

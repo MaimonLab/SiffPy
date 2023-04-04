@@ -1,9 +1,8 @@
 from typing import Union
 import itertools
-import logging, os, pickle
-from functools import reduce
+import logging
+import warnings
 from pathlib import Path
-import builtins
 
 import numpy as np
 
@@ -1273,12 +1272,16 @@ class SiffReader(object):
             self.im_params
         )
 
-        registration_info.register(
-            self.siffio,
-            alignment_color_channel=color_channel,
-            align_z = align_z,
-            **kwargs
-        )
+        # Gets rid of unhelpful scipy warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+        
+            registration_info.register(
+                self.siffio,
+                alignment_color_channel=color_channel,
+                align_z = align_z,
+                **kwargs
+            )
 
         # Now store the registration dict
         self.registration_info = registration_info
@@ -1301,10 +1304,3 @@ class SiffReader(object):
                 raise RuntimeError("No reference frames have been computed. Run register() first.")
             return self.registration_info.reference_frames
         return None
-
-### DEBUG METHODS   
-    def set_debug(self, debug : bool):
-        """ 
-        Toggles debug features of the SiffReader class on and off.
-        """
-        self.debug = debug

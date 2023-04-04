@@ -103,7 +103,7 @@ class RegistrationInfo(ABC):
 
     def from_dict(self, dict : dict):
         self.filename = dict['filename']
-        self.registration_color = dict['registration_color']
+        self.registration_color_channel = dict['registration_color']
         self.yx_shifts = dict['yx_shifts']
         self.reference_frames = dict['reference_frames']
 
@@ -125,7 +125,7 @@ class RegistrationInfo(ABC):
             filename = f.attrs['filename']
             registration_type = f.attrs['registration_type']
             registration_type = RegistrationType(registration_type)
-            registration_color = f.attrs['registration_color']
+            registration_color_channel = f.attrs['registration_color']
             yx_shifts = f['yx_shifts']
             frame_index = yx_shifts['frame_index'][:]
             shift_values = yx_shifts['shift_values'][:]
@@ -135,7 +135,7 @@ class RegistrationInfo(ABC):
         return {
             'filename' : filename,
             'registration_type' : registration_type,
-            'registration_color' : registration_color,
+            'registration_color' : registration_color_channel,
             'yx_shifts' : yx_shifts,
             'reference_frames' : reference_frames,
         }

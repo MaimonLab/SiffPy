@@ -44,6 +44,14 @@ the `yx_shifts` attrribute.
 - `assign_siffio(self, siffio: SiffIO)` stores a reference to the passed
 `SiffIO` object, so that when you load with a new `SiffReader` you don't need to create a new `SiffIO` and have it open the file.
 
-- `load(path, siffio = None, im_params = None)` a `classmethod` to create a `RegistrationInfo` from an `.hdf5` file.
+- `load_as_dict(path)->dict` a `classmethod` to create a `RegistrationInfo` from an `.hdf5` file.
 If the `siffio` or `im_params` argument are passed, it will
 add these to your `RegistrationInfo` returned.
+
+## Subclassing the `RegistrationInfo` class
+
+Each type of registration method should subclass the `RegistrationInfo` and
+overwrite the `align_to_reference` method and the `register` method. It should,
+as a result of registration, store attributes `filename`, `yx_shifts`, 
+`reference_frames`, and `registration_channel`. If it does those things,
+it will save and load completely correctly
