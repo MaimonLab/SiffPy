@@ -24,6 +24,7 @@ SCT March 27 2021
 
 import numpy as np
 from scipy import special
+from scipy.stats import exponnorm as emg
 
 def chi_sq_exp(photon_arrivals : np.ndarray, param_tuple : tuple, negative_scope : float = 0.0, rescale_bins : bool = False)->float:
     """

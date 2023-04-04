@@ -17,6 +17,8 @@
 #include <numpy/arrayobject.h>
 #define PY_SSIZE_T_CLEAN
 
+//#include "framedatastruct.hpp"
+
 class SiffReader
 {
     private:
@@ -28,6 +30,7 @@ class SiffReader
         std::chrono::high_resolution_clock debug_clock;
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
+        //std::vector<FrameData> frameDatas;
 
         // a setting to suppress potentially kernel-killing errors thrown by checks
         bool suppress_errors;
@@ -95,6 +98,22 @@ class SiffReader
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
         PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin, PyArrayObject* mask);
+
+        PyArrayObject* retrieveFramesAsArray(
+            uint64_t frames[],
+            uint64_t framesN,
+            bool flim,
+            PyObject* registrationDict
+        );
+
+        PyArrayObject* retrieveFramesAsArray(
+            uint64_t frames[],
+            uint64_t framesN,
+            bool flim,
+            PyObject* registrationDict,
+            uint64_t terminalBin
+            //PyArrayObject* mask
+        );
         
         PyObject* poolFrames(PyObject* listOfList, bool flim); // TODO: IMPLEMENT
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
@@ -112,7 +131,10 @@ class SiffReader
         PyObject* readFixedData(); // returns the data in the primary ScanImage header
         std::string getNVFD();
         std::string getROIstring();
-        
+
+        // returns whether the dimensions of all the frames are consistent;
+        bool dimensionsConsistent(uint64_t frames[], uint64_t framesN);
+
         void closeFile();
 
         const char* getErrString();

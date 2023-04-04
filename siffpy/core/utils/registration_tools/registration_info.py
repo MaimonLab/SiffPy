@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from siffreadermodule import SiffIO
-from siffpy.core.utils.im_params import ImParams
+from siffpy.core.utils import ImParams
 
 class RegistrationType(Enum):
     Caiman = 'caiman'

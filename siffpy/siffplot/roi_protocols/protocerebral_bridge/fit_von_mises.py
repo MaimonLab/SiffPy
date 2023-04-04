@@ -119,7 +119,8 @@ def polys_to_corr(
         polys : list[Polygons],
         siffreader : SiffReader,
         timepoint_lower_bound : int = 0,
-        timepoint_upper_bound : int = None
+        timepoint_upper_bound : int = None,
+        dtype : type = np.uint64
     )->tuple[np.ndarray, np.ndarray]:
     """
     Computes the correlation matrix between each polygon
@@ -138,6 +139,6 @@ def polys_to_corr(
             timepoint_end = timepoint_upper_bound
         )
         for mask, z in zip(masks,zs)
-    ])
+    ],dtype=dtype)
 
     return (np.corrcoef(seed_t_series), seed_t_series)

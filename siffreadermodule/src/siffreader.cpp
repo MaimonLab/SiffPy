@@ -60,11 +60,21 @@ int SiffReader::openFile(const char* _filename) {
         
         // Now check that it's a siff file.
         // Gotta know the endianness
-        char * endian = new char[2];
+        char *endian = new char[2];
         siff.read(endian, sizeof(char)*2);   
 
         // strcmp == 0 if they match.
-        if ((strcmp(endian,BIGENDIAN) !=0) && (strcmp(endian,LITTLEENDIAN) != 0)) throw std::runtime_error("Could not deduce endian. May not be .siff/.tiff file. First two bytes (should be II or MM): "+std::string(endian));
+        if (
+            (strcmp(endian,BIGENDIAN) !=0)
+            &&
+            (strcmp(endian,LITTLEENDIAN) != 0)
+        ) {
+            throw std::runtime_error(
+                std::string("Could not deduce endian. May not be .siff/.tiff file.")+
+                " First two bytes (should be II or MM): "+
+                std::string(endian)
+            );
+        }
         params.little = (strcmp(endian,LITTLEENDIAN) == 0); // true if little, false if big.
 
         delete[] endian;
@@ -140,7 +150,7 @@ int SiffReader::openFile(const char* _filename) {
         params.suppress_warnings = suppress_warnings;
 
         discernFrames(); // updates params.numFrames with the number of frames in the siff
-
+        
         return 0;
     }
     catch(std::exception& e){
@@ -159,43 +169,44 @@ void SiffReader::discernFrames() {
     // and stores all the IFDs for quick lookup.
     uint64_t nextIFD = params.firstIFDAddress;
     uint64_t currIFD = 0;
+    uint64_t numTags; // number of tags in this directory before the real metadata
 
-
-    while(nextIFD>0) {
-        // iterates through all the IFDs until it gets to the end
-        if (nextIFD == params.fileSize) break;
-
-        // go to the next IFD
-        siff.seekg(nextIFD - siff.tellg(), std::ios::cur); // go there first
-
-        if (siff.eof()) {
-            break;
-        }
-        if(!siff.good()) {
-            errstring = std::string("Failed to reach IFD during load. Possible corrupt frame? Run in debug for more info.");
-            if (debug){
-                errstring += std::string("\nFile state: ") + std::to_string(siff.rdstate());
-                errstring += std::string("\nFrame number: " + std::to_string(params.allIFDs.size()));
-                errstring += std::string("\nIFD :\n\t") + std::to_string(nextIFD);
-                errstring += std::string("\nFull file size:\n\t" + std::to_string(params.fileSize));
-            }
-            throw std::runtime_error(errstring);
-        }
+    siff.seekg(nextIFD, std::ios::beg); // go there first
+    while(nextIFD>0 && nextIFD<params.fileSize && !siff.eof()) {
         currIFD = nextIFD;
-        params.allIFDs.push_back(currIFD);
 
-        uint64_t numTags; // number of tags in this directory before the real metadata
+        params.allIFDs.push_back(currIFD);
+        //frameDatas.push_back(getTagData(currIFD, params, siff));
+
         siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
 
         siff.seekg(numTags*params.bytesPerTag,std::ios::cur); // skip the tags
 
-        siff.read((char*)&nextIFD, params.bytesPerPointer);        
+        siff.read((char*)&nextIFD, params.bytesPerPointer);
+
+        // go to the next IFD
+        siff.seekg(nextIFD, std::ios::beg); // go there first
     }
     while(params.allIFDs.back() == 0) {
         params.allIFDs.pop_back(); // this is for the case that the last IFD is 0ULL
     }
     params.numFrames = params.allIFDs.size();
     //siff.clear(); // get rid of failbits
+}
+
+bool SiffReader::dimensionsConsistent(uint64_t frames[], uint64_t framesN){
+    // Checks that all the frames have the same dimensions.
+    // Returns true if they are consistent, false otherwise.
+    if (framesN == 0) return true;
+    return false;
+    // uint64_t firstFrame = frames[0];
+    // uint64_t firstFrameWidth = frameDatas[firstFrame].imageWidth;
+    // uint64_t firstFrameHeight = frameDatas[firstFrame].imageLength;
+    // for (uint64_t i=1; i<framesN; i++) {
+    //     if (frameDatas[frames[i]].imageWidth != firstFrameWidth) return false;
+    //     if (frameDatas[frames[i]].imageLength != firstFrameHeight) return false;
+    // }
+    // return true;
 }
  
 
@@ -214,7 +225,7 @@ PyArrayObject* SiffReader::sumMask(uint64_t frames[], uint64_t framesN, PyArrayO
     // Sums all pixel elements of the desired frames within the mask and returns a 1d PyArrayObject.
     try{
         if (!siff.is_open()) throw std::runtime_error("No open file.");
-        if (!params.issiff) throw std::runtime_error("File is not of type .siff! No FLIM data to collect.");
+        //if (!params.issiff) throw std::runtime_error("File is not of type .siff! No FLIM data to collect.");
         siff.clear();
 
         // 1 dimensional
@@ -339,11 +350,52 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool f
     REPORT_ERR("Error parsing frames: ");
 }
 
+PyArrayObject* SiffReader::retrieveFramesAsArray(
+    uint64_t frames[],
+    uint64_t framesN,
+    bool flim,
+    PyObject* registrationDict
+) {
+    // Build a PyArray object from the framelist
+    // with length equal to the number of frames
+    // and dtype uint64_t
+    PyArray_Descr* desc(PyArray_DescrFromType(NPY_UINT64));
+
+    const int ND = 3;
+    // TEMP
+    npy_intp retdims[ND];
+    retdims[0] = framesN;
+    retdims[1] = 256;
+    retdims[2] = 256;
+
+    PyObject* retArray(PyArray_ZEROS(
+        ND,
+        retdims,
+        NPY_UINT64,
+        0
+    ));
+
+    return (PyArrayObject*) retArray;
+};
+
+PyArrayObject* SiffReader::retrieveFramesAsArray(
+    uint64_t frames[],
+    uint64_t framesN,
+    bool flim,
+    PyObject* registrationDict,
+    uint64_t terminalBin
+) {
+    throw std::runtime_error("NOT IMPLEMENTED");
+};
+
 // REGISTRATION DICT
 PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict) {
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
     // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
     // the variable type of output
+    if (registrationDict == NULL){
+        return retrieveFrames(frames, framesN, flim);
+    }
     try{
         if(!siff.is_open()) throw std::runtime_error("No open file.");
         siff.clear();
@@ -372,6 +424,9 @@ PyObject* SiffReader::retrieveFrames(uint64_t frames[],
     // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
     // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
     // the variable type of output
+    if (terminalBin == NULL){
+        return retrieveFrames(frames, framesN, flim, registrationDict);
+    }
     try{
         if(!siff.is_open()) throw std::runtime_error("No open file.");
         if(!params.issiff) return retrieveFrames(frames, framesN, flim, registrationDict);

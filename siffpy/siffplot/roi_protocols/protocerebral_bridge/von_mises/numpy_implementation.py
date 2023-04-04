@@ -16,6 +16,36 @@ class VonMisesFit():
     def pdf(self, theta : np.ndarray)->np.ndarray:
         return np.exp(self.kappa*np.cos(theta - self.mean))/(2*np.pi*i0(self.kappa))
 
+class VonMisesCollection():
+    """
+    Holds a list of von Mises fits and provides
+    acces for a few useful functions
+    """
+
+    def __init__(self, vms : list[VonMisesFit]):
+        self.vms = vms
+
+    #Get from the list of von Mises fits
+    def __getitem__(self, key):
+        return self.vms.__getitem__(key)
+
+    @property
+    def means(self)->np.ndarray:
+        return np.array([vm.mean for vm in self.vms])
+    
+    @property
+    def kappas(self)->np.ndarray:
+        return np.array([vm.kappa for vm in self.vms])
+    
+    @property
+    def cov(self)->np.ndarray:
+        return corr_between_von_mises(
+            self.means,
+            self.means,
+            self.kappas[0],
+        )
+
+
 @dataclass
 class VonMisesCluster():
     """
@@ -343,7 +373,7 @@ def corr_fft(seed_phases : np.ndarray, seed_roi_timeseries : np.ndarray, input_f
     # The "correct" phase to use would invert the I0 function and then
     # take the arccos of the result. For kappa near 1, this is approximately
     # 2*np.sqrt(2*kappa*cos(Delta_theta/2)-1) = I0(kappa)**2 + corr*(I0(2k)**2 - I0(k)**2)
-    return np.exp(1j*seed_phases).T @ correlation / seed_roi_timeseries.shape[0]
+    return np.exp(1j*seed_phases).T @ correlation / seed_phases.shape[0]
  
 
 def get_seed_phases(
@@ -386,7 +416,7 @@ def get_seed_phases(
 
     # Phase for each seed ROI, (ROI_seed_count, 1)
     return (
-        match_to_von_mises(seed_corr, kappa = kappa),
+        VonMisesCollection(match_to_von_mises(seed_corr, kappa = kappa)),
         seed_corr
     )
 

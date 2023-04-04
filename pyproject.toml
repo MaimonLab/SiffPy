@@ -10,6 +10,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "siffpy/core/_version.py"
 
+#[tool.setuptools]
+#packages = ["siffpy"]
+
 [project]
 name = "siffpy"
 dynamic = ["version"]

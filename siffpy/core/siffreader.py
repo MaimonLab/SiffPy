@@ -259,7 +259,7 @@ class SiffReader(object):
         flim : bool = False, 
         registration_dict : dict = None,
         discard_bins : int = None,
-        ret_type : type = list
+        as_array : bool = False,
         ) -> list[np.ndarray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -299,35 +299,24 @@ class SiffReader(object):
             frames = list(range(self.im_params.num_frames))
         if discard_bins is None:
             if registration_dict is None:
-                framelist = self.siffio.get_frames(frames = frames, flim = flim)
+                framelist = self.siffio.get_frames(frames = frames, flim = flim, as_array = as_array)
             else:
-                framelist = self.siffio.get_frames(frames = frames, flim = flim, registration = registration_dict)
+                framelist = self.siffio.get_frames(frames = frames, flim = flim, registration = registration_dict, as_array = as_array)
         else:
             # arg checking
             if not isinstance(discard_bins, int):
-                framelist = self.siffio.get_frames(frames, flim, registration_dict)
+                framelist = self.siffio.get_frames(frames, flim, registration_dict, as_array=as_array)
             else:
                 if registration_dict is None:
-                    framelist = self.siffio.get_frames(frames = frames, flim = flim, discard_bins = discard_bins)
+                    framelist = self.siffio.get_frames(frames = frames, flim = flim, discard_bins = discard_bins, as_array=as_array)
                 else:
                     framelist = self.siffio.get_frames(frames = frames, flim = flim, 
                                                 registration = registration_dict, 
-                                                discard_bins = discard_bins)
+                                                discard_bins = discard_bins,
+                                                as_array=as_array)
 
-        if ret_type == list:
-            return framelist
-
-        if ret_type == np.ndarray:
-            if self.im_params.frames_per_slice > 1:
-                raise NotImplementedError(
-                    "Array reshape hasn't been implemented if frames per slice > 1" +
-                    "\nHaven't decided how to deal with the non-C-or-Fortan-style ordering yet."
-                    )
-
-            raise NotImplementedError("Haven't decided how to work out which slices / colors etc should be included")
-
-        raise ValueError(f"Invalid ret_type argument {ret_type}")
-
+        return framelist
+    
     def sum_mask(
             self,
             mask : np.ndarray,
