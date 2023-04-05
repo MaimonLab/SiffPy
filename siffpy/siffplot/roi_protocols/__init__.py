@@ -2,6 +2,7 @@ import re
 import logging
 import inspect, textwrap
 
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.rois import ROI
 from siffpy.siffplot.roi_protocols.utils.regions import RegionEnum, Region
 from siffpy.siffplot.roi_protocols import ellipsoid_body, fan_shaped_body, protocerebral_bridge, noduli, generic
@@ -10,19 +11,19 @@ REGIONS = [
     Region(
         ['eb','ellipsoid body','ellipsoid', 'Ellipsoid body'],
         ellipsoid_body,
-        'use_ellipse',
+        'Use ellipse',
         RegionEnum.ELLIPSOID_BODY
     ),
     Region(
         ['fb','fsb','fan-shaped body','fan shaped body','fan', 'Fan-shaped body'],
         fan_shaped_body,
-        'outline_fan',
+        'Outline fan',
         RegionEnum.FAN_SHAPED_BODY
     ),
     Region(
         ['pb','pcb','protocerebral bridge','bridge', 'Protocerebral bridge'],
         protocerebral_bridge,
-        'circle_glomeruli',
+        'Fit von Mises',
         RegionEnum.PROTOCEREBRAL_BRIDGE
     ),
     Region(

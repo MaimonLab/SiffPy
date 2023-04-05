@@ -1,17 +1,12 @@
-from enum import Enum
-import typing, inspect
 from typing import Callable
-from inspect import Parameter
 
 import numpy as np
-import magicgui.widgets as widgets
+from napari.utils.events import Event, EventEmitter, EmitterGroup
 
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
 from siffpy.core import SiffReader
 from siffpy.siffplot.utils.exceptions import NoROIException
-from siffpy.siffplot.roi_protocols import REGIONS, roi_protocol
-from siffpy.siffplot.roi_protocols.rois import ROI
-from siffpy.siffplot.roi_protocols.utils import napari_fcns
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
 from siffpy.siffplot.napari_viewers.widgets import SegmentationWidget
 
@@ -60,16 +55,26 @@ class ROIViewer(NapariInterface):
         """
         super().__init__(siffreader, *args, **kwargs)
         self.viewer.dims.axis_labels = ['Z planes', 'x', 'y']
+        self.events = EmitterGroup(
+            source=self,
+        )
+        self.events.add(
+            extraction_complete = Event,
+            segmentation_complete = Event,
+        )
 
         self.segmentation_fcn = segmentation_fcn
         self.save_rois_fcn : Callable = None
 
         self.initialize_layers(edge_color = edge_color)
-        #roi_widget = self.initialize_segmentation_widget()
+        
         roi_widget = SegmentationWidget(self, self.segmented_rois_layer)
-        roi_widget.connect_reference_frames(self.siffreader.reference_frames)
-        self.roi_widgets = roi_widget
+        roi_widget.events.extraction_initiated.connect(self.extract_rois)
+
+        self.roi_widget = roi_widget
+        
         self.viewer.window.add_dock_widget(roi_widget, name='ROI segmentation tools')
+        roi_widget.update_roi_list(self.visualizer.rois)
 
     
     def initialize_layers(self, edge_color = CINNABAR):
@@ -111,6 +116,24 @@ class ROIViewer(NapariInterface):
             edge_color = "#FFFFFF",
             scale = self.scale
         )
+
+    def extract_rois(self, event):
+        """ Extracts ROIs using the protocol specified by the segmentation widget """
+        source : SegmentationWidget = event.source
+        protocol : ROIProtocol = source.current_protocol
+        args = []
+        kwargs = {}
+        if protocol.uses_reference_frames:
+            args.append(self.siffreader.reference_frames)
+        if protocol.uses_polygon_source:
+            args.append(self.polygon_source)
+        try:
+            self.visualizer.rois.append(protocol.extract(*args, **source.extraction_kwargs))
+        except Exception as e:
+            self.warning_window(f"Error in segmentation function: {e}", exception = e)
+            return
+
+        self.roi_widget.update_roi_list(self.visualizer.rois)
 
     @property
     def segmented_rois_layer(self):

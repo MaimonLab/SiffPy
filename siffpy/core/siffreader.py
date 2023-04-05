@@ -10,12 +10,11 @@ from siffreadermodule import SiffIO
 
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
-from siffpy.core.utils import ImParams, registration
+from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.core.utils.typecheck import *
-from siffpy.core.utils.registration import register_frames, regularize_all_tuples
 from siffpy.siffmath.flim import FlimTrace
 
 # TODO:

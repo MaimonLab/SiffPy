@@ -3,12 +3,24 @@ import logging
 
 import holoviews as hv
 
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.ellipsoid_body.extra_rois import ExtraRois
 from siffpy.siffplot.roi_protocols.utils.holoviews_fcns import fit_ellipse_to_poly
 from siffpy.siffplot.roi_protocols.utils import PolygonSource
 from siffpy.siffplot.roi_protocols.rois.ellipse import Ellipse
 from siffpy.siffplot.roi_protocols.extern import smallest_circle
 # Code for ROI extraction from the ellipsoid body after manual input
+
+class FitEllipse(ROIProtocol):
+    name = "Fit ellipse"
+
+    def extract(self, strange_thing : int = 4, stranger_thing : ExtraRois = ExtraRois.CENTER)->Ellipse:
+        raise NotImplementedError()
+    
+    def segment(self):
+        raise NotImplementedError()
+    pass
+
 
 def fit_ellipse(
     reference_frames : list,

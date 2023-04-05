@@ -17,6 +17,9 @@ class SegmentationParamsContainer(widgets.Container):
         self.current_roi_class = initial_roi_class
         self.refresh()
 
+    def on_update_extraction_method(self, event):
+        self.set_roi_class(event.source.current_protocol.return_class)
+
     def set_roi_class(self, new_roi_class : type):
         self.current_roi_class = new_roi_class
         self.refresh()
@@ -81,6 +84,6 @@ class SegmentPushbutton(widgets.PushButton):
     def __init__(self):
         super().__init__(
             name="SegmentPushButton",
-            label="Segment ROIs",
+            label="Segment selected ROI(s)",
             tooltip = "Constructs siffpy ROI objects using drawn shapes."
         )

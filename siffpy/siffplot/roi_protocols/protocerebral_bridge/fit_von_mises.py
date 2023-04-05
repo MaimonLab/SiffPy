@@ -1,17 +1,42 @@
 # Code for ROI extraction from the protocerebral bridge after manual input
 import numpy as np
 from holoviews import Polygons
-from scipy.optimize import minimize
 from scipy.special import i0
 
 from siffpy import SiffReader
-from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols import rois, ROIProtocol
 from siffpy.siffplot.roi_protocols.utils import (
     PolygonSource, polygon_to_mask, polygon_to_z
 )
 from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.numpy_implementation import (
-    cluster_by_correlation, match_to_von_mises
+    match_to_von_mises
 )
+from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.napari_tools import (
+    CorrelationWindow
+)
+
+class FitVonMises(ROIProtocol):
+
+    name = "Fit von Mises"
+    base_roi_text = "View correlation map"
+
+    def on_click(self, segmentation_widget):
+        corr_window = CorrelationWindow(segmentation_widget)
+
+    def extract(
+            self,
+            reference_frames : np.ndarray,
+            polygon_source : PolygonSource,
+    )->rois.GlobularMustache:
+        return fit_von_mises(
+            reference_frames,
+            polygon_source,
+            #slice_idx=slice_idx,
+            #extra_rois=extra_rois,
+        )
+
+    def segment(self):
+        raise NotImplementedError()
 
 def fit_von_mises(
         reference_frames : list,

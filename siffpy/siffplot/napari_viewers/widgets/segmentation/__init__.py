@@ -1,4 +1,5 @@
-from .anatomical_region import AnatomicalRegionBox
-from .extraction import ExtractionMethodBox, ExtractionParamsContainer
-from .segmentation import SegmentationParamsContainer, SegmentPushbutton
-from .rois import ROIsContainer, ShowSubROIs, SaveRoisPushbutton
+from siffpy.siffplot.napari_viewers.widgets.segmentation.anatomical_region import AnatomicalRegionBox
+from siffpy.siffplot.napari_viewers.widgets.segmentation.extraction import ExtractionMethodBox, ExtractionParamsContainer
+from siffpy.siffplot.napari_viewers.widgets.segmentation.segmentation_params import SegmentationParamsContainer, SegmentPushbutton
+from siffpy.siffplot.napari_viewers.widgets.segmentation.primary_protocol import PrimaryProtocol
+from siffpy.siffplot.napari_viewers.widgets.segmentation.rois import ROIsContainer, ShowSubROIs, SaveRoisPushbutton

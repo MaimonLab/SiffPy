@@ -8,6 +8,16 @@ objects that subclass the `ROI` class. The `ROI` superclass contains methods
 that are common to all `ROI` tools (e.g. `mask` to return a `numpy.ndarray`),
 while each subclass TODO FINISH
 
+`ROI` classes are created using `ROIProtocol` subclasses.
+
+## ROIProtocol
+
+This contains the basic interface for segmenting out ROIs of interest.
+An `ROIProtocol` implements at least one method `extract(self, *args, **kwargs)->ROI`. It has additional parameters that can often shape how this extraction
+is done, and the `inspect` module is used to parse those parameters and
+make them accessible via GUI. Each individual `ROIProtocol` subclass is
+defined within its respective modules (e.g. `ellipsoid_body`).
+
 ## ROI
 
 ## ROI Subclasses

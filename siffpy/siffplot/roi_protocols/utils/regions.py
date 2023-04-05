@@ -1,7 +1,9 @@
 from enum import Enum
-from typing import Callable
+from typing import Callable, Union
 from dataclasses import dataclass
 import inspect
+
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 
 class RegionEnum(Enum):
     ELLIPSOID_BODY = 'Ellipsoid body'
@@ -9,12 +11,6 @@ class RegionEnum(Enum):
     PROTOCEREBRAL_BRIDGE = 'Protocerebral bridge'
     NODULI = 'Noduli'
     GENERIC = 'Generic'
-
-@dataclass
-class SegmentationFunction():
-    name : str
-    func : Callable
-    on_select : Callable = None
     
 @dataclass
 class Region():
@@ -24,20 +20,20 @@ class Region():
     region_enum : RegionEnum
 
     @property
-    def functions(self)->list[SegmentationFunction]:
-        """
-        A list of `SegmentationFunction` objects, which
-        stores the returned values of `inspect.getmembers`
-        on all functions in the module for this region.
-
-        SegmentationFunctions have a `name` and a `func` attribute,
-        with `name` being a string name and `func` being a callable. 
-        """
+    def protocols(self)->list[ROIProtocol]:
         return list(
-            SegmentationFunction(*func_tup) for func_tup in
-            inspect.getmembers(self.module, inspect.isfunction)
+            protocol[1]()
+            for protocol in
+            inspect.getmembers(self.module, inspect.isclass)
+            if (
+                issubclass(protocol[1], ROIProtocol) and 
+                protocol[1] != ROIProtocol
+            )
         )
-
+    
     @property
-    def default_fcn(self) -> Callable:
-        return next(fcn.func for fcn in self.functions if fcn.name == self.default_fcn_str)
+    def default_protocol(self)->ROIProtocol:
+        return next(
+            protocol for protocol in self.protocols
+            if protocol.name == self.default_fcn_str
+        )

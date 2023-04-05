@@ -64,11 +64,10 @@ So it can be run on laptops with relative ease.
 procedures, you're not forced to install a bunch of other libraries to your virtualenv. These will be installed if you use the `[all]` or `[image]`
 package options
 
-- If you don't have `napari` it will also not prevent installation. At the time of writing, all `siffplot` functionality
-*can* use `napari` and will *default* to `napari` if it's available, but will not complain if it cannot import `napari`. It will simply fall back to `holoviews`
-and `bokeh` and function just fine. Still, `napari` is probably a better experience, and I may not always support both implementations forever, so it's
-probably wiser to install `napari` (I just know some might not like it because it can be a bit of a headache when notebooks get involved). It will
-be installed if you use the `[all]` or `[image]` package options.
+- If you don't have `napari` it will also not prevent installation. It will
+be installed if you use the `[all]` or `[image]` package options. Most manual
+image analysis relies on `napari` -- I have deprecated all `Holoviews` based
+interfaces for image data (i.e. things that aren't plots).
 
 - If you don't have `dask` it will also *warn* you, but this is only used for some `napari` functionality, so even if you're planning on using `napari`,
 you may be able to get away without `dask` for some use cases. Still, this package is pretty useful for anything you might want to plot or analyse

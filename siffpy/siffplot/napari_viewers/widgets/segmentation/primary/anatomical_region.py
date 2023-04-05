@@ -1,7 +1,11 @@
 import magicgui.widgets as widgets
-from siffpy.siffplot.roi_protocols import Region
+from siffpy.siffplot.roi_protocols import Region, REGIONS
 
 class AnatomicalRegionBox(widgets.ComboBox):
+    """
+    A relatively boring class, just a dropdown menu
+    of anatomical regions.
+    """
     def __init__(self, regions : list[Region]):
         super().__init__(
             label='Anatomical region',
@@ -10,7 +14,9 @@ class AnatomicalRegionBox(widgets.ComboBox):
             tooltip = 'The anatomical region determines which segmentation protocols can be used'
         )
 
-    def connect_extraction_method_box(self, extraction_method_box):
-        self.changed.connect(
-            extraction_method_box.update_region
+    @property
+    def current_region(self)->Region:
+        return next(
+            region for region in REGIONS
+            if region.region_enum.value == self.current_choice
         )

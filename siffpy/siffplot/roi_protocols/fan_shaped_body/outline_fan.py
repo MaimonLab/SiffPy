@@ -1,7 +1,29 @@
 # Code for ROI extraction from the fan-shaped body after manual input
+import numpy as np
 
 from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.utils import PolygonSource
+
+class OutlineFan(ROIProtocol):
+
+    name = "Outline fan"
+    base_roi_text = "Extract fan"
+
+    def extract(
+            self,
+            reference_frames : np.ndarray,
+            polygon_source : PolygonSource,
+            slice_idx : int = 0,
+    )->rois.Fan:
+        return outline_fan(
+            reference_frames,
+            polygon_source,
+            slice_idx=slice_idx,
+        )
+
+    def segment(self):
+        raise NotImplementedError()
 
 def outline_fan(reference_frames : list, polygon_source : PolygonSource, *args, slice_idx : int = None, **kwargs)-> rois.Fan:
     """

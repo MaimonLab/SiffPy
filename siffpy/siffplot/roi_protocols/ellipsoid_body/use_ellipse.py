@@ -3,11 +3,33 @@ import logging
 
 import holoviews as hv
 
+from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.ellipsoid_body.extra_rois import ExtraRois
 from siffpy.siffplot.roi_protocols.utils import PolygonSource
 from siffpy.siffplot.roi_protocols.rois.ellipse import Ellipse
 from siffpy.siffplot.roi_protocols.extern import smallest_circle
 
+class UseEllipse(ROIProtocol):
+
+    name = "Use ellipse"
+    base_roi_text = "Extract ellipse"
+
+    def extract(
+            self,
+            reference_frames : np.ndarray,
+            polygon_source : PolygonSource,
+            slice_idx : int = 0,
+            extra_rois : ExtraRois = ExtraRois.CENTER,
+    )->Ellipse:
+        return use_ellipse(
+            reference_frames,
+            polygon_source,
+            slice_idx=slice_idx,
+            extra_rois=extra_rois,
+        )
+
+    def segment(self):
+        raise NotImplementedError()
 
 def use_ellipse(
     reference_frames : list,

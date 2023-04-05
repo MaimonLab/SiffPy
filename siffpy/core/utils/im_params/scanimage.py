@@ -121,11 +121,11 @@ class SIROI():
     
     def __str__(self) -> str:
         return f"""
-        ROI {self.name} with
+        ROI {self.name if hasattr(self, 'name') else ""} with
         {len(self.scanfields)
-        if hasattr(self.scanfields, '__iter__')
+        if hasattr(self, 'scanfields') and hasattr(self.scanfields, '__iter__')
         else 1} scanfield(s):\n
-        {self.scanfields}
+        {self.scanfields if hasattr(self, 'scanfields') else ""}
         """
 
 class ROIGroup():
