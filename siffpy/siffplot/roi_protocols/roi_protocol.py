@@ -22,19 +22,12 @@ class ROIProtocol(ABC):
     base_roi_text : str = "Extract base ROI"
     on_extraction : Callable = None
 
-    def on_click(self, segmentation_widget):
+    def on_click(self, extraction_initiated):
         """ Usually should be overwritten by subclass if 
         you want to implement any custom functionality.
-        Should be done with a Mixin, now that I think about it """
-        segmentation_widget.events.extraction_initiated()
+        Should be done with or a wrapper, now that I think about it """
+        extraction_initiated()
 
-    @abstractmethod
-    def segment(self, *args, **kwargs):
-        """
-        Segmentation method, may be different from source
-        ROI extraction
-        """
-        raise NotImplementedError()
 
     @abstractmethod
     def extract(self, *args, **kwargs)->ROI:

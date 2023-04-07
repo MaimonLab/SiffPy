@@ -52,16 +52,18 @@ class SegmentationWidget(widgets.Container):
         )
         self.segment_pushbutton = segmentation.SegmentPushbutton() 
         self.show_subrois = segmentation.ShowSubROIs()
-        self.save_rois_pushbutton = segmentation.SaveRoisPushbutton()
-    
+
+        self.segment_pushbutton.changed.connect(self.segmentation_callback)
+        self.show_subrois.changed.connect(self.refresh_subrois)
+        
+        #This SHOULD hook up to the ROI container
         self.primary_protocol.updated_method.connect(
             self.segmentation_params_container.on_update_extraction_method
         )
 
-        self.segment_pushbutton.changed.connect(self.segmentation_callback)
-        self.show_subrois.changed.connect(self.refresh_subrois)
+        #SAVE button
+        self.save_rois_pushbutton = segmentation.SaveRoisPushbutton()
         self.save_rois_pushbutton.changed.connect(self.save_rois_callback)
-
 
         super().__init__(
             name='roi_widget_container',
@@ -94,8 +96,9 @@ class SegmentationWidget(widgets.Container):
         return self.current_rois_container.update_roi_list
 
     def on_extraction_clicked(self, event):
-        # This emits extraction_initiated
-        self.current_protocol.on_click(self)
+        # This sends the extraction_initiated event to be called whenever
+        # the protocol is done with its on_click job.
+        self.current_protocol.on_click(self.events.extraction_initiated)
 
     def segmentation_callback(self, *args):
         self.napari_interface.warning_window(

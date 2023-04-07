@@ -163,7 +163,7 @@ int SiffReader::openFile(const char* _filename) {
 bool SiffReader::isOpen(){
     return siff.is_open();
 }
-
+//
 void SiffReader::discernFrames() {
     // Runs through all the frames to find their IFD, calculates the total number of frames,
     // and stores all the IFDs for quick lookup.
@@ -176,8 +176,9 @@ void SiffReader::discernFrames() {
         currIFD = nextIFD;
 
         params.allIFDs.push_back(currIFD);
-        //frameDatas.push_back(getTagData(currIFD, params, siff));
+        frameDatas.push_back(getTagData(currIFD, params, siff));
 
+        siff.seekg(currIFD, std::ios::beg); // go back to the beginning of the IFD
         siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
 
         siff.seekg(numTags*params.bytesPerTag,std::ios::cur); // skip the tags
@@ -198,15 +199,15 @@ bool SiffReader::dimensionsConsistent(uint64_t frames[], uint64_t framesN){
     // Checks that all the frames have the same dimensions.
     // Returns true if they are consistent, false otherwise.
     if (framesN == 0) return true;
-    return false;
-    // uint64_t firstFrame = frames[0];
-    // uint64_t firstFrameWidth = frameDatas[firstFrame].imageWidth;
-    // uint64_t firstFrameHeight = frameDatas[firstFrame].imageLength;
-    // for (uint64_t i=1; i<framesN; i++) {
-    //     if (frameDatas[frames[i]].imageWidth != firstFrameWidth) return false;
-    //     if (frameDatas[frames[i]].imageLength != firstFrameHeight) return false;
-    // }
-    // return true;
+    //return false;
+    uint64_t firstFrame = frames[0];
+    uint64_t firstFrameWidth = frameDatas[firstFrame].imageWidth;
+    uint64_t firstFrameHeight = frameDatas[firstFrame].imageLength;
+    for (uint64_t i=1; i<framesN; i++) {
+        if (frameDatas[frames[i]].imageWidth != firstFrameWidth) return false;
+        if (frameDatas[frames[i]].imageLength != firstFrameHeight) return false;
+    }
+    return true;
 }
  
 
@@ -363,10 +364,11 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
 
     const int ND = 3;
     // TEMP
+
     npy_intp retdims[ND];
     retdims[0] = framesN;
-    retdims[1] = 256;
-    retdims[2] = 256;
+    retdims[1] = frameDatas[frames[0]].imageLength;
+    retdims[2] = frameDatas[frames[0]].imageWidth;
 
     PyObject* retArray(PyArray_ZEROS(
         ND,
@@ -374,6 +376,11 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
         NPY_UINT64,
         0
     ));
+
+    // Now parse the frames into the array
+    for (uint64_t frameIdx = 0; frameIdx < framesN; frameIdx++){
+    }
+
 
     return (PyArrayObject*) retArray;
 };

@@ -32,6 +32,7 @@
 #include "../include/siffmoduledefin.hpp"
 #include "../include/sifftotiff.hpp"
 #include "../include/siffio/siffio.hpp"
+//#include "../include/siffreader/pyFrameData.hpp"
 
 
 //  I'm going to comment this in a way to remind myself how this process works
@@ -169,6 +170,7 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
     PyObject* module;
     
     if (PyType_Ready(&SiffIOType) < 0) return NULL;
+//    if (PyType_Ready(&PyFrameDataType) < 0) return NULL;
     
     module = PyModule_Create(&siffreadermodule);
     if (module == NULL) return NULL;
@@ -185,6 +187,19 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
         Py_DECREF(module);
         return NULL;
     }
-
+/*
+    Py_INCREF(&PyFrameDataType);
+    if (
+        PyModule_AddObject(
+            module,
+            PYFRAMEDATA_OBJECTNAME,
+            (PyObject*) &PyFrameDataType
+        ) < 0
+    ) {
+        Py_DECREF(&PyFrameDataType);
+        Py_DECREF(module);
+        return NULL;
+    }
+*/
     return module;
 }

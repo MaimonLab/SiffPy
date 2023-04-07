@@ -14,6 +14,7 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
 
 #include "siffParams.hpp"
+#include "framedatastruct.hpp"
 #include <numpy/arrayobject.h>
 #define PY_SSIZE_T_CLEAN
 
@@ -30,7 +31,7 @@ class SiffReader
         std::chrono::high_resolution_clock debug_clock;
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
-        //std::vector<FrameData> frameDatas;
+        std::vector<FrameData> frameDatas;
 
         // a setting to suppress potentially kernel-killing errors thrown by checks
         bool suppress_errors;

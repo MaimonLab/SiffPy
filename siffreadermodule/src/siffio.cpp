@@ -33,6 +33,7 @@ static PyObject* siffio_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
     self = (SiffIO *) type->tp_alloc(type, 0);
     if (self != NULL) {
         self->siffreader = new SiffReader();
+        self->frameDataList = PyList_New(0);
     }
     return (PyObject *) self;
 };
@@ -69,6 +70,8 @@ static void siffio_dealloc(SiffIO *self){
     // Called on deallocation -- close the siffreader object.
     self->siffreader->closeFile();
     delete self->siffreader;
+    Py_DECREF(self->frameDataList);
+
     Py_TYPE(self)->tp_free((PyObject *) self);
 };
 
@@ -328,14 +331,6 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         );
         */
         if (make_array) {
-
-            PyErr_WarnEx(
-                PyExc_RuntimeWarning,
-                "as_array functionality is NOT functioning yet."
-                " Instead returns an N by 256 by 256 array of zeros. "
-                "Please use as_array=False for now.",
-                1
-            );
 
             if (discard_bins != NULL) {
                 PyErr_SetString(PyExc_TypeError, "discard_bins is not supported for as_array=True yet");

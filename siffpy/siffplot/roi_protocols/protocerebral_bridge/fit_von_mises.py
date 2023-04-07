@@ -15,155 +15,55 @@ from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.napari_tools i
     CorrelationWindow
 )
 
+def correlate_seeds(
+        siffreader : SiffReader,
+        seed_rois : np.ndarray,
+        correlation_window : CorrelationWindow,
+    ):
+    timepoint_bounds = (
+        int(correlation_window.corr_mat_widget.lower_bound_slider.value),
+        int(correlation_window.corr_mat_widget.upper_bound_slider.value),
+    )
+
+#    siffreader.sum_roi(
+#
+#    )
+
+#    correlation_window.set_source_correlation(
+#        corr_mat
+#    )
+
 class FitVonMises(ROIProtocol):
 
     name = "Fit von Mises"
     base_roi_text = "View correlation map"
 
-    def on_click(self, segmentation_widget):
-        corr_window = CorrelationWindow(segmentation_widget)
+    def on_click(self, extraction_initiated_event):
+        """
+        Opens a correlation window to allow annotation
+        of the protocerebral bridge, passes the
+        "extraction initiated" event to the correlation
+        window's done button.
+        """
+        corr_window = CorrelationWindow()
+        corr_window.done_button.clicked.connect(
+            lambda *args: extraction_initiated_event()
+        )
+        sr : SiffReader = extraction_initiated_event.source.napari_interface.siffreader
+        corr_window.corr_mat_widget.upper_bound_slider.max = sr.im_params.num_timepoints
+        
+        corr_window.corr_mat_widget.provide_roi_shapes_layer(
+            extraction_initiated_event.source.napari_interface.roi_shapes_layer
+        )
+        corr_window.corr_mat_widget.set_correlation_button_callback(
+            lambda *args: correlate_seeds(sr, corr_window.corr_mat_widget.correlation_rois, corr_window)
+        )
+
+
 
     def extract(
             self,
             reference_frames : np.ndarray,
             polygon_source : PolygonSource,
     )->rois.GlobularMustache:
-        return fit_von_mises(
-            reference_frames,
-            polygon_source,
-            #slice_idx=slice_idx,
-            #extra_rois=extra_rois,
-        )
-
-    def segment(self):
-        raise NotImplementedError()
-
-def fit_von_mises(
-        reference_frames : list,
-        polygon_source : PolygonSource,
-        siffreader : SiffReader,
-        *args,
-        n_glomeruli : int = 16,
-        slice_idx : int = None,
-        kappa : float = 1.0, # kappa is the concentration parameter of the von Mises distribution
-        timepoint_lower_bound : int = 0,
-        timepoint_upper_bound : int = None,
-        **kwargs
-    )-> rois.GlobularMustache:
-    """
-    Uses Hessam's algorithm to try to fit an n_glomerulus vector
-    presuming each has a von Mises distributed tuning curve with
-    mean distributed uniformly around the circle.
-    """
-    if timepoint_upper_bound == 0:
-        timepoint_upper_bound = siffreader.im_params.shape[0]
-
-    # Gets all polygons, irrespective of slice
-    seed_polys = polygon_source.polygons()
-
-    # Compute the correlation matrix between
-    # each profile across the time series
-    corr_mat, seed_time_series = polys_to_corr(
-        seed_polys,
-        siffreader,
-        timepoint_lower_bound=timepoint_lower_bound,
-        timepoint_upper_bound=timepoint_upper_bound
-    )
-
-    # Compute a von Mises model with the same
-    # number of seeds that matches the correlation
-    # matrix between the true data seeds
-
-    v_means = match_to_von_mises(corr_mat)
-
-    # Take the FFT of each pixel's correlation against
-    # the seeds and extract a phase (from the fundamental
-    # frequency) of the FFT
-
-    framelist = siffreader.im_params.flatten_by_timepoints(
-        timepoint_start = timepoint_lower_bound,
-        timepoint_end = timepoint_upper_bound
-    )
-
-    # Flattened
-    frame_array = np.array(
-        siffreader.get_frames(
-            frames = framelist,
-            registration_dict = siffreader.registration_dict if hasattr(siffreader, 'registration_dict') else None
-        )
-    ).reshape((-1, np.prod(siffreader.im_params.stack[1:])))
-
-    zscored_frames = (frame_array - frame_array.mean(axis=0)) / frame_array.std(axis=0)
-    zscored_seed = (seed_time_series - seed_time_series.mean(axis=0)) / seed_time_series.std(axis=0)
-
-    pxwise_fft = (np.exp(1j*v_means) @ (zscored_frames.T @ zscored_seed)).reshape(siffreader.im_params.stack[1:])
-
-
-    raise NotImplementedError("Sorry!")
-
-
-def von_mises_corr(mu1 : float, mu2: float, kappa : float, noise_var : float = 0.0)->float:
-    """
-    Computes the correlation between two von Mises
-    distributions with means mu1 and mu2 and circular
-    variance kappa. Noise var is the variance of random noise
-    applied to all measurements (presumed to be independent
-    and mean-zero! Both assumptions are not likely to be true:
-    noise will usually come from motion, autofluorescence, etc.
-    which is both positive mean _and_ correlated).
-
-    Formula for the von Mises (relatively easy to derive):
-
-    I0( 2κ cos((μ2-μ1)/2)) ) - I0(κ)^2
-
-    --------------------------------
-    
-        I0(2κ) - I0(κ)^2
-
-    where I0(x) is the modified Bessel function of the first kind of order 0,
-    defined as (1/2π) times the integral from -π to +π of exp(κ cos(t))dt.
-
-    An independent source of noise simply adds to the variance of each
-    individual von Mises without affecting their covariance. 
-    """
-    #var_1 = 
-    vm_var = i0(2*kappa) - i0(kappa)**2
-    vm_corr = (
-        (i0(2*kappa*np.cos((mu2-mu1)/2)) - i0(kappa)**2)/
-        vm_var
-    )
-
-    #noise_factor = np.sqrt(1+2*noise_var/vm_var + (noise_var/vm_var)**2)
-
-    #Faster, approximate though
-    noise_factor = 1 + noise_var/vm_var
-
-    return vm_corr/noise_factor
-
-def polys_to_corr(
-        polys : list[Polygons],
-        siffreader : SiffReader,
-        timepoint_lower_bound : int = 0,
-        timepoint_upper_bound : int = None,
-        dtype : type = np.uint64
-    )->tuple[np.ndarray, np.ndarray]:
-    """
-    Computes the correlation matrix between each polygon
-    and the time series of the siffreader
-    """
-
-    masks = [polygon_to_mask(poly, siffreader.im_params.shape) for poly in polys]
-    zs = [polygon_to_z(poly) for poly in polys]
-    if timepoint_upper_bound is None:
-        timepoint_upper_bound = siffreader.im_params.num_timepoints
-    seed_t_series : np.ndarray = np.array([
-        siffreader.sum_mask(
-            mask,
-            z_list = z if isinstance(z, list) else [z],
-            timepoint_start = timepoint_lower_bound,
-            timepoint_end = timepoint_upper_bound
-        )
-        for mask, z in zip(masks,zs)
-    ],dtype=dtype)
-
-    return (np.corrcoef(seed_t_series), seed_t_series)
+        raise NotImplementedError("Sorry bub!")

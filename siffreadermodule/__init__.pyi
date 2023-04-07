@@ -28,7 +28,8 @@ class SiffIO():
         frames : list[int],
         type : type = list,
         flim : bool = False,
-        registration : dict = {}
+        registration : dict = {},
+        as_arrary : bool = False,
     )->list[np.ndarray]:...
 
     def get_metadata(self, frames : list[int] = [])->dict:...

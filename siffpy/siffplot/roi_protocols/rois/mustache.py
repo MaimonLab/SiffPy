@@ -3,7 +3,6 @@ import holoviews as hv
 import numpy as np
 
 from siffpy.siffplot.roi_protocols.rois.roi import ROI, subROI
-from siffpy.siffplot.roi_protocols.extern.pairwise import pairwise
 
 class GlobularMustache(ROI):
     """

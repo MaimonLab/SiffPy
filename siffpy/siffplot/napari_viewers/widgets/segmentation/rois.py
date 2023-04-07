@@ -7,10 +7,12 @@ from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.roi_protocols import ROI
 
 def roi_to_label(roi : ROI):
-    return f"""
-    {roi.name} : {roi.__class__.__name__}
-    (slice {roi.slice_idx}) ({len(roi.subROIs)} subROIs)
-    """
+    try:
+        return f"""{roi.__class__.__name__} (slice {roi.slice_idx}) ({len(roi.subROIs)} subROIs)
+        """
+    except NoROIException:
+        return f"""{roi.__class__.__name__} (slice {roi.slice_idx})"""
+
 
 class ROIsContainer(widgets.Select):
     def __init__(self):

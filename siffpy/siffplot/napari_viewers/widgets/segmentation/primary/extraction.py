@@ -101,8 +101,7 @@ class ExtractionParamsContainer(widgets.Container):
     def to_dict(self):
         return {
             widget.name : widget.value
-            for widget in self
-            if not widget.name == 'ExtractPushbutton'
+            for widget in self.param_widget_container
         }
 
 class ExtractionMethodBox(widgets.ComboBox):

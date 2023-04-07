@@ -30,6 +30,7 @@ siffmodule = Extension(
        'siffreadermodule/src/siffreader.cpp',
        'siffreadermodule/src/siffreadermodule.cpp',
        'siffreadermodule/src/sifftotiff.cpp',
+       #'siffreadermodule/src/pyFrameData.cpp',
    ],
    include_dirs = [
        numpy.get_include()

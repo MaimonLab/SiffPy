@@ -5,7 +5,7 @@ C and C++ code compiled into a local Python extension module. The code in here i
 TODO:
 - The `SiffReader` object has gotten extremely complex, and the way
 some function calls are handled is not great (and some things maybe should be inlined that aren't).
-
+- Finish implementation of `PyFrameData`
 - Clean up memory leaks in the `registrationDict` argument. There are a few kB of memory leaks when
 using functions that have a `registrationDict` keyword argument IF you don't pass an argument.
 No leaks if you always provide one (`PyTuple_Pack` and `_SetItem` steal references).
@@ -145,3 +145,7 @@ There are also `siffreadermodule` methods:
 -    `siff_to_tiff(sourcepath : str, savepath : str = None) -> None`
         Converts the open .siff file to a .tiff file, discarding arrival time information, if relevant. If no path is
         provided, the .tiff is saved in the same location as the .siff.
+
+## FrameData (Python class implemented in C++)
+
+TODO: finish

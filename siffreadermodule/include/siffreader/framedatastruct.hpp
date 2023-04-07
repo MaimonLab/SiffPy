@@ -1,11 +1,12 @@
 #ifndef FRAMEDATASTRUCT_HPP
 #define FRAMEDATASTRUCT_HPP
 
+#include <Python.h>
 #include <stdlib.h>
 #include <string>
 #include "sifdefin.hpp"
 
-struct FrameData{
+typedef struct FrameData{
     uint64_t imageWidth;
     uint64_t imageLength;
     uint16_t bitsPerSample;
@@ -32,7 +33,7 @@ struct FrameData{
     // TODO: ADD A TIMESTAMP OR MAYBE OTHER NICE THINGS
 };
 
-PyObject* frameDataToDict(FrameData& frameData){
+static PyObject* frameDataToDict(FrameData& frameData){
     PyObject* dataDict = PyDict_New();
 
     PyDict_SetItemString(dataDict, "Width", Py_BuildValue("K", frameData.imageWidth));
