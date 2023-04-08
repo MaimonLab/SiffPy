@@ -47,7 +47,6 @@ def suite2p_reference(
         siffio : SiffIO, 
         frames : list[int],
         yx_shifts : dict = {},
-        discard_bins : int = None,
         **kwargs
     ) -> np.ndarray:
     """
@@ -97,7 +96,6 @@ def suite2p_reference(
     init_frames = np.array(
                     siffio.get_frames(
                         frames = init_frames_idx, 
-                        flim = False,
                         registration = yx_shifts,
                     )
                   )

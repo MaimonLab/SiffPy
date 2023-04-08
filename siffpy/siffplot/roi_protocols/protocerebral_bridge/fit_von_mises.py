@@ -17,13 +17,20 @@ from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.napari_tools i
 
 def correlate_seeds(
         siffreader : SiffReader,
-        seed_rois : np.ndarray,
+        seed_rois : np.ndarray, # masks
         correlation_window : CorrelationWindow,
     ):
     timepoint_bounds = (
         int(correlation_window.corr_mat_widget.lower_bound_slider.value),
         int(correlation_window.corr_mat_widget.upper_bound_slider.value),
     )
+
+    ranged_frames : np.ndarray = siffreader.get_frames(
+        np.arange(*timepoint_bounds),
+        registration_dict = siffreader.registration_dict,
+    )
+
+    #ranged_frames
 
 #    siffreader.sum_roi(
 #

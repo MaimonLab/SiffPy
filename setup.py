@@ -29,7 +29,8 @@ siffmodule = Extension(
        'siffreadermodule/src/siffio.cpp',
        'siffreadermodule/src/siffreader.cpp',
        'siffreadermodule/src/siffreadermodule.cpp',
-       'siffreadermodule/src/sifftotiff.cpp',
+       'siffreadermodule/src/framedata.cpp',
+       #'siffreadermodule/src/sifftotiff.cpp',
        #'siffreadermodule/src/pyFrameData.cpp',
    ],
    include_dirs = [

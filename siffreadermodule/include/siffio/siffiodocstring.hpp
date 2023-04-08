@@ -58,7 +58,6 @@ PyDoc_STRVAR(
     "or otherwise as specified. (NOT YET IMPLEMENTED)\n"
     "\tflim : bool = False \n\t\treturn a tau axis containing arrival time (irrelevant if file is not a .siff)"
     "\tregistration : dict = None \n\t\tA registration dictionary whose keys are the frame number (ints!) and whose values are rigid translations."
-    "\tdiscard_bins : int = None \n\t\tArrival bin (IN UNITS OF BIN) beyond which to discard photons"
 );
 
 PyDoc_STRVAR(

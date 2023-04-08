@@ -64,7 +64,6 @@ typedef struct _SiffIO {
 static PyMemberDef siffio_members[] = {
     //{Attribute name, attribute type, location in struct, flags, docstring}
     {"frame_data", T_OBJECT_EX, offsetof(SiffIO, frameDataList), 0, "List of frame data."},
-//    {"filename", T_OBJECT_EX, offsetof(SiffIO, filename), 0, "Name of open file."},
     {NULL},
 };
 

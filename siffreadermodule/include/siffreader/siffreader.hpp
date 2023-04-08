@@ -13,12 +13,11 @@
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
 
-#include "siffParams.hpp"
-#include "framedatastruct.hpp"
+#include "../siffparams/siffparams.hpp"
+#include "../framedata/framedatastruct.hpp"
+#include "../framedata/pyFrameData.hpp"
 #include <numpy/arrayobject.h>
 #define PY_SSIZE_T_CLEAN
-
-//#include "framedatastruct.hpp"
 
 class SiffReader
 {
@@ -31,7 +30,7 @@ class SiffReader
         std::chrono::high_resolution_clock debug_clock;
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
-        std::vector<FrameData> frameDatas;
+        std::vector<const FrameData> frameDatas;
 
         // a setting to suppress potentially kernel-killing errors thrown by checks
         bool suppress_errors;
@@ -53,8 +52,6 @@ class SiffReader
 
         // internal method called in loops to get each frame and point to the next
         void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); 
-        // internal method called in loops to get each frame and point to the next, drops photons later than the terminal bin
-        void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL);
         // internal method called in loops to get each frame and point to the next, MASKED BY AN ROI numpy array
         void singleFrameRetrievalMask(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyArrayObject* mask, PyObject* shift_tuple = NULL);
 
@@ -90,32 +87,21 @@ class SiffReader
         // the name of the .siff file
         std::string filename;
 
+        void packFrameDataList(PyObject* frameDataList);
+
         // Mask methods
         PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict); // sums area inside the provided mask
         PyArrayObject* sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict); // sums empirical lifetime inside teh provided mask
         PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict); // Returns a 1d numpy array of only the within-mask values.
 
-        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim);
-        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict);
-        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin);
-        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin, PyArrayObject* mask);
+        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, PyObject* registrationDict);
 
         PyArrayObject* retrieveFramesAsArray(
             uint64_t frames[],
             uint64_t framesN,
-            bool flim,
             PyObject* registrationDict
         );
 
-        PyArrayObject* retrieveFramesAsArray(
-            uint64_t frames[],
-            uint64_t framesN,
-            bool flim,
-            PyObject* registrationDict,
-            uint64_t terminalBin
-            //PyArrayObject* mask
-        );
-        
         PyObject* poolFrames(PyObject* listOfList, bool flim); // TODO: IMPLEMENT
         PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
         PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, bool flim = false, PyObject* registrationDict = NULL);

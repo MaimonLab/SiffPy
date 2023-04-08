@@ -30,9 +30,9 @@
 
 #include "../include/siffreader/siffreader.hpp"
 #include "../include/siffmoduledefin.hpp"
-#include "../include/sifftotiff.hpp"
+//#include "../include/sifftotiff.hpp"
 #include "../include/siffio/siffio.hpp"
-//#include "../include/siffreader/pyFrameData.hpp"
+#include "../include/framedata/pyFrameData.hpp"
 
 
 //  I'm going to comment this in a way to remind myself how this process works
@@ -100,7 +100,13 @@ static PyObject* siffreader_debug(PyObject* self, PyObject *args){
 static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Converts the open .siff file to a .tiff file and saves it in the location specified
     // (or next to the original, if no argument is provided).
-    
+
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "Siff to tiff conversion not implemented yet."
+    );
+    return NULL;
+
     char* sourcepath;
     Py_ssize_t sourcepath_len = Py_ssize_t(0);
     
@@ -117,10 +123,10 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     }
     try{
         if (savepath_len > 0) {
-            siff_to_tiff(sourcepath, savepath);
+        //    siff_to_tiff(sourcepath, savepath);
         }
         else {
-            siff_to_tiff(sourcepath);
+        //    siff_to_tiff(sourcepath);
         }
     }
     catch(std::exception& e) {
@@ -170,7 +176,7 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
     PyObject* module;
     
     if (PyType_Ready(&SiffIOType) < 0) return NULL;
-//    if (PyType_Ready(&PyFrameDataType) < 0) return NULL;
+    if (PyType_Ready(&PyFrameDataType) < 0) return NULL;
     
     module = PyModule_Create(&siffreadermodule);
     if (module == NULL) return NULL;
@@ -187,7 +193,7 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
         Py_DECREF(module);
         return NULL;
     }
-/*
+
     Py_INCREF(&PyFrameDataType);
     if (
         PyModule_AddObject(
@@ -200,6 +206,6 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
         Py_DECREF(module);
         return NULL;
     }
-*/
+
     return module;
 }

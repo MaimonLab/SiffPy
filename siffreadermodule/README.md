@@ -89,8 +89,8 @@ The methods are (at time of writing):
         - `IFD pointers` (only in debug mode) : `list[int]`
                 A list of pointers to the start of the IFD for every frame, to jump directly to that frame for file I/O
 
--    `SiffIO.get_frames(frames= None, type=list, flim=False, registration = None, discard_bins = None)->list[np.ndarray]`
-        Returns frames as a list of numpy arrays.
+-    `SiffIO.get_frames(frames= None, registration = None, as_array : bool = True)->list[np.ndarray]`
+        Returns frames as a list of numpy arrays or as one big arrary.
 
 -    `SiffIO.get_frame_metadata(frames=[])->list[dict]`
         Returns frame metadata in the form of a list of dicts of the same size as `frames`. The dictionaries are of the form `(key, value)`:

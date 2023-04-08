@@ -102,6 +102,10 @@ static PyObject* siffio_open(SiffIO* self, PyObject* args){
     
     int ret = self->siffreader->openFile(filename);
 
+    //Py_DECREF(self->frameDataList);
+    //self->frameDataList = PyList_New(self->siffreader->numFrames());
+    //self->siffreader->packFrameDataList(self->frameDataList);
+
     if (ret < 0) {
         if (ret == -2) {
             PyErr_WarnEx(
@@ -261,24 +265,19 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     // 
 
     static const char* GET_FRAMES_KWARGS[] = {
-        "frames", "flim", "registration", "discard_bins", "as_array", NULL};
+        "frames", "registration", "as_array", NULL};
 
-    bool flim = false;
     bool make_array = false;
 
     PyObject *frames_list = NULL;
-    PyObject *flimobj = NULL;
     PyObject* registrationDict = NULL;
-    PyObject* discard_bins = NULL;
     PyObject* as_array = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!OO!OO:get_frames", 
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!O:get_frames", 
         KWARG_CAST(GET_FRAMES_KWARGS),
         &PyList_Type, &frames_list,
-        &flimobj,
         &PyDict_Type, &registrationDict,
-        &discard_bins,
         &as_array
         )
     ) {
@@ -286,19 +285,16 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         return NULL;
     }
 
-    // default mode: get all frames as an intensity profile. No registration??
     if(frames_list==NULL) {
-        return self->siffreader->retrieveFrames((uint64_t *) NULL, 0, flim);
+        PyErr_SetString(PyExc_TypeError, "Must provide a list of frames");
+        return NULL;
     }
 
     if(as_array != NULL){
+        make_array = true;
         if (PyBool_Check(as_array)) {
             make_array = as_array == Py_True;
         }
-        else {
-            PyErr_SetString(PyExc_TypeError, "as_array must be a boolean");
-            return NULL;
-        }   
     }
 
     uint64_t framesN = PyList_Size(frames_list);
@@ -308,58 +304,28 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         return NULL;
     }
 
-    if(flimobj != NULL) {
-        if (PyBool_Check(flimobj)) flim = flimobj == Py_True;
+    if (registrationDict == NULL) {
+        registrationDict = PyDict_New();
     }
 
-    if(registrationDict != NULL){
-        if (check_registration(registrationDict, frames_list) < 0){
-            return NULL;
-        }
+    if (check_registration(registrationDict, frames_list) < 0){
+        return NULL;
     }
 
     try{
-        /*/
-        single function
-
-        return self->siffreader->retrieveFrames(
-            framesArray,
-            framesN,
-            flim,
-            registrationDict,
-            terminalBin,
-        );
-        */
         if (make_array) {
 
-            if (discard_bins != NULL) {
-                PyErr_SetString(PyExc_TypeError, "discard_bins is not supported for as_array=True yet");
-                return NULL;
-            }
-
-            if(!self->siffreader->dimensionsConsistent(framesArray, framesN)){
-                PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
-                return NULL;
-            }
+           if(!self->siffreader->dimensionsConsistent(framesArray, framesN)){
+               PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
+               return NULL;
+           }
             
-            return (PyObject*) self->siffreader->retrieveFramesAsArray(
-                framesArray, framesN, flim, registrationDict
-            );
-    
+           return (PyObject*) self->siffreader->retrieveFramesAsArray(
+               framesArray, framesN, registrationDict
+           );
         }
-
-        if ((discard_bins == NULL) || (discard_bins == Py_None)){
-            return self->siffreader->retrieveFrames(framesArray, framesN, flim, registrationDict);
-        }
-        else {
-            if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                return self->siffreader->retrieveFrames(framesArray, framesN,flim, registrationDict);
-            }
-            else {
-                uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                return self->siffreader->retrieveFrames(framesArray, framesN,flim, registrationDict, terminalBin);
-            }
-        }
+        
+        return self->siffreader->retrieveFrames(framesArray, framesN, registrationDict);
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
@@ -764,15 +730,21 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
         }
     }
     
-    if(!(registrationDict == NULL)) registrationDict = PyDict_New(); // TODO: DECREF ME!!!
+    bool need_to_decref_dict = false;
+    if(!(registrationDict == NULL)) {
+        registrationDict = PyDict_New();
+        need_to_decref_dict = true;
+    }
 
     // Check that all elements of the frame list and registration dictionary are valid.
     uint64_t framesArray[PyList_Size(frames_list)];
 
     if(check_framelist(frames_list, framesArray, self->siffreader->numFrames()) < 0){
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
         return NULL;
     }
     if (check_registration(registrationDict, frames_list) < 0) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
         return NULL;
     }
 
@@ -781,9 +753,13 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     // Okay enough argument checking, we can call the siffreader function
 
     try{
-        return self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
+        PyArrayObject* returnedMask = self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        return returnedMask;
+
     }
     catch(...) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }

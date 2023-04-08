@@ -5,8 +5,9 @@
 #include <stdlib.h>
 #include <string>
 #include "sifdefin.hpp"
+#include "../siffparams/siffparams.hpp"
 
-typedef struct FrameData{
+struct FrameData{
     uint64_t imageWidth;
     uint64_t imageLength;
     uint16_t bitsPerSample;
@@ -33,6 +34,8 @@ typedef struct FrameData{
     // TODO: ADD A TIMESTAMP OR MAYBE OTHER NICE THINGS
 };
 
+const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff);
+
 static PyObject* frameDataToDict(FrameData& frameData){
     PyObject* dataDict = PyDict_New();
 
@@ -48,7 +51,7 @@ static PyObject* frameDataToDict(FrameData& frameData){
     //PyDict_SetItemString(dataDict, "Tag bytes", Py_BuildValue("O",frameData.tagList));
     PyDict_SetItemString(dataDict, "Siff compression", Py_BuildValue("O",frameData.siffCompress ? Py_True : Py_False));
     return dataDict;
-}
+};
 
 template <class T>
 PyObject* VectorToList(std::vector<T> vec) {
@@ -57,6 +60,6 @@ PyObject* VectorToList(std::vector<T> vec) {
         PyList_SetItem(list, idx, Py_BuildValue("K",vec[idx]));
     }
     return list;
-}
+};
 
 #endif

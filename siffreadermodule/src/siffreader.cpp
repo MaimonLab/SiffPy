@@ -3,9 +3,9 @@
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 #define PY_SSIZE_T_CLEAN
 #include "../include/siffreader/siffreader.hpp"
-
-#include "../include/siffreader/sifdefin.hpp"
 #include "../include/siffreader/siffreaderinline.hpp"
+
+#include "../include/framedata/sifdefin.hpp"
 #include <algorithm>
 
 // Appends the error to errstring and rethrows()
@@ -195,6 +195,19 @@ void SiffReader::discernFrames() {
     //siff.clear(); // get rid of failbits
 }
 
+// frameDataList has to be a list
+void SiffReader::packFrameDataList(PyObject* frameDataList){
+    if (PyList_Size(frameDataList) != numFrames()) {
+        PyErr_SetString(PyExc_ValueError, "FrameDataList must be the same length as the number of frames in the SiffReader.");
+        return;
+    }
+    //for (Py_ssize_t k = 0; k < numFrames(); k++) {
+    //    PyFrameData* frameData = (PyFrameData*) PyObject_CallObject((PyObject*)&PyFrameDataType, NULL);
+    //    frameData->framedatastruct = &frameDatas[k];
+    //    PyList_SetItem(frameDataList, k, (PyObject*) frameData);
+    //}
+}
+
 bool SiffReader::dimensionsConsistent(uint64_t frames[], uint64_t framesN){
     // Checks that all the frames have the same dimensions.
     // Returns true if they are consistent, false otherwise.
@@ -245,7 +258,7 @@ PyArrayObject* SiffReader::sumMask(uint64_t frames[], uint64_t framesN, PyArrayO
 
         for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
 
-            FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
 
             PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
             
@@ -291,7 +304,7 @@ PyArrayObject* SiffReader::sumFLIMMask(uint64_t frames[], uint64_t framesN, PyOb
 
         for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
 
-            FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
 
             PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
             
@@ -321,40 +334,9 @@ PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool fli
     REPORT_ERR("Error in roiMask method: ");
 }
 
-
-// VANILLA
-PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim) {
-    // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
-    // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
-    // the variable type of output
-    try{
-        if(!siff.is_open()) throw std::runtime_error("No open file.");
-        siff.clear();
-        // create the list into which we shall stuff the numpy arrays
-        PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
-        PyObject* shift_tuple = PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
-                        PyLong_FromLong(0),
-                        PyLong_FromLong(0)
-                    );
-        if(frames){
-            for(uint64_t i = 0; i < framesN; i++){
-                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, shift_tuple);
-            }
-        }
-        else{
-            for(uint64_t i = 0; i<params.numFrames; i++){
-                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, shift_tuple);
-            }
-        }
-        return numpyArrayList;
-    }
-    REPORT_ERR("Error parsing frames: ");
-}
-
 PyArrayObject* SiffReader::retrieveFramesAsArray(
     uint64_t frames[],
     uint64_t framesN,
-    bool flim,
     PyObject* registrationDict
 ) {
     // Build a PyArray object from the framelist
@@ -397,7 +379,6 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
             params,
             frameData,
             siff,
-            flim,
             shift_tuple
         );
         Py_DECREF(shift_tuple);
@@ -407,77 +388,21 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
     return retArray;
 };
 
-PyArrayObject* SiffReader::retrieveFramesAsArray(
-    uint64_t frames[],
-    uint64_t framesN,
-    bool flim,
-    PyObject* registrationDict,
-    uint64_t terminalBin
-) {
-    throw std::runtime_error("NOT IMPLEMENTED");
-};
-
-// REGISTRATION DICT
-PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, bool flim, PyObject* registrationDict) {
-    // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
-    // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
-    // the variable type of output
-    if (registrationDict == NULL){
-        return retrieveFrames(frames, framesN, flim);
-    }
+PyObject* SiffReader::retrieveFrames(uint64_t frames[], uint64_t framesN, PyObject* registrationDict) {
+    // Eliminated some of the flexibility. Always is called with frames[], no more massive FLIM array
+    // with this method.
     try{
         if(!siff.is_open()) throw std::runtime_error("No open file.");
         siff.clear();
         // create the list into which we shall stuff the numpy arrays
-        PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
-        if(frames){
-            for(uint64_t i = 0; i < framesN; i++){
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
-                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, shift_tuple);
-            }
-        }
-        else{
-            for(uint64_t i = 0; i<params.numFrames; i++){
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(i));
-                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, shift_tuple);
-            }
+        PyObject* numpyArrayList = PyList_New(0);
+        for(uint64_t i = 0; i < framesN; i++){
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
+            singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, false, shift_tuple);
         }
         return numpyArrayList;
     }
     REPORT_ERR("Error parsing frames: ")
-}
-
-// TERMINAL BIN
-PyObject* SiffReader::retrieveFrames(uint64_t frames[], 
-    uint64_t framesN, bool flim, PyObject* registrationDict, uint64_t terminalBin) {
-    // By default, retrieves ALL frames, returns as a list of numpy arrays including the arrival times.
-    // TODO: Implement frame selection, automatically detect .tiffs to make flim=false, implement
-    // the variable type of output
-    if (terminalBin == NULL){
-        return retrieveFrames(frames, framesN, flim, registrationDict);
-    }
-    try{
-        if(!siff.is_open()) throw std::runtime_error("No open file.");
-        if(!params.issiff) return retrieveFrames(frames, framesN, flim, registrationDict);
-        siff.clear();
-        // create the list into which we shall stuff the numpy arrays
-        PyObject* numpyArrayList = PyList_New(Py_ssize_t(0));
-        if(frames){
-            for(uint64_t i = 0; i < framesN; i++){
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[i]));
-                singleFrameRetrieval(params.allIFDs[frames[i]], numpyArrayList, flim, terminalBin, shift_tuple);
-            }
-        }
-        else{
-            for(uint64_t i = 0; i<params.numFrames; i++){
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(i));
-                singleFrameRetrieval(params.allIFDs[i], numpyArrayList, flim, terminalBin, shift_tuple);
-            }
-        }
-        //throw std::runtime_error("Terminal bin not yet implemented!");
-        return numpyArrayList;
-    }
-    REPORT_ERR("Error parsing frames: ");
 }
 
 PyObject* SiffReader::poolFrames(PyObject* listOfLists, bool flim, PyObject* registrationDict) {
@@ -664,7 +589,11 @@ PyObject* SiffReader::flimMap(PyObject* FLIMParams, PyObject* listOfLists, const
                 PyList_Append(TupleOutList,Py_None);
                 Py_DECREF(Py_None);
             }
-            FrameData firstFrameData = getTagData(params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))], params, siff);
+            const FrameData firstFrameData = getTagData(
+                params.allIFDs[PyLong_AsLongLong(PyList_GetItem(listOfFrames,0))],
+                params,
+                siff
+            );
 
             // Have to get all the reads together in one place.
             // Opting to do this with one uint64_t vector regardless of
@@ -833,17 +762,16 @@ const char* SiffReader::getErrString(){
 void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
-    FrameData frameData = getTagData(thisIFD, params, siff);
+    
+    
+    const FrameData frameData = getTagData(thisIFD, params, siff);
     // create a new numpy array of dimensions:
-    // (y, x, tau)
-    //const int ND = 2;
-    const int ND = 2 + (params.issiff && flim); // number of dimensions
+    // (y, x)
+    const int ND = 2; // number of dimensions
     npy_intp dims[ND];
-    uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
 
     dims[0] = frameData.imageLength;
     dims[1] = frameData.imageWidth;
-    if (params.issiff & flim) dims[2] = tau_dim;
 
     PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
         ND,
@@ -858,52 +786,9 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
         params,
         frameData,
         siff,
-        flim,
         shift_tuple
     );
-    int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
-    Py_DECREF(numpyArray);
-    
-    if (ret<0) throw std::runtime_error("Failure to append frame array to list");
-}
 
-
-void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, 
-    uint64_t terminalBin, PyObject* shift_tuple){
-    // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
-    // Then appends that IFD to a list of numpy arrays
-    if(!params.issiff) return singleFrameRetrieval(thisIFD, numpyArrayList, flim, shift_tuple);
-    
-    FrameData frameData = getTagData(thisIFD, params, siff);
-    // create a new numpy array of dimensions:
-    // (y, x, tau)
-    //const int ND = 2;
-    const int ND = 2 + (params.issiff && flim); // number of dimensions
-    npy_intp dims[ND];
-    uint16_t tau_dim = 1024; // hardcoded for now. TODO: Implement this measure in SiffWriter
-
-    dims[0] = frameData.imageLength;
-    dims[1] = frameData.imageWidth;
-    if (params.issiff & flim) dims[2] = tau_dim;
-
-    PyArrayObject* numpyArray = (PyArrayObject*) PyArray_ZEROS(
-        ND,
-        dims,
-        NPY_UINT16, 
-        0 // C order, i.e. last index increases fastest
-    ); // Or should I make a sparse array? Maybe make that an option? TODO.
-
-    loadArrayWithData(
-        (uint16_t*) PyArray_DATA(numpyArray),
-        PyArray_DIMS(numpyArray),
-        params,
-        frameData,
-        siff,
-        flim,
-        terminalBin,
-        shift_tuple
-    );
-    //
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
     
@@ -916,7 +801,7 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* s
 
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
-    FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff);
     
     // create a new numpy array of dimensions:
     // (y, x, tau)
@@ -942,7 +827,6 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* s
         params,
         frameData,
         siff,
-        flim,
         shift_tuple
     );
     
@@ -955,7 +839,7 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, uint64_t terminalBins,
 
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
-    FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff);
     
     // create a new numpy array of dimensions:
     // (y, x, tau)
@@ -981,8 +865,6 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, uint64_t terminalBins,
         params,
         frameData,
         siff,
-        flim,
-        terminalBins,
         shift_tuple
     );
     
@@ -993,118 +875,11 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
     // siff.clear();
-    siff.seekg(thisIFD, siff.beg); // go there first
-    if (!(siff.good() || suppress_errors)) throw std::runtime_error("Siff unable to open frame. Likely error in preceding processing.");
-    
-    uint64_t numTags; // number of tags in this directory before the real metadata
-    siff.read((char*) &numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
-    FrameData frameData;
-
-    if (debug) {
-        frameData.tagList = PyList_New(Py_ssize_t(0));
-    }
-
-    char thisTag[params.bytesPerTag];
-    // tag parsing TODO: SHOULD BE INLINED SOMEWHERE ELSE
-    for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
-        siff.read(thisTag, params.bytesPerTag);
-        // append info to frameData, defined in framedatastruct.hpp
-        
-        uint16_t tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
-        // figure out the number of bytes needed to read the data correctly
-        uint16_t datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
-        uint16_t contentChars = datatypeToCharCount(datatype); // defined in sifdefin
-
-        if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
-        // TODO: DO THIS RIGHT. I ALREADY KNOW THEY ALL ONLY USE A SINGLE TAG VALUE HERE BUT I SHOULD
-        // MAKE THIS WORK FOR _ALL_ TIFFS
-        
-        // convert to a single value
-        
-        uint64_t contentVals = 0;
-        // 8 + 4*bigtiff corresponds to the 4 bytes of identifier + the 4 bytes for number of values in tag (or 8 if bigtiff)
-        for(int16_t charnum = (contentChars-1); 0<=charnum; charnum--) {
-            contentVals <<= 8;
-            contentVals += (thisTag[charnum + 8 + 4*params.bigtiff] & 0xFF); // gotta be honest... I don't understand why the  & 0xFF is necessary. Cut me some slack I learned C 2 months ago.
-        }
-
-        // now correct the typing if it's wrong
-        switch(tagID){
-            case IMAGEWIDTH:
-                frameData.imageWidth = contentVals;
-                break;
-            case IMAGELENGTH:
-                frameData.imageLength = contentVals;
-                break;
-            case BITSPERSAMPLE:
-                frameData.bitsPerSample = (uint16_t) contentVals;
-                if (params.issiff) frameData.bitsPerSample = 64; // this is a given... for now.
-                break;
-            case COMPRESSION:
-                frameData.compression = (uint16_t) contentVals;
-                break;
-            case PHOTOMETRIC_INTERPRETATION:
-                frameData.photometric = (uint16_t) contentVals;
-                break;
-            case IMAGEDESCRIPTION:
-                frameData.endOfIFD = contentVals;
-                break;
-            case STRIPOFFSETS:
-                frameData.dataStripAddress = contentVals;
-                break;
-            case ORIENTATION:
-                frameData.orientation = (uint16_t) contentVals;
-                break;
-            case SAMPLESPERPIXEL:
-                frameData.samplesPerPixel = (uint16_t) contentVals;
-                break;
-            case ROWSPERSTRIP:
-                frameData.rowsPerStrip = contentVals;
-                break;
-            case STRIPBYTECOUNTS:
-                frameData.stripByteCounts = contentVals;
-                break;
-            case XRESOLUTION:
-                frameData.xResolution = contentVals;
-                break;
-            case YRESOLUTION:
-                frameData.yResolution = contentVals;
-                break;
-            case PLANARCONFIGURATION:
-                frameData.planarConfig = (uint16_t) contentVals;
-                break;
-            case RESOLUTIONUNIT:
-                frameData.resUnit = (uint16_t) contentVals;
-                break;
-            case SOFTWAREPACKAGE:
-                frameData.NVFD_address = contentVals;
-                break;
-            case ARTIST:
-                frameData.ROI_address = contentVals;
-                break;
-            case SAMPLEFORMAT:
-                frameData.sampleFormat = (uint16_t) contentVals;
-                break;
-            case SIFFTAG:
-                frameData.siffCompress = (bool) contentVals;
-                break;
-            default:
-                if (params.suppress_warnings) break;
-                PyErr_WarnEx(PyExc_RuntimeWarning,
-                    (std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID) +  "\n" +
-                    std::string("To suppress this warning in the future, call siffreader.suppress_warnings()")).c_str(),
-                    Py_ssize_t(1)
-                );
-                //throw std::runtime_error(std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID));
-        }
-        siff.clear();
-        
-        if (debug) {
-            PyObject* tempVal = Py_BuildValue("y#",thisTag, Py_ssize_t(params.bytesPerTag));
-            PyList_Append(frameData.tagList, tempVal);
-            Py_DECREF(tempVal); // Append adds a reference
-        }
-    }
+    FrameData frameData = getTagData(
+        thisIFD,
+        params,
+        siff
+    );
 
 
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
@@ -1128,7 +903,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
 void SiffReader::singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray){
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
 
-    FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff);
 //
     addArrivalsToArray(numpyArray, params, frameData, siff);
 }
@@ -1138,7 +913,7 @@ PyObject* SiffReader::makeFlimTuple(uint64_t thisIFD, PyObject* shift_tuple){
 
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
-    FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff);
     
     const int ND = 2; // number of dimensions
     npy_intp dims[ND];
@@ -1170,7 +945,7 @@ void SiffReader::fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject
     
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
-    FrameData frameData = getTagData(nextIFD, params, siff);
+    const FrameData frameData = getTagData(nextIFD, params, siff);
 
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
@@ -1184,7 +959,7 @@ void SiffReader::fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple) {
     
-    FrameData frameData = getTagData(nextIFD, params, siff);
+    const FrameData frameData = getTagData(nextIFD, params, siff);
 
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
@@ -1195,14 +970,13 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
         params,
         frameData,
         siff,
-        flim,
         shift_tuple
     );
 }
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, uint64_t terminalBins, PyObject* shift_tuple) {
     
-    FrameData frameData = getTagData(nextIFD, params, siff);
+    const FrameData frameData = getTagData(nextIFD, params, siff);
 
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
@@ -1213,14 +987,12 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
         params,
         frameData,
         siff,
-        flim,
-        terminalBins,
         shift_tuple
     );
 }
 
 void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple) {
-    FrameData frameData = getTagData(nextIFD, params, siff);
+    const FrameData frameData = getTagData(nextIFD, params, siff);
 
     std::vector<uint64_t> frameReads = // this frame's photon counts
         frameData.siffCompress ? 

@@ -22,8 +22,6 @@ def x_across_time_TYPECHECK(
         if not len(z_list):
             raise Exception("No valid z plane numbers provided!")
     
-    if not isinstance(flim, bool):
-        flim = False
 
     if isinstance(color_list, int):
         if color_list >= num_colors:

@@ -90,12 +90,7 @@ class SiffReader(object):
             ret_string += "\n"
         else:
             ret_string += "Inactive siffreader\n"
-        if hasattr(self, "im_params"):
-            ret_string += self.im_params.__repr__()
-        if hasattr(self, "registrationDict"):
-            ret_string += "Registration dict loaded\n"
-        if hasattr(self, "reference_frames"):
-            ret_string += "Reference images loaded\n"
+        ret_string += self.im_params.__repr__()
         return ret_string
 
     def __repr__(self):
@@ -259,9 +254,7 @@ class SiffReader(object):
 ### IMAGE INTENSITY METHODS
     def get_frames(self,
         frames: list[int] = None,
-        flim : bool = False, 
         registration_dict : dict = None,
-        discard_bins : int = None,
         as_array : bool = True,
         ) -> Union[list[np.ndarray], np.ndarray]:
         """
@@ -283,14 +276,9 @@ class SiffReader(object):
 
             Registration dictionary, if used
 
-        discard_bins (optional) : int
+        as_array : bool (True)
 
-            Arrival time bin beyond which to discard photons (if arrival times were measured).
-
-        ret_type (optional) : type
-
-            Type of returned PyObject. Default is list, if np.ndarray, will return an np.ndarray
-            reshaped in order t, z, c, y, x, <tau> ("standard" order)
+            Type of returned PyObject. Default is np.ndarray, if False will return list
 
         RETURN VALUES
         -------------
@@ -300,23 +288,10 @@ class SiffReader(object):
         """
         if frames is None:
             frames = list(range(self.im_params.num_frames))
-        if discard_bins is None:
-            if registration_dict is None:
-                framelist = self.siffio.get_frames(frames = frames, flim = flim, as_array = as_array)
-            else:
-                framelist = self.siffio.get_frames(frames = frames, flim = flim, registration = registration_dict, as_array = as_array)
+        if registration_dict is None:
+            framelist = self.siffio.get_frames(frames = frames, as_array = as_array)
         else:
-            # arg checking
-            if not isinstance(discard_bins, int):
-                framelist = self.siffio.get_frames(frames, flim, registration_dict, as_array=as_array)
-            else:
-                if registration_dict is None:
-                    framelist = self.siffio.get_frames(frames = frames, flim = flim, discard_bins = discard_bins, as_array=as_array)
-                else:
-                    framelist = self.siffio.get_frames(frames = frames, flim = flim, 
-                                                registration = registration_dict, 
-                                                discard_bins = discard_bins,
-                                                as_array=as_array)
+            framelist = self.siffio.get_frames(frames = frames, registration = registration_dict, as_array = as_array)
 
         return framelist
     
@@ -328,7 +303,6 @@ class SiffReader(object):
             z_list : list[int] = None,
             color_channel :  int = 1,
             registration_dict : dict = None,
-            discard_bins : int = None,
         )->np.ndarray:
         """
         Computes the sum photon counts within a numpy mask over timesteps.
@@ -360,9 +334,6 @@ class SiffReader(object):
 
             Registration dictionary, if used
 
-        discard_bins : int
-
-            Arrival time bin beyond which to discard photons (if arrival times were measured).
 
         Returns
         -------
@@ -382,9 +353,6 @@ class SiffReader(object):
 
         if registration_dict is None and hasattr(self, 'registration_dict'):
             registration_dict = self.registration_dict
-
-        if not (discard_bins is None):
-            logging.warning("Discard_bins keyword argument not implemented, ignoring")
 
         frames = self.im_params.framelist_by_slices(color_channel = color_channel-1, slices = z_list, lower_bound=timepoint_start, upper_bound=timepoint_end)
         

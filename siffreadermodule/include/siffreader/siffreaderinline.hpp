@@ -11,8 +11,8 @@
 #include <numpy/arrayobject.h>
 #include "exp_math.hpp"
 
-#include "framedatastruct.hpp"
-#include "siffParams.hpp"
+#include "../framedata/framedatastruct.hpp"
+#include "../siffparams/siffparams.hpp"
 #include <stdio.h>
 #include <fstream>
 #include <algorithm>
@@ -30,121 +30,9 @@
 ////// INLINE FUNCTIONS ///////////
 ///////////////////////////////////
 
-inline FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff){
-    // return a FrameData structure that has parsed all the tag information at location:
-    // IFD
-
-    siff.clear();
-    siff.seekg(IFD); // go there first
-
-    if (!(siff.good())) throw std::runtime_error("Failure to find frame.");
-
-    uint64_t numTags; // number of tags in this directory before the real metadata
-    siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
-    siff.clear();
-    FrameData frameData;
-    // tag parsing TODO: SHOULD BE INLINED SOMEWHERE ELSE
-    for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
-        char thisTag[params.bytesPerTag];
-        siff.read(thisTag, params.bytesPerTag);
-        
-        uint16_t tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
-        // figure out the number of bytes needed to read the data correctly
-        uint16_t datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
-        uint16_t contentChars = datatypeToCharCount(datatype); // defined in sifdefin
-
-        if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
-        // TODO: DO THIS RIGHT. I ALREADY KNOW THEY ALL ONLY USE A SINGLE TAG VALUE HERE BUT I SHOULD
-        // MAKE THIS WORK FOR _ALL_ TIFFS
-        
-        // convert to a single value
-        
-        uint64_t contentVals = 0;
-        // 8 + 4*bigtiff corresponds to the 4 bytes of identifier + the 4 bytes for number of values in tag (or 8 if bigtiff)
-        for(int16_t charnum = (contentChars-1); 0<=charnum; charnum--) {
-            contentVals <<= 8;
-            contentVals += (thisTag[charnum + 8 + 4*params.bigtiff] & 0xFF); // gotta be honest... I don't understand why the  & 0xFF is necessary. Cut me some slack I learned C 2 months ago.
-        }
-        
-        // now correct the typing if it's wrong
-        switch(tagID){
-            case IMAGEWIDTH:
-                frameData.imageWidth = contentVals;
-                break;
-            case IMAGELENGTH:
-                frameData.imageLength = contentVals;
-                break;
-            case BITSPERSAMPLE:
-                frameData.bitsPerSample = (uint16_t) contentVals;
-                if (params.issiff) frameData.bitsPerSample = 64; // this is a given... for now.
-                break;
-            case COMPRESSION:
-                frameData.compression = (uint16_t) contentVals;
-                break;
-            case PHOTOMETRIC_INTERPRETATION:
-                frameData.photometric = (uint16_t) contentVals;
-                break;
-            case IMAGEDESCRIPTION:
-                frameData.endOfIFD = contentVals;
-                break;
-            case STRIPOFFSETS:
-                frameData.dataStripAddress = contentVals;
-                break;
-            case ORIENTATION:
-                frameData.orientation = (uint16_t) contentVals;
-                break;
-            case SAMPLESPERPIXEL:
-                frameData.samplesPerPixel = (uint16_t) contentVals;
-                break;
-            case ROWSPERSTRIP:
-                frameData.rowsPerStrip = contentVals;
-                break;
-            case STRIPBYTECOUNTS:
-                frameData.stripByteCounts = contentVals;
-                break;
-            case XRESOLUTION:
-                frameData.xResolution = contentVals;
-                break;
-            case YRESOLUTION:
-                frameData.yResolution = contentVals;
-                break;
-            case PLANARCONFIGURATION:
-                frameData.planarConfig = (uint16_t) contentVals;
-                break;
-            case RESOLUTIONUNIT:
-                frameData.resUnit = (uint16_t) contentVals;
-                break;
-            case SOFTWAREPACKAGE:
-                frameData.NVFD_address = contentVals;
-                break;
-            case ARTIST:
-                frameData.ROI_address = contentVals;
-                break;
-            case SAMPLEFORMAT:
-                frameData.sampleFormat = (uint16_t) contentVals;
-                break;
-            case SIFFTAG:
-                frameData.siffCompress = (bool) contentVals;
-                break;
-            default:
-                if (params.suppress_warnings) break;
-                PyErr_WarnEx(PyExc_RuntimeWarning,
-                    (std::string("INVALID TIFF TAG DETECTED: ") + std::to_string(tagID) +  "\n" +
-                    std::string("To suppress this warning in the future, call siffreader.suppress_warnings()")).c_str(),
-                    Py_ssize_t(1)
-                );
-        }
-        siff.clear();        
-    }
-
-    if (frameData.dataStripAddress<frameData.endOfIFD) throw std::runtime_error("Invalid data strip address read.");    
-    siff.clear();
-    return frameData;
-}
-
 // NOT TERMINAL BIN
-inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
+inline void readCompressed(uint64_t samplesThisFrame, const FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
     {
     // figure out the rigid deformation for registration
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
@@ -154,7 +42,6 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
     uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
    
-   if(!flim) { // easy, this data's already stored in the start.
         uint16_t frameReads[pixelsInImage];
         siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
         siff.clear();
@@ -166,79 +53,9 @@ inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std:
         }
 
         return;
-    }
-    
-    // first get the number of photons for each pixel
-    uint16_t photonCounts[pixelsInImage];
-    siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
-
-    // now put the arrival time values that are in succession into the right elements of the numpy array.
-    for (uint64_t px = 0; px < pixelsInImage; px++) {
-        uint16_t photonsThisPx = photonCounts[px];
-        uint16_t pxReads[photonsThisPx];
-        siff.read((char*)&pxReads, photonsThisPx*sizeof(uint16_t));
-
-        for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
-            data_ptr[
-                ((px / frameData.imageWidth + y_shift) % dims[0]) * dims[1] * dims[2] // y index
-                    +((px % frameData.imageWidth + x_shift) % dims[1]) *dims[2]       // x index
-                        + pxReads[readNum]                      // tau index
-            ]++;
-        }
-        
-    }
 }
 
-// TERMINAL BIN
-inline void readCompressed(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple, uint64_t terminalBin) // uses siffCompress
-    { // TODO : FINSIH ME!!!
-    
-    throw std::runtime_error("Not yet implemented (compressed reads with a terminal bin.");
-    // figure out the rigid deformation for registration
-    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
-    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
-    
-    
-    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
-    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
-    if(!flim) { // easy, this data's already stored in the start.
-
-        uint16_t frameReads[pixelsInImage];
-        siff.read((char*)&frameReads,pixelsInImage * sizeof(uint16_t));
-        siff.clear();
-
-        for(uint64_t px = 0; px < pixelsInImage; px++) {
-            uint64_t shifted_px = ( (((uint64_t)(px / dims[0])) + y_shift) % dims[0]) * dims[1]; // y_val
-            shifted_px += (px % dims[0] + x_shift) % dims[1];
-            data_ptr[shifted_px] += frameReads[px];
-        }
-
-        return;
-    }
-    
-    // first get the number of photons for each pixel
-    uint16_t photonCounts[frameData.imageLength * frameData.imageWidth];
-    siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
-
-    // now put the arrival time values that are in succession into the right elements of the numpy array.
-    for (uint64_t px = 0; px < pixelsInImage; px++) {
-        uint16_t photonsThisPx = photonCounts[px];
-        uint16_t pxReads[photonsThisPx];
-        siff.read((char*)&pxReads, photonsThisPx*sizeof(uint16_t));
-
-        for (uint16_t readNum = 0; readNum < photonsThisPx; readNum++) {
-            data_ptr[
-                ((px / frameData.imageWidth + y_shift) % dims[0]) * dims[1] * dims[2] // y index
-                    +((px % frameData.imageWidth + x_shift) % dims[1]) *dims[2]       // x index
-                        + pxReads[readNum]                      // tau index
-            ]++;
-        }
-        
-    }
-}
-
-inline void readCompressedForArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+inline void readCompressedForArrivals(uint64_t samplesThisFrame, const FrameData& frameData, std::ifstream& siff,
     double_t* lifetime_ptr, uint16_t* intensity_ptr, npy_intp* dims, PyObject* shift_tuple) // uses siffCompress
     {
     
@@ -273,8 +90,8 @@ inline void readCompressedForArrivals(uint64_t samplesThisFrame, FrameData& fram
 }
 
 
-inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple) // every read is a uint64 of y, x, tau
+inline void readRaw(uint64_t samplesThisFrame, const FrameData& frameData, std::ifstream& siff,
+    uint16_t* data_ptr, npy_intp* dims, PyObject* shift_tuple) // every read is a uint64 of y, x, tau
     {
     
     // figure out the rigid deformation for registration
@@ -284,62 +101,14 @@ inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstre
     uint64_t frameReads[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
     siff.clear();
-    if(flim) {
-        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
             // increment the appropriate numpy element
-            data_ptr[
-                (((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1]*dims[2])
-                    + (((U64TOX(frameReads[photon]) + x_shift) % dims[1]) * dims[2])
-                        + U64TOTAU(frameReads[photon])
-            ]++;
-        }
-    }
-    else{
-        // if we're just doing intensity, the pointer element to increment should be different
-        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
-                // increment the appropriate numpy element
-            data_ptr[((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1] + 
-                ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
-        }
+        data_ptr[((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1] + 
+            ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
     }
 }
 
-inline void readRaw(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint16_t* data_ptr, bool flim, npy_intp* dims, PyObject* shift_tuple, uint64_t terminalBin) // every read is a uint64 of y, x, tau
-    {
-    
-    // figure out the rigid deformation for registration
-    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
-    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
-
-    uint64_t frameReads[samplesThisFrame];
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
-    siff.clear();
-    if(flim) {
-        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
-            // increment the appropriate numpy element
-            if (U64TOTAU(frameReads[photon]) > terminalBin) continue;
-            
-            data_ptr[
-                (((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1]*dims[2])
-                    + (((U64TOX(frameReads[photon]) + x_shift) % dims[1]) * dims[2])
-                        + U64TOTAU(frameReads[photon])
-            ]++;
-        }
-    }
-    else{
-        // if we're just doing intensity, the pointer element to increment should be different
-        for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
-            if (U64TOTAU(frameReads[photon]) > terminalBin) continue;
-                // increment the appropriate numpy element
-            data_ptr[((U64TOY(frameReads[photon]) + y_shift) % dims[0])*dims[1] + 
-                ((U64TOX(frameReads[photon]) + x_shift)%dims[1])]++;
-        }
-    }
-}
-
-
-inline void readRawForArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+inline void readRawForArrivals(uint64_t samplesThisFrame, const FrameData& frameData, std::ifstream& siff,
     double_t* lifetime_ptr, uint16_t* intensity_ptr, npy_intp* dims, PyObject* shift_tuple) // every read is a uint64 of y, x, tau
     {
     
@@ -363,8 +132,8 @@ inline void readRawForArrivals(uint64_t samplesThisFrame, FrameData& frameData, 
 }
 
 inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
-    SiffParams& params, FrameData& frameData, std::ifstream& siff,
-    bool flim, PyObject* shift_tuple = NULL) {
+    SiffParams& params, const FrameData& frameData, std::ifstream& siff,
+    PyObject* shift_tuple = NULL) {
     
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
@@ -380,8 +149,8 @@ inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
 
     if (params.issiff) {
         frameData.siffCompress ?
-            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple) : 
-            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple);
+            readCompressed(samplesThisFrame, frameData, siff, data_ptr, dims, shift_tuple) : 
+            readRaw(samplesThisFrame, frameData, siff, data_ptr, dims, shift_tuple);
     }
     else {
         // pretty simple -- it's already formatted right.
@@ -407,33 +176,11 @@ inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
     }
 };
 
-inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
-    SiffParams& params, FrameData& frameData, std::ifstream& siff,
-    bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL) {
-    
-    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
-
-    // TODO: put the bool flags into the SiffParams struct.
-    
-    siff.clear();
-    siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
-    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
-
-    uint16_t bytesPerSample = frameData.bitsPerSample/8;
-    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
-    siff.clear();
-
-    frameData.siffCompress ?
-            readCompressed(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple, terminalBin) : 
-            readRaw(samplesThisFrame, frameData, siff, data_ptr, flim, dims, shift_tuple, terminalBin);
-    // it's only ever called on siffs so I don't need the if/else
-};
-
 inline void loadArrayWithSummedArrivalTimes(
         PyArrayObject* lifetimeArray,
         PyArrayObject* intensityArray,
         SiffParams& params,
-        FrameData& frameData,
+        const FrameData& frameData,
         std::ifstream& siff,
         PyObject* shift_tuple = NULL
     )
@@ -465,7 +212,7 @@ inline void loadArrayWithSummedArrivalTimes(
     }
 };
 
-inline uint64_t sumMaskCompressed(FrameData& frameData, std::ifstream &siff, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+inline uint64_t sumMaskCompressed(const FrameData& frameData, std::ifstream &siff, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
     
     uint64_t photon_count = 0;
     
@@ -492,7 +239,14 @@ inline uint64_t sumMaskCompressed(FrameData& frameData, std::ifstream &siff, boo
     return photon_count;
 };
 
-inline uint64_t sumMaskRaw(uint64_t& samplesThisFrame, FrameData& frameData, std::ifstream &siff, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+inline uint64_t sumMaskRaw(
+        uint64_t& samplesThisFrame,
+        const FrameData& frameData,
+        std::ifstream &siff,
+        bool* mask_data_ptr,
+        npy_intp* mask_dims,
+        PyObject* shift_tuple
+    ){
 
     uint64_t photon_counts = 0;
 
@@ -515,7 +269,7 @@ inline uint64_t sumMaskRaw(uint64_t& samplesThisFrame, FrameData& frameData, std
 };
 
 
-inline uint64_t sumFrameMask(FrameData& frameData, SiffParams& params, PyArrayObject* mask, PyObject* shift_tuple, std::ifstream& siff) {
+inline uint64_t sumFrameMask(const FrameData& frameData, SiffParams& params, PyArrayObject* mask, PyObject* shift_tuple, std::ifstream& siff) {
     // Adds together all photon counts within a frame if those counts are "True" in the mask array
     uint64_t photon_count = 0;
 
@@ -556,7 +310,7 @@ inline uint64_t sumFrameMask(FrameData& frameData, SiffParams& params, PyArrayOb
     return photon_count;
 };
 
-inline double_t sumMaskFLIMCompressed(FrameData& frameData, 
+inline double_t sumMaskFLIMCompressed(const FrameData& frameData, 
     std::ifstream &siff, double_t& offset, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
     
     double_t summed_arrivals = 0;
@@ -593,7 +347,15 @@ inline double_t sumMaskFLIMCompressed(FrameData& frameData,
     return summed_arrivals/counted_photons;
 };
 
-inline double_t sumMaskFLIMRaw(uint64_t& samplesThisFrame, FrameData& frameData, std::ifstream &siff, double_t& offset, bool* mask_data_ptr, npy_intp* mask_dims, PyObject* shift_tuple) {
+inline double_t sumMaskFLIMRaw(
+        uint64_t& samplesThisFrame,
+        const FrameData& frameData,
+        std::ifstream &siff,
+        double_t& offset,
+        bool* mask_data_ptr,
+        npy_intp* mask_dims,
+        PyObject* shift_tuple
+    ) {
 
     double_t summed_bins = 0;
 
@@ -618,7 +380,14 @@ inline double_t sumMaskFLIMRaw(uint64_t& samplesThisFrame, FrameData& frameData,
     return summed_bins/n_counted;
 };
 
-inline double_t sumFrameFLIMMask(FrameData& frameData, SiffParams& params, double_t offset, PyArrayObject* mask, PyObject* shift_tuple, std::ifstream& siff) {
+inline double_t sumFrameFLIMMask(
+        const FrameData& frameData,
+        SiffParams& params,
+        double_t offset,
+        PyArrayObject* mask,
+        PyObject* shift_tuple,
+        std::ifstream& siff
+    ) {
     // Adds together all arrival times of photons within a frame if those counts are "True" in the mask array
     double_t arrival_time = 0;
 
@@ -651,9 +420,13 @@ inline double_t sumFrameFLIMMask(FrameData& frameData, SiffParams& params, doubl
  * *********************************/
 
 
-inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
-    uint64_t* data_ptr, uint16_t taudim) // uses siffCompress
-    {
+inline void readCompressedArrivals(
+        uint64_t samplesThisFrame,
+        const FrameData& frameData,
+        std::ifstream& siff,
+        uint64_t* data_ptr,
+        uint16_t taudim
+    ){
     // Can ignore the preceding array listing photons per pixel.
     siff.seekg(frameData.dataStripAddress);
 
@@ -667,7 +440,7 @@ inline void readCompressedArrivals(uint64_t samplesThisFrame, FrameData& frameDa
     }
 }
 
-inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std::ifstream& siff,
+inline void readRawArrivals(uint64_t samplesThisFrame, const FrameData& frameData, std::ifstream& siff,
     uint64_t* data_ptr, uint16_t taudim) // every read is a uint64 of y, x, tau
     {
     
@@ -683,7 +456,7 @@ inline void readRawArrivals(uint64_t samplesThisFrame, FrameData& frameData, std
 }
 
 
-inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, FrameData& frameData, std::ifstream& siff) {
+inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, const FrameData& frameData, std::ifstream& siff) {
     // Takes a numpy array and adds arrival times of a frame to it.
     uint64_t* data_ptr = (uint64_t *) PyArray_DATA(numpyArray);
     uint16_t taudim = PyArray_DIM(numpyArray, 0);
@@ -702,7 +475,7 @@ inline void addArrivalsToArray(PyArrayObject* numpyArray, SiffParams& params, Fr
 
 }
 
-inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
+inline std::vector<uint64_t> compressedReadsToVec(const FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
     // decompresses them. Inelegant but I just wanted a single format for all frame types.
     // Might come back and adjust this implementation so that everything actually uses the compressed
     // format -- there are reasons it'd be better for the flim_map function anyways.
@@ -749,7 +522,7 @@ inline std::vector<uint64_t> compressedReadsToVec(FrameData& frameData, std::ifs
     return readsVector;
 };
 
-inline std::vector<uint64_t> uncompressedReadsToVec(FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
+inline std::vector<uint64_t> uncompressedReadsToVec(const FrameData& frameData, std::ifstream& siff, PyObject* shift_tuple) {
     siff.clear();
     siff.seekg(frameData.dataStripAddress);
     siff.clear();
@@ -848,7 +621,7 @@ inline void chi_sq(std::vector<uint64_t>& reads, double_t tauo, npy_intp* dims,
 }
 
 inline PyObject* readVectorToNumpyTuple(std::vector<uint64_t>& photonReadsTogether, 
-    FrameData& firstFrameData, PyObject* FLIMParams, const char* conf_measure) {
+    const FrameData& firstFrameData, PyObject* FLIMParams, const char* conf_measure) {
     // Takes the read vector and data about the frame shape + FLIM parameters
     // returns a tuple: 
     //      pixel-wise empirical lifetime map

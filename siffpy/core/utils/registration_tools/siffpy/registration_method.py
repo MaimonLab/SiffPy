@@ -16,7 +16,6 @@ def register_frames(
         siffio : SiffIO,
         reference_frame : np.ndarray,
         frames : list[int],
-        discard_bins : int = None,
         pbar = None,
         regularize_sigma : float = 2.0,
         **kwargs)->dict[int, tuple[int, int]]:
@@ -45,11 +44,6 @@ def register_frames(
 
         The indices of the frames to be aligned.
 
-    discard_bins (optional) : int
-
-        Time bin above which photons should be discarded. Useful for known noise sources
-        and known fluorophore IDs.
-    
     pbar (optional) : tqdm.tqdm
 
         For prettier output formatting in a notebook or script. Pass the tqdm.tqdm object.
@@ -67,7 +61,7 @@ def register_frames(
         registration dict that can be passed to other siffpy functions
     """
 
-    frames_np = siffio.get_frames(frames = frames, flim = False)
+    frames_np = siffio.get_frames(frames = frames)
     use_tqdm = not (pbar is None)
     
     import time
