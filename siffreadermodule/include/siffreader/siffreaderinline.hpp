@@ -362,15 +362,13 @@ inline void readRawForArrivals(uint64_t samplesThisFrame, FrameData& frameData, 
 
 }
 
-inline void loadArrayWithData(PyArrayObject* numpyArray,
+inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
     SiffParams& params, FrameData& frameData, std::ifstream& siff,
     bool flim, PyObject* shift_tuple = NULL) {
     
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
     // TODO: put the bool flags into the SiffParams struct.
-    uint16_t* data_ptr = (uint16_t *) PyArray_DATA(numpyArray);
-    npy_intp* dims = PyArray_DIMS(numpyArray);
     
     siff.clear();
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
@@ -409,15 +407,13 @@ inline void loadArrayWithData(PyArrayObject* numpyArray,
     }
 };
 
-inline void loadArrayWithData(PyArrayObject* numpyArray,
+inline void loadArrayWithData(uint16_t* data_ptr, npy_intp* dims,
     SiffParams& params, FrameData& frameData, std::ifstream& siff,
     bool flim, uint64_t terminalBin, PyObject* shift_tuple = NULL) {
     
     if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
 
     // TODO: put the bool flags into the SiffParams struct.
-    uint16_t* data_ptr = (uint16_t *) PyArray_DATA(numpyArray);
-    npy_intp* dims = PyArray_DIMS(numpyArray);
     
     siff.clear();
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)

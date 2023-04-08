@@ -370,19 +370,41 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
     retdims[1] = frameDatas[frames[0]].imageLength;
     retdims[2] = frameDatas[frames[0]].imageWidth;
 
-    PyObject* retArray(PyArray_ZEROS(
+    PyArrayObject* retArray((PyArrayObject*)PyArray_ZEROS(
         ND,
         retdims,
-        NPY_UINT64,
+        NPY_UINT16,
         0
     ));
 
+    uint16_t *data_ptr = (uint16_t *) PyArray_DATA(retArray);
+    size_t sizeOfFrame = retdims[1] * retdims[2];
+    uint64_t frameIdx;
+    FrameData frameData;
+    PyObject* shift_tuple;
     // Now parse the frames into the array
-    for (uint64_t frameIdx = 0; frameIdx < framesN; frameIdx++){
+    for (uint64_t listIdx = 0; listIdx < framesN; listIdx++){
+        frameIdx = frames[listIdx];
+        frameData = getTagData(params.allIFDs[frameIdx], params, siff);
+        shift_tuple = PyDict_GetItem(
+            registrationDict,
+            PyLong_FromUnsignedLongLong(frameIdx)
+        );
+
+        loadArrayWithData(
+            &data_ptr[listIdx * sizeOfFrame],
+            &PyArray_DIMS(retArray)[1], // y, x only
+            params,
+            frameData,
+            siff,
+            flim,
+            shift_tuple
+        );
+        Py_DECREF(shift_tuple);
     }
 
 
-    return (PyArrayObject*) retArray;
+    return retArray;
 };
 
 PyArrayObject* SiffReader::retrieveFramesAsArray(
@@ -830,7 +852,15 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
         0 // C order, i.e. last index increases fastest
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(numpyArray),
+        PyArray_DIMS(numpyArray),
+        params,
+        frameData,
+        siff,
+        flim,
+        shift_tuple
+    );
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
     
@@ -863,7 +893,16 @@ void SiffReader::singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList
         0 // C order, i.e. last index increases fastest
     ); // Or should I make a sparse array? Maybe make that an option? TODO.
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim, terminalBin, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(numpyArray),
+        PyArray_DIMS(numpyArray),
+        params,
+        frameData,
+        siff,
+        flim,
+        terminalBin,
+        shift_tuple
+    );
     //
     int ret = PyList_Append(numpyArrayList, (PyObject*) numpyArray);
     Py_DECREF(numpyArray);
@@ -897,7 +936,15 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, bool flim, PyObject* s
         0 // C order, i.e. last index increases fastest
     );
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(numpyArray),
+        PyArray_DIMS(numpyArray),
+        params,
+        frameData,
+        siff,
+        flim,
+        shift_tuple
+    );
     
     return numpyArray;
 }
@@ -928,7 +975,16 @@ PyArrayObject* SiffReader::frameAsNumpy(uint64_t thisIFD, uint64_t terminalBins,
         0 // C order, i.e. last index increases fastest
     );
 
-    loadArrayWithData(numpyArray, params, frameData, siff, flim, terminalBins, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(numpyArray),
+        PyArray_DIMS(numpyArray),
+        params,
+        frameData,
+        siff,
+        flim,
+        terminalBins,
+        shift_tuple
+    );
     
     return numpyArray;
 }
@@ -1133,7 +1189,15 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
 
-    loadArrayWithData(fuseFrame, params, frameData, siff, flim, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(fuseFrame), 
+        PyArray_DIMS(fuseFrame),
+        params,
+        frameData,
+        siff,
+        flim,
+        shift_tuple
+    );
 }
 
 void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool flim, uint64_t terminalBins, PyObject* shift_tuple) {
@@ -1143,7 +1207,16 @@ void SiffReader::fuseFrames(PyArrayObject* fuseFrame, uint64_t nextIFD, bool fli
     siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
 
-    loadArrayWithData(fuseFrame, params, frameData, siff, flim, terminalBins, shift_tuple);
+    loadArrayWithData(
+        (uint16_t*) PyArray_DATA(fuseFrame),
+        PyArray_DIMS(fuseFrame),
+        params,
+        frameData,
+        siff,
+        flim,
+        terminalBins,
+        shift_tuple
+    );
 }
 
 void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple) {

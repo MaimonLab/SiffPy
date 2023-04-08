@@ -129,7 +129,7 @@ class RegistrationInfo(ABC):
             yx_shifts = f['yx_shifts']
             frame_index = yx_shifts['frame_index'][:]
             shift_values = yx_shifts['shift_values'][:]
-            yx_shifts = dict(zip(frame_index, shift_values))
+            yx_shifts = {idx : tuple(shift) for idx, shift in zip(frame_index, shift_values.tolist())}
             reference_frames = f['reference_frames'][:]
 
         return {

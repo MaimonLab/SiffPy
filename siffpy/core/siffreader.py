@@ -262,8 +262,8 @@ class SiffReader(object):
         flim : bool = False, 
         registration_dict : dict = None,
         discard_bins : int = None,
-        as_array : bool = False,
-        ) -> list[np.ndarray]:
+        as_array : bool = True,
+        ) -> Union[list[np.ndarray], np.ndarray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 
