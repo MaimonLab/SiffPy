@@ -16,6 +16,7 @@ def register_frames(
         siffio : SiffIO,
         reference_frame : np.ndarray,
         frames : list[int],
+        registration_dict : dict = {},
         pbar = None,
         regularize_sigma : float = 2.0,
         **kwargs)->dict[int, tuple[int, int]]:
@@ -61,7 +62,7 @@ def register_frames(
         registration dict that can be passed to other siffpy functions
     """
 
-    frames_np = siffio.get_frames(frames = frames)
+    frames_np = siffio.get_frames(frames = frames, registration=registration_dict)
     use_tqdm = not (pbar is None)
     
     import time

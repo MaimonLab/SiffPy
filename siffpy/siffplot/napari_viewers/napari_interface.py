@@ -14,8 +14,6 @@ from PyQt5.QtWidgets import QMessageBox
 from siffpy.core import SiffReader
 from siffpy.siffplot.roi_protocols.utils.napari_fcns import rois_into_shapes_layer
 
-ROI_OBJECT_LAYER_NAME = "Primary ROIs"
-
 class NapariInterface():
     """
     All NapariInterfaces have an attribute
@@ -23,6 +21,8 @@ class NapariInterface():
     can be accessed by treating the NapariInterface
     like a viewer itself.
     """
+
+    ROI_OBJECT_LAYER_NAME = "Primary ROIs"
 
     def __init__(self, siffreader : SiffReader, *args, visualizer = None, **kwargs):
         """
@@ -51,7 +51,7 @@ class NapariInterface():
     def add_roi_object_layer(self, visible : bool = False):
         """ Creates an roi_object_layer that might be broadly useful """
         self.viewer.add_shapes(
-                name = ROI_OBJECT_LAYER_NAME,
+                name = self.__class__.ROI_OBJECT_LAYER_NAME,
                 ndim = 3,
                 scale = self.scale,
                 visible = visible,
@@ -60,15 +60,8 @@ class NapariInterface():
     @property
     def roi_object_layer(self) -> Shapes:
         """ May not exist for all viewers or even may be deleted for some reason. """
-        roi_object_layer = next(
-            filter(
-                    lambda x: x.name == ROI_OBJECT_LAYER_NAME,
-                    self.viewer.layers
-                ),
-            None
-        )
-        return roi_object_layer
-
+        return self.viewer.layers[self.__class__.ROI_OBJECT_LAYER_NAME]
+        
     def draw_rois_on_napari(self):
         """ Draws all stored rois in the visualizer on the napari Viewer object"""
         roi_layer = self.roi_object_layer

@@ -1,8 +1,16 @@
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 
 from siffpy.core import FLIMParams
+
+class FrameData():
+
+    @property
+    def imageWidth(self)->int:...
+
+    @property
+    def imageHeight(self)->int:...
 
 class SiffIO():
 
@@ -26,11 +34,9 @@ class SiffIO():
     def get_frames(
         self,
         frames : list[int],
-        type : type = list,
-        flim : bool = False,
         registration : dict = {},
-        as_arrary : bool = False,
-    )->list[np.ndarray]:...
+        as_array : bool = True,
+    )->Union[np.ndarray,list[np.ndarray]]:...
 
     def get_metadata(self, frames : list[int] = [])->dict:...
 

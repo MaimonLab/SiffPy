@@ -1,4 +1,4 @@
-from typing import Callable
+import traceback
 
 import numpy as np
 import matplotlib as mpl
@@ -11,7 +11,11 @@ from matplotlib.backends.backend_qtagg import (
 )
 from magicgui import widgets
 from napari.layers import Shapes
+from napari.utils.events import EmitterGroup, Event
+from PyQt5.QtWidgets import QMessageBox
+from scipy.ndimage import convolve
 
+from siffpy import SiffReader
 from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.numpy_implementation import (
     VonMisesCollection, match_to_von_mises
 )
@@ -35,6 +39,21 @@ fdict = {
 }
 
 mpl.rcParams.update(**fdict)
+
+def warning_window(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(f"An error occurred: {e}")
+            msg.setInformativeText(
+                f"Traceback: {traceback.format_exc()}"
+            )
+            msg.setWindowTitle("Error")
+            msg.exec_()
+    return wrapper
 
 
 class CorrelationMatrices():
@@ -71,7 +90,6 @@ class CorrelationMatrices():
         format_corrmap(von_mises_axes)
 
         plt.tight_layout()
-
         canvas = FigureCanvas(fig)
         canvas.setMaximumHeight(250)
         canvas.setMaximumWidth(400)
@@ -79,6 +97,19 @@ class CorrelationMatrices():
         self.source_axes = source_axes
         self.von_mises_axes = von_mises_axes
         self.canvas = canvas
+
+        ### EVENTS
+
+        self.events = EmitterGroup(
+            source=self,
+        )
+
+        self.events.add(
+            source_image_produced = Event,
+            correlation_matrix_computed = Event,
+        )
+
+        ## WIDGETS
 
         self.slider = widgets.FloatSlider(
             label = 'kappa',
@@ -101,11 +132,26 @@ class CorrelationMatrices():
         )
 
         self.get_correlation_button = widgets.PushButton(
-            text = 'Get correlations with source ROIs',
+            text = 'Correlate drawn ROIs',
             tooltip = "Uses the `ROI shapes` layer from the source `ROIViewer`"
         )
 
+        self.correlate_whole_image_button = widgets.PushButton(
+            text = 'Correlate image with seeds',
+            tooltip = "Correlates all pixels in image"
+        )
+
+        ## CALLBACKS
+
         self.slider.changed.connect(self.on_kappa_slider_change)
+        
+        self.get_correlation_button.clicked.connect(
+            self.correlate_seeds
+        )
+
+        self.correlate_whole_image_button.clicked.connect(
+            self.correlate_all_pixels
+        )
 
         self.params_container = widgets.Container(
             layout = 'Horizontal',
@@ -113,7 +159,8 @@ class CorrelationMatrices():
                 self.slider,
                 self.lower_bound_slider,
                 self.upper_bound_slider,
-                self.get_correlation_button
+                self.get_correlation_button,
+                self.correlate_whole_image_button,
             ]
         )
         self.params_container.max_height = 200
@@ -138,21 +185,112 @@ class CorrelationMatrices():
 
         self.update_von_mises(self.fits.cov)
 
-    def provide_roi_shapes_layer(self, layer : Shapes):
-        self.source_rois_layer = layer
+    def link_siffreader(self, siffreader : SiffReader):
+        self.siffreader = siffreader
+        self.lower_bound_slider.max = siffreader.im_params.num_timepoints
+        self.upper_bound_slider.max = siffreader.im_params.num_timepoints
 
-    def set_correlation_button_callback(self, callback : Callable):
-        self.get_correlation_button.changed.connect(callback)
+    def provide_roi_shapes_layer(self, layer : Shapes, image_shape : tuple):
+        self.source_rois_layer = layer
+        self.image_shape = image_shape
+    
+    def correlate_seeds(self):
+        """ Called when correlating the drawn ROIs to estimate a phase"""
+        try:
+            if not hasattr(self, 'siffreader'):
+                raise ValueError("No siffreader provided")
+            if not hasattr(self, 'source_rois_layer'):
+                raise ValueError("No source ROI layer provided")
+            frames = self.siffreader.get_frames(
+                self.siffreader.im_params.flatten_by_timepoints(
+                    int(self.lower_bound_slider.value),
+                    int(self.upper_bound_slider.value),
+                ),
+                self.siffreader.registration_dict,
+            ).reshape((-1, *self.siffreader.im_params.volume))
+
+            self.seed_t_series = np.array([
+                    frames[:,mask].sum(axis=1)
+                    for mask in self.correlation_rois.reshape(
+                        (-1, *self.siffreader.im_params.volume)
+                    )
+                    ]
+                ) # nROIs by nTimepoints
+            
+            self.update_source(np.corrcoef(self.seed_t_series))
+            self.events.correlation_matrix_computed()
+
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(f"Error: {e}")
+            msg.setInformativeText(
+                f"Traceback: {traceback.format_exc()}"
+            )
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            
+    def correlate_all_pixels(self):
+        """
+        Correlate each pixel with the drawn ROIs,
+        take a vector sum of the pixel correlations with phase,
+        and store that complex valued array (which will produce
+        the source image in the main window).
+        """
+        try:
+            if not hasattr(self, 'fits'):
+                raise ValueError("No fits provided")
+            
+            frames = self.siffreader.get_frames(
+                self.siffreader.im_params.flatten_by_timepoints(
+                    int(self.lower_bound_slider.value),
+                    int(self.upper_bound_slider.value),
+                ),
+                self.siffreader.registration_dict,
+            ).reshape((-1, *self.siffreader.im_params.volume))
+            frames = frames.reshape((frames.shape[0], -1)) # timepoints by pixels
+
+            correlation = (
+                self.seed_t_series @ frames/frames.shape[0] - #E[XY]
+                np.outer(
+                    self.seed_t_series.mean(axis=1), #E[X]
+                    frames.mean(axis=0) #E[Y]
+                )
+            ) / np.outer(
+                self.seed_t_series.std(axis=1), #std(X)
+                frames.std(axis=0) #std(Y)
+            )
+
+            self.fft_image = (
+                np.exp(1j * self.fits.means).T @
+                correlation/len(self.fits)
+            ).reshape(self.siffreader.im_params.volume)
+
+            weights = (1, 1, *[x//50 for x in self.siffreader.im_params.shape])
+
+            self.fft_image = convolve(
+                self.fft_image,
+                np.ones(weights)/np.prod(weights),
+                mode='wrap',
+            )
+
+            self.events.source_image_produced()
+
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(f"Error correlating image: {e}")
+            msg.setInformativeText(
+                f"Traceback: {traceback.format_exc()}"
+            )
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     @property
     def correlation_rois(self) -> np.ndarray:
         if not hasattr(self, 'source_rois_layer'):
             raise ValueError("No source ROI layer provided")
-        return self.source_rois_layer.to_masks()
-
-    @property
-    def correlation_button_clicked(self):
-        return self.get_correlation_button.clicked
+        return self.source_rois_layer.to_masks(self.image_shape)
 
     @property
     def widget(self):

@@ -303,7 +303,7 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     if (check_framelist(frames_list, framesArray, self->siffreader->numFrames())<0){
         return NULL;
     }
-
+    bool registrationDictProvided = registrationDict != NULL;
     if (registrationDict == NULL) {
         registrationDict = PyDict_New();
     }
@@ -315,16 +315,18 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     try{
         if (make_array) {
 
-           if(!self->siffreader->dimensionsConsistent(framesArray, framesN)){
-               PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
-               return NULL;
-           }
-            
-           return (PyObject*) self->siffreader->retrieveFramesAsArray(
-               framesArray, framesN, registrationDict
-           );
+            if(!self->siffreader->dimensionsConsistent(framesArray, framesN)){
+                PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
+                return NULL;
+            }
+                
+            PyObject* retArray = (PyObject*) self->siffreader->retrieveFramesAsArray(
+                framesArray, framesN, registrationDict
+            );
+            if (!registrationDictProvided) Py_DECREF(registrationDict);
+            return retArray;
         }
-        
+        if (!registrationDictProvided) Py_DECREF(registrationDict); 
         return self->siffreader->retrieveFrames(framesArray, framesN, registrationDict);
     }
     catch(...) {

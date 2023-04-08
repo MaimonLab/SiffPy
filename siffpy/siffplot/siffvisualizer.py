@@ -43,7 +43,7 @@ class SiffVisualizer():
             'invert_yaxis' : False,
         }
         self.loaded_frames = False
-        self.rois = None
+        self._rois = []
 
         directory_with_file_name = Path(self.siffreader.filename).with_suffix("")
 
@@ -81,6 +81,28 @@ class SiffVisualizer():
         
         return self.frames
     
+    @property
+    def rois(self):
+        """ I regret the decision of making this either a list or a None or an ROI"""
+        if len(self._rois) == 0:
+            return None
+        if len(self._rois) == 1:
+            return self._rois[0]
+        return self._rois
+    
+    @rois.setter
+    def rois(self, value):
+        self._rois = value
+
+    def add_roi(self, roi):
+        """
+        Adds an ROI to the list of ROIs to be displayed.
+        """
+        if self.rois is None:
+            self.rois = [roi]
+        else:
+            self.rois = list(self.rois) + [roi]
+
     ## ROIS
     def save_rois(self, path : str = None):
         """
@@ -94,7 +116,7 @@ class SiffVisualizer():
 
             Where to save the ROIs.
         """
-        if self.rois is None:
+        if len(self.rois) == 0:
             raise NoROIException("SiffVisualizer object has no ROIs stored")
         
         if path is None:
@@ -134,21 +156,3 @@ class SiffVisualizer():
                     self.rois = list(self.rois) + [pickle.load(curr_file)]
                 else:
                     self.rois = [pickle.load(curr_file)]
-    
-    def __getattribute__(self, name: str):
-        """
-        To make it easier to access when there's only one ROI
-        (there's something gross about having to have a bunch of [0]
-        sitting around in your code)
-        """
-        if name == 'rois':
-            try:
-                roi_ref = object.__getattribute__(self, name)
-                if type(roi_ref) is list:
-                    if len(roi_ref) == 1:
-                        return roi_ref[0]
-                return roi_ref
-            except AttributeError:
-                raise NoROIException
-        else:
-            return object.__getattribute__(self, name)

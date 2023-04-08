@@ -28,6 +28,9 @@ class VonMisesCollection():
     #Get from the list of von Mises fits
     def __getitem__(self, key):
         return self.vms.__getitem__(key)
+    
+    def __len__(self)->int:
+        return len(self.vms)
 
     @property
     def means(self)->np.ndarray:
@@ -201,8 +204,8 @@ def cluster_by_correlation(
     print("Masking seeds in time series...")
 
     # Sums each ROI to produce a ROI_seed_count by timepoints array (slow axis is ROI)    
-    seed_roi_timeseries = (
-        input_frames.reshape((input_frames.shape[0], -1)) @ seeds.flatten()
+    seed_roi_timeseries = np.array(
+        [input_frames[:, seed].sum(axis=1) for seed in seeds]
     ).T
 
     print("Estimating seed phases...")

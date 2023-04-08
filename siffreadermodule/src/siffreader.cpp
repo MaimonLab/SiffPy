@@ -381,7 +381,6 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
             siff,
             shift_tuple
         );
-        Py_DECREF(shift_tuple);
     }
 
 

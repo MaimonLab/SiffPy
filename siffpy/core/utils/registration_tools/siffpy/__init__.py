@@ -97,7 +97,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
                         siffio,
                         self.reference_frames[z_idx, ...],
                         z_plane_frames,
-                        *args,
+                        registration_dict=self.yx_shifts,
                         pbar = pbar,
                         **kwargs
                     )

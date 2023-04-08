@@ -1,44 +1,17 @@
 # Code for ROI extraction from the protocerebral bridge after manual input
+
+# Feels like I use too much interfacing with the CorrelationWindow class,
+# which seems like it should do as much as possible without interacting with
+# this stuff...
+
 import numpy as np
-from holoviews import Polygons
-from scipy.special import i0
 
 from siffpy import SiffReader
 from siffpy.siffplot.roi_protocols import rois, ROIProtocol
-from siffpy.siffplot.roi_protocols.utils import (
-    PolygonSource, polygon_to_mask, polygon_to_z
-)
-from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.numpy_implementation import (
-    match_to_von_mises
-)
+from siffpy.siffplot.roi_protocols.utils import PolygonSource
 from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.napari_tools import (
     CorrelationWindow
 )
-
-def correlate_seeds(
-        siffreader : SiffReader,
-        seed_rois : np.ndarray, # masks
-        correlation_window : CorrelationWindow,
-    ):
-    timepoint_bounds = (
-        int(correlation_window.corr_mat_widget.lower_bound_slider.value),
-        int(correlation_window.corr_mat_widget.upper_bound_slider.value),
-    )
-
-    ranged_frames : np.ndarray = siffreader.get_frames(
-        np.arange(*timepoint_bounds),
-        registration_dict = siffreader.registration_dict,
-    )
-
-    #ranged_frames
-
-#    siffreader.sum_roi(
-#
-#    )
-
-#    correlation_window.set_source_correlation(
-#        corr_mat
-#    )
 
 class FitVonMises(ROIProtocol):
 
@@ -52,25 +25,31 @@ class FitVonMises(ROIProtocol):
         "extraction initiated" event to the correlation
         window's done button.
         """
-        corr_window = CorrelationWindow()
+        viewer = extraction_initiated_event.source.napari_interface
+        corr_window = CorrelationWindow(viewer)
         corr_window.done_button.clicked.connect(
             lambda *args: extraction_initiated_event()
         )
-        sr : SiffReader = extraction_initiated_event.source.napari_interface.siffreader
-        corr_window.corr_mat_widget.upper_bound_slider.max = sr.im_params.num_timepoints
+        sr : SiffReader = viewer.siffreader
+        corr_window.provide_roi_shapes_layer(
+            viewer.drawn_rois_layer,
+            sr.im_params.single_channel_volume,
+        )
+        corr_window.link_siffreader(sr)
+        self.corr_window = corr_window
         
-        corr_window.corr_mat_widget.provide_roi_shapes_layer(
-            extraction_initiated_event.source.napari_interface.roi_shapes_layer
-        )
-        corr_window.corr_mat_widget.set_correlation_button_callback(
-            lambda *args: correlate_seeds(sr, corr_window.corr_mat_widget.correlation_rois, corr_window)
-        )
-
-
-
     def extract(
             self,
             reference_frames : np.ndarray,
             polygon_source : PolygonSource,
     )->rois.GlobularMustache:
-        raise NotImplementedError("Sorry bub!")
+        """
+        Returns a GlobularMustache ROI made up of the individual
+        masks extracted by correlating every pixel to the source ROIs
+        """
+        if not hasattr(self, 'corr_window'):
+            raise RuntimeError("Correlation window not initialized -- run protocol first!")
+        
+        return rois.GlobularMustache(
+            globular_glomeruli_masks = self.corr_window.seed_manager.get_masks()
+        )

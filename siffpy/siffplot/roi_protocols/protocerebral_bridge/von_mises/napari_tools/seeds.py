@@ -151,16 +151,17 @@ class SeedManager():
             self.seeds.remove(item)
         elif isinstance(item, np.ndarray):
             for seed in self.seeds:
-                if np.array_equal(seed.px, item):
+                if np.array_equal(seed.px.astype(int), item):
                     self.seeds.remove(seed)
-                    return
         elif hasattr(seed, '__iter__'):
             asarray = np.array(item, dtype=int)
             for seed in self.seeds:
-                if np.array_equal(seed.px, asarray):
+                if np.array_equal(seed.px.astype(int), asarray):
                     self.seeds.remove(seed)
-                    return
-        raise KeyError(f'No seed found at {item}')
+        else:
+            raise KeyError(f'No seed found at {item}')
+
+        seed.events.changed.connect(self.on_seed_change)
     
     def __iter__(self):
         return iter([seed.px for seed in self.seeds])
@@ -178,16 +179,15 @@ class SeedManager():
         if isinstance(item, int):
             return self.seeds[item]
         elif isinstance(item, np.ndarray):
-            seed_px = item.astype(int)
             for seed in self.seeds:
-                if np.array_equal(seed.px,seed_px):
+                if np.array_equal(seed.px.astype(int),item.astype(int)):
                     return seed
-            raise KeyError(f'No seed found at {seed_px}')
+            raise KeyError(f'No seed found at {item}')
         elif hasattr(item, '__iter__'):
             try:
                 asarray = np.array(item, dtype=int)
                 for seed in self.seeds:
-                    if np.array_equal(seed.px, asarray):
+                    if np.array_equal(seed.px.astype(int), asarray):
                         return seed
                 raise KeyError(f'No seed found at {asarray}')
             except:
@@ -203,10 +203,13 @@ class SeedManager():
         elif hasattr(item, '__iter__'):
             try:
                 asarray = np.array(item, dtype = int)
-                return any(np.array_equal(seed.px,asarray) for seed in self.seeds)
+                return any(np.array_equal(seed.px.astype(int), asarray) for seed in self.seeds)
             except:
                 raise TypeError(f'Could not cast item {item} to a numpy array')
         return False
+    
+    def get_masks(self)->list[np.ndarray]:
+        return [seed.mask for seed in self.seeds]
     
     @property
     def mask(self):
@@ -223,3 +226,4 @@ class SeedManager():
             [seed.mask for seed in self.seeds if seed.selected],
             np.zeros_like(self.source_image.squeeze(), dtype=float),
         )
+    

@@ -1,7 +1,9 @@
 import numpy as np
 from magicgui import widgets
 import napari
+from napari.layers import Shapes
 
+from siffpy import SiffReader
 from siffpy.siffplot.roi_protocols.protocerebral_bridge.von_mises.napari_tools.correlation_matrix_widget import (
     CorrelationMatrices
 )
@@ -37,6 +39,7 @@ class CorrelationWindow():
     outside of the `CorrelationWindow` class.
     """
     def __init__(self, source_image : np.ndarray = None):
+        
         self.viewer = napari.Viewer(
             title = "Von Mises Correlation Analysis"
         )
@@ -90,6 +93,12 @@ class CorrelationWindow():
             self.update_masks
         )
 
+        self.corr_mat_widget.events.source_image_produced.connect(
+            lambda x: self.set_source_image(x.source.fft_image)
+        )
+
+        self.last_selected_points = set()
+
     def set_source_image(
             self,
             source_image : np.ndarray,
@@ -101,7 +110,9 @@ class CorrelationWindow():
         """
         source_image = source_image.squeeze()
         if source_image.ndim != 3:
-            raise ValueError("Source image must have only 3 non-singleton dimensions.")
+            raise ValueError(
+                f"Source image must have exactly 3 non-singleton dimensions. Tried to pass {source_image.ndim}"
+            )
 
         if 'Seed correlation map' in self.viewer.layers:
             self.viewer.layers['Seed correlation map'].data = fft_to_rgba(source_image, cmap)
@@ -151,6 +162,13 @@ class CorrelationWindow():
                 'on_seed_pixel_change'
             )
 
+            self.viewer.layers['Seed points'].events.highlight.connect(
+                self.on_selected_seed,
+                'on_selected_seed',
+            )
+
+            self.selected_data = set()
+
         self.seed_manager.set_source_image(source_image)
 
     def on_seed_pixel_change(self, event):
@@ -171,9 +189,34 @@ class CorrelationWindow():
             if not (seed in event.source.data):
                 self.seed_manager.remove_seed(seed)
 
+        self.seed_manager.events.changed() 
+        
+    def on_selected_seed(self, event):
+        if self.last_selected_points == event.source.selected_data:
+            return
+        
+        for pt_idx in event.source.selected_data:
+            pt_loc = event.source.data[pt_idx]
+            if pt_loc in self.seed_manager:
+                self.seed_manager[pt_loc].on_px_select()
+        
+        for pt_idx in range(len(event.source.data)):
+            if not pt_idx in event.source.selected_data:
+                pt_loc = event.source.data[pt_idx]
+                if pt_loc in self.seed_manager:
+                    self.seed_manager[pt_loc].on_px_deselect()
+
+        self.last_selected_points = event.source.selected_data
+
+    def link_siffreader(self, siffreader : SiffReader):
+        self.corr_mat_widget.link_siffreader(siffreader)
+
     def update_masks(self, event):
         self.viewer.layers['Seed masks'].data = self.seed_manager.mask
+        self.viewer.layers['Seed masks (selected)'].data = self.seed_manager.selected_mask
 
     def set_source_correlation(self, source_corr : np.ndarray):
         self.corr_mat_widget.update_source(source_corr)
 
+    def provide_roi_shapes_layer(self, shapes_layer : Shapes, image_shape : tuple,):
+        self.corr_mat_widget.provide_roi_shapes_layer(shapes_layer, image_shape)

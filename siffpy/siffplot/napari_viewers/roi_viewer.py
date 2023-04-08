@@ -10,11 +10,6 @@ from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
 from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
 from siffpy.siffplot.napari_viewers.widgets import SegmentationWidget
 
-CINNABAR = '#db544b'
-DRAWN_SHAPE_LAYER_NAME = "ROI shapes"
-SUBROI_LAYER_NAME = "Segmented ROIs"
-ANATOMY_SHAPE_LAYER_NAME = "Anatomy references"
-
 class ROIViewer(NapariInterface):
     """
     Access to a napari Viewer object specialized for annotating ROIs.
@@ -29,6 +24,11 @@ class ROIViewer(NapariInterface):
     -- Allow selecting ROIs from the side panel and deleting them
     (or highlighting them)
     """
+
+    DRAWN_SHAPE_LAYER_NAME = "ROI shapes"
+    CINNABAR = '#db544b'
+    SUBROI_LAYER_NAME = "Segmented ROIs"
+    ANATOMY_SHAPE_LAYER_NAME = "Anatomy references"
 
     def __init__(self, siffreader : SiffReader, *args, segmentation_fcn = None, edge_color = CINNABAR, **kwargs):
         """
@@ -91,7 +91,7 @@ class ROIViewer(NapariInterface):
 
         self.viewer.add_shapes(
             face_color="transparent",
-            name=DRAWN_SHAPE_LAYER_NAME,
+            name=self.__class__.DRAWN_SHAPE_LAYER_NAME,
             ndim=3,
             edge_color=edge_color,
             scale = self.scale
@@ -101,7 +101,7 @@ class ROIViewer(NapariInterface):
 
         self.viewer.add_shapes(
             face_color = "transparent",
-            name = SUBROI_LAYER_NAME,
+            name = self.__class__.SUBROI_LAYER_NAME,
             ndim = 3,
             edge_color = "#FFFFFF",
             scale = self.scale,
@@ -111,7 +111,7 @@ class ROIViewer(NapariInterface):
 
         self.viewer.add_shapes(
             face_color = "transparent",
-            name=ANATOMY_SHAPE_LAYER_NAME,
+            name=self.__class__.ANATOMY_SHAPE_LAYER_NAME,
             ndim = 3,
             edge_color = "#FFFFFF",
             scale = self.scale
@@ -128,7 +128,8 @@ class ROIViewer(NapariInterface):
         if protocol.uses_polygon_source:
             args.append(self.polygon_source)
         try:
-            self.visualizer.rois.append(protocol.extract(*args, **source.extraction_kwargs))
+            ret_roi = protocol.extract(*args, **source.extraction_kwargs)
+            self.visualizer.add_roi(ret_roi)
         except Exception as e:
             self.warning_window(f"Error in segmentation function: {e}", exception = e)
             return
@@ -136,16 +137,13 @@ class ROIViewer(NapariInterface):
         self.roi_widget.update_roi_list(self.visualizer.rois)
 
     @property
+    def drawn_rois_layer(self):
+        return self.viewer.layers[self.__class__.DRAWN_SHAPE_LAYER_NAME]
+
+    @property
     def segmented_rois_layer(self):
         """ May not exist for all viewers or even may be deleted for some reason. """
-        roi_object_layer = next(
-            filter(
-                    lambda x: x.name == SUBROI_LAYER_NAME,
-                    self.viewer.layers
-                ),
-            None
-        )
-        return roi_object_layer
+        return self.viewer.layers[self.__class__.SUBROI_LAYER_NAME]
     
     @property
     def polygon_source(self) -> PolygonSourceNapari:

@@ -93,14 +93,15 @@ class RosettePetal():
         self.events.changed()
 
     def px_selected(self):
+        """ Handles when the source pixel (from the FFT) is selected """
         self.clickable_points.set_picker(True)
         for line in self.curve_line:
             line.set(alpha=1.0)
         self.clickable_points.set_alpha(1.0)
         self.canvas.draw()
-        #raise NotImplementedError()
     
     def px_deselected(self):
+        """ Handles when the source pixel (from the FFT) is deselected"""
         self.clickable_points.set_picker(False)
         for line in self.curve_line:
             line.set(alpha=0.3)
@@ -108,6 +109,7 @@ class RosettePetal():
         self.canvas.draw()
 
     def on_pick(self, event):
+        """ Handles when the flower petal is selected! """
         if event.artist != self.clickable_points: return
         if not self.clickable_points.get_picker(): return
         if hasattr(event.ind, '__len__'):
@@ -122,6 +124,7 @@ class RosettePetal():
         self.canvas.draw()
 
     def on_motion(self, event):
+        """ During dragging of petal points """
         if self.clicked_pt_idx is None: return
         if event.inaxes != self.ax: return
 

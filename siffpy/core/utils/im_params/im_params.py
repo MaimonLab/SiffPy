@@ -266,16 +266,22 @@ class ImParams():
 
     @property
     def shape(self)->tuple[int]:
+        """ Shape of one frame: (n ysize, xsize)"""
         return (self.ysize, self.xsize)
 
     @property
     def volume(self)->tuple[int]:
+        """ Shape of one full volume: (num_slices, num_colors, ysize, xsize)"""
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
             ret_list += [self.frames_per_slice]
         ret_list += [self.num_colors, self.ysize, self.xsize]
         return tuple(ret_list)
     
+    @property
+    def single_channel_volume(self)->tuple[int]:
+        """ Return the shape of one volume of one color channel (num_slices, ysize, xsize) """
+        return (self.num_slices, *self.shape)
     @property
     def stack(self)->tuple[int]:
         ret_list = [self.num_true_frames // (self.frames_per_volume), self.num_slices]

@@ -38,7 +38,7 @@ class ROIsContainer(widgets.Select):
     def update_roi_list(self, roi_list : list[ROI]):
         self.roi_dict = {
             roi_to_label(roi) : roi for roi in roi_list
-        }
+        } if roi_list else {}
         self.choices = list(self.roi_dict.keys())
 
     @property

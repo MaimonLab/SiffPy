@@ -1,4 +1,6 @@
 from typing import Any
+from functools import reduce
+
 import holoviews as hv
 import numpy as np
 
@@ -15,15 +17,22 @@ class GlobularMustache(ROI):
         image: np.ndarray = None,
         name: str = None,
         slice_idx: int = None,
-        globular_glomeruli: list[hv.element.path.Polygons] = None,
+        globular_glomeruli_masks: list[np.ndarray] = None,
     ):
         super().__init__(polygon, image, name, slice_idx)
         self.glomeruli = [
             GlobularMustache.GlomerulusROI(
-                polygon=glom, image=image, name=name, slice_idx=slice_idx
-            ) for glom in globular_glomeruli
+                polygon=polygon,
+                image=image,
+                name=name,
+                slice_idx=slice_idx,
+                mask = glom,
+            ) for glom in globular_glomeruli_masks
         ]
     
+    def mask(self, image : np.ndarray = None)->np.ndarray:
+        return reduce(np.logical_or, [glom.mask(image) for glom in self.glomeruli])
+
     def segment(self) -> None:
         """
         Does nothing : this class is initialized with the glomeruli!
@@ -45,9 +54,17 @@ class GlobularMustache(ROI):
             name: str = None,
             slice_idx: int = None,
             pseudophase : float = None,
+            mask : np.ndarray = None,
         ):
             super().__init__(polygon, image, name, slice_idx)
+            self._mask = mask
             self.pseudophase = pseudophase
+
+        def mask(self, image : np.ndarray = None)->np.ndarray:
+            if self._mask is not None:
+                return self._mask
+            else:
+                return super().mask(image)
 
 
 class Mustache(ROI):
