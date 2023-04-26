@@ -69,7 +69,11 @@ def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> lis
         return vector_to_list(matrix, ret_type)
     
 def header_data_to_nvfd(hd):
-    return {entry.split(" = ")[0] : (entry.split(" = ")[1] if (len(entry.split(" = "))>1) else None) for entry in hd["Non-varying frame data"].split("\n")}
+    return {
+        entry.split(" = ")[0] : (entry.split(" = ")[1]
+        if (len(entry.split(" = "))>1) else None) 
+        for entry in hd["Non-varying frame data"].split("\n")
+    }
 
 def header_data_to_roi_string(hd : str) -> dict:
     """ Iterate through the many layers of the ROI strings to return the appropriate dict """

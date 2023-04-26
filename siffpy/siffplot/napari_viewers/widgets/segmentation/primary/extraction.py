@@ -4,8 +4,8 @@ from enum import Enum
 import magicgui.widgets as widgets
 from napari.utils.events import Event, EventEmitter, EmitterGroup
 
-from siffpy.siffplot.roi_protocols import REGIONS
-from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
+from siffpy.siffroi.roi_protocols import REGIONS
+from siffpy.siffroi.roi_protocols.roi_protocol import ROIProtocol
 
 class ExtractionParamsContainer(widgets.Container):
     """

@@ -3,7 +3,9 @@ from typing import Union, Callable
 import numpy as np
 
 from siffpy.core import SiffReader, FLIMParams
-from siffpy.siffplot.roi_protocols.rois import ROI, subROI
+from siffpy.siffroi.roi_protocols.rois import ROI, subROI
+from siffpy.siffplot.roi_protocols.rois import ROI as plotROI
+from siffpy.siffplot.roi_protocols.rois import subROI as plotSubROI
 from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffplot.utils.exceptions import NoROIException
 
@@ -24,7 +26,7 @@ def compute_roi_timeseries(siffreader : SiffReader, roi : Union[ROI, list[ROI]],
 
         Params 
 
-    roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
+    roi : siffpy.siffroi.roi_protocols.rois.roi.ROI
 
         Any ROI subclass or list of ROIs
 
@@ -47,7 +49,7 @@ def compute_roi_timeseries(siffreader : SiffReader, roi : Union[ROI, list[ROI]],
         registration_dict = siffreader.registration_dict
  
     if isinstance(roi, (list, tuple)):
-        if not all( isinstance(x, ROI) for x in roi ):
+        if not all( isinstance(x, (ROI, plotROI)) for x in roi ):
             raise TypeError("Not all objects provided in list are of type `ROI`.")
         roi_trace = np.sum(
             FlimTrace([
@@ -61,7 +63,7 @@ def compute_roi_timeseries(siffreader : SiffReader, roi : Union[ROI, list[ROI]],
             ]),
             axis=0
         )
-    elif isinstance(roi, ROI):
+    elif isinstance(roi, (ROI, plotROI)):
         roi_trace = siffreader.sum_roi_flim(
             flim_params,
             roi,
@@ -88,7 +90,7 @@ def compute_vector_timeseries(siffreader : SiffReader,
 
     flim_params : siffpy.core.FLIMParams
 
-    roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
+    roi : siffpy.siffroi.roi_protocols.rois.roi.ROI
 
         Any ROI subclass that has a 'subROIs' attribute.
 
@@ -108,7 +110,7 @@ def compute_vector_timeseries(siffreader : SiffReader,
     """
     if not hasattr(roi, 'subROIs'):
         raise NoROIException(f"Provided roi {roi} of type {type(roi)} does not have attribute 'subROIs'.")
-    if not all(map(lambda x: isinstance(x, subROI), roi.subROIs)):
+    if not all(map(lambda x: isinstance(x, (subROI, plotSubROI)), roi.subROIs)):
         raise NoROIException("Supposed subROIs (segments, columns, etc.) are not actually of type subROI. Presumed error in implementation.")
 
     return FlimTrace(

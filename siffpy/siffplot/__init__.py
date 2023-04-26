@@ -1,5 +1,8 @@
 import logging
 import os
+import pickle
+from pathlib import Path
+from typing import Union
 
 import holoviews as hv
 from holoviews import opts
@@ -23,7 +26,23 @@ from siffpy.siffplot.siffplotter import SiffPlotter
 from siffpy.siffplot.siffvisualizer import SiffVisualizer
 from siffpy.siffplot.plotters import *
 from siffpy.siffplot.visualizers import *
-from siffpy.siffplot.roi_protocols import ROI_extraction_methods, ROI
+from siffpy.siffroi.roi_protocols import ROI_extraction_methods, ROI
+
+def load_rois(path : Union[str,Path])->list[ROI]:
+        """
+        Loads rois stored at location 'path'
+        """
+
+        path = Path(path).with_suffix("")
+
+        roi_files = path.glob('**/*.roi')
+        
+        returned_rois = []
+        for roi in roi_files:
+            with open(roi, 'rb') as curr_file:
+                returned_rois.append(pickle.load(curr_file))
+
+        return returned_rois
 
 def initialize_holoviews(backend : str = 'bokeh', stylesheet : str = None)->None:
     """

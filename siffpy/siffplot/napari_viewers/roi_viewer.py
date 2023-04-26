@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 import numpy as np
 from napari.utils.events import Event, EventEmitter, EmitterGroup
@@ -6,9 +6,12 @@ from napari.utils.events import Event, EventEmitter, EmitterGroup
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
 from siffpy.core import SiffReader
 from siffpy.siffplot.utils.exceptions import NoROIException
-from siffpy.siffplot.roi_protocols.roi_protocol import ROIProtocol
-from siffpy.siffplot.roi_protocols.utils.napari_fcns import PolygonSourceNapari
+from siffpy.siffroi.roi_protocols.roi_protocol import ROIProtocol
+from siffpy.siffroi.roi_protocols.utils.napari_fcns import PolygonSourceNapari
 from siffpy.siffplot.napari_viewers.widgets import SegmentationWidget
+if TYPE_CHECKING:
+    from siffpy.siffroi.roi_protocols.roi_protocol import ROI
+    from napari.layers import Shapes
 
 class ROIViewer(NapariInterface):
     """
@@ -75,7 +78,9 @@ class ROIViewer(NapariInterface):
         
         self.viewer.window.add_dock_widget(roi_widget, name='ROI segmentation tools')
         roi_widget.update_roi_list(self.visualizer.rois)
-
+        roi_widget.events.segmented.connect(
+            self.segmentation_callback
+        )
     
     def initialize_layers(self, edge_color = CINNABAR):
         """ Initializes the napari viewer layer for drawing ROIs """
@@ -131,17 +136,29 @@ class ROIViewer(NapariInterface):
             ret_roi = protocol.extract(*args, **source.extraction_kwargs)
             self.visualizer.add_roi(ret_roi)
         except Exception as e:
-            self.warning_window(f"Error in segmentation function: {e}", exception = e)
+            self.warning_window(f"Error in ROI extraction function function: {e}", exception = e)
             return
 
         self.roi_widget.update_roi_list(self.visualizer.rois)
 
+    def segmentation_callback(self, event):
+        """ Segments the selected ROI(s) """
+        print("Segmenting!")
+        rois : list['ROI'] = event.source.selected_rois
+        if not all(type(roi) == type(rois[0]) for roi in rois):
+            raise RuntimeError("Cannot segment ROIs of different types")
+        for roi in rois:
+            roi.segment(**self.roi_widget.segmentation_params)
+
+        self.roi_widget.update_roi_list(self.visualizer.rois)
+
+
     @property
-    def drawn_rois_layer(self):
+    def drawn_rois_layer(self)->'Shapes':
         return self.viewer.layers[self.__class__.DRAWN_SHAPE_LAYER_NAME]
 
     @property
-    def segmented_rois_layer(self):
+    def segmented_rois_layer(self)->'Shapes':
         """ May not exist for all viewers or even may be deleted for some reason. """
         return self.viewer.layers[self.__class__.SUBROI_LAYER_NAME]
     

@@ -16,7 +16,7 @@ from typing import Dict
 import holoviews as hv
 from holoviews.core.io import Pickler, Unpickler
 
-from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffroi.roi_protocols import rois
 from siffpy.siffplot.utils import *
 from siffpy.siffplot.utils.exceptions import NoROIException
 
@@ -62,7 +62,7 @@ class SiffPlotter(ABC):
         Local opts that are applied specifically to plots coming from
         this SiffPlotter
 
-    rois : list[siffplot.roi_protocols.rois.ROI]
+    rois : list[siffroi.roi_protocols.rois.ROI]
 
         A list of the rois annotated, extracted, stored, and/or loaded by this SiffPlotter.
         To learn more about these, look at the documentation for the ROI class (and its subclasses).
@@ -102,7 +102,6 @@ class SiffPlotter(ABC):
 
         """
         self.siffreader : SiffReader = siffreader
-        self.reference_frames = None
 
         self._local_opts = {}
 
@@ -125,9 +124,6 @@ class SiffPlotter(ABC):
         self.events = []
         self.data = None
 
-        if self.siffreader.opened:
-            self.reference_frames : hv.HoloMap = self.reference_frames_to_holomap()
-
         directory_with_file_name = os.path.join(
             os.path.dirname(self.siffreader.filename),
             os.path.splitext(self.siffreader.filename)[0]
@@ -137,6 +133,10 @@ class SiffPlotter(ABC):
             if any([file.endswith('.roi') for file in os.listdir(directory_with_file_name)]):
                 logging.warning("Found .roi file(s) in directory with open file.\nLoading ROI(s)")
                 self.load_rois(path = directory_with_file_name)
+
+    @property
+    def reference_frames(self)->np.ndarray:
+        return self.siffreader.reference_frames
 
     # Back-compatible with when it was called local_opts
     @property
@@ -164,42 +164,6 @@ class SiffPlotter(ABC):
         Visualize the associated phenomena of this SiffPlotter. Must be implemented by subclasses.
         """
         raise NotImplementedError()
-
-    @apply_opts
-    def reference_frames_to_holomap(self)->hv.HoloMap:
-        """
-        If the current siffreader has an opened file,
-        looks to see if there are stored reference frames,
-        and if so returns a HoloViews HoloMap that allows
-        viewing each of them
-        """
-        if not hasattr(self.siffreader, 'reference_frames'):
-            logging.warning("No reference frames stored in siffreader")
-            return None
-        if self.siffreader.reference_frames is None:
-            logging.warning("No reference frames stored in siffreader")
-            return None
-        
-        self.ref_ds = hv.Dataset(
-            (
-                range(self.siffreader.im_params.xsize),
-                range(self.siffreader.im_params.ysize), 
-                range(self.siffreader.im_params.num_slices),
-                self.siffreader.reference_frames
-            ),
-            ['x','y','z'], 'Intensity'
-        )
-
-        ref_holomap = self.ref_ds.to(hv.Image, ['x','y'], 'Intensity', groupby=['z'])
-        # hard limits
-        if hasattr(self,'_local_opts'): # avoids initialization issues.
-            ref_holomap = ref_holomap.opts(
-                xlim = (0, self.siffreader.im_params.xsize),
-                ylim = (0, self.siffreader.im_params.ysize)
-            )
-            if not self._local_opts is None:
-                ref_holomap = ref_holomap.opts(*self._local_opts)
-        return ref_holomap
 
     def render_plot(self, plot : hv.element.Element, **kwargs):
         """

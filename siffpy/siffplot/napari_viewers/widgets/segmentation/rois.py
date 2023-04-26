@@ -4,7 +4,7 @@ from napari.utils.events import Event, EventEmitter, EmitterGroup
 
 from siffpy.siffplot.napari_viewers.napari_interface import NapariInterface
 from siffpy.siffplot.utils.exceptions import NoROIException
-from siffpy.siffplot.roi_protocols import ROI
+from siffpy.siffroi.roi_protocols import ROI
 
 def roi_to_label(roi : ROI):
     try:

@@ -73,7 +73,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
         )
 
         self.reference_frames = np.zeros(
-            self.im_params.volume
+            self.im_params.single_channel_volume,
         ).squeeze()
 
         pbar = None

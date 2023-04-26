@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, TYPE_CHECKING
 import itertools
 import logging
 import warnings
@@ -16,6 +16,10 @@ from siffpy.core.utils.registration_tools import (
 )
 from siffpy.core.utils.typecheck import *
 from siffpy.siffmath.flim import FlimTrace
+
+if TYPE_CHECKING:
+    from siffpy.siffroi.roi_protocols.rois import ROI
+
 
 # TODO:
 # __repr__
@@ -286,6 +290,9 @@ class SiffReader(object):
 
             Each frame requested returned as a numpy array (either 2d or 3d).
         """
+        if registration_dict is None:
+            registration_dict = self.registration_dict
+
         if frames is None:
             frames = list(range(self.im_params.num_frames))
         if registration_dict is None:
@@ -341,6 +348,8 @@ class SiffReader(object):
 
             Summed photon counts as an array of shape (n_timepoints, mask.shape[0])
         """
+        if registration_dict is None:
+            registration_dict = self.registration_dict
 
         if timepoint_end is None:
             timepoint_end = self.im_params.num_timepoints
@@ -365,7 +374,7 @@ class SiffReader(object):
         # more than one slice, sum across slices
         return np.sum(summed_data.reshape((len(z_list),-1)),axis=0)
             
-    def sum_roi(self, roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
+    def sum_roi(self, roi : 'ROI',
         timepoint_start : int = 0, timepoint_end : int = None,
         color_list : list[int] = None, registration_dict : dict = None,
         )->Union[np.ndarray,list[np.ndarray]]:
@@ -386,6 +395,9 @@ class SiffReader(object):
         If color_list is None, returns all color channels as if a list were provided.
         If there's only one color, will return as a numpy array no matter what.
         """
+        if registration_dict is None:
+            registration_dict = self.registration_dict
+
         if color_list is None:
             color_list = self.im_params.color_list
 
@@ -407,8 +419,7 @@ class SiffReader(object):
             frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
-                print(len(frames))
-                frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
+                frames = [individual_frame for slicewise in frames for individual_frame in slicewise[timepoint_start:timepoint_end]]
             else:
                 frames = frames[timepoint_start:timepoint_end]
             
@@ -555,6 +566,9 @@ class SiffReader(object):
             np.ndarray returns not yet implemented
 
         """
+
+        if registration_dict is None:
+            registration_dict = self.registration_dict
 
         ##### pre=processing
         if not self.opened:
@@ -765,13 +779,13 @@ class SiffReader(object):
         if registration_dict is None:
             list_of_arrays = self.siffio.flim_map(
                 params,
-                frames = frames, 
+                framelist = frames, 
                 confidence_metric=confidence_metric
             )
         else:
             list_of_arrays = self.siffio.flim_map(
                 params,
-                frames = frames,
+                framelist = frames,
                 registration = registration_dict,
                 confidence_metric=confidence_metric
             )
@@ -785,7 +799,7 @@ class SiffReader(object):
 
     def sum_roi_flim(self,
             params : Union[FLIMParams, list[FLIMParams]],
-            roi : 'siffpy.siffplot.roi_protocols.rois.ROI',
+            roi : 'ROI',
             timepoint_start : int = 0,
             timepoint_end : int = None,
             color_list : list[int] = None,
@@ -812,7 +826,7 @@ class SiffReader(object):
             of ints corresponding to the * 1-indexed * color channel numbers for
             each FLIMParams, unless there is only one color channel in the data.
 
-        roi : siffpy.siffplot.roi_protocols.rois.ROI
+        roi : siffpy.siffroi.roi_protocols.rois.ROI
 
             An ROI subclass that defines the boundaries of the region being considered.
 
@@ -890,7 +904,7 @@ class SiffReader(object):
             frames = self.im_params.framelist_by_slice(color_channel = color, slice_idx = slice_idx)
             if slice_idx is None: # flattens the list to extract values, then later will compress
             # along slices
-                frames = [individual_frame[timepoint_start:timepoint_end] for slicewise in frames for individual_frame in slicewise]
+                frames = [individual_frame for slicewise in frames for individual_frame in slicewise[timepoint_start:timepoint_end]]
             else:
                 frames = frames[timepoint_start:timepoint_end]
             try:
@@ -1234,7 +1248,9 @@ class SiffReader(object):
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 
-        registration_info : RegistrationInfo = to_reg_info_class(registration_method)(
+        registration_info : RegistrationInfo = to_reg_info_class(
+            registration_method
+        )(
             self.siffio,
             self.im_params
         )

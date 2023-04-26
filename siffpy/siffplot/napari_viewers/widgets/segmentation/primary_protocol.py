@@ -3,7 +3,7 @@ import inspect
 from magicgui import widgets
 from napari.utils.events import EventEmitter
 
-from siffpy.siffplot.roi_protocols import REGIONS
+from siffpy.siffroi.roi_protocols import REGIONS
 from siffpy.siffplot.napari_viewers.widgets.segmentation.primary import (
     AnatomicalRegionBox, ExtractionMethodBox, ExtractionParamsContainer
 )

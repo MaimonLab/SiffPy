@@ -12,7 +12,7 @@ import logging, pickle, os
 from pathlib import Path
 
 from siffpy.core import SiffReader
-from siffpy.siffplot.roi_protocols import rois
+from siffpy.siffroi.roi_protocols import rois
 from siffpy.siffplot.utils.exceptions import *
 from siffpy.siffplot.napari_viewers import FrameViewer
 

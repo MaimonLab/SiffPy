@@ -219,7 +219,6 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
         pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size, mode='wrap')
 
     offset = np.argmax(pcorr) # the index at which the inverse FFT of the product is maximum
-
     (dy,dx) = np.unravel_index(offset, ref.shape)
 
     (dy,dx) = (int(dy), int(dx))

@@ -1,6 +1,6 @@
 from siffpy.siffplot.siffvisualizer import SiffVisualizer
 from siffpy.siffplot.napari_viewers import ROIViewer
-from siffpy.siffplot import roi_protocols
+from siffpy.siffroi import roi_protocols
 
 from siffpy.core import SiffReader
 

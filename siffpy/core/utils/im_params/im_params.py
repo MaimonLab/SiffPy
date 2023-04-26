@@ -2,7 +2,7 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union
+from typing import Any, Union, TYPE_CHECKING
 from functools import wraps
 
 import numpy as np

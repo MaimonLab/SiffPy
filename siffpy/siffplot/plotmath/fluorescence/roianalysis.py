@@ -6,14 +6,18 @@ import numpy as np
 
 from siffpy.core import SiffReader
 from siffpy.siffplot.utils.exceptions import NoROIException
-from siffpy.siffplot.roi_protocols.rois import ROI, subROI
+from siffpy.siffroi.roi_protocols.rois import ROI, subROI
+from siffpy.siffplot.roi_protocols.rois import ROI as plotROI
+from siffpy.siffplot.roi_protocols.rois import subROI as plotSubROI
 from siffpy.siffmath import fluorescence, fluorescence_fcns
 
-def compute_roi_timeseries(siffreader : SiffReader, 
-    roi : Union[ROI, list[ROI]], *args,
-    fluorescence_method : Union[str, Callable] = None,
-    color_list : Union[list[int], int]= None,
-    **kwargs) -> np.ndarray:
+def compute_roi_timeseries(
+        siffreader : SiffReader, 
+        roi : Union[ROI, list[ROI]], *args,
+        fluorescence_method : Union[str, Callable] = None,
+        color_list : Union[list[int], int]= None,
+        **kwargs
+    ) -> np.ndarray:
     """
     Takes an ROI object and returns a numpy.ndarray corresponding to fluorescence method supplied applied to
     the ROI. Additional args and kwargs provided are supplied to the fluorescence method itself.
@@ -25,7 +29,7 @@ def compute_roi_timeseries(siffreader : SiffReader,
 
         The file I/O class for .siff files
 
-    roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
+    roi : siffpy.siffroi.roi_protocols.rois.roi.ROI
 
         Any ROI subclass or list of ROIs
 
@@ -67,8 +71,8 @@ def compute_roi_timeseries(siffreader : SiffReader,
         registration_dict = siffreader.registration_dict
 
     if isinstance(roi, (list, tuple)):
-        if not all( isinstance(x, ROI) for x in roi ):
-            raise TypeError("Not all objects provided in list are of type `ROI`.")
+        # if not all( isinstance(x, (ROI, plotROI)) for x in roi ):
+        #     raise TypeError("Not all objects provided in list are of type `ROI`.")
         roi_trace = np.sum(
             [
                 siffreader.sum_roi(
@@ -80,14 +84,14 @@ def compute_roi_timeseries(siffreader : SiffReader,
             ],
             axis=0
         )
-    elif isinstance(roi, ROI):
+    else:
         roi_trace = siffreader.sum_roi(
             roi,
             color_list = color_list,
             registration_dict = registration_dict
         )
-    else:
-        raise TypeError(f"Parameter `roi` must be of type `ROI` or a list of `ROI`s.")
+    # else:
+    #     raise TypeError(f"Parameter `roi` must be of type `ROI` or a list of `ROI`s.")
 
     if fluorescence_method is None:
         fluorescence_method = fluorescence.dFoF         
@@ -104,12 +108,13 @@ def compute_roi_timeseries(siffreader : SiffReader,
 
     return fluorescence_method(roi_trace, *args, **kwargs).flatten()
 
-def compute_vector_timeseries(siffreader : SiffReader, 
-    roi : ROI,
-    *args,
-    fluorescence_method : Union[str,Callable] = None,
-    color_list : Union[list[int],int] = None,
-    **kwargs
+def compute_vector_timeseries(
+        siffreader : SiffReader, 
+        roi : ROI,
+        *args,
+        fluorescence_method : Union[str,Callable] = None,
+        color_list : Union[list[int],int] = None,
+        **kwargs
     )-> np.ndarray:
     """
     Takes an roi ROI with subROIs and uses it to segment the data
@@ -125,7 +130,7 @@ def compute_vector_timeseries(siffreader : SiffReader,
 
         The file I/O class for .siff files
 
-    roi : siffpy.siffplot.roi_protocols.rois.roi.ROI
+    roi : siffpy.siffroi.roi_protocols.rois.roi.ROI
 
         Any ROI subclass that has a 'subROIs' attribute.
 
@@ -161,7 +166,7 @@ def compute_vector_timeseries(siffreader : SiffReader,
     
     if not hasattr(roi, 'subROIs'):
         raise NoROIException(f"Provided roi {roi} of type {type(roi)} does not have attribute 'subROIs'.")
-    if not all(map(lambda x: isinstance(x, subROI), roi.subROIs)):
+    if not all(map(lambda x: isinstance(x, (subROI, plotSubROI)), roi.subROIs)):
         raise NoROIException("Supposed subROIs (segments, columns, etc.) are not actually of type subROI. Presumed error in implementation.")
 
     return np.array(

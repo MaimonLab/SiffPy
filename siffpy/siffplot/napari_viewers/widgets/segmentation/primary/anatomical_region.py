@@ -1,5 +1,5 @@
 import magicgui.widgets as widgets
-from siffpy.siffplot.roi_protocols import Region, REGIONS
+from siffpy.siffroi.roi_protocols import Region, REGIONS
 
 class AnatomicalRegionBox(widgets.ComboBox):
     """

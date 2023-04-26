@@ -12,7 +12,7 @@ from napari.layers import Shapes
 from PyQt5.QtWidgets import QMessageBox
 
 from siffpy.core import SiffReader
-from siffpy.siffplot.roi_protocols.utils.napari_fcns import rois_into_shapes_layer
+from siffpy.siffroi.roi_protocols.utils.napari_fcns import rois_into_shapes_layer
 
 class NapariInterface():
     """

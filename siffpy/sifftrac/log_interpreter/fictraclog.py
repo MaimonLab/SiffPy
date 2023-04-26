@@ -75,7 +75,7 @@ class FictracLog():
             # It's a csv file and parse it as such
             if not suppress_warnings:
                 logging.warning("Converting dataframe coordinates to mm and rotating so that the bar is in the +y direction.")
-            self._dataframe = pd.read_csv(filepath, ',')
+            self._dataframe = pd.read_csv(filepath, sep=',')
             radius = self.ballparams.radius
             self._dataframe['integrated_position_lab_0']*=radius
             self._dataframe['integrated_position_lab_1']*=radius

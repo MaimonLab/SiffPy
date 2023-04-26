@@ -1,7 +1,8 @@
+from typing import Any
 import re
 import logging
 
-def vector_to_list(vector, vec_num : int = 0):
+def vector_to_list(vector, vec_num : int = 0)->list[Any]:
     """
     list = vector_to_list(vector, type=float)
 
@@ -53,18 +54,18 @@ def vector_to_list(vector, vec_num : int = 0):
                 val = int(element)
             except ValueError:
                 val = float(element)
-        ret_arr.append(val)
-        return ret_arr
+            ret_arr.append(val)
     else:
         for element in row_split:
             try:
                 val = int(element)
             except ValueError:
                 val = float(element)
-        ret_arr.append(val)
-        return ret_arr
+            ret_arr.append(val)
+    
+    return ret_arr
 
-def matrix_to_listlist(matrix : str, vec_num : int = 0) -> list[list]:
+def matrix_to_listlist(matrix : str, vec_num : int = 0) -> list[list[Any]]:
     """
     Converts the string representation of a MATLAB matrix into a list of lists
     """

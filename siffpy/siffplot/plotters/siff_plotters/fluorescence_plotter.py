@@ -6,7 +6,8 @@ import holoviews as hv
 from siffpy.siffplot import LATEX
 from siffpy.siffplot.siffplotter import SiffPlotter
 from siffpy.siffplot.plotmath.fluorescence.roianalysis import *
-from siffpy.siffplot.roi_protocols.rois import ROI
+from siffpy.siffroi.roi_protocols.rois import ROI
+from siffpy.siffplot.roi_protocols.rois import ROI as plotROI
 from siffpy.siffplot.utils import apply_opts
 from siffpy.siffplot.utils.exceptions import NoROIException
 from siffpy.siffplot.utils.dims import *
@@ -93,9 +94,6 @@ class FluorescencePlotter(SiffPlotter):
             if hasattr(self, 'rois'):
                 rois = self.rois
         
-        if not isinstance(rois, (ROI, list)):
-            raise TypeError(f"Invalid rois argument. Must be of type `ROI` or a list of `ROI`s")
-
         trace = compute_roi_timeseries(
             self.siffreader,
             rois,
@@ -104,7 +102,7 @@ class FluorescencePlotter(SiffPlotter):
         )
 
         reference_z = None
-        if isinstance(rois, ROI):
+        if isinstance(rois, (ROI, plotROI)):
             reference_z = rois.slice_idx
         if reference_z is None:
             reference_z = 0
@@ -161,10 +159,8 @@ class FluorescencePlotter(SiffPlotter):
         if rois is None:
             rois = self.rois
 
-        if isinstance(rois, ROI):
-            if not hasattr(rois, 'subROIs'):
-                raise NoROIException("Provided ROI does not have subROIs -- try segment() first!")
-            rois : list[ROI] = [rois]
+        if not isinstance(rois, list):
+            rois = [rois]
         for roi in rois:
             if not hasattr(roi, 'subROIs'):
                 rois.remove(roi)

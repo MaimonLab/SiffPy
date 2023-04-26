@@ -1,3 +1,4 @@
+from typing import Any
 import inspect
 from inspect import Parameter
 from enum import Enum
@@ -23,6 +24,11 @@ class SegmentationParamsContainer(widgets.Container):
     def set_roi_class(self, new_roi_class : type):
         self.current_roi_class = new_roi_class
         self.refresh()
+
+    @property
+    def segmentation_params(self)->dict[str, Any]:
+        """ Name and value of all parameters in the container."""
+        return {widget.name: widget.value for widget in self}
 
     def refresh(self):
         """ Repopulates the parameters based on the current ROI class."""
