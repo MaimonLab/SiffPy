@@ -1,1 +1,0 @@
-from .segmentatation_widget import SegmentationWidget
