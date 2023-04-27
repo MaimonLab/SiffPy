@@ -505,7 +505,8 @@ class ImParams():
     def framelist_by_timepoint(
         self,
         color_channel : int,
-        upper_bound : int = None,
+        timepoint_start : int = 0,
+        timepoint_end : int = None,
         slice_idx : int = None)->list[list[int]]:
         """
         If slice_idx is None:
@@ -516,7 +517,7 @@ class ImParams():
 
         color_channel is * 0-indexed *.
         """
-        n_frames = self.num_frames
+        n_frames = self.num_true_frames
         n_slices = self.num_slices
         fps = self.frames_per_slice
         n_colors = self.num_colors
@@ -530,13 +531,16 @@ class ImParams():
         if (color_channel is None) and (n_colors > 1):
             color_channel = self.lowest_color_channel - 1 # MATLAB idx is 1-based
 
-        all_frames : np.ndarray = np.arange( n_frames - (n_frames % frames_per_volume))
-        all_frames = all_frames.reshape(int(n_frames/frames_per_volume), n_slices * fps, n_colors)
+        all_frames : np.ndarray = np.arange(
+            timepoint_start * frames_per_volume,
+            n_frames - (n_frames % frames_per_volume)
+        )
+        all_frames = all_frames.reshape(n_frames//frames_per_volume, n_slices * fps, n_colors)
         if slice_idx is None:
-            if upper_bound is None:
+            if timepoint_end is None:
                 return all_frames[:,:,color_channel].tolist()
             else:
-                return [framenum for framenum in all_frames[:,:,color_channel].tolist() if framenum < upper_bound]
+                return [framenum for framenum in all_frames[:,:,color_channel].tolist() if framenum < timepoint_end]
         else:
             if not (type(slice_idx) is int):
                 slice_idx = int(slice_idx)

@@ -27,32 +27,5 @@ authors = [
 dependencies = [
     "numpy >= 1.15",
     "scipy",
-    "ruamel.yaml",
-    "matplotlib",
     "h5py",
-]
-
-[project.optional-dependencies]
-
-all = [
-    "napari[all]",
-    "holoviews",
-    "bokeh",
-    "dask",
-    "pandas",
-    "polars",
-    #"suite2p",
-]
-
-image = [
-    "napari[all]",
-    "dask",
-    "bokeh",
-    "holoviews",
-    #"suitep2"
-]
-
-trac = [
-    "pandas",
-    "polars",
 ]
