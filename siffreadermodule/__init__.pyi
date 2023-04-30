@@ -42,18 +42,18 @@ class SiffIO():
 
     def pool_frames(
         self,
-        pool_lists : list[list[int]],
-        type : type = list,
+        frames : list[int],
         flim : bool = False,
         registration : dict = None,
-    )->list[np.ndarray]:...
+    )->np.ndarray:...
 
     def flim_map(
         self,
         params : FLIMParams,
-        framelist : list[list[int]],
+        frames : list[int],
         confidence_metric : str = 'chi_sq',
-    )->list[tuple[np.ndarray]]:...
+        registration : dict = None,
+    )->np.ndarray:...
 
     def sum_roi(
         self,

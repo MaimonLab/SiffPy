@@ -464,7 +464,6 @@ class SiffReader(object):
             flim : bool = False,
             registration : dict = None,
             ret_type : type = list,
-            discard_bins : int = None,
             masks : list[np.ndarray] = None 
         ) -> list[np.ndarray]:
         """
@@ -475,33 +474,12 @@ class SiffReader(object):
         if not masks is None:
             # TODO
             raise NotImplementedError("Haven't implemented masks in pool_frames yet")
-        # ordered by time changing slowest, then z, then color, e.g.
-        # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        if discard_bins is None:
-            if registration is None:
-               list_of_arrays = self.siffio.pool_frames(framelist, flim=flim) 
-            else:
-                list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, registration= registration)
+        if registration is None:
+            list_of_arrays = self.siffio.pool_frames(framelist, flim=flim) 
         else:
-            if not isinstance(discard_bins, int):
-                if registration is None:
-                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim)
-                else:
-                    return self.pool_frames(framelist, flim, registration, ret_type)
-            else:
-                if registration is None:
-                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, discard_bins = discard_bins)
-                else:
-                    list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, 
-                        registration = registration, discard_bins = discard_bins 
-                    )
-
-        if ret_type == list:
-            return list_of_arrays
-
-        if ret_type == np.ndarray:
-            ## NOT YET IMPLEMENTED
-            raise Exception("NDARRAY-TYPE RETURN NOT YET IMPLEMENTED.")
+            list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, registration= registration)
+        
+        return list_of_arrays
 
 ### FLIM METHODS
     def get_histogram(self, frames: list[int] = None) -> np.ndarray:
@@ -577,26 +555,29 @@ class SiffReader(object):
      
         if frames is None:
             frames = list(range(self.im_params.num_frames))
-        
+
+        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
         if registration_dict is None:
-            list_of_arrays = self.siffio.flim_map(
+            flim_arrays = self.siffio.flim_map(
                 params,
-                framelist = frames, 
+                frames = frames, 
                 confidence_metric=confidence_metric
             )
         else:
-            list_of_arrays = self.siffio.flim_map(
+            flim_arrays = self.siffio.flim_map(
                 params,
-                framelist = frames,
+                frames = frames,
                 registration = registration_dict,
                 confidence_metric=confidence_metric
             )
 
         return FlimTrace(
-            np.array(list_of_arrays[0]),
-            intensity = np.array(list_of_arrays[1]),
+            np.array(flim_arrays[0]),
+            intensity = np.array(flim_arrays[1]),
+            #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = 'empirical lifetime',
+            units = 'countbins',
         )
 
     def sum_mask_flim(self,

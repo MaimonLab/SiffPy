@@ -102,10 +102,6 @@ static PyObject* siffio_open(SiffIO* self, PyObject* args){
     
     int ret = self->siffreader->openFile(filename);
 
-    //Py_DECREF(self->frameDataList);
-    //self->frameDataList = PyList_New(self->siffreader->numFrames());
-    //self->siffreader->packFrameDataList(self->frameDataList);
-
     if (ret < 0) {
         if (ret == -2) {
             PyErr_WarnEx(
@@ -167,8 +163,8 @@ static PyObject* siffio_num_frames(SiffIO* self){
 
 int check_framelist(PyObject* frameList, uint64_t* framesArray, uint64_t nTotalFrames){
     // Checks that the frame list is valid
-    // and converts it to a C++ array.
-    //
+    // and converts it to a C++ array if the framesArray pointer passed
+    // is not NULL.
 
     uint64_t framesN = PyList_Size(frameList);
     for(Py_ssize_t idx = Py_ssize_t(0); idx < framesN; idx++) {
@@ -190,7 +186,7 @@ int check_framelist(PyObject* frameList, uint64_t* framesArray, uint64_t nTotalF
             );
             return -1;
         }
-        framesArray[idx] = frameNum;
+        if(framesArray != NULL) framesArray[idx] = frameNum;
     }
     return 0;
 };
@@ -377,33 +373,37 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
 
 static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw) {
     // Pools frames together, returns list of pooled frames.
-    static const char* POOL_FRAMES_KEYWORDS[] = {"pool_lists", "type", "flim", "registration", "discard_bins", NULL};
+    static const char* POOL_FRAMES_KEYWORDS[] = {"pool_lists", "flim", "registration", NULL};
 
     PyObject* listOfFramesListed = NULL;
-    PyObject* type = NULL;
     bool flim = false;
     PyObject* registrationDict = NULL;
-    PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!O:pool_frames", 
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O!|$O!pO!:pool_frames", 
         KWARG_CAST(POOL_FRAMES_KEYWORDS),
         &PyList_Type, &listOfFramesListed,
-        &PyType_Type, &type,
         &flim,
-        &PyDict_Type, &registrationDict,
-        &discard_bins
+        &PyDict_Type, &registrationDict
         )
     ) {
         return NULL;
     }
 
+    bool need_to_decref_regdict = false;
     // defaults to 0's
-    if(!registrationDict) registrationDict = PyDict_New();
+    if(!registrationDict) {
+        registrationDict = PyDict_New();
+        need_to_decref_regdict = true;
+    }
     if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
         // TODO: MEMORY LEAK!!! DECREF THIS BAD BOY SOMEWHERE
         registrationDict = PyDict_New();
+        need_to_decref_regdict = true;
     }
+
+    PyErr_SetString(PyExc_NotImplementedError, "Pooling is not yet implemented. Some bug...");
+    return NULL;
 
     // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
     for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
@@ -419,90 +419,18 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
             PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
         }
 
-        // check that elements of this list are ints. If so, pass them along to be used by the siffreader functionality. 
-        for(Py_ssize_t subidx = Py_ssize_t(0); subidx < PyList_Size(item); subidx++) {
-            PyObject* element = PyList_GET_ITEM(item, subidx);
-            if(!PyLong_Check(element)) {
-                PyErr_SetString(PyExc_TypeError, "All elements of sublists in pool_list must be of type int.");
-                return NULL;
-            }
+        check_framelist(item, NULL, self->siffreader->numFrames());
 
-            if (PyLong_AsUnsignedLongLong(element) >= self->siffreader->numFrames()) {
-                PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
-                return NULL;
-            }
-
-            // if this isn't in the registration dict, shift by (0,0)
-            if (!PyDict_Contains(registrationDict, element)) {
-                PyDict_SetItem(registrationDict, element, // steals the reference to the value
-                    PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
-                        PyLong_FromLong(0),
-                        PyLong_FromLong(0)
-                    )
-                );
-            }
-
-            // Now typecheck the registration dict item
-            // If it's not a tuple of PyLongs, replace it
-            // with a tuple of PyLongs made by attemping to cast
-            // the elements to one and replacing the tuple.
-            
-            try {
-                PyObject* shiftTuple = PyDict_GetItem(registrationDict, element);
-                if (!PyTuple_Check(shiftTuple)) {
-                    PyErr_SetString(
-                        PyExc_TypeError,
-                        (
-                            std::string("Registration dictionary element for frame ") + 
-                            std::to_string(PyLong_AsLongLong(element)) +
-                            std::string(" is not a tuple.")
-                        ).c_str()
-                    );
-                    return NULL;
-                }
-                Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
-                for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
-                    PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
-                    if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
-                        PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
-                        if (result == NULL) {
-                            PyErr_SetString(
-                                PyExc_TypeError,
-                                (
-                                    std::string("Registration dictionary element for frame ") + 
-                                    std::to_string(PyLong_AsLongLong(element)) +
-                                    std::string(" cannot be cast to type int.")
-                                ).c_str()
-                            );
-                            return NULL;
-                        }
-                        PyTuple_SetItem(shiftTuple, tupIdx, result);
-                    }
-                }
-            }
-            catch (...) {
-                PyErr_SetString(PyExc_RuntimeError,
-                    (std::string("Failure to access registration dictionary element for frame ") +
-                    std::to_string(PyLong_AsLongLong(element))).c_str()
-                );
-                return NULL;
-            }
-        }
+        // Now typecheck the registration dict item
+        // If it's not a tuple of PyLongs, replace it
+        // with a tuple of PyLongs made by attemping to cast
+        // the elements to one and replacing the tuple.
+        
+        check_registration(registrationDict, item);
     }
-    
+
     try{
-        if (discard_bins) {
-            if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                return self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
-            }
-            else {
-                uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                return self->siffreader->poolFrames(listOfFramesListed, terminalBin, flim, registrationDict);
-            }
-        }
-        else{
-            return self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
-        }
+        return (PyObject*) self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
@@ -523,30 +451,32 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     // Takes in a FLIMParams object and frames desired and returns a lifetime map, an intensity distribution,
     // and a chi-squared value for every pixel.
 
-    static const char* FLIM_MAP_KEYWORDS[] = {"params","frames", "confidence_metric", "registration","sizeSafe", "discard_bins", NULL};
+    static const char* FLIM_MAP_KEYWORDS[] = {"params", "frames", "confidence_metric", "registration", NULL};
 
     PyObject* FLIMParams = NULL;
-    PyObject* listOfFramesListed = NULL;
+    PyObject* listOfFrames = NULL;
     char* conf_measure;
     Py_ssize_t conf_measure_length = Py_ssize_t(0);
     PyObject* registrationDict = NULL;
-    PyObject* discard_bins = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!pO:flim_map", 
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!s#O!:flim_map", 
         KWARG_CAST(FLIM_MAP_KEYWORDS),
         &FLIMParams,
-        &PyList_Type,&listOfFramesListed,
+        &PyList_Type, &listOfFrames,
         &conf_measure, &conf_measure_length,
-        &PyDict_Type, &registrationDict,
-        &discard_bins
+        &PyDict_Type, &registrationDict
         )) {
         return NULL;
     }
 
     if(!conf_measure_length) conf_measure = (char*) "chi_sq";
     // defaults to 0's
-    if(!registrationDict) registrationDict = PyDict_New(); // TODO: DECREF ME!!!!
+    bool need_to_decref_regdict = false;
+    if(!registrationDict) {
+        registrationDict = PyDict_New(); // TODO: DECREF ME!!!!
+        need_to_decref_regdict = true;
+    }
 
     // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
@@ -569,114 +499,24 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
         return NULL;
     }
 
-    if (!listOfFramesListed) { // default behavior, skip type-checking.
-        try{
-            PyErr_SetString(PyExc_RuntimeError, "All frames default is not yet implemented");
-            return NULL;
-            //return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
-        }
-        catch(...) {
-            PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
-            return NULL;
-        }
-    }
-
-    // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
-    for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
-        PyObject* item = PyList_GET_ITEM(listOfFramesListed, idx);
-        if(!PyList_Check(item)) {
-            PyErr_SetString(PyExc_TypeError, "All elements of framelist must be lists themselves");
-            return NULL;
-        }
-        
-        // Have been surprised by encountering int overflow here, 65k photons per pixel requires either massive data
-        // rates or loooots of pooling. I should do smarter checking but this is a short term solution.
-        if (PyList_Size(item) > 10000) {
-            PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
-        }
-
-        // check that elements of this list are ints. If so, pass them along to be used by the siffreader functionality. 
-        for(Py_ssize_t subidx = Py_ssize_t(0); subidx < PyList_Size(item); subidx++) {
-            PyObject* element = PyList_GET_ITEM(item, subidx);
-            if(!PyLong_Check(element)) {
-                PyErr_SetString(PyExc_TypeError, "All elements of sublists in framelist must be of type int.");
-                return NULL;
-            }
-
-            // if this isn't in the registration dict, shift by (0,0)
-            if (!PyDict_Contains(registrationDict, element)) {
-                PyDict_SetItem(registrationDict, element, // steals the reference to the value
-                    PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
-                        PyLong_FromLong(0),
-                        PyLong_FromLong(0)
-                    )
-                );
-            }
-
-            // Now typecheck the registration dict item
-            // If it's not a tuple of PyLongs, replace it
-            // with a tuple of PyLongs made by attemping to cast
-            // the elements to one and replacing the tuple.
-            
-            try {
-                PyObject* shiftTuple = PyDict_GetItem(registrationDict, element);
-                if (!PyTuple_Check(shiftTuple)) {
-                    PyErr_SetString(
-                        PyExc_TypeError,
-                        (
-                            std::string("Registration dictionary element for frame ") + 
-                            std::to_string(PyLong_AsLongLong(element)) +
-                            std::string(" is not a tuple.")
-                        ).c_str()
-                    );
-                    return NULL;
-                }
-                Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
-                for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
-                    PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
-                    if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
-                        PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
-                        if (result == NULL) {
-                            PyErr_SetString(
-                                PyExc_TypeError,
-                                (
-                                    std::string("Registration dictionary element for frame ") + 
-                                    std::to_string(PyLong_AsLongLong(element)) +
-                                    std::string(" cannot be cast to type int.")
-                                ).c_str()
-                            );
-                            return NULL;
-                        }
-                        PyTuple_SetItem(shiftTuple, tupIdx, result);
-                    }
-                }
-            }
-            catch (...) {
-                PyErr_SetString(PyExc_RuntimeError,
-                    (std::string("Failure to access registration dictionary element for frame ") +
-                    std::to_string(PyLong_AsLongLong(element))).c_str()
-                );
-                return NULL;
-            }
-        }
-    }
+    uint64_t frames[PyList_Size(listOfFrames)];
+    check_framelist(listOfFrames, frames, self->siffreader->numFrames());
+    check_registration(registrationDict, listOfFrames);
 
     try{
-        if (discard_bins) {
-            if (!(PyLong_Check(discard_bins) || PyFloat_Check(discard_bins))) {
-                return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
-            }
-            else {
-                uint64_t terminalBin = int(PyLong_AsLongLong(discard_bins));
-                PyErr_SetString(PyExc_NotImplementedError, "Discarding photon counts not yet implemented.");
-                return NULL;
-                //
-                // TODO: IMPLEMENT
-            }
+        
+        if (!self->siffreader->dimensionsConsistent(frames, PyList_Size(listOfFrames))) {
+            PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
+            return NULL;
         }
-        else{
-            return self->siffreader->flimMap(FLIMParams, listOfFramesListed, conf_measure, registrationDict);
-        }
+
+        return self->siffreader->flimTuple(
+            FLIMParams,
+            frames,
+            PyList_Size(listOfFrames),
+            conf_measure,
+            registrationDict
+        );
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
@@ -937,16 +777,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         else {
             uint64_t framesArray[PyList_Size(frames)];
 
-            // Check that they're ints
-            for(Py_ssize_t idx = Py_ssize_t(0); idx< PyList_Size(frames); idx++) {
-                // these references are BORROWED, so we don't have to worry about INCREF or DECREF
-                PyObject* item = PyList_GET_ITEM(frames, idx);
-                if(!PyLong_Check(item)) {
-                    PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
-                    return NULL;
-                }
-                framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
-            }
+            check_framelist(frames, framesArray, self->siffreader->numFrames());
 
             uint64_t framesN = PyList_Size(frames);
             return self->siffreader->getHistogram(framesArray, framesN);

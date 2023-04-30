@@ -136,7 +136,8 @@ frame_meta_lookup_cast ={
     'frameTimestamps_sec' : float,
     'epoch' : float,
     'endOfAcquisition' : bool,
-    'endOfAcquisitionMode' : bool
+    'endOfAcquisitionMode' : bool,
+    'Siff compression' : bool,
 }
 
 def line_to_dict_val(line : str) -> str:

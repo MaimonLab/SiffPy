@@ -19,6 +19,44 @@
 #include <numpy/arrayobject.h>
 #define PY_SSIZE_T_CLEAN
 
+// Appends the error to errstring and rethrows()
+#define REPORT_ERR(x) \
+    catch(std::exception &e) {\
+        errstring = std::string(x) + e.what();\
+        throw e;\
+    }
+
+// Appends the error to errstring, executes y, and rethrows
+#define REPORT_ERR_EXEC(x,y) \
+    catch(std::exception &e) {\
+        y; \
+        errstring = std::string(x) + e.what();\
+        throw e;\
+    }
+
+#define YMASK ((uint64_t) 1 << 63) - ((uint64_t) 1 << 48) + ((uint64_t) 1 << 63) // that last bit'll getcha
+#define XMASK ((uint64_t) 1 << 48) - ((uint64_t) 1 << 32)
+#define TAUMASK (((uint64_t) 1<<32) - 1)
+
+// Get the y value of a siff pixel read (uncompressed)
+#define U64TOY(photon) (uint64_t) ((photon & YMASK) >> 48)
+// Get the x value of a siff pixel read (uncompressed)
+#define U64TOX(photon) (uint64_t) ((photon & XMASK) >> 32)
+// Get the arrival time of a siff pixel read (uncompressed)
+#define U64TOTAU(photon) (uint64_t) (photon & TAUMASK)
+
+// Converts an uncompressed read to a pixel index (y*x_dim + x)
+#define READ_TO_PX(photon, shift_y, shift_x, dim_y, dim_x) \
+    (((U64TOY(photon) + y_shift) % dim_y) * dim_x) \
+    + (U64TOX(photon) +shift_x) % dim_x
+
+// Shifts the pixel location px by shift_y, shift_x in an
+// image of dimensions dim_y, dim_x
+#define PIXEL_SHIFT(px, shift_y, shift_x, dim_y, dim_x) \
+    (((uint64_t)(px / dim_y) + y_shift) % dim_y) * dim_x \
+    + (((px % dim_y) + x_shift) % dim_x)
+
+
 class SiffReader
 {
     private:
@@ -45,33 +83,27 @@ class SiffReader
         // quickly runs through the file to identify all frames and their IFDs, stores them in the SiffParams
         void discernFrames();
         
-        // returns an ndarray object 
-        PyArrayObject* frameAsNumpy(uint64_t IFD, bool flim, PyObject* shift_tuple = NULL);
-        // returns an ndarray object with the terminal bins dropped
-        PyArrayObject* frameAsNumpy(uint64_t IFD, uint64_t terminalBins, bool flim, PyObject* shift_tuple = NULL);
-
         // internal method called in loops to get each frame and point to the next
-        void singleFrameRetrieval(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyObject* shift_tuple = NULL); 
+        void singleFrameAddToList(
+            const uint64_t thisIFD,
+            PyObject* numpyArrayList,
+            const bool flim,
+            PyObject* shift_tuple = NULL
+        ); 
         // internal method called in loops to get each frame and point to the next, MASKED BY AN ROI numpy array
         void singleFrameRetrievalMask(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyArrayObject* mask, PyObject* shift_tuple = NULL);
 
         // internal method to get metadata for one frame
         void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList);
         // add this frame's arrival times to the 1-d array numpyArray
-        void singleFrameHistogram(uint64_t thisIFD, PyArrayObject* numpyArray);
-        
-        // makes a tuple of [lifetime, intensity] from one frame, with lifetime unnormalized
-        PyObject* makeFlimTuple(uint64_t IFD, PyObject* shift_tuple = NULL);
-        // takes existing FlimTuple and merges in a new frame's data
-        void fuseIntoFlimTuple(PyObject* FlimTup, uint64_t nextIFD, PyObject* shift_tuple = NULL);
-        
-        // takes a source frame and the pointer to the frame to fuse in
-        void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, PyObject* shift_tuple = NULL);
-        // takes a source frame and the address of the frame to fuse in, dropping photons after the terminalBin
-        void fuseFrames(PyArrayObject* sourceFrame, uint64_t nextIFD, bool flim, uint64_t terminalBins, PyObject* shift_tuple = NULL);
+        void singleFrameHistogram(const uint64_t thisIFD, PyArrayObject* numpyArray);
         
         // takes a vector of photon reads and adds the next frame's reads to it.
-        void fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple = NULL);
+        void fuseReadVector(
+            std::vector<uint64_t>& photonReadsTogether,
+            uint64_t nextIFD,
+            PyObject* shift_tuple = NULL
+        );
         
         // when you close one file and open another, wipe the slate clean
         void reset();
@@ -83,58 +115,95 @@ class SiffReader
         ~SiffReader(){closeFile();};
         
         int openFile(const char* filename);
+        void closeFile();
+
         bool isOpen();
         // the name of the .siff file
         std::string filename;
 
         void packFrameDataList(PyObject* frameDataList);
 
-        // Mask methods
-        PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict); // sums area inside the provided mask
-        PyArrayObject* sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict); // sums empirical lifetime inside teh provided mask
-        PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict); // Returns a 1d numpy array of only the within-mask values.
+        ////// Mask methods /////////
 
-        PyObject* retrieveFrames(uint64_t frames[], uint64_t framesN, PyObject* registrationDict);
+         // sums area inside the provided mask
+        PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict);
+        
+         // sums empirical lifetime inside teh provided mask
+        PyArrayObject* sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict);
+        
+         // Returns a 1d numpy array of only the within-mask values.
+        PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict);
 
+        /////// Frame methods /////////
+
+        // returns whether the dimensions of all the frames are consistent;
+        bool dimensionsConsistent(const uint64_t frames[], const uint64_t framesN);
+
+        // Returns a list of length framesN, with each
+        // element an array of dimensions y, x
+        PyObject* retrieveFrames(const uint64_t frames[], const uint64_t& framesN, PyObject* registrationDict);
+
+        // Returns an array of dimensions: framesN, y, x
         PyArrayObject* retrieveFramesAsArray(
-            uint64_t frames[],
-            uint64_t framesN,
+            const uint64_t frames[],
+            const uint64_t framesN,
             PyObject* registrationDict
         );
 
-        PyObject* poolFrames(PyObject* listOfList, bool flim); // TODO: IMPLEMENT
-        PyObject* poolFrames(PyObject* listOfLists, bool flim = false, PyObject* registrationDict = NULL);
-        PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, bool flim = false, PyObject* registrationDict = NULL);
-        PyObject* poolFrames(PyObject* listOfLists, uint64_t terminalBins, PyArrayObject* mask, bool flim = false, PyObject* registrationDict = NULL);
+        // Takes a list of lists, and for each
+        // internal list sums the frames and returns
+        // them as an array. Returns an array of
+        // dimensions : length of outer list, y, x
+        PyArrayObject* poolFrames(
+            PyObject* listOfLists,
+            const bool &flim,
+            PyObject* registrationDict = NULL
+        );
 
-        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists); // TODO: IMPLEMENT
-        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, NO confidence metric
-        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq
-        PyObject* flimMap(PyObject* FLIMParams, PyObject* listOfLists, const char* conf_measure, PyArrayObject* mask, PyObject* registrationDict = NULL); // returns array of lifetimes, intensity, chi-sq, but restricted to a MASKED region
+        // returns a tuple: arrays of lifetimes, intensity, goodness-of-fit
+        PyObject* flimTuple(
+            PyObject* FLIMParams,
+            const uint64_t frames[],
+            const uint64_t framesN,
+            const char* conf_measure,
+            PyObject* registrationDict = NULL
+        );
 
-        PyArrayObject* getHistogram(uint64_t frames[] = NULL, uint64_t framesN = 0); // returns an arrival time vector, independent of pixel location.
+         // returns an arrival time vector, independent of pixel location.
+        PyArrayObject* getHistogram(const uint64_t frames[] = NULL, const uint64_t framesN = 0);
 
-        PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0); // get metadata enumerated in frames
-        PyObject* readFixedData(); // returns the data in the primary ScanImage header
+
+        /////// Metadata methods /////////
+         // get metadata enumerated in frames
+        PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0);
+         // returns the data in the primary ScanImage header
+        PyObject* readFixedData();
+        
         std::string getNVFD();
         std::string getROIstring();
 
-        // returns whether the dimensions of all the frames are consistent;
-        bool dimensionsConsistent(uint64_t frames[], uint64_t framesN);
-
-        void closeFile();
-
+        /////// Debug methods /////////
+        
+        // Returns a string of the last error thrown
         const char* getErrString();
 
-        // HEADER FUNCTION DEFS. BAD PRACTICE BUT LESS CLUTTERED.
-
         // Whether or not to elicit warnings when not-catastrophic events occur
-        void suppressWarnings(bool suppress) {suppress_warnings = suppress; params.suppress_warnings = suppress;};
-        // Number of frames in the file
-        uint64_t numFrames(){return siff.is_open() ? params.allIFDs.size() : -1;};
-        // Toggles debug mode on and off
-        void setDebug(bool debug_bool) {debug = debug_bool;};
+        void suppressWarnings(bool suppress);
 
+        // Number of frames in the file
+        uint64_t numFrames();
+
+        // Toggles debug mode on and off
+        void setDebug(bool debug_bool);
 };
+
+void loadArrayWithData(
+    uint16_t* data_ptr,
+    const npy_intp* dims,
+    const SiffParams& params,
+    const FrameData& frameData,
+    std::ifstream& siff,
+    PyObject* shift_tuple = NULL
+);
 
 #endif
