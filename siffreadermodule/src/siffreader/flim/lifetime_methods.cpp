@@ -8,6 +8,7 @@ void readCompressedForArrivals(
     double_t* lifetime_ptr,
     uint16_t* intensity_ptr,
     const npy_intp* dims,
+    const double_t tauo,
     PyObject* shift_tuple
     ){
     
@@ -53,6 +54,7 @@ void readCompressedForArrivals(
         }
         photonPointer += photonsThisPx;
         lifetime_ptr[shifted_px] /= photonsThisPx; // MEAN arrival time
+        lifetime_ptr[shifted_px] -= tauo; // subtract the offset
     }
 }
 
@@ -63,6 +65,7 @@ void readRawForArrivals(
     double_t* lifetime_ptr,
     uint16_t* intensity_ptr,
     const npy_intp* dims,
+    const double_t tauo,
     PyObject* shift_tuple){
     
     // figure out the rigid deformation for registration
@@ -101,6 +104,7 @@ void readRawForArrivals(
     // Divide the lifetime by the intensity for every pixel
     for (size_t px = 0; px < dims[0]*dims[1]; px++) {
         lifetime_ptr[px] /= intensity_ptr[px];
+        lifetime_ptr[px] -= tauo; // subtract the offset
     }
 }
 
@@ -110,6 +114,7 @@ void loadArrayWithMeanArrivalTimes(
         double_t* lifetime_data_ptr,
         uint16_t* intensity_data_ptr,
         const npy_intp* dims,
+        const double_t tauo,
         const SiffParams& params,
         const FrameData& frameData,
         std::ifstream& siff,
@@ -136,6 +141,7 @@ void loadArrayWithMeanArrivalTimes(
             lifetime_data_ptr,
             intensity_data_ptr,
             dims,
+            tauo,
             shift_tuple
         ) : 
         readRawForArrivals(
@@ -145,6 +151,7 @@ void loadArrayWithMeanArrivalTimes(
             lifetime_data_ptr,
             intensity_data_ptr,
             dims,
+            tauo,
             shift_tuple
         );
 };
@@ -232,13 +239,14 @@ PyObject* SiffReader::flimTuple(
                 &lifetimeArrayData[idx * frameSize],
                 &intensityArrayData[idx * frameSize],
                 &dims[1],
+                tauo,
                 params,
                 frameData,
                 siff,
                 shift_tuple
             );
         }
-        //
+
         return retTuple;
     }
     REPORT_ERR("Error in flimMap");

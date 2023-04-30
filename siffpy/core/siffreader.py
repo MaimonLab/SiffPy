@@ -26,39 +26,6 @@ class SiffReader(object):
     single file, so it operates by opening a file and then taking arguments that
     relate to that specific file, e.g. frame numbers or slice numbers, as opposed
     to accepting numpy arrays of frames.
-
-	DOCSTRING still in progress. File first made SCT 03/24/2021
-
-	...
-	Attributes
-	----------
-    file_header (dict):
-        Dictionary whose keys correspond to useful pan-file metadata, e.g. microscope settings.
-    
-    im_params (dict):
-        The most useful meta data. Color channels, number of slices, number of volumes, z positions, etc.
-
-    flim (bool):
-        Whether or not to use arrival time data
-
-    opened (bool):
-        Is there an open .siff or .tiff?
-
-    filename (str):
-        If there is an open .siff or .tiff, this is its path
-
-	Methods
-	-------
-	open(self, filename):
-		Opens a .siff or .tiff file with path "filename".
-
-    params = fit_exp(numpy_array, num_components=2)
-        Takes a numpy array with dimensions (time, color, z, y,x,tau) or excluding any dimensions up to (y,x,tau) and
-        returns a color-element list of dicts with fits of the fluorescence emission model for each color channel
-
-    reshaped = map_to_standard_order(numpy_array, map_list=['time','color','z','y','x','tau'])
-        Takes the numpy array numpy_array and returns it in the order (time, color, z, y, x, tau)
-
     """
 
 ### INIT AND DUNDER METHODS
@@ -266,10 +233,6 @@ class SiffReader(object):
 
             Indices of input frames requested
 
-        flim (optional) : bool
-
-            Whether or not the returned np.ndarrays are 3d or 2d.
-
         registration_dict (optional) : dict
 
             Registration dictionary, if used
@@ -280,9 +243,9 @@ class SiffReader(object):
 
         RETURN VALUES
         -------------
-        list[np.ndarray] 
+        np.ndarray or list[np.ndarray]
 
-            Each frame requested returned as a numpy array (either 2d or 3d).
+            Either a n_frames by y by x array or a list of numpy arrays.
         """
         registration_dict = self.registration_dict if registration_dict is None else registration_dict
         frames = list(range(self.im_params.num_frames)) if frames is None else frames
@@ -550,7 +513,8 @@ class SiffReader(object):
         """
         Returns a FlimTrace object of dimensions
         n_frames by y_size by x_size corresponding
-        to the frames requested.
+        to the frames requested. Units of the FlimTrace
+        are 'countbins'.
         """
      
         if frames is None:

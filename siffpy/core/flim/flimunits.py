@@ -23,6 +23,31 @@ class FlimUnits(Enum):
     UNKNOWN = "unknown"
     UNITLESS    = "unitless"
 
+    def conversion_factor(self, other : 'FlimUnits')->float:
+        """
+        self*conversion_factor = other
+        """
+        if self is FlimUnits.UNKNOWN or other is FlimUnits.UNKNOWN:
+            raise ValueError("Cannot convert from or to UNKNOWN FlimUnits")
+        if self is other:
+            return 1.0
+        if self is FlimUnits.PICOSECONDS:
+            if other is FlimUnits.NANOSECONDS:
+                return 1/1000.0
+            if other is FlimUnits.COUNTBINS:
+                return 1.0/BASE_RESOLUTION_PICOSECONDS
+        if self is FlimUnits.NANOSECONDS:
+            if other is FlimUnits.PICOSECONDS:
+                return 1000.0
+            if other is FlimUnits.COUNTBINS:
+                return 1000.0/BASE_RESOLUTION_PICOSECONDS
+        if self is FlimUnits.COUNTBINS:
+            if other is FlimUnits.PICOSECONDS:
+                return BASE_RESOLUTION_PICOSECONDS
+            if other is FlimUnits.NANOSECONDS:
+                return BASE_RESOLUTION_PICOSECONDS/1000.0
+        raise ValueError("Unable to convert from {} to {}".format(self, other))
+
 FlimUnitsStr = Literal["picoseconds", "nanoseconds", "countbins", "unknown", "unitless"]
 FlimUnitsLike = Union['FlimUnits', FlimUnitsStr]
 
@@ -51,38 +76,5 @@ def convert_flimunits(
     if from_units is FlimUnits.UNITLESS:
         return in_array
 
-    if any( unit == FlimUnits.UNKNOWN for unit in [from_units, to_units]) and (not all( unit == FlimUnits.UNKNOWN for unit in [from_units, to_units] )):
-        raise ValueError("Unable to convert FlimUnits of UNKNOWN type to any other.")
-    
-    if from_units is FlimUnits.COUNTBINS:
-        if to_units is FlimUnits.PICOSECONDS:
-            out = BASE_RESOLUTION_PICOSECONDS * in_array
-        if to_units is FlimUnits.NANOSECONDS:
-            out = (BASE_RESOLUTION_PICOSECONDS/1000.0) * in_array
-        if to_units is FlimUnits.UNITLESS:
-            out = (BASE_RESOLUTION_PICOSECONDS/12500) * in_array
-    
-    if from_units is FlimUnits.PICOSECONDS:
-        if to_units is FlimUnits.COUNTBINS:
-            out = in_array/BASE_RESOLUTION_PICOSECONDS
-        if to_units is FlimUnits.NANOSECONDS:
-            out = in_array/1000.0
-        if to_units is FlimUnits.UNITLESS:
-            out = in_array/12500
-    
-    if from_units is FlimUnits.NANOSECONDS:
-        if to_units is FlimUnits.PICOSECONDS:
-            out = in_array*1000
-        if to_units is FlimUnits.COUNTBINS:
-            out = in_array*1000/BASE_RESOLUTION_PICOSECONDS
-        if to_units is FlimUnits.UNITLESS:
-            out = in_array/12.5
-
-    if from_units is FlimUnits.UNITLESS:
-        if to_units is FlimUnits.PICOSECONDS:
-            out = in_array*12500
-        if to_units is FlimUnits.NANOSECONDS:
-            out = in_array*12.5
-        if to_units is FlimUnits.COUNTBINS:
-            out = in_array*12500/BASE_RESOLUTION_PICOSECONDS
-    return out
+    conversion_factor = from_units.conversion_factor(to_units)
+    return in_array * conversion_factor
