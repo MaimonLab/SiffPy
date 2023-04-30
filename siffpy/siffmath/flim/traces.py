@@ -1,7 +1,15 @@
 import numpy as np
+from typing import TYPE_CHECKING
 
+from siffpy.siffmath.utils.types import (
+    FlimArrayLike, FluorescenceArrayLike, FlimVectorLike
+)
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace
-from siffpy.core.flim import FLIMParams, FlimUnits, convert_flimunits
+from siffpy.core.flim import FlimUnits, convert_flimunits
+
+if TYPE_CHECKING:
+    from siffpy.core.flim import FLIMParams
+    from siffpy.core.flim.flimunits import FlimUnitsLike
 
 class FlimTrace(np.ndarray):
     """
@@ -35,15 +43,18 @@ class FlimTrace(np.ndarray):
     )
     """
 
-    def __new__(cls, input_array : np.ndarray, # INPUT_ARRAY IS THE LIFETIME METRIC
-            intensity : np.ndarray = None,
+    def __new__(
+            cls,
+            input_array : FlimArrayLike, # INPUT_ARRAY IS THE LIFETIME METRIC
+            intensity : FluorescenceArrayLike = None,
             confidence : np.ndarray = None,
-            FLIMParams : FLIMParams = None,
+            FLIMParams : 'FLIMParams' = None,
             method : str = None,
             angle : float = None,
-            units : FlimUnits = FlimUnits.UNKNOWN,
+            units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             info_string : str = "", # new attributes TBD?
         ):
+        """ WARNING: CONFIDENCE NOT IMPLEMENTED, MUST BE NONE (FOR NOW)"""
         
         if hasattr(input_array, '__iter__') and all(isinstance(x, FlimTrace) for x in input_array):
             intensity = np.asarray([x.intensity for x in input_array])
@@ -78,7 +89,7 @@ class FlimTrace(np.ndarray):
         obj.angle = angle
         if units is None:
             units = FlimUnits.UNKNOWN
-        obj.units = units
+        obj.units = FlimUnits(units)
         obj.info_string = info_string
         
         # Finally, we must return the newly created object:
@@ -94,7 +105,17 @@ class FlimTrace(np.ndarray):
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
         return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
 
-    def convert_units(self, units : FlimUnits):
+    def set_units(self, units : 'FlimUnitsLike'):
+        """
+        Allows setting of units, but ONLY if the trace has
+        unknown units
+        """
+        if self.units == FlimUnits.UNKNOWN:
+            self.units = FlimUnits(units)
+        else:
+            raise ValueError("Cannot set units of a FlimTrace that already has units!")
+
+    def convert_units(self, units : 'FlimUnitsLike'):
         """ Converts units in place """
         
         self[...] = convert_flimunits(self.__array__(), self.units, units)
@@ -117,11 +138,9 @@ class FlimTrace(np.ndarray):
         f"Lifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
 
     def __array_wrap__(self, out_arr, context=None):
-        print("in here")
-        return super().__array_wrap(out_arr, context=context)
+        return super().__array_wrap__(out_arr, context=context)
 
     def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
         if obj is None: return
         self.intensity = getattr(obj, 'intensity', np.full_like(self.__array__(), np.nan))
         self.confidence = getattr(obj, 'confidence', None)
@@ -208,13 +227,14 @@ class FlimTrace(np.ndarray):
     def nanmean(self, *args, **kwargs):
         return np.nanmean(self, *args, **kwargs)
 
-    def reshape(self, *args, **kwargs):
+    def reshape(self, *shape, **kwargs):
 
         # A little special, since the array class implementation
         # of reshape is willing to accept several arguments and
         # treat them like a tuple.
-
-        return np.reshape(self, args, **kwargs)
+        if len(shape) == 1 and isinstance(shape[0], tuple):
+            shape = shape[0]
+        return np.reshape(self, shape, **kwargs)
 
     def append(self, *args, **kwargs):
         return np.append(self, *args, **kwargs)

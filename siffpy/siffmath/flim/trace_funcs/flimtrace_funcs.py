@@ -140,7 +140,7 @@ def concatenate_flimtrace(concats, *args, out = None, **kwargs):
 def reshape_flimtrace(flimtrace : FlimTrace, newshape, **kwargs):
     return FlimTrace(
         np.reshape(flimtrace.__array__(), newshape, **kwargs),
-        np.reshape(flimtrace.intensity, newshape, **kwargs),
+        intensity = np.reshape(flimtrace.intensity, newshape, **kwargs),
         **flimtrace._inheritance_dict
     )
 

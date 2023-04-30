@@ -4,25 +4,17 @@ accidentally combined on unequal terms
 """
 
 from enum import Enum
-from typing import Union
+from typing import Union, Literal
 
 import numpy as np
 
 MULTIHARP_BASE_RESOLUTION_IN_PICOSECONDS = 5
-TIMEHARP_BASE_RESOLUTION_IN_PICOSECONDS = 200
 
 ## THIS IS BAD!
 # TRYING TO COME UP WITH A BETTER WAY
 # TO USE THE READ INFORMATION FROM THE
-# FILE AND ALSO BE COMPATIBLE BETWEEN
-# SIFFPY AND FLYMPY
-#
-# TODO!!!
-try:
-    import siffpy
-    BASE_RESOLUTION_PICOSECONDS = 4*MULTIHARP_BASE_RESOLUTION_IN_PICOSECONDS
-except ImportError:
-    BASE_RESOLUTION_PICOSECONDS = TIMEHARP_BASE_RESOLUTION_IN_PICOSECONDS
+# FILE
+BASE_RESOLUTION_PICOSECONDS = 4*MULTIHARP_BASE_RESOLUTION_IN_PICOSECONDS
 
 class FlimUnits(Enum):
     PICOSECONDS = "picoseconds"
@@ -31,17 +23,32 @@ class FlimUnits(Enum):
     UNKNOWN = "unknown"
     UNITLESS    = "unitless"
 
-def convert_flimunits(in_array : Union[np.ndarray,float], from_units : FlimUnits, to_units : FlimUnits)->Union[np.ndarray,float]:
+FlimUnitsStr = Literal["picoseconds", "nanoseconds", "countbins", "unknown", "unitless"]
+FlimUnitsLike = Union['FlimUnits', FlimUnitsStr]
+
+def convert_flimunits(
+        in_array : Union[np.ndarray,float],
+        from_units : FlimUnitsLike,
+        to_units : FlimUnitsLike
+    )->Union[np.ndarray,float]:
     """
     Converts an array or float `in_array` from one type of FLIMUnit to another.
 
     UNITLESS nondimensionalizes assuming a 12.5 nanosecond unit, i.e. 80 MHz, approximately
     the longest timescale one would expect under usual conditions
     """
+    if isinstance(from_units, str):
+        from_units = FlimUnits(from_units)
+    if isinstance(to_units, str):
+        to_units = FlimUnits(to_units)
+
+    if from_units == to_units:
+        return in_array
+
     if not (isinstance(from_units, FlimUnits) and isinstance(to_units, FlimUnits)) :
         raise ValueError("Must provide valid FlimUnits to convert")
 
-    if from_units in (FlimUnits.UNITLESS):
+    if from_units is FlimUnits.UNITLESS:
         return in_array
 
     if any( unit == FlimUnits.UNKNOWN for unit in [from_units, to_units]) and (not all( unit == FlimUnits.UNKNOWN for unit in [from_units, to_units] )):

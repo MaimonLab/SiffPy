@@ -1,6 +1,10 @@
 import numpy as np
 from typing import Union
 
+from siffpy.siffmath.utils.types import (
+    FluorescenceArrayLike, FluorescenceVectorLike
+)
+
 class FluorescenceTrace(np.ndarray):
     """
     Extends the numpy array to provide
@@ -31,9 +35,15 @@ class FluorescenceTrace(np.ndarray):
         'method', 'normalized', 'info_string', 'angle'
     ]
 
-    def __new__(cls, input_array, method : str = None, normalized : bool = False,
-        F : np.ndarray = None, F0 : np.ndarray = np.ndarray(None),
-        max_val : np.ndarray = np.inf , min_val : np.ndarray = 0.0,
+    def __new__(
+        cls,
+        input_array : FluorescenceArrayLike,
+        method : str = None,
+        normalized : bool = False,
+        F : np.ndarray = None,
+        F0 : np.ndarray = np.ndarray(None),
+        max_val : np.ndarray = np.inf,
+        min_val : np.ndarray = 0.0,
         angle : float = None,
         info_string : str = None, # new attributes TBD?
         ):
@@ -172,7 +182,10 @@ class FluorescenceVector(FluorescenceTrace):
     dimension is supposed to be its own FluorescenceTrace object.
     """
 
-    def __new__(cls, input_array : Union[list[FluorescenceTrace],tuple[FluorescenceTrace]]):
+    def __new__(
+            cls,
+            input_array : FluorescenceVectorLike,
+        ):
         
         # converts the input iterable into a standard vector one dimension larger
         obj = np.asarray(input_array).view(cls)

@@ -53,7 +53,7 @@ class SiffIO():
         frames : list[int],
         confidence_metric : str = 'chi_sq',
         registration : dict = None,
-    )->np.ndarray:...
+    )->tuple[np.ndarray, np.ndarray, np.ndarray]:...
 
     def sum_roi(
         self,

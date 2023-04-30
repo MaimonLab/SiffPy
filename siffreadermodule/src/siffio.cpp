@@ -397,7 +397,6 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
         need_to_decref_regdict = true;
     }
     if(!PyObject_TypeCheck(registrationDict, &PyDict_Type)) {
-        // TODO: MEMORY LEAK!!! DECREF THIS BAD BOY SOMEWHERE
         registrationDict = PyDict_New();
         need_to_decref_regdict = true;
     }
@@ -409,6 +408,7 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
     for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
         PyObject* item = PyList_GET_ITEM(listOfFramesListed, idx);
         if(!PyList_Check(item)) {
+            if (need_to_decref_regdict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_TypeError, "All elements of pool_list must be lists themselves");
             return NULL;
         }
@@ -430,9 +430,19 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
     }
 
     try{
-        return (PyObject*) self->siffreader->poolFrames(listOfFramesListed, flim, registrationDict);
+        PyObject* pool(
+            (PyObject*) self->siffreader->poolFrames(
+                listOfFramesListed,
+                flim,
+                registrationDict
+            )
+        );
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
+        return pool;
     }
+
     catch(...) {
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
@@ -480,7 +490,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
 
     // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
-
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_TypeError, 
             strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
                 FLIMParams->ob_type->tp_name
@@ -491,6 +501,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
 
     // check that conf_measure is one of the permitted values
     if (strcmp(conf_measure, "log_p") && strcmp(conf_measure,"chi_sq") && strcmp(conf_measure,"None")) {
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_TypeError, 
             strcat((char*) "Expected confidence_measure to be one of 'log_p', 'chi_sq', 'None'. Instead is type: ",
                 conf_measure
@@ -506,19 +517,25 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     try{
         
         if (!self->siffreader->dimensionsConsistent(frames, PyList_Size(listOfFrames))) {
+            if (need_to_decref_regdict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
             return NULL;
         }
 
-        return self->siffreader->flimTuple(
-            FLIMParams,
-            frames,
-            PyList_Size(listOfFrames),
-            conf_measure,
-            registrationDict
+        PyObject* flimTuple(
+            self->siffreader->flimTuple(
+                FLIMParams,
+                frames,
+                PyList_Size(listOfFrames),
+                conf_measure,
+                registrationDict
+            )
         );
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
+        return flimTuple;
     }
     catch(...) {
+        if (need_to_decref_regdict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
@@ -664,18 +681,24 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         }
     }
     
-    if(!(registrationDict==NULL)) registrationDict = PyDict_New(); // TODO: DECREF MEE!!!!
+    bool need_to_decref_dict = false;
+    if(!(registrationDict==NULL)) {
+        registrationDict = PyDict_New();
+        need_to_decref_dict = true;
+    }
 
     // Check that all elements of the frame list and registration dictionary are valid.
     uint64_t framesArray[PyList_Size(frames_list)];
     for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
         PyObject* item = PyList_GET_ITEM(frames_list, idx);
         if(!PyLong_Check(item)) {
+            if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
             return NULL;
         }
         uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
         if (frameNum >= self->siffreader->numFrames()) {
+            if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
             return NULL;
         }
@@ -699,6 +722,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         try {
             PyObject* shiftTuple = PyDict_GetItem(registrationDict, item);
             if (!PyTuple_Check(shiftTuple)) {
+                if (need_to_decref_dict) Py_DECREF(registrationDict);
                 PyErr_SetString(
                     PyExc_TypeError,
                     (
@@ -715,6 +739,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                 if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
                     PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
                     if (result == NULL) {
+                        if (need_to_decref_dict) Py_DECREF(registrationDict);
                         PyErr_SetString(
                             PyExc_TypeError,
                             (
@@ -730,6 +755,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
             }
         }
         catch (...) {
+            if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_RuntimeError,
                 (std::string("Failure to access registration dictionary element for frame ") +
                 std::to_string(PyLong_AsLongLong(item))).c_str()
@@ -742,9 +768,20 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
     // Okay enough argument checking, we can call the siffreader function
 
     try{
-        return self->siffreader->sumFLIMMask(framesArray, framesN, FLIMParams, (PyArrayObject*) mask, registrationDict);
+        PyArrayObject* FLIMMask(
+            self->siffreader->sumFLIMMask(
+                framesArray,
+                framesN,
+                FLIMParams,
+                (PyArrayObject*) mask,
+                registrationDict
+            )
+        );
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        return FLIMMask;
     }
     catch(...) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
