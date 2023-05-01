@@ -268,7 +268,10 @@ class SiffReader(object):
         )->np.ndarray:
         """
         Computes the sum photon counts within a numpy mask over timesteps.
-        Takes _timepoints_ as arguments, not frames.
+        Takes _timepoints_ as arguments, not frames. Returns a 1D array
+        of summed photon counts over the entire _timepoint_ over the mask.
+        If mask is 2d, applies the same mask to every frame. Otherwise,
+        applies the 3d mask slices to each z slice.
 
         Arguments
         ---------
@@ -327,101 +330,10 @@ class SiffReader(object):
         )
 
         # more than one slice, sum across slices
-        return np.sum(summed_data.reshape((len(z_index),-1)),axis=0)
-            
-    def sum_across_time(self, timespan : int = 1, rolling : bool = False,
-        timepoint_start : int = 0, timepoint_end : int = None,
-        z_list : list[int] = None, color_channel : int = 0,
-        flim : bool = False, ret_type : type = list, registration_dict : dict = None,
-        discard_bins : int = None
-        ) -> np.ndarray:
-        """
-        Sums adjacent frames in time of width "timespan" and returns a
-        list of numpy arrays in standard form (or a single numpy array).
-
-        TODO: IMPLEMENT RET_TYPE IN "STANDARD ORDER"
-
-        INPUTS
-        ------
-        timespan (optional, default = 1) : int
-
-            The number of TIMEPOINTS you want to pool together. This will determine the
-            size of your output list: (timepoint_end - timepoint_start) / timespan.
-
-        rolling (optional, default = False) : bool
-
-            Take a rolling sum rather than a binned sum. Larger returned array size and longer time to compute.
-
-        timepoint_start (optional, default = 0) : int
-
-            The TIMEPOINT of the first frame you want to sum, so if you have a stack
-            or multiple colors, this will not be the same as the frame number. If no
-            input is given, this starts from the first timepoint.
-
-        timepoint_end (optional, default = None) : int
-        
-            The TIMEPOINT of the last frame you want to sum, so if you have a stack
-            or multiple colors, this will not be the same as the frame number. If no
-            input is given, this will be the last timpeoint in the file.
-
-        z_list (optional, default = None) : list[int]
-
-            List of the z values you want to sum. If no list is given, defaults to the full volume.
-
-        color_list (optional, default = None) : list[int]
-
-            List of the color channels you want to sum. If no list is given, defaults to all present colors.
-
-        flim (optional, default = False) : bool
-
-            Whether to return FLIM arrays (y by x by tau) or INTENSITY arrays (y by x). Default is intensity.
-
-        ret_type (optional, default = list) : type
-
-            Determines the return type (either a single numpy array or a list of numpy arrays). The default
-            option is list, but if you want a numpy array, input numpy.ndarray
-
-        registration (optional): dict
-
-            Registration dict for each frame
-
-        discard_bins (optional): int
-
-            Arrival times, in units of BINS, above which to discard photons        
-
-
-        RETURN VALUES
-        -------------
-
-        list or np.ndarray
-
-            If list, returns a list of length len(color_list)*(timepoint_end-time_point_start)/timespan
-            corresponding to the summed values of the pixels (or time bins) of TIMESPAN number of 
-            successive timepoints.
-
-            np.ndarray returns not yet implemented
-
-        """
-
-        if not self.opened:
-            raise RuntimeError("No open .siff or .tiff")
-        
-        if rolling:
-            raise NotImplementedError("Rolling sum not yet implemented")
-        
-        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
-
-        z_list = list(range(self.im_params.num_slices)) if z_list is None else z_list
-        
-
-        frames = self.im_params.framelist_by_timepoint(
-            color_channel = color_channel,
-            timepoint_start = timepoint_start,
-            timepoint_end = timepoint_end,
-            slice_idx = z_list,
-        )
-        raise NotImplementedError("Not yet implemented -- being revamped")
-
+        return summed_data.reshape(
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
+   
     def pool_frames(self, 
             framelist : list[list[int]], 
             flim : bool = False,
@@ -545,13 +457,13 @@ class SiffReader(object):
         )
 
     def sum_mask_flim(self,
-            params : Union[FLIMParams, list[FLIMParams]],
+            params : 'FLIMParams',
             mask : np.ndarray[bool],
             timepoint_start : int = 0,
             timepoint_end : int = None,
-            color_list : list[int] = None,
+            color_channel : int = 0,
             registration_dict : dict = None,
-        )->Union[FlimTrace,list[FlimTrace]]:
+        )->'FlimTrace':
         """
         Computes the empirical lifetime within an ROI over timesteps.
 
@@ -573,9 +485,12 @@ class SiffReader(object):
             of ints corresponding to the * 1-indexed * color channel numbers for
             each FLIMParams, unless there is only one color channel in the data.
 
-        roi : np.ndarray[bool]
+        mask : np.ndarray[bool]
 
-            A mask tshat defines the boundaries of the region being considered.
+            A mask that defines the boundaries of the region being considered.
+            May be 2d (in which case it is applied to all z-planes) or higher
+            dimensional (in which case it must have the same number of z-planes
+            as the image data frames requested).
 
         timepoint_start : int (optional) (default is 0)
 
@@ -599,42 +514,11 @@ class SiffReader(object):
 
         """
 
-        if isinstance(params, FLIMParams):
-            params = [params]
-
-        if not isinstance(params, list):
-            raise ValueError("params argument must be either a FLIMParams object or a list of FLIMParams")
-
-        if not all(isinstance(x, FLIMParams) for x in params):
-            raise ValueError("params argument must be either a FLIMParams object or a list of FLIMParams")
-
-        # Make color_list a list no matter what so that it's mutable
-        if hasattr(color_list, '__iter__'):
-            color_list = [color for color in color_list]
-
-        if self.im_params.num_colors == 1:
-            color_list = [0]*len(params)
+        if not isinstance(params, FLIMParams):
+            raise ValueError("params argument must be a FLIMParams object")
         
-        # Now check that the color parameters are all correct
-        if color_list is None:
-            if not all(hasattr(x,'color_channel') and not (x.color_channel is None) for x in params):
-                raise ValueError(
-                    "Provided FLIMParams do not all have a valid color_channel, "
-                    "more than one color channel is in the given siff file, "
-                    "and no color_list argument was provided."
-                )
-            color_list = [None]*len(params)
-
-        # not everything needs to be Pythonic. This just seems more readable
-        for idx, param in enumerate(params):
-            if hasattr(param, 'color_channel') and not (param.color_channel is None):
-                color_list[idx] = int(param.color_channel)
-        
-        if not all(isinstance(x, int) for x in color_list):
-            raise ValueError("At least one provided FLIMParams does not have a "
-                "color channel that has been accounted for, either as a color_channel attribute "
-                "or as an element of the color_list keyword argument."
-            )        
+        if not (params.units.value == 'countbins'):
+            params.convert_units('countbins')
 
         if timepoint_end is None:
             timepoint_end = self.im_params.num_timepoints
@@ -643,258 +527,35 @@ class SiffReader(object):
             if hasattr(self,'registration_dict'):
                 registration_dict = self.registration_dict
 
-        if len(params) == 1:
-            color = color_list[0]-1
-            frames = self.im_params.framelist_by_slice(color_channel = color)
-            frames = [individual_frame for slicewise in frames for individual_frame in slicewise[timepoint_start:timepoint_end]]
+        frames = self.im_params.framelist_by_slice(color_channel = color_channel)
+        frames = [individual_frame for slicewise in frames for individual_frame in slicewise[timepoint_start:timepoint_end]]
 
-            summed_intensity_data = self.siffio.sum_roi(
-                mask,
-                frames = frames,
-                registration = registration_dict
-            )
+        summed_intensity_data = self.siffio.sum_roi(
+            mask,
+            frames = frames,
+            registration = registration_dict
+        ).reshape(
+            (-1, self.im_params.num_slices if mask.ndim == 2 else mask.shape[0])
+        )
 
-            summed_flim_data = self.siffio.sum_roi_flim(
-                mask,
-                params[0],
-                frames = frames,
-                registration = registration_dict
-            ) * self.im_params.picoseconds_per_bin
+        summed_flim_data = self.siffio.sum_roi_flim(
+            mask,
+            params,
+            frames = frames,
+            registration = registration_dict
+        ).reshape(
+            (-1, self.im_params.num_slices if mask.ndim == 2 else mask.shape[0])
+        )
 
-            # more than one slice, sum across slices TODO!!!!
-            summed_intensity_data.reshape((-1, self.im_params.num_slices))
-            summed_flim_data.reshape((-1, self.im_params.num_slices))
-            return np.sum(
-                FlimTrace( # a numpy operation on the list alone returns just a numpy array
-                    [
-                        FlimTrace(
-                            summed_flim_data[...,k], 
-                            intensity = summed_intensity_data[...,k],
-                            FLIMParams = params[0],
-                            method = 'empirical lifetime',
-                            info_string = "ROI",
-                            units = FlimUnits.PICOOSECONDS
-                        )
-                        for k in range(self.im_params.num_slices)
-                    ]
-                ),
-                axis=-1
-            )
-            
-        # This means color_list is longer than length 1
-        output_list = []
-        for idx, color in enumerate(color_list):
-            color = color-1
-            # Do the above, but iterate through colors
-            frames = self.im_params.framelist_by_slice(color_channel = color)
-            
-            frames = [individual_frame for slicewise in frames for individual_frame in slicewise]
-
-            summed_intensity_data = self.siffio.sum_roi(
-                mask,
-                frames = frames,
-                registration = registration_dict
-            )
-
-            summed_flim_data = self.siffio.sum_roi_flim(
-                mask,
-                params[idx],
-                frames = frames,
-                registration = registration_dict
-            ) * self.im_params.picoseconds_per_bin
-
-            output_list.append(
-                FlimTrace(
-                    summed_flim_data,
-                    intensity = summed_intensity_data,
-                    method = 'empirical lifetime',
-                    FLIMParams = params[idx],
-                    info_string = "ROI ID: ",
-                    units = FlimUnits.PICOSECONDS
-                )
-            )
-
-        return FlimTrace(output_list)
-
-    def flimmap_across_time(self, flimfit : FLIMParams ,timespan : int = 1, rolling : bool = False,
-            timepoint_start : int = 0, timepoint_end : int = None,
-            z_list : list[int] = None, color_list : list[int] = None,
-            ret_type : type = list, registration : dict = None,
-            confidence_metric='chi_sq', discard_bins = None
-        )-> FlimTrace:
-        """
-
-        Exactly as in sum_across_time but returns a FlimArray instead
-
-        TODO: IMPLEMENT RET_TYPE
-        TODO: IMPLEMENT NONE FOR CONFIDENCE METRIC
-        TODO: MORE PROPER DOCSTRING
-
-        INPUTS
-        ------
-        flimfit : FLIMParams
-
-            The fit FLIM parameters for each color channel
-
-        timespan (optional, default = 1) : int
-
-            The number of TIMEPOINTS you want to pool together. This will determine the
-            size of your output list: (timepoint_end - timepoint_start) / timespan.
-
-        rolling (optional, default = False) : bool
-
-            Whether or not to take a rolling sum, rather than binned. Larger output, longer compute time.
-
-        timepoint_start (optional, default = 0) : int
-
-            The TIMEPOINT of the first frame you want to sum, so if you have a stack
-            or multiple colors, this will not be the same as the frame number. If no
-            input is given, this starts from the first timepoint.
-
-        timepoint_end (optional, default = None) : int
-        
-            The TIMEPOINT of the last frame you want to sum, so if you have a stack
-            or multiple colors, this will not be the same as the frame number. If no
-            input is given, this will be the last timpeoint in the file.
-
-        z_list (optional, default = None) : list[int]
-
-            List of the z values you want to sum. If no list is given, defaults to the full volume.
-
-        color_list (optional, default = None) : list[int]
-
-            List of the color channels you want to sum. If no list is given, defaults to all present colors.
-
-        ret_type (optional, default = list) : type
-
-            Determines the return type (either a single numpy array or a list of numpy arrays). The default
-            option is list, but if you want a numpy array, input numpy.ndarray
-
-        registration (optional, dict):
-
-            Registration dict for each frame
-
-        confidence_metric (optional, default='chi_sq') : str
-
-            What metric to use to compute the confidence matrix returned in each tuple. Options:
-                'None' Don't use it, tuple returned is length two (ARG MUST BE A STRING) TODO: do this right
-                'chi_sq' Chi-squared statistic
-                'log_p' log-likelihood of the pixel distribution
-
-        discard_bins (optional) : int
-
-            Arrival time, in units of BINS, above which to ignore photons
-
-
-        RETURN VALUES
-        -------------
-
-        list or np.ndarray
-
-            If list, returns a list of length len(color_list)*(timepoint_end-time_point_start)/timespan
-            corresponding to the summed values of the pixels (or time bins) of TIMESPAN number of 
-            successive timepoints.
-
-            np.ndarray returns not yet implemented
-
-        """
-
-        ##### pre=processing
-        if not self.opened:
-            raise RuntimeError("No open .siff or .tiff")
-            
-        if not isinstance(flimfit, FLIMParams):
-            raise TypeError("Argument flimfit not of type FLIMParams")
-        
-
-        raise NotImplementedError("Not yet implemented")
-        # MAKE SURE IT'S IN COUNTBINS, IF NOT MAKE A COPY
-        #if not ()
-    
-        # num_slices = self.im_params.num_slices
-        
-        # num_colors = self.im_params.num_colors
-
-        # (z_list, _, color_list) = x_across_time_TYPECHECK(num_slices, z_list, None, num_colors, color_list)
-
-        # fps = self.im_params.frames_per_slice
-
-        # timestep_size = int(self.im_params.frames_per_volume) # how many frames constitute a volume timepoint
-
-        # # figure out the start and stop points we're analyzing.
-        # frame_start = int(timepoint_start * timestep_size)
-        
-        # if timepoint_end is None:
-        #     frame_end = self.im_params.num_frames - self.im_params.num_frames%self.im_params.frames_per_volume # only goes up to full volumes
-        # else:
-        #     if timepoint_end > self.im_params.num_frames//timestep_size:
-        #         logging.warning(
-        #             "\ntimepoint_end greater than total number of frames.\n"+
-        #             "Using maximum number of complete timepoints in image instead.\n"
-        #         )
-        #         timepoint_end = self.im_params.num_frames//timestep_size
-            
-        #     frame_end = timepoint_end*timestep_size 
-        #     frame_end -= frame_end%self.im_params.frames_per_volume # subtract off non-full-volumes
-
-        # frame_end = int(frame_end) # frame_end is going to be the frame AFTER the last frame we actually DO include
-
-        # ##### the real stuff
-
-        # # now convert to a list for each set of frames we want to pool
-        # #
-        # # list comprehension makes this... incomprehensible. So let's do it
-        # # the generic way.
-        # framelist = []
-        # # a list for every element of a volume
-        # probe_lists = [[] for idx in range(timestep_size)]
-
-        # # offsets from the frame start that we actually want, as specified by
-        # # z_list and color_list
-        # viable_indices = [z*num_colors*fps + k*num_colors + c for z in z_list for k in range(fps) for c in color_list]
-
-        # if rolling:
-        #     for volume_start in range(frame_start,frame_end, timestep_size):
-        #         for vol_idx in range(timestep_size):
-        #             if vol_idx in viable_indices: # ignore undesired frames
-        #                 framenum = vol_idx + volume_start # current frame
-        #                 framelist.append(list(range(framenum, framenum+timestep_size*timespan, timespan)))
-        # if not rolling:
-        #     # This approach is dumb and not super clever. Sure there's a better way.
-        #     selected_frames_by_offset = []
-        #     for offset_idx in viable_indices:
-        #          # list all of frames to be imaged, organized by offset_idx
-        #         target_frames = list(range(frame_start + offset_idx, frame_end, timestep_size))
-        #         selected_frames_by_offset.append([target_frames[idx:idx+timespan] for idx in range(0,len(target_frames),timespan)])
-        #     framelist = list(itertools.chain(*list(zip(*selected_frames_by_offset)))) # ugly
-        
-        # # ordered by time changing slowest, then z, then color, e.g.
-        # # T0: z0c0, z0c1, z1c0, z1c1, ... znz0, znc1, T1: ...
-        # if registration is None:
-        #     list_of_arrays = self.siffio.flim_map(flimfit, frames = framelist, 
-        #                                         confidence_metric=confidence_metric
-        #                                         )
-        # else:
-        #     list_of_arrays = self.siffio.flim_map(flimfit, frames = framelist, registration = registration,
-        #                                         confidence_metric=confidence_metric)
-
-        # if ret_type == np.ndarray:
-        #     ## NOT YET IMPLEMENTED IN "STANDARD ORDER"
-        #     return np.array(list_of_arrays)
-        # else:
-        #     return FlimTrace(
-        #         [
-        #             FlimTrace(
-        #                 arr[0],
-        #                 intensity = arr[1],
-        #                 FLIMParams = flimfit,
-        #                 method = 'empirical lifetime',
-        #                 units = FlimUnits.COUNTBINS,
-        #             )
-        #             for arr in list_of_arrays
-        #         ]
-        #     )
-
+        return FlimTrace(
+            summed_flim_data, 
+            intensity = summed_intensity_data,
+            FLIMParams = params,
+            method = 'empirical lifetime',
+            info_string = "ROI",
+            units = FlimUnits.COUNTBINS,
+        ).sum(axis=1)
+                
 ### REGISTRATION METHODS
     def register(
         self,

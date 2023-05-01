@@ -125,13 +125,28 @@ class SiffReader
 
         ////// Mask methods /////////
 
-         // sums area inside the provided mask
-        PyArrayObject* sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict);
+        // sums area inside the provided mask
+        PyArrayObject* sumMask(
+            const uint64_t frames[],
+            const uint64_t framesN,
+            PyArrayObject* mask,
+            PyObject* registrationDict
+        );
+    
+        // sums empirical lifetime inside the provided mask
+        // IMPORTANT: If mask has more than 2 dimensions, it
+        // presumes that the frames list iterates through those
+        // dimensions in the same order as the mask!!!
+        // NOT smart enough to know better.
+        PyArrayObject* sumFLIMMask(
+            const uint64_t frames[],
+            const uint64_t framesN,
+            PyObject* FLIMParams,
+            PyArrayObject* mask,
+            PyObject* registrationDict
+        );
         
-         // sums empirical lifetime inside teh provided mask
-        PyArrayObject* sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict);
-        
-         // Returns a 1d numpy array of only the within-mask values.
+        // Returns a 1d numpy array of only the within-mask values.
         PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict);
 
         /////// Frame methods /////////
@@ -169,14 +184,14 @@ class SiffReader
             PyObject* registrationDict = NULL
         );
 
-         // returns an arrival time vector, independent of pixel location.
+        // returns an arrival time vector, independent of pixel location.
         PyArrayObject* getHistogram(const uint64_t frames[] = NULL, const uint64_t framesN = 0);
 
 
         /////// Metadata methods /////////
-         // get metadata enumerated in frames
+        // get metadata enumerated in frames
         PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0);
-         // returns the data in the primary ScanImage header
+        // returns the data in the primary ScanImage header
         PyObject* readFixedData();
         
         std::string getNVFD();
@@ -196,14 +211,5 @@ class SiffReader
         // Toggles debug mode on and off
         void setDebug(bool debug_bool);
 };
-
-void loadArrayWithData(
-    uint16_t* data_ptr,
-    const npy_intp* dims,
-    const SiffParams& params,
-    const FrameData& frameData,
-    std::ifstream& siff,
-    PyObject* shift_tuple = NULL
-);
 
 #endif

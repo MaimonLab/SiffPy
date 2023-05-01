@@ -590,7 +590,7 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     }
     
     bool need_to_decref_dict = false;
-    if(!(registrationDict == NULL)) {
+    if(registrationDict == NULL) {
         registrationDict = PyDict_New();
         need_to_decref_dict = true;
     }
@@ -610,7 +610,6 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     uint64_t framesN = PyList_Size(frames_list);
 
     // Okay enough argument checking, we can call the siffreader function
-
     try{
         PyArrayObject* returnedMask = self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
         if (need_to_decref_dict) Py_DECREF(registrationDict);
@@ -682,7 +681,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
     }
     
     bool need_to_decref_dict = false;
-    if(!(registrationDict==NULL)) {
+    if(registrationDict==NULL) {
         registrationDict = PyDict_New();
         need_to_decref_dict = true;
     }

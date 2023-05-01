@@ -310,3 +310,190 @@ PyArrayObject* SiffReader::poolFrames(
     }
     REPORT_ERR("Error in pool frames: ")
 }
+
+
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////// MASK ////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+
+
+inline uint64_t sumMaskCompressed(
+    const FrameData& frameData,
+    std::ifstream &siff,
+    const bool* mask_data_ptr,
+    const npy_intp* mask_dims,
+    PyObject* shift_tuple
+    ) {
+    
+    uint64_t photon_count = 0;
+    
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    
+    
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+
+    if(!(pixelsInImage == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+    uint16_t frameReads[pixelsInImage];
+    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    siff.clear();
+
+    for(uint64_t px = 0; px < pixelsInImage; px++) {
+        photon_count += frameReads[
+            PIXEL_SHIFT(
+                px,y_shift,x_shift,frameData.imageLength,frameData.imageWidth
+            )
+        ]*mask_data_ptr[px];
+    }
+
+    return photon_count;
+};
+
+inline uint64_t sumMaskRaw(
+        const uint64_t& samplesThisFrame,
+        const FrameData& frameData,
+        std::ifstream &siff,
+        const bool* mask_data_ptr,
+        const npy_intp* mask_dims,
+        PyObject* shift_tuple
+    ){
+
+    uint64_t photon_counts = 0;
+
+    // figure out the rigid deformation for registration
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+    uint64_t frameReads[samplesThisFrame];
+    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.clear();
+    
+    // if we're just doing intensity, the pointer element to increment should be different
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+        // increment if the mask data pointer for that photon is true
+        photon_counts += mask_data_ptr[
+            READ_TO_PX(
+                frameReads[photon],
+                -y_shift, // we're shifting the mask, not the frame
+                -x_shift,
+                frameData.imageLength,
+                frameData.imageWidth
+            )
+        ];
+    }
+
+    return photon_counts;
+};
+
+uint64_t sumFrameMask(
+    const FrameData& frameData,
+    const SiffParams& params,
+    const bool* mask_data_ptr,
+    const npy_intp* mask_dims,
+    PyObject* shift_tuple,
+    std::ifstream& siff
+    ) {
+    // Adds together all photon counts within a frame if those counts are "True" in the mask array
+    uint64_t photon_count = 0;
+
+    siff.seekg(frameData.dataStripAddress);
+    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
+    
+    siff.clear();
+
+    if (params.issiff) {
+        photon_count = frameData.siffCompress ?
+            sumMaskCompressed(frameData, siff, mask_data_ptr, mask_dims, shift_tuple) : 
+            sumMaskRaw(samplesThisFrame, frameData, siff, mask_data_ptr, mask_dims, shift_tuple);
+    }
+    else {
+        if(!(samplesThisFrame == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
+
+        uint16_t frameReads[samplesThisFrame];
+        siff.read((char*)&frameReads,frameData.stripByteCounts);
+        siff.clear();
+
+        // figure out the rigid deformation for registration
+        uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
+        uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+
+        for(uint64_t px = 0; px < samplesThisFrame; px++) {
+            photon_count += frameReads[
+                PIXEL_SHIFT(
+                    px,
+                    y_shift,
+                    x_shift,
+                    mask_dims[0],
+                    mask_dims[1]
+                )
+            ] * mask_data_ptr[px];
+        }
+    }
+
+    return photon_count;
+};
+
+
+PyArrayObject* SiffReader::sumMask(
+    const uint64_t frames[],
+    const uint64_t framesN,
+    PyArrayObject* mask,
+    PyObject* registrationDict
+    ){
+    // Sums all pixel elements of the desired frames within the mask and returns a 1d PyArrayObject.
+    try{
+        if (!siff.is_open()) throw std::runtime_error("No open file.");
+        siff.clear();
+
+        // 1 dimensional
+        npy_intp dims[1];
+        dims[0] = framesN;
+        PyArrayObject* summedArray = (PyArrayObject*) PyArray_ZEROS(
+            1, // 1d array
+            dims, // length equal to number of frames
+            NPY_UINT64, // count data, and compressed enough to not care about saving space
+            0 // C order, i.e. last index increases fastest
+        ); // Or should I make a sparse array? Maybe make that an option? TODO.
+
+        uint64_t* data_ptr = (uint64_t *) PyArray_DATA(summedArray);
+
+        // Get the mask formatting right
+        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
+
+        const bool* mask_data_ptr = (bool*) PyArray_DATA(mask);
+        const npy_intp* mask_dims = PyArray_DIMS(mask);
+        const npy_intp* mask_frame_dims = &mask_dims[PyArray_NDIM(mask) - 2];
+        size_t frames_per_mask = 1;
+        for (size_t dim_idx = 0; dim_idx < PyArray_NDIM(mask) - 2; dim_idx++) {
+            frames_per_mask *= mask_dims[dim_idx];
+        }
+        const size_t pxPerMask = mask_frame_dims[0] * mask_frame_dims[1];
+
+        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
+
+            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+
+            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
+            
+            data_ptr[frame_idx] = sumFrameMask(
+                frameData,
+                params,
+                &mask_data_ptr[(frame_idx % frames_per_mask) * pxPerMask], // point to the relevant part of the mask
+                mask_frame_dims, // point to the dimensions of the mask relevant for frames
+                shift_tuple,
+                siff
+            );
+        }
+
+        return summedArray;
+
+    }
+    REPORT_ERR("Error in sum_roi mask method: ");
+}

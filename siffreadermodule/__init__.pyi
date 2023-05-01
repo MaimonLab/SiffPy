@@ -45,7 +45,8 @@ class SiffIO():
         frames : list[int],
         flim : bool = False,
         registration : dict = None,
-    )->np.ndarray:...
+    )->np.ndarray:
+        """ NOT IMPLEMENTED """
 
     def flim_map(
         self,
@@ -53,14 +54,29 @@ class SiffIO():
         frames : list[int],
         confidence_metric : str = 'chi_sq',
         registration : dict = None,
-    )->tuple[np.ndarray, np.ndarray, np.ndarray]:...
+    )->tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Returns a tuple of (flim_map, intensity_map, confidence_map)
+        where flim_map is the empirical lifetime with the offset of
+        params subtracted.
+        """
+        ...
 
     def sum_roi(
         self,
         mask : np.ndarray,
         frames : list[int] = None,
         registration : dict = None,
-    )->np.ndarray:...
+    )->np.ndarray:
+        """
+        Mask may have more than 2 dimensions, but
+        if so then be aware that the frames will be
+        iterated through sequentially, rather than
+        aware of the correspondence between frame
+        number and mask dimension. Returns a 1D
+        arrary of the same length as the frames
+        provided, regardless of mask shape.
+        """
 
     def sum_roi_flim(
         self,
@@ -68,7 +84,16 @@ class SiffIO():
         params : FLIMParams,
         frames : list[int] = None,
         registration : dict = None,
-    )->np.ndarray:...
+    )->np.ndarray:
+        """
+        Mask may have more than 2 dimensions, but
+        if so then be aware that the frames will be
+        iterated through sequentially, rather than
+        aware of the correspondence between frame
+        number and mask dimension. Returns a 1D
+        arrary of the same length as the frames
+        provided, regardless of mask shape.
+        """
 
     def get_histogram(self,frames : list[int] = None,)->np.ndarray:...
 

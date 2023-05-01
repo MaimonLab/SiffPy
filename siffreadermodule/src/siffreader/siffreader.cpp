@@ -3,7 +3,6 @@
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 #define PY_SSIZE_T_CLEAN
 #include "../../include/siffreader/siffreader.hpp"
-#include "../../include/siffreader/siffreaderinline.hpp"
 
 #include "../../include/framedata/sifdefin.hpp"
 #include <algorithm>
@@ -230,93 +229,6 @@ void SiffReader::setDebug(bool debug_bool){
 ///// GET FILE DATA ////////
 ////////////////////////////
 
-PyArrayObject* SiffReader::sumMask(uint64_t frames[], uint64_t framesN, PyArrayObject* mask, PyObject* registrationDict){
-    // Sums all pixel elements of the desired frames within the mask and returns a 1d PyArrayObject.
-    try{
-        if (!siff.is_open()) throw std::runtime_error("No open file.");
-        //if (!params.issiff) throw std::runtime_error("File is not of type .siff! No FLIM data to collect.");
-        siff.clear();
-
-        // 1 dimensional
-        npy_intp dims[1];
-        dims[0] = framesN;
-        PyArrayObject* summedArray = (PyArrayObject*) PyArray_ZEROS(
-            1, // 1d array
-            dims, // length equal to number of frames
-            NPY_UINT64, // count data, and compressed enough to not care about saving space
-            0 // C order, i.e. last index increases fastest
-        ); // Or should I make a sparse array? Maybe make that an option? TODO.
-
-        uint64_t* data_ptr = (uint64_t *) PyArray_DATA(summedArray);
-
-        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
-
-        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
-
-            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
-
-            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
-            
-            data_ptr[frame_idx] = sumFrameMask(
-                frameData,
-                params,
-                mask,
-                shift_tuple,
-                siff
-            );
-        }
-
-        return summedArray;
-
-    }
-    REPORT_ERR("Error in sum_roi mask method: ");
-}
-
-PyArrayObject* SiffReader::sumFLIMMask(uint64_t frames[], uint64_t framesN, PyObject* FLIMParams, PyArrayObject* mask, PyObject* registrationDict) {
-    // sums empirical lifetime inside the provided mask
-
-    // Boilerplate-y, some bad code practice in here (for it to be so similar to the non-FLIM version).
-    try{
-        if (!siff.is_open()) throw std::runtime_error("No open file.");
-        siff.clear();
-
-        // 1 dimensional
-        npy_intp dims[1];
-        dims[0] = framesN;
-        PyArrayObject* summedArray = (PyArrayObject*) PyArray_ZEROS(
-            1, // 1d array
-            dims, // length equal to number of frames
-            NPY_DOUBLE, // empirical lifetime (albeit in units of bins), needs sub-bin resolution
-            0 // C order, i.e. last index increases fastest
-        ); // Or should I make a sparse array? Maybe make that an option? TODO.
-
-        double_t* data_ptr = (double_t *) PyArray_DATA(summedArray);
-
-        // Offset for empirical tau
-        double_t tau_o = PyFloat_AsDouble(PyObject_GetAttrString(FLIMParams,"T_O"));
-
-        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
-
-        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
-
-            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
-
-            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
-            
-            data_ptr[frame_idx] = sumFrameFLIMMask(
-                frameData,
-                params,
-                tau_o,
-                mask,
-                shift_tuple,
-                siff
-            );
-        }
-        return summedArray;
-    }
-    REPORT_ERR("Error in sum_roi_flim mask method: ")
-};
-
 // TODO!!!!!
 PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict) {
     // Returns a 1d numpy array of only the pixels within the mask of the mask object
@@ -446,14 +358,3 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
     PyList_Append(metaDictList, frameDict); // append adds a reference
     Py_DECREF(frameDict);
 }//
-
-void SiffReader::fuseReadVector(std::vector<uint64_t>& photonReadsTogether, uint64_t nextIFD, PyObject* shift_tuple) {
-    const FrameData frameData = getTagData(nextIFD, params, siff);
-
-    std::vector<uint64_t> frameReads = // this frame's photon counts
-        frameData.siffCompress ? 
-            compressedReadsToVec(frameData, siff, shift_tuple) :
-            uncompressedReadsToVec(frameData, siff, shift_tuple);
-
-    photonReadsTogether.insert(photonReadsTogether.end(), frameReads.begin(), frameReads.end());
-}
