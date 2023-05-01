@@ -10,6 +10,7 @@ from siffreadermodule import SiffIO
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
 from siffpy.core.utils import ImParams
+from siffpy.core.utils.types import PathLike
 from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
@@ -29,7 +30,7 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : Union[str, Path] = None):
+    def __init__(self, filename : PathLike = None):
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
@@ -68,7 +69,7 @@ class SiffReader(object):
         # TODO
         return self.__str__()
 
-    def open(self,  filename : Union[str, Path] = None) -> None:
+    def open(self,  filename : PathLike = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -174,7 +175,11 @@ class SiffReader(object):
             reference = reference_time,
         )
     
-    def get_time(self, frames : list[int] = None, reference : str = "experiment") -> np.ndarray:
+    def get_time(
+            self,
+            frames : list[int] = None,
+            reference : str = "experiment"
+        ) -> np.ndarray:
         """
         Gets the recorded time (in seconds) of the frame(s) numbered in list frames
 
@@ -561,7 +566,7 @@ class SiffReader(object):
         self,
         registration_method="siffpy",
         color_channel : int = 0,
-        save_path : Union[Path,str] = None, 
+        save_path : PathLike = None, 
         align_z : bool = False,
         **kwargs
         ) -> dict:

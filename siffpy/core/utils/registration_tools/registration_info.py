@@ -8,6 +8,7 @@ import numpy as np
 
 from siffreadermodule import SiffIO
 from siffpy.core.utils import ImParams
+from siffpy.core.utils.types import PathLike
 
 class RegistrationType(Enum):
     Caiman = 'caiman'
@@ -110,7 +111,7 @@ class RegistrationInfo(ABC):
     @classmethod
     def load_as_dict(
         cls,
-        path : Union[str, Path],   
+        path : PathLike,   
     )->dict:
         """
         Returns a dict that can be used to instantiate a `RegistrationInfo` subclass

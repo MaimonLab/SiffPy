@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Union
 
 from siffreadermodule import SiffIO
 from siffpy.core.utils import ImParams
+from siffpy.core.utils.types import PathLike
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationType, RegistrationInfo
 )
@@ -55,7 +55,7 @@ def to_reg_info_class(
     return cls
 
 def to_registration_info(
-        path : Union[str,Path], 
+        path : PathLike, 
         siffio : SiffIO = None,
         im_params : ImParams = None,
     )->RegistrationInfo:

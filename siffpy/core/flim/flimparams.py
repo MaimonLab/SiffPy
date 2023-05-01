@@ -1,13 +1,18 @@
 import json
-from typing import Any
+from typing import Any, Callable, TYPE_CHECKING
 from pathlib import Path
+import warnings
 
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
+from scipy.stats import exponnorm
 
 from siffpy.core.utils.types import PathLike
-from siffpy.core.flim.exponentials import chi_sq_exp, monoexponential_prob
 from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits
+from siffpy.core.flim.exponentials import param_tuple_to_pdf
+from siffpy.core.flim.loss_functions import ChiSquared
+if TYPE_CHECKING:
+    from siffpy.core.flim.loss_functions import LossFunction
 
 class FLIMParams():
     """
@@ -97,17 +102,6 @@ class FLIMParams():
         for param in self.params:
             param.convert_units(to_units)
 
-    def nondimensionalize(self):
-        """ Converts to a non-dimensionalized unit """
-        for param in self.params:
-            param.nondimensionalize()
-            
-
-    def redimensionalize(self, to_units : FlimUnits):
-        """ Takes a non-dimensionalized FLIMParams and converts it to the specified units """
-        for param in self.params:
-            param.redimensionalize(to_units)
-
     @property
     def ncomponents(self)->int:
         """ Number of exponentials in this FLIMParams """
@@ -115,13 +109,12 @@ class FLIMParams():
             return len(self.exps)
         return 0
 
-    def fit_to_data(
+    def fit_params_to_data(
             self,
             data            : np.ndarray,
-            num_exps        : int       = 2,
             initial_guess   : tuple     = None,
-            metric          : callable  = None,
-            solver          : callable  = None,
+            loss_function   : 'LossFunction'  = ChiSquared,
+            solver          : Callable  = None,
             **kwargs
         )->OptimizeResult:
         """
@@ -149,7 +142,7 @@ class FLIMParams():
 
             Guess for initial params in FLIMParams.param_tuple format.
         
-        metric : callable
+        loss_function : LossFunction
 
             Defines the cost function for curve fitting. Defaults to chi-squared
 
@@ -159,7 +152,7 @@ class FLIMParams():
 
             All other arguments must be KWARGS.
 
-        solver : callable
+        solver : Callable
 
             A function that takes the metric and an initial guess and returns
             some object that has an attribute called 'x' that is a tuple with
@@ -178,53 +171,27 @@ class FLIMParams():
             The OptimizeResult object for diagnostics on the fit.
         """
 
-        if metric is None:
-            objective = lambda x: chi_sq_exp(data, x, **kwargs)
-
-        else:
-            objective = lambda x: metric(data, x, **kwargs)
+        objective : Callable[[tuple], float] = loss_function.from_data(data)
 
         if initial_guess is None:
-            if not ((len(self.exps) == 0) and (self.irf is None)):
-                initial_guess = self.param_tuple
-            else:
-                x0 = []
-                for exp in range(num_exps):
-                    x0 += [60*(exp+1),1.0/num_exps]
-                x0 += [40, 2.0] # tau_offset, tau_g
-                initial_guess = tuple(x0) 
+            initial_guess = self.param_tuple
         
         if solver is None:
-            solver = _default_solver
-
-        # initial_guess = list(initial_guess)
-
-        # for x in range(self.ncomponents):
-        #     initial_guess[2*x]=initial_guess[2*x]/100.0
-
-        # initial_guess[-2] = initial_guess[-2]/100.0
+            solver = lambda loss_func, initial_guess: minimize(
+                loss_func,
+                loss_function.params_transform(initial_guess),
+                method = 'trust-constr',
+                bounds = self.bounds,
+                constraints = self.constraints,
+            )
 
         fit_obj = solver(objective, initial_guess)
 
         fit_tuple = fit_obj.x
 
-        # fit_tuple = list(fit_tuple)
-
-        # for x in range(self.ncomponents):
-        #     fit_tuple[2*x]=fit_tuple[2*x]*100.0
-
-        # fit_tuple[-2] = fit_tuple[-2]*100.0
-        # fit_tuple = tuple(fit_tuple)
-
-        self.exps = [Exp(tau=fit_tuple[2*exp_idx], frac = fit_tuple[2*exp_idx + 1]) for exp_idx in range(num_exps)]
-        
-        self.irf = Irf(tau_offset = fit_tuple[-2], tau_g = fit_tuple[-1])
+        self.param_tuple = loss_function.params_untransform(fit_tuple)
 
         return fit_obj
-
-    def chi_sq(self, data : np.ndarray, negative_scope : float = 0.0)->float:
-        """ Presumes all units are in ARRIVAL_BIN units. TODO make this unitful!"""
-        return chi_sq_exp(data, self.param_tuple, negative_scope =negative_scope )
 
     @classmethod
     def from_tuple(cls, param_tuple : tuple, units : FlimUnits = FlimUnits.COUNTBINS):
@@ -234,11 +201,14 @@ class FLIMParams():
         args = []
         args += [
             Exp(
-                tau=param_tuple[comp*num_components],
-                frac =param_tuple[comp*num_components + 1],
+                tau=tau,
+                frac =frac,
                 units = units,
             )
-            for comp in range(num_components)
+            for tau,frac in zip(
+                param_tuple[:-2:2],
+                param_tuple[1:-2:2]
+            )
         ]
 
         args += [
@@ -273,18 +243,10 @@ class FLIMParams():
             raise AttributeError("FLIMParams does not have at least one defined component.")
         if not (x_range.dtype is float):
             x_range = x_range.astype(float)
-        arrival_p = np.zeros_like(x_range)
-        for exp in self.exps:
-            arrival_p += exp.frac * monoexponential_prob(
-                x_range - self.irf.tau_offset,
-                exp.tau,
-                self.irf.tau_g,
-                **kwargs
-            )
-
-        if self.allow_noise:
-            arrival_p *= 1.0 - self.noise
-        return arrival_p
+        return param_tuple_to_pdf(
+            x_axis = x_range,
+            param_tuple = self.param_tuple,
+        )
 
     def __repr__(self):
         retstr = "FLIMParams object: \n\n"
@@ -320,6 +282,86 @@ class FLIMParams():
             )
             equal *= self.irf == other.irf
         return equal
+    
+    @param_tuple.setter
+    def param_tuple(self, new_params : tuple):
+        """ :param new_params: a list of the new parameters for the model
+        (Tau, frac, tau, frac, ... , mean, sigma) 
+        """
+
+        if len(new_params) != 2*self.n_exp + 2:
+            raise ValueError(f"Incorrect number of parameters (should be {self.n_exp*2 + 2})")
+        # Update the parameters
+        self.exps = [
+            Exp(tau=tau, frac=frac)
+            for tau, frac in zip(
+                new_params[:-2:2],
+                new_params[1:-2:2]
+            )
+        ]
+        self.irf = Irf(tau_offset = new_params[-2], tau_g = new_params[-1])
+    
+    @property
+    def n_exp(self)->int:
+        """ Number of exponentials in this FLIMParams """
+        return len(self.exps)
+    
+    @property
+    def bounds(self)->Bounds:
+        """
+        Returns a bounds object from the scipy optimization library
+        that can be used to constrain the parameters of this FLIMParams
+        """
+
+        # Switch the type of bounds depending on the # of exponential
+        return Bounds(
+            # lower bounds
+            [0, 0]*(self.n_exp + 1),
+            # upper bounds
+            [np.inf, 1]*self.n_exp + [100, 10],
+        )
+    
+    @property
+    def fraction_bounds(self)->Bounds:
+        """ Fraction-only bounds"""
+        return Bounds(
+            [0.0] * self.n_exps,
+            [1] * self.n_exps
+        )
+
+    @property
+    def constraints(self)->list[LinearConstraint]:
+        """ Exponential fractions sum to one, taus in increasing order """
+        sum_exps_constraint = [
+                LinearConstraint(
+                A=np.array([0.0,1]*self.n_exp + [0.0,0.0]),
+                lb=1,
+                ub=1,
+            )
+        ]
+
+        increasing_taus_constraint = [
+            LinearConstraint(
+                A=np.array(
+                [0,0]*(exp_num-1) + # preceding exponentials
+                [1,0] + [-1,0] +
+                [0,0]*(self.n_exp-exp_num-1) + # tailing exponentials
+                [0,0] #IRF
+                ),
+                ub = 0,
+            )
+            for exp_num in range(1, self.n_exp)
+        ]
+        return sum_exps_constraint + increasing_taus_constraint
+
+    @property
+    def fraction_constraints(self)->list[LinearConstraint]:
+        """ For when the taus and IRF are fixed """
+        return [LinearConstraint(
+            A=np.array([1.0]*self.n_exp),
+            lb=1,
+            ub=1,
+        )]
     
     def to_dict(self)->dict[str, Any]:
         """ Converts the FLIMParams to a JSON-compatible dictionary """
@@ -365,8 +407,6 @@ class FLIMParams():
 
         return cls.from_dict(flim_p_dict)
     
-    
-
 class FLIMParameter():
     """
     Base class for the various types of parameters.
@@ -477,57 +517,3 @@ class Irf(FLIMParameter):
     def __init__(self, **params):
         """ Irf(tau_offset : float, tau_g : float, units : FlimUnits)"""
         super().__init__(**params)
-
-
-### LOCAL FUNCTIONS
-def _default_solver(objective : callable, initial_guess : tuple):
-    return minimize(objective, initial_guess, method='trust-constr',
-            constraints=generate_linear_constraints_trust(initial_guess),
-            bounds=generate_bounds_scipy(initial_guess)
-        )
-
-def generate_bounds_scipy(param_tuple : tuple)->Bounds:
-    """
-    All params > 0
-    
-    fracs < 1
-
-    noise < 1
-    
-    Param order:
-    tau_1
-    frac_1
-    ...
-    tau_n
-    frac_n
-    t_offset
-    tau_g
-    """
-    n_exps = (len(param_tuple)-2)//2
-    lower_bounds_frac = [0 for x in range(n_exps)]
-    lower_bounds_tau = [0 for x in range(n_exps)]
-    
-    lb = [val for pair in zip(lower_bounds_tau, lower_bounds_frac) for val in pair]
-    lb.append(0.0) # tau_o
-    lb.append(0.0) # tau_g
-    
-    upper_bounds_frac = [1 for x in range(n_exps)]
-    upper_bounds_tau = [np.inf for x in range(n_exps)]
-    
-    ub = [val for pair in zip(upper_bounds_tau, upper_bounds_frac) for val in pair]
-    ub.append(np.inf) # tau_o
-    ub.append(np.inf) # tau_g
-
-    return Bounds(lb, ub)
-
-def generate_linear_constraints_trust(param_tuple : tuple)->LinearConstraint:
-    """ Only one linear constraint, sum of fracs == 1"""
-
-    lin_op = np.zeros_like(param_tuple, dtype=float)
-    n_exps = (len(param_tuple)-2)//2
-    # Tuple looks like:
-    # (tau, frac, tau, frac, ... , tau_o, tau_g)
-    for exp_idx in range(n_exps):
-        lin_op[(exp_idx * 2) + 1] = 1
-    
-    return LinearConstraint(lin_op,1.0,1.0)

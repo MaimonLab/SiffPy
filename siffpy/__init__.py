@@ -6,7 +6,7 @@ except ImportError:
     from siffpy.core.utils.shame import __version__, __version_tuple__
     print("Used shame.py. Please shame Stephen for not fixing this bug.")
 
-from siffpy.core import SiffReader, fit_exp
+from siffpy.core import SiffReader
 
 #TODO: IMPLEMENT SIFFTOTIFF import siffreader
 
