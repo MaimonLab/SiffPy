@@ -1,6 +1,11 @@
+import json
+from typing import Any
+from pathlib import Path
+
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 
+from siffpy.core.utils.types import PathLike
 from siffpy.core.flim.exponentials import chi_sq_exp, monoexponential_prob
 from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits
 
@@ -16,7 +21,6 @@ class FLIMParams():
     def __init__(self,
         *args,
         color_channel : int = None,
-        units = FlimUnits.COUNTBINS,
         noise : float = 0.0,
         name : str = None,
         ):
@@ -60,7 +64,7 @@ class FLIMParams():
     @property
     def units(self)->FlimUnits:
         if not all((x.units == self.params[0].units for x in self.params)):
-            return None
+            return FlimUnits.UNKNOWN
         else:
             return self.params[0].units
 
@@ -316,6 +320,52 @@ class FLIMParams():
             )
             equal *= self.irf == other.irf
         return equal
+    
+    def to_dict(self)->dict[str, Any]:
+        """ Converts the FLIMParams to a JSON-compatible dictionary """
+        return {
+            'exps' : [exp.to_dict() for exp in self.exps],
+            'irf' : self.irf.to_dict(),
+            'color_channel' : self.color_channel,
+            'noise' : self.noise,
+            'name' : self.name,
+            'units' : self.units.value,
+        }
+
+    @classmethod
+    def from_dict(cls, data_dict : dict[str, Any])->'FLIMParams':
+        """ Converts a JSON-compatible dictionary to a FLIMParams """
+        exps = [Exp.from_dict(exp_dict) for exp_dict in data_dict['exps']]
+        irf = Irf.from_dict(data_dict['irf'])
+        color_channel = data_dict['color_channel']
+        noise = data_dict['noise']
+        name = data_dict['name']
+        return cls(
+            *exps,
+            irf,
+            color_channel = color_channel,
+            noise = noise,
+            name = name,
+        )
+
+    def save(self, path : PathLike):
+        """ Save to a json file with different extension """
+        path = Path(path)
+        path = path.with_suffix(".flimparams")
+        with open(path, 'w') as f:
+            json.dump(self.to_dict(), f)
+    
+    @classmethod
+    def load(cls, path : PathLike):
+        """ Load from a json file with different extension """
+        path = Path(path)
+        path = path.with_suffix(".flimparams")
+        with open(path, 'r') as flim_p_file:
+            flim_p_dict = json.load(flim_p_file)
+
+        return cls.from_dict(flim_p_dict)
+    
+    
 
 class FLIMParameter():
     """
@@ -327,9 +377,8 @@ class FLIMParameter():
     class_params = []
     unitful_params = []
 
-    def __init__(self, **params):
-        self.units = FlimUnits.COUNTBINS # frankly I think the base unit should be UNITLESS but this is safer.
-        # map and filter is cuter but this is more readable.
+    def __init__(self, units : FlimUnits = FlimUnits.COUNTBINS, **params):
+        self.units = units
         for key, val in params.items():
             if key in self.__class__.class_params:
                 setattr(self, key, val)
@@ -344,6 +393,27 @@ class FLIMParameter():
     @property
     def param_tuple(self)->tuple:
         return tuple(self.param_list)
+    
+    def to_dict(self)->dict:
+        """ JSON-parsable string """
+        return {
+            **{
+                param : getattr(self, param)
+                for param in self.__class__.class_params
+            },
+            'units' : self.units.value,
+        }
+    
+    @classmethod
+    def from_dict(cls, data_dict : dict)->'FLIMParameter':
+        """ Converts a JSON-compatible dictionary to a FLIMParameter """
+        return cls(
+            **{
+                param : data_dict[param]
+                for param in cls.class_params
+            },
+            units = FlimUnits(data_dict['units'])
+        )
 
     def convert_units(self, to_units : FlimUnits)->None:
         """ Converts unitful params """
