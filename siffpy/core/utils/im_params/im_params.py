@@ -217,12 +217,14 @@ class ImParams():
         return None
     
     @property
-    def colors(self)->list[int]:
+    def colors(self)->Union[list[int],int]:
+        """ Can be int or list of ints, inherited from MATLAB """
         if hasattr(self, 'Channels'):
             return self.Channels.channelSave
 
     @property
     def color_list(self)->list[int]:
+        """ Guaranteed to be a list of ints """
         if isinstance(self.colors,list):
             return self.colors
         else:
@@ -490,16 +492,28 @@ class ImParams():
         return frames
 
     @correct_flyback
-    def framelist_by_color(self, color_channel : int, upper_bound : int = None)->list:
+    def framelist_by_color(
+        self,
+        color_channel : int,
+        lower_bound_timepoint : int = 0,
+        upper_bound_timepoint : int = None
+        )->list:
         "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
 
         if color_channel >= self.num_colors:
             raise ValueError("Color channel specified larger than number of colors acquired. Color channel is indexed from 0!")
 
-        if upper_bound is None:
-            return list(range(color_channel, self.num_frames, self.num_colors))
+        lower_bound_frame = (color_channel +
+            lower_bound_timepoint * self.frames_per_volume
+        )
+
+        if upper_bound_timepoint is None:
+            return list(range(lower_bound_frame, self.num_frames, self.num_colors))
         else:
-            return list(range(color_channel, upper_bound, self.num_colors))
+            upper_bound_frame = (color_channel +
+                upper_bound_timepoint * self.frames_per_volume
+            )
+            return list(range(lower_bound_frame, upper_bound_frame, self.num_colors))
 
     @correct_flyback
     def framelist_by_timepoint(
