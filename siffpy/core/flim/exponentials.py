@@ -27,10 +27,11 @@ from scipy.stats import exponnorm
 
 def param_tuple_to_pdf(x_axis : np.ndarray, param_tuple : tuple)->np.ndarray:
     """
-    Convert a tuple of parameters to a probability density function
+    Convert a tuple of parameters to a probability density function.
+    Presumes x_axis and param_tuple are in the same units.
     """
     pdist = np.zeros(x_axis.shape)
     irf_mean, irf_sigma = param_tuple[-2], param_tuple[-1]
     for tau, frac in zip(param_tuple[:-2:2], param_tuple[1:-2:2]):
         pdist += frac * exponnorm.pdf(x_axis, tau/irf_sigma, loc=irf_mean, scale=irf_sigma)
-    return pdist
+    return pdist/pdist.sum()

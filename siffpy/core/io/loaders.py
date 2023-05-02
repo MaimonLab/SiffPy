@@ -4,6 +4,8 @@ import pickle
 import pathlib
 import logging
 
+from siffpy.core.utils.types import PathLike
+from siffpy.core.flim import FLIMParams
 from siffpy.core.utils.registration_tools import (
     RegistrationInfo, to_registration_info, to_reg_info_class
 )
@@ -64,4 +66,16 @@ def load_registration_legacy(filename : str)->tuple:
         ret.append(None)
 
     return tuple(ret)
-    
+
+def load_flim_params(
+        filename : PathLike
+    )->tuple['FLIMParams']:
+    """
+    Returns a tuple of FLIMParams if any are stored in a directory
+    with the name of the file, but with a .flimparams extension.
+    """
+    filename = pathlib.Path(filename)
+    return tuple(
+        FLIMParams.load(x)
+        for x in filename.with_suffix("").glob("*.flimparams")
+    )

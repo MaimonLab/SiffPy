@@ -8,6 +8,7 @@ from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 from scipy.stats import exponnorm
 
 from siffpy.core.utils.types import PathLike
+from siffpy.core.flim.flimunits import FlimUnitsLike
 from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits
 from siffpy.core.flim.exponentials import param_tuple_to_pdf
 from siffpy.core.flim.loss_functions import ChiSquared
@@ -74,7 +75,7 @@ class FLIMParams():
             return self.params[0].units
 
 
-    def convert_units(self, to_units : FlimUnits, flim_info = None):
+    def convert_units(self, to_units : FlimUnitsLike, flim_info = None):
         """
         Converts the units of all the parameters of this FLIMParams to
         the requested unit type of to_units.
@@ -170,7 +171,8 @@ class FLIMParams():
 
             The OptimizeResult object for diagnostics on the fit.
         """
-
+        start_units = FlimUnits(self.units) # force eval
+        self.convert_units(FlimUnits.COUNTBINS)
         objective : Callable[[tuple], float] = loss_function.from_data(data)
 
         if initial_guess is None:
@@ -190,7 +192,7 @@ class FLIMParams():
         fit_tuple = fit_obj.x
 
         self.param_tuple = loss_function.params_untransform(fit_tuple)
-
+        self.convert_units(start_units)
         return fit_obj
 
     @classmethod
@@ -455,7 +457,7 @@ class FLIMParameter():
             units = FlimUnits(data_dict['units'])
         )
 
-    def convert_units(self, to_units : FlimUnits)->None:
+    def convert_units(self, to_units : FlimUnitsLike)->None:
         """ Converts unitful params """
         for param_name in self.unitful_params:    
             setattr(
@@ -467,9 +469,9 @@ class FLIMParameter():
                     to_units
                 )
             )
-        self.units = to_units
+        self.units = FlimUnits(to_units)
 
-    def redimensionalize(self, to_units : FlimUnits):
+    def redimensionalize(self, to_units : FlimUnitsLike):
         """
         Converts UNITLESS params to to_units
         

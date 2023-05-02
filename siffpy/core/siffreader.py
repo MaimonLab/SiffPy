@@ -83,14 +83,13 @@ class SiffReader(object):
         """
         if filename is None:
             raise NotImplementedError("Dialog to navigate to file not yet implemented")
-        if isinstance(filename, Path):            
-            filename = str(filename)            
+        filename = Path(filename)            
         if self.opened and not (filename == self.filename):
             self.siffio.close()
         
 #        print(f"Opening {filename}, collecting metadata...")
 
-        self.siffio.open(filename)
+        self.siffio.open(str(filename))
         self.filename = filename
 
         header = self.siffio.get_file_header()
@@ -109,6 +108,10 @@ class SiffReader(object):
             self.registration_info = r_info
 
         self.events = io.find_events(self.im_params, self.get_frames_metadata())
+
+        flim_params = io.load_flim_params(filename)
+        if any(flim_params):
+            self.flim_params = flim_params
         #print("Finished opening and reading file")
 
     def close(self) -> None:
