@@ -1,5 +1,6 @@
 import builtins
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -15,6 +16,12 @@ from siffpy.core.utils.registration_tools.siffpy.registration_method import (
     register_frames
 )
 
+if TYPE_CHECKING:
+    try:
+        from tqdm import tqdm
+    except ImportError:
+        pass
+
 class SiffpyRegistrationInfo(RegistrationInfo):
     """
     A lightweight and simple version of suite2p's registration
@@ -25,8 +32,10 @@ class SiffpyRegistrationInfo(RegistrationInfo):
     registration method.
     """
 
+    backend = RegistrationType.Siffpy
+
     def __init__(self, siffio : SiffIO, im_params : ImParams):
-        super().__init__(siffio, im_params, RegistrationType.Siffpy)
+        super().__init__(siffio, im_params)
 
     def register(
             self,
@@ -76,13 +85,16 @@ class SiffpyRegistrationInfo(RegistrationInfo):
             self.im_params.single_channel_volume,
         ).squeeze()
 
-        pbar = None
-        if hasattr(builtins, "__IPYTHON__"):
-            from tqdm import tqdm
-            pbar = tqdm(total=len(framelists))
+        pbar = None if not "tqdm" in kwargs else kwargs["tqdm"]
 
+        if not pbar is None:
+            pbar : tqdm
+            pbar.reset(total=len(framelists))
         for z_idx, z_plane_frames in enumerate(framelists):
             print(f"Registering z-plane {z_idx}")
+            if pbar is not None:
+                pbar.update(n=z_idx)
+                #pbar.
             for cycle in range(num_cycles):
 
                 self.reference_frames[z_idx,...] = suite2p_reference(

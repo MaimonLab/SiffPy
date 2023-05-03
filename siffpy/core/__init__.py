@@ -4,3 +4,4 @@ except ImportError:
     from siffpy.core.utils.shame import __version__
 from siffpy.core.siffreader import SiffReader
 from siffpy.core.flim import FLIMParams
+from siffpy.core.utils import ImParams

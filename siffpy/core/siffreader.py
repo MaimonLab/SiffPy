@@ -568,9 +568,8 @@ class SiffReader(object):
     def register(
         self,
         registration_method="siffpy",
-        color_channel : int = 0,
         save_path : PathLike = None, 
-        align_z : bool = False,
+        alignment_color_channel : int = 0,
         **kwargs
         ) -> dict:
         """
@@ -636,8 +635,7 @@ class SiffReader(object):
         
             registration_info.register(
                 self.siffio,
-                alignment_color_channel=color_channel,
-                align_z = align_z,
+                alignment_color_channel = alignment_color_channel,
                 **kwargs
             )
 

@@ -21,16 +21,13 @@ class RegistrationInfo(ABC):
     """ Base class for all Registration implementations """
 
     REGISTRATION_INFO_SUFFIX = ".h5"
+    backend : RegistrationType = RegistrationType.Siffpy
 
     def __init__(
             self,
             siffio : SiffIO,
             im_params : ImParams,
-            backend : Union[RegistrationType,str]
         ):
-        if isinstance(backend, str):
-            backend = RegistrationType(backend)
-        self.registration_type = backend
         self.filename = siffio.filename if not siffio is None else None
         self.yx_shifts : dict[int, tuple[int,int]]= {}
         self.reference_frames : np.ndarray = None
@@ -40,6 +37,10 @@ class RegistrationInfo(ABC):
     def __get_item__(self, idx : int):
         return self.yx_shifts[idx]
     
+    @property
+    def registration_type(self)->'RegistrationType':
+        return self.__class__.backend
+
     @abstractmethod
     def register(
         self,
@@ -58,7 +59,7 @@ class RegistrationInfo(ABC):
         )->tuple[int,int]:
         raise NotImplementedError()
 
-    def save(self, save_path : Union[str, Path] = None):
+    def save(self, save_path : PathLike = None):
         if save_path is None:
             save_path = Path(self.filename).with_suffix("")
         save_path = Path(save_path)

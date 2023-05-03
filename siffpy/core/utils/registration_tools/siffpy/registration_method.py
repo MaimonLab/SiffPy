@@ -67,8 +67,8 @@ def register_frames(
     
     import time
     t = time.time()
-    if use_tqdm:
-        pbar.set_description(f"Ref image (1): {time.time() - t} seconds")
+    #if use_tqdm:
+    #    pbar.set_description(f"\nRef image (1): {time.time() - t} seconds")
 
     # maybe there's a faster way to do this in one pass in numpy
     # I'll revisit it if registration starts to eat a lot of memory
@@ -78,8 +78,8 @@ def register_frames(
     # Faster to just transform ref_im once
     ref_im_NORMED = fft.fft2(reference_frame)
     ref_im_NORMED /= np.abs(ref_im_NORMED)
-    if use_tqdm:    
-        pbar.set_postfix({"Alignment iteration" : 1})
+    #if use_tqdm:    
+    #    pbar.set_postfix({"Alignment iteration" : 1})
     
     rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
     

@@ -2,10 +2,11 @@
 Wrapper code to facilitate running suite2p from
 inside siffpy
 """
+from typing import TYPE_CHECKING
 
 try:
     from suite2p import default_ops
-    from suite2p.registration import registration_wrapper
+    #from suite2p.registration import registration_wrapper
 except ImportError:
     raise ImportError(
         "Suite2p is not installed. Please install suite2p to use this module."
@@ -14,14 +15,18 @@ except ImportError:
 import numpy as np
 
 from siffreadermodule import SiffIO
+from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType
 )
 
+
 class Suite2pRegistrationInfo(RegistrationInfo):
 
-    def __init__(self, siffio : SiffIO):
-        super().__init__(siffio, RegistrationType.Suite2p)
+    backend : RegistrationType = RegistrationType.Suite2p
+
+    def __init__(self, siffio : 'SiffIO', im_params : 'ImParams'):
+        super().__init__(siffio, im_params)
 
     def register(self, *args, **kwargs):
         ops = default_ops()

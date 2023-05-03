@@ -7,6 +7,8 @@ except ImportError:
     print("Used shame.py. Please shame Stephen for not fixing this bug.")
 
 from siffpy.core import SiffReader
+from siffpy.core import ImParams
+from siffpy.core import FLIMParams
 
 #TODO: IMPLEMENT SIFFTOTIFF import siffreader
 

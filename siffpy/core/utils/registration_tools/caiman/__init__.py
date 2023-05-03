@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from siffreadermodule import SiffIO
@@ -11,10 +13,16 @@ from siffpy.core.utils.registration_tools.registration_info import (
 #    register_frames
 #)
 
+if TYPE_CHECKING:
+    from siffpy.core.utils import ImParams
+    from siffreadermodule import SiffIO
+
 class CaimanRegistrationInfo(RegistrationInfo):
 
-    def __init__(self, siffio : SiffIO):
-        super().__init__(siffio, RegistrationType.Caiman)
+    backend = RegistrationType.Caiman
+
+    def __init__(self, siffio : 'SiffIO', im_params : 'ImParams'):
+        super().__init__(siffio, im_params)
 
     def register(self, *args, **kwargs):
         raise NotImplementedError()
