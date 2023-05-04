@@ -36,22 +36,7 @@ struct FrameData{
 
 const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff);
 
-static PyObject* frameDataToDict(FrameData& frameData){
-    PyObject* dataDict = PyDict_New();
-
-    PyDict_SetItemString(dataDict, "Width", Py_BuildValue("K", frameData.imageWidth));
-    PyDict_SetItemString(dataDict, "Length", Py_BuildValue("K", frameData.imageLength));
-    PyDict_SetItemString(dataDict, "endOfIFD", Py_BuildValue("K", frameData.endOfIFD));
-    PyDict_SetItemString(dataDict, "dataStripAddress",Py_BuildValue("K", frameData.dataStripAddress));
-    PyDict_SetItemString(dataDict, "stringLength", Py_BuildValue("K", frameData.stringlength));
-    PyDict_SetItemString(dataDict, "X Resolution", Py_BuildValue("K", frameData.xResolution));
-    PyDict_SetItemString(dataDict, "YResolution", Py_BuildValue("K", frameData.yResolution));
-    PyDict_SetItemString(dataDict, "Bytecount", Py_BuildValue("K", frameData.stripByteCounts));
-    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
-    //PyDict_SetItemString(dataDict, "Tag bytes", Py_BuildValue("O",frameData.tagList));
-    PyDict_SetItemString(dataDict, "Siff compression", Py_BuildValue("O",frameData.siffCompress ? Py_True : Py_False));
-    return dataDict;
-};
+PyObject* frameDataToDict(FrameData& frameData);
 
 template <class T>
 PyObject* VectorToList(std::vector<T> vec) {

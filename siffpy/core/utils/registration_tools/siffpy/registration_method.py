@@ -65,15 +65,12 @@ def register_frames(
     frames_np = siffio.get_frames(frames = frames, registration=registration_dict)
     use_tqdm = not (pbar is None)
     
-    import time
-    t = time.time()
     #if use_tqdm:
     #    pbar.set_description(f"\nRef image (1): {time.time() - t} seconds")
 
     # maybe there's a faster way to do this in one pass in numpy
     # I'll revisit it if registration starts to eat a lot of memory
     # or go super slow
-    t = time.time()
 
     # Faster to just transform ref_im once
     ref_im_NORMED = fft.fft2(reference_frame)

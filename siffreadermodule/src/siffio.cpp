@@ -11,8 +11,6 @@ interpreter
 2) Allows each SiffReader object from SiffPy to
 operate independently
 
-TODO: IMPLEMENT
-//
 */
 
 #include "../include/siffio/siffio.hpp"
@@ -34,6 +32,7 @@ static PyObject* siffio_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
     if (self != NULL) {
         self->siffreader = new SiffReader();
         self->frameDataList = PyList_New(0);
+        self->status = std::string("");
     }
     return (PyObject *) self;
 };
@@ -70,7 +69,7 @@ static void siffio_dealloc(SiffIO *self){
     // Called on deallocation -- close the siffreader object.
     self->siffreader->closeFile();
     delete self->siffreader;
-    Py_DECREF(self->frameDataList);
+    Py_CLEAR(self->frameDataList);
 
     Py_TYPE(self)->tp_free((PyObject *) self);
 };
@@ -82,6 +81,12 @@ static PyObject* siffio_repr(SiffIO *self){
         " - SCT 06/29/2022"
     );
     return retstring;
+};
+
+static int siffio_clear(SiffIO *self){
+    // If I ever update to the new module spec...
+    Py_CLEAR(self->frameDataList);
+    return 0;
 };
 
 /******
@@ -161,12 +166,20 @@ static PyObject* siffio_num_frames(SiffIO* self){
  * *****/
 
 
-int check_framelist(PyObject* frameList, uint64_t* framesArray, uint64_t nTotalFrames){
+int check_framelist(
+    PyObject* frameList,
+    uint64_t* framesArray,
+    const size_t framesArrayN,
+    const uint64_t nTotalFrames
+    ){
     // Checks that the frame list is valid
     // and converts it to a C++ array if the framesArray pointer passed
     // is not NULL.
-
-    uint64_t framesN = PyList_Size(frameList);
+    Py_ssize_t framesN = PyList_Size(frameList);
+    if (framesArrayN != framesN) {
+        PyErr_SetString(PyExc_RuntimeError, "Failure to allocate frames array.");
+        return -1;
+    }
     for(Py_ssize_t idx = Py_ssize_t(0); idx < framesN; idx++) {
         PyObject* item = PyList_GET_ITEM(frameList, idx);
         if(!PyLong_Check(item)) {
@@ -174,19 +187,12 @@ int check_framelist(PyObject* frameList, uint64_t* framesArray, uint64_t nTotalF
             return -1;
         }
         uint64_t frameNum = PyLong_AsUnsignedLongLong(item);
-
         if (frameNum >= nTotalFrames) {
-            PyErr_SetString(
-                PyExc_ValueError,
-                (
-                std::string("Frame number provided is greater than indices of frames.")+
-                std::string("Frame number provided: ")+std::to_string(frameNum)+
-                std::string("Number of frames in file: ")+std::to_string(nTotalFrames)
-                ).c_str()
-            );
+            PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.");
             return -1;
         }
-        if(framesArray != NULL) framesArray[idx] = frameNum;
+        
+        if(framesArrayN != 0) framesArray[idx] = frameNum;
     }
     return 0;
 };
@@ -294,9 +300,10 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     }
 
     uint64_t framesN = PyList_Size(frames_list);
-    uint64_t framesArray[PyList_Size(frames_list)];
+    uint64_t* framesArray = new uint64_t[framesN];
 
-    if (check_framelist(frames_list, framesArray, self->siffreader->numFrames())<0){
+    if (check_framelist(frames_list, framesArray, framesN, self->siffreader->numFrames())<0){
+        delete framesArray;
         return NULL;
     }
     bool registrationDictProvided = registrationDict != NULL;
@@ -305,6 +312,7 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     }
 
     if (check_registration(registrationDict, frames_list) < 0){
+        delete framesArray;
         return NULL;
     }
 
@@ -320,12 +328,17 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
                 framesArray, framesN, registrationDict
             );
             if (!registrationDictProvided) Py_DECREF(registrationDict);
+            delete framesArray;
             return retArray;
         }
-        if (!registrationDictProvided) Py_DECREF(registrationDict); 
-        return self->siffreader->retrieveFrames(framesArray, framesN, registrationDict);
+        if (!registrationDictProvided) Py_DECREF(registrationDict);
+        
+        PyObject* retList = self->siffreader->retrieveFrames(framesArray, framesN, registrationDict);
+        delete framesArray;
+        return retList;
     }
     catch(...) {
+        delete framesArray;
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
@@ -335,7 +348,6 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
     // Gets the meta data for the frames in kw, or for all the frames.  
 
     static const char* GET_FRAMES_METADATA_KEYWORDS[] = {"frames", NULL};
-
     PyObject *frames_list = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
@@ -346,28 +358,26 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
         return NULL;
     }
 
-    // default mode: get all frames
-    if(!frames_list) {
-        return self->siffreader->readMetaData();
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
     }
-    
-    else {
-        uint64_t framesN = PyList_Size(frames_list);
-        uint64_t framesArray[framesN];
-        if(
-            check_framelist(
-                frames_list, framesArray, self->siffreader->numFrames()
-            )<0
-        ){
-            return NULL;
-        }
-        try{
-            return self->siffreader->readMetaData(framesArray, framesN);
-        }
-        catch(std::exception& e){
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            return NULL;
-        }
+    try{
+
+        PyObject* metadata = self->siffreader->readMetaData(framesArray, framesN);
+        delete framesArray;
+    }
+    catch(...){
+        delete framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
     }
 };
 
@@ -419,7 +429,7 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
             PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
         }
 
-        check_framelist(item, NULL, self->siffreader->numFrames());
+        check_framelist(item, NULL, 0, self->siffreader->numFrames());
 
         // Now typecheck the registration dict item
         // If it's not a tuple of PyLongs, replace it
@@ -511,7 +521,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     }
 
     uint64_t frames[PyList_Size(listOfFrames)];
-    check_framelist(listOfFrames, frames, self->siffreader->numFrames());
+    check_framelist(listOfFrames, frames, PyList_Size(listOfFrames), self->siffreader->numFrames());
     check_registration(registrationDict, listOfFrames);
 
     try{
@@ -596,14 +606,16 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     }
 
     // Check that all elements of the frame list and registration dictionary are valid.
-    uint64_t framesArray[PyList_Size(frames_list)];
+    uint64_t* framesArray = new uint64_t[PyList_Size(frames_list)];
 
-    if(check_framelist(frames_list, framesArray, self->siffreader->numFrames()) < 0){
+    if(check_framelist(frames_list, framesArray, PyList_Size(frames_list), self->siffreader->numFrames()) < 0){
         if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete framesArray;
         return NULL;
     }
     if (check_registration(registrationDict, frames_list) < 0) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete framesArray;
         return NULL;
     }
 
@@ -613,12 +625,14 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     try{
         PyArrayObject* returnedMask = self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
         if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete framesArray;
         return returnedMask;
 
     }
     catch(...) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        delete framesArray;
         return NULL;
     }
 };
@@ -687,18 +701,20 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
     }
 
     // Check that all elements of the frame list and registration dictionary are valid.
-    uint64_t framesArray[PyList_Size(frames_list)];
+    uint64_t* framesArray = new uint64_t[PyList_Size(frames_list)];
     for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
         PyObject* item = PyList_GET_ITEM(frames_list, idx);
         if(!PyLong_Check(item)) {
             if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
+            delete framesArray;
             return NULL;
         }
         uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
         if (frameNum >= self->siffreader->numFrames()) {
             if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
+            delete framesArray;
             return NULL;
         }
         framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
@@ -730,6 +746,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                         std::string(" is not a tuple.")
                     ).c_str()
                 );
+                delete framesArray;
                 return NULL;
             }
             Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
@@ -747,6 +764,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                                 std::string(" cannot be cast to type int.")
                             ).c_str()
                         );
+                        delete framesArray;
                         return NULL;
                     }
                     PyTuple_SetItem(shiftTuple, tupIdx, result);
@@ -759,6 +777,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                 (std::string("Failure to access registration dictionary element for frame ") +
                 std::to_string(PyLong_AsLongLong(item))).c_str()
             );
+            delete framesArray;
             return NULL;
         }
     }
@@ -777,11 +796,13 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
             )
         );
         if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete framesArray;
         return FLIMMask;
     }
     catch(...) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        delete framesArray;
         return NULL;
     }
 };
@@ -810,17 +831,24 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         if(!frames) {
             return self->siffreader->getHistogram();
         }
-        else {
-            uint64_t framesArray[PyList_Size(frames)];
-
-            check_framelist(frames, framesArray, self->siffreader->numFrames());
-
-            uint64_t framesN = PyList_Size(frames);
-            return self->siffreader->getHistogram(framesArray, framesN);
-        }
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    }
+    uint64_t* framesArray = new uint64_t[PyList_Size(frames)];
+    try{
+
+        check_framelist(frames, framesArray, PyList_Size(frames), self->siffreader->numFrames());
+
+        uint64_t framesN = PyList_Size(frames);
+        PyArrayObject* histo = self->siffreader->getHistogram(framesArray, framesN);
+        delete framesArray;
+        return histo;
+    }
+    catch(...) {
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        delete framesArray;
         return NULL;
     }
 }
@@ -902,9 +930,11 @@ PyTypeObject SiffIOType = {
     .tp_new = (newfunc) siffio_new,
     .tp_init = (initproc) siffio_init,
     .tp_dealloc = (destructor) siffio_dealloc,
+    .tp_clear = (inquiry) siffio_clear,
 //    .tp_getattr = (getattrfunc) siffio_getattr,
     .tp_repr = (reprfunc) siffio_repr,
     .tp_members = siffio_members,
     .tp_methods = siffio_methods,
     .tp_getset  = siffio_getset,
+
 };

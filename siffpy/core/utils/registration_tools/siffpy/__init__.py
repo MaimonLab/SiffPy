@@ -93,7 +93,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
         for z_idx, z_plane_frames in enumerate(framelists):
             print(f"Registering z-plane {z_idx}")
             if pbar is not None:
-                pbar.update(n=z_idx)
+                pbar.update(1)
                 #pbar.
             for cycle in range(num_cycles):
 

@@ -18,6 +18,7 @@ SiffReader::SiffReader(){
     suppress_warnings = false;
     debug = false;
     debug_clock = std::chrono::high_resolution_clock();
+    _numFrames = -1;
 }
 
 int SiffReader::openFile(const char* _filename) {
@@ -25,7 +26,7 @@ int SiffReader::openFile(const char* _filename) {
     try{
         // First make sure we can open it at all.
         if(siff.is_open()) {
-            if (filename == _filename) {
+            if (strcmp(filename.c_str(), _filename) == 0) {
                 errstring = std::string("\n\nThis file is already open. Was that an accident?\n");
                 return -2;
             }
@@ -120,11 +121,11 @@ int SiffReader::openFile(const char* _filename) {
         params.ROI_string = std::string(roistring);
               
         // Finally, keep track of the filename. We're happy.
-        filename = _filename;
+        filename = std::string(_filename);
         params.suppress_warnings = suppress_warnings;
 
         discernFrames(); // updates params.numFrames with the number of frames in the siff
-        
+        _numFrames = params.allIFDs.size();
         return 0;
     }
     catch(std::exception& e){
@@ -202,6 +203,7 @@ void SiffReader::closeFile(){
     if (siff.is_open()) siff.close();
     params = SiffParams();
     filename = std::string();
+    _numFrames = 0;
 }
 
 void SiffReader::reset() {
@@ -216,7 +218,7 @@ void SiffReader::suppressWarnings(bool suppress){
 }
 
 uint64_t SiffReader::numFrames(){
-    return siff.is_open() ? params.allIFDs.size() : -1;
+    return _numFrames;
 }
 
 void SiffReader::setDebug(bool debug_bool){
@@ -250,25 +252,19 @@ PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool fli
 
 
 
-PyObject* SiffReader::readMetaData(uint64_t frames[],uint64_t framesN){
+PyObject* SiffReader::readMetaData(
+    const uint64_t frames[],
+    const uint64_t framesN
+    ){
     // get metadata enumerated in frames
-
+    PyObject* metaDictList = PyList_New(Py_ssize_t(0));
     try{
         if(!siff.is_open()) throw std::runtime_error("No open file.");
         siff.clear();
         // create the list into which we shall stuff the numpy arrays
-        PyObject* metaDictList = PyList_New(Py_ssize_t(0));
-        if(frames){
-            for(uint64_t i = 0; i < framesN; i++){
-                singleFrameMetaData(params.allIFDs[frames[i]], metaDictList);
-            }
+        for(uint64_t i = 0; i < framesN; i++){
+            singleFrameMetaData(params.allIFDs[frames[i]], metaDictList);
         }
-        else{
-            for(uint64_t i = 0; i<params.numFrames; i++){
-                singleFrameMetaData(params.allIFDs[i], metaDictList);
-            }
-        }
-        
         return metaDictList;
     }
     catch(std::exception& e){

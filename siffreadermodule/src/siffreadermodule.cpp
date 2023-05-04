@@ -203,6 +203,7 @@ PyMODINIT_FUNC PyInit_siffreadermodule(void) {
         ) < 0
     ) {
         Py_DECREF(&PyFrameDataType);
+        Py_DECREF(&SiffIOType);
         Py_DECREF(module);
         return NULL;
     }

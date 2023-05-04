@@ -60,6 +60,7 @@
 class SiffReader
 {
     private:
+        size_t _numFrames;
         // the .siff file, a very delicately wrapped tiff
         std::ifstream siff;
         // file for debug logging.
@@ -107,7 +108,6 @@ class SiffReader
         
         // when you close one file and open another, wipe the slate clean
         void reset();
-
 
     public:
         SiffReader();
@@ -190,7 +190,10 @@ class SiffReader
 
         /////// Metadata methods /////////
         // get metadata enumerated in frames
-        PyObject* readMetaData(uint64_t frames[]=NULL, uint64_t framesN=0);
+        PyObject* readMetaData(
+            const uint64_t frames[],
+            const uint64_t framesN
+        );
         // returns the data in the primary ScanImage header
         PyObject* readFixedData();
         

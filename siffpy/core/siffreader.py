@@ -52,7 +52,7 @@ class SiffReader(object):
         ret_string = "SIFFREADER object:\n\n"
         if self.opened:
             ret_string += "Open file: "
-            ret_string += self.filename
+            ret_string += str(self.filename)
             ret_string += "\n"
         else:
             ret_string += "Inactive siffreader\n"
@@ -104,11 +104,11 @@ class SiffReader(object):
             self.im_params,
             filename
         )
+
         if r_info is not None:
             self.registration_info = r_info
 
-        self.events = io.find_events(self.im_params, self.get_frames_metadata())
-
+        #self.events = io.find_events(self.im_params, self.get_frames_metadata())
         flim_params = io.load_flim_params(filename)
         if any(flim_params):
             self.flim_params = flim_params
@@ -214,7 +214,7 @@ class SiffReader(object):
 ### METADATA METHODS
     def get_frames_metadata(self, frames : list[int] = None) -> list[io.FrameMetaData]:
         if frames is None:
-            frames = list(range(self.im_params.num_frames))
+            frames = self.im_params.flatten_by_timepoints()
         return [io.FrameMetaData(meta_dict)
             for meta_dict in io.frame_metadata_to_dict(self.siffio.get_frame_metadata(frames=frames))
         ]
