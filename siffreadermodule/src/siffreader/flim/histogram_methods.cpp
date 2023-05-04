@@ -15,12 +15,14 @@ void readCompressedArrivals(
     // stored before the dataStripADdress
     siff.seekg(frameData.dataStripAddress);
 
-    uint16_t readsThisFrame[samplesThisFrame];
+    uint16_t* readsThisFrame = new uint16_t[samplesThisFrame];
     siff.read((char*) readsThisFrame, sizeof(uint16_t)*samplesThisFrame);
     // now put the arrival time values that are in succession into the right elements of the numpy array.
-    for (auto tau : readsThisFrame) {
+    for (size_t idx = 0; idx < samplesThisFrame; idx++) {
+        uint16_t tau = readsThisFrame[idx];
         data_ptr[tau] += tau < taudim; // not even needing masking
     }
+    delete[] readsThisFrame;
 }
 
 inline void readRawArrivals(
@@ -32,7 +34,7 @@ inline void readRawArrivals(
     {
     
     siff.seekg(frameData.dataStripAddress);
-    uint64_t frameReads[samplesThisFrame];
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.read((char*) frameReads,frameData.stripByteCounts);
     uint64_t ptr_idx;
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
@@ -40,6 +42,7 @@ inline void readRawArrivals(
         ptr_idx = U64TOTAU(frameReads[photon]);
         data_ptr[ptr_idx] += ptr_idx < taudim;
     }
+    delete[] frameReads;
 }
 
 PyArrayObject* SiffReader::getHistogram(const uint64_t frames[], const uint64_t framesN) {

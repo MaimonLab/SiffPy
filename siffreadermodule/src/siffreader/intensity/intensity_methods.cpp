@@ -22,7 +22,7 @@ inline void readCompressed(
     // Goes to the region where the photon count framedata is stored
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
    
-    uint16_t frameReads[pixelsInImage];
+    uint16_t* frameReads = new uint16_t[pixelsInImage];
     siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
     siff.clear();
 
@@ -31,7 +31,7 @@ inline void readCompressed(
             PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
         ] += frameReads[px];
     }
-
+    delete[] frameReads;
     return;
 }
 
@@ -49,7 +49,7 @@ inline void readRaw(
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
-    uint64_t frameReads[samplesThisFrame];
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
     siff.clear();
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
@@ -64,6 +64,7 @@ inline void readRaw(
             )
         ]++;
     }
+    delete[] frameReads;
 }
 
 void loadArrayWithData(
@@ -97,7 +98,7 @@ void loadArrayWithData(
         if(!(samplesThisFrame == uint64_t(dims[0]*dims[1]))) throw std::runtime_error("Frame data dimensions don't match frame metadata");
         // now that we're sure, just write the data into the data pointer!
         // First we read a copy because we'll need to shift it
-        uint16_t frameReads[samplesThisFrame];
+        uint16_t* frameReads = new uint16_t[samplesThisFrame];
         siff.read((char*)&frameReads,frameData.stripByteCounts);
         siff.clear();
 
@@ -110,6 +111,7 @@ void loadArrayWithData(
                 PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
              ] += frameReads[px];
         }
+        delete frameReads;
     }
 };
 
@@ -338,7 +340,8 @@ inline uint64_t sumMaskCompressed(
 
     if(!(pixelsInImage == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
-    uint16_t frameReads[pixelsInImage];
+    
+    uint16_t* frameReads = new uint16_t[pixelsInImage];
     siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
     siff.clear();
 
@@ -349,6 +352,7 @@ inline uint64_t sumMaskCompressed(
             )
         ]*mask_data_ptr[px];
     }
+    delete[] frameReads;
 
     return photon_count;
 };
@@ -368,7 +372,7 @@ inline uint64_t sumMaskRaw(
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
-    uint64_t frameReads[samplesThisFrame];
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.read((char*)&frameReads,frameData.stripByteCounts);
     siff.clear();
     
@@ -385,6 +389,7 @@ inline uint64_t sumMaskRaw(
             )
         ];
     }
+    delete[] frameReads;
 
     return photon_counts;
 };
@@ -416,7 +421,7 @@ uint64_t sumFrameMask(
     else {
         if(!(samplesThisFrame == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
 
-        uint16_t frameReads[samplesThisFrame];
+        uint16_t* frameReads = new uint16_t[samplesThisFrame];
         siff.read((char*)&frameReads,frameData.stripByteCounts);
         siff.clear();
 
@@ -435,6 +440,7 @@ uint64_t sumFrameMask(
                 )
             ] * mask_data_ptr[px];
         }
+        delete[] frameReads;
     }
 
     return photon_count;

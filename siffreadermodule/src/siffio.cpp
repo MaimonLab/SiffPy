@@ -303,7 +303,7 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     uint64_t* framesArray = new uint64_t[framesN];
 
     if (check_framelist(frames_list, framesArray, framesN, self->siffreader->numFrames())<0){
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
     bool registrationDictProvided = registrationDict != NULL;
@@ -312,7 +312,7 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     }
 
     if (check_registration(registrationDict, frames_list) < 0){
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
 
@@ -328,17 +328,17 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
                 framesArray, framesN, registrationDict
             );
             if (!registrationDictProvided) Py_DECREF(registrationDict);
-            delete framesArray;
+            delete[] framesArray;
             return retArray;
         }
         if (!registrationDictProvided) Py_DECREF(registrationDict);
         
         PyObject* retList = self->siffreader->retrieveFrames(framesArray, framesN, registrationDict);
-        delete framesArray;
+        delete[] framesArray;
         return retList;
     }
     catch(...) {
-        delete framesArray;
+        delete[] framesArray;
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
@@ -365,17 +365,17 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
             frames_list, framesArray, framesN, self->siffreader->numFrames()
         )<0
     ){  
-        delete framesArray;
+        delete[] framesArray;
         // PyErr_SetString called in check_framelist
         return NULL;
     }
     try{
 
         PyObject* metadata = self->siffreader->readMetaData(framesArray, framesN);
-        delete framesArray;
+        delete[] framesArray;
     }
     catch(...){
-        delete framesArray;
+        delete[] framesArray;
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
@@ -610,12 +610,12 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
 
     if(check_framelist(frames_list, framesArray, PyList_Size(frames_list), self->siffreader->numFrames()) < 0){
         if (need_to_decref_dict) Py_DECREF(registrationDict);
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
     if (check_registration(registrationDict, frames_list) < 0) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
 
@@ -625,14 +625,14 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     try{
         PyArrayObject* returnedMask = self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
         if (need_to_decref_dict) Py_DECREF(registrationDict);
-        delete framesArray;
+        delete[] framesArray;
         return returnedMask;
 
     }
     catch(...) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
 };
@@ -707,14 +707,14 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         if(!PyLong_Check(item)) {
             if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
-            delete framesArray;
+            delete[] framesArray;
             return NULL;
         }
         uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
         if (frameNum >= self->siffreader->numFrames()) {
             if (need_to_decref_dict) Py_DECREF(registrationDict);
             PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
-            delete framesArray;
+            delete[] framesArray;
             return NULL;
         }
         framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
@@ -746,7 +746,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                         std::string(" is not a tuple.")
                     ).c_str()
                 );
-                delete framesArray;
+                delete[] framesArray;
                 return NULL;
             }
             Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
@@ -764,7 +764,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                                 std::string(" cannot be cast to type int.")
                             ).c_str()
                         );
-                        delete framesArray;
+                        delete[] framesArray;
                         return NULL;
                     }
                     PyTuple_SetItem(shiftTuple, tupIdx, result);
@@ -777,7 +777,7 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
                 (std::string("Failure to access registration dictionary element for frame ") +
                 std::to_string(PyLong_AsLongLong(item))).c_str()
             );
-            delete framesArray;
+            delete[] framesArray;
             return NULL;
         }
     }
@@ -796,13 +796,13 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
             )
         );
         if (need_to_decref_dict) Py_DECREF(registrationDict);
-        delete framesArray;
+        delete[] framesArray;
         return FLIMMask;
     }
     catch(...) {
         if (need_to_decref_dict) Py_DECREF(registrationDict);
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
 };
@@ -843,12 +843,12 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
         uint64_t framesN = PyList_Size(frames);
         PyArrayObject* histo = self->siffreader->getHistogram(framesArray, framesN);
-        delete framesArray;
+        delete[] framesArray;
         return histo;
     }
     catch(...) {
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
-        delete framesArray;
+        delete[] framesArray;
         return NULL;
     }
 }
