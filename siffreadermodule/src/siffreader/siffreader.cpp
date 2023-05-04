@@ -16,7 +16,7 @@
 SiffReader::SiffReader(){
     suppress_errors = false; 
     suppress_warnings = false;
-    debug = false;
+    _debug = false;
     debug_clock = std::chrono::high_resolution_clock();
     _numFrames = -1;
 }
@@ -25,30 +25,29 @@ int SiffReader::openFile(const char* _filename) {
     // Opens a .siff file for further analysis / use.
     try{
         // First make sure we can open it at all.
-        if(siff.is_open()) {
+        if(FILE_IS_OPEN) {
             if (strcmp(filename.c_str(), _filename) == 0) {
                 errstring = std::string("\n\nThis file is already open. Was that an accident?\n");
                 return -2;
             }
-            siff.close();
+            CLOSE_FILE;
             reset();
         }
-        if (!siff.good()) {siff.clear();}
-        siff.open(_filename, std::ios::binary | std::ios::in);
-        if (!siff.good()) {siff.clear();}
-        if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
+        fileDescriptor = open(_filename, O_RDONLY);
+        if (!FILE_IS_OPEN) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
         
         // Get the file size:
-        siff.seekg(0, siff.end);
-        params.fileSize = siff.tellg();
-        siff.seekg(0, siff.beg);
+        if (fstat(fileDescriptor, &siffStat) < 0) throw std::runtime_error("Could not get file size.");
+        params.fileSize = siffStat.st_size;
         
         // Now check that it's a siff file.
 
+        size_t map_offset = 0;
         // Gotta know the endian
-        char *endian = new char[2];
-        siff.read(endian, sizeof(char)*2);   
+        char *siffMap =(char*) mmap(NULL, sizeof(char)*2, PROT_READ, MAP_PRIVATE, fileDescriptor, 0);
 
+        char endian[2];
+        memcpy(endian, siffMap, sizeof(char) * 2);
         // strcmp == 0 if they match.
         if ((strcmp(endian,BIGENDIAN)*strcmp(endian,LITTLEENDIAN)) != 0){
             throw std::runtime_error(
@@ -59,7 +58,7 @@ int SiffReader::openFile(const char* _filename) {
         }
         params.little = (strcmp(endian,LITTLEENDIAN) == 0); // true if little, false if big.
 
-        delete[] endian;
+        map_offset += 2;
 
         // temporary solution: if endian isn't little, give up.
         uint16_t i = 1; // the uint16_t 1 is 0x01 in big endian, 0x10 in little endian
@@ -69,8 +68,11 @@ int SiffReader::openFile(const char* _filename) {
         
         // Check the magic numbers
         uint16_t tiffid;
-        siff.read((char*)&tiffid, sizeof(uint16_t));
+        memcpy(&tiffid, siffMap + map_offset, sizeof(uint16_t));
+        map_offset += sizeof(uint16_t);
 
+        // Replace with mmap
+        
         if(!((tiffid == BIGTIFFID) || (tiffid == TIFFID))) throw std::runtime_error("Could not verify that file is a true .tiff or .siff based on magic numbers.");
         params.bigtiff = (tiffid == BIGTIFFID);
 
@@ -79,20 +81,26 @@ int SiffReader::openFile(const char* _filename) {
 
         if (params.bigtiff) {
             //  here the headers diverge a bit
-            uint16_t offset_size;
-            siff.read((char*)&offset_size, sizeof(uint16_t));
-            params.bytesPerPointer = offset_size; // sure to be 8 byte.
+            memcpy(&params.bytesPerPointer, siffMap + map_offset, sizeof(uint16_t));
+            map_offset += sizeof(uint16_t);
             params.bytesPerNumTags = 8;
-            siff.read((char*)&offset_size, sizeof(uint16_t)); // these are always 0.
+            
+            uint16_t offset_size;
+            memcpy(&offset_size, siffMap + map_offset, sizeof(uint16_t));
+            map_offset += sizeof(uint16_t);
             if(offset_size) throw std::runtime_error("File is not a valid BIGTIFF or .SIFF.");
             
-            siff.read((char*)&(params.firstIFDAddress),params.bytesPerPointer);
+            // Now we're at the first IFD address
+            //params.firstIFDAddress = (uint64_t) &siffMap[offset];
+            memcpy(&params.firstIFDAddress, siffMap + map_offset, params.bytesPerPointer);
+            map_offset += params.bytesPerPointer;
             params.bytesPerTag = 20;
         }
         else {
             // regular ol' tiff
             uint32_t firstIFD;
-            siff.read((char*)&firstIFD, sizeof(uint32_t));
+            memcpy(&firstIFD, siffMap + map_offset, sizeof(uint32_t));
+            map_offset += sizeof(uint32_t);
             params.firstIFDAddress = (uint64_t) firstIFD;
             params.bytesPerTag = 12;
             params.bytesPerNumTags = 2;
@@ -100,24 +108,29 @@ int SiffReader::openFile(const char* _filename) {
     
         // Now do the ScanImage-specific checks!
         uint32_t magic;
-        siff.read((char*)&magic, sizeof(uint32_t));
+        memcpy(&magic, siffMap + map_offset, sizeof(uint32_t));
+        map_offset += sizeof(uint32_t);
         
         uint32_t si;
-        siff.read((char*)&si, sizeof(uint32_t));
+        memcpy(&si, siffMap + map_offset, sizeof(uint32_t));
+        map_offset += sizeof(uint32_t);
         
         if( !( (magic == MAGICNUMBER) && (si == SI2019) ) ) throw std::runtime_error("File is a .tiff, but was not produced by ScanImage");
 
-        siff.read((char*)&(params.NVFD_length), sizeof(uint32_t));
+        memcpy(&params.NVFD_length, siffMap + map_offset, sizeof(uint32_t));
+        map_offset += sizeof(uint32_t);
 
-        siff.read((char*)&(params.ROI_string_length), sizeof(uint32_t));
-
+        memcpy(&params.ROI_string_length, siffMap + map_offset, sizeof(uint32_t));
+        map_offset += sizeof(uint32_t);
         
         char headerstring[params.NVFD_length];
-        siff.read(headerstring, params.NVFD_length);
+        memcpy(headerstring, siffMap + map_offset, params.NVFD_length);
+        map_offset += params.NVFD_length;
         params.headerstring = std::string(headerstring);
 
         char roistring[params.ROI_string_length];
-        siff.read(roistring, params.ROI_string_length);
+        memcpy(roistring, siffMap + map_offset, params.ROI_string_length);
+        map_offset += params.ROI_string_length;
         params.ROI_string = std::string(roistring);
               
         // Finally, keep track of the filename. We're happy.
@@ -129,14 +142,14 @@ int SiffReader::openFile(const char* _filename) {
         return 0;
     }
     catch(std::exception& e){
-        if (siff.is_open()) siff.close();
+        if (FILE_IS_OPEN) CLOSE_FILE;
         errstring = std::string("Could not open file: ") + e.what(); 
         return -1;
     }
 };
 
 bool SiffReader::isOpen(){
-    return siff.is_open();
+    return FILE_IS_OPEN;
 }
 //
 void SiffReader::discernFrames() {
@@ -146,18 +159,16 @@ void SiffReader::discernFrames() {
     uint64_t currIFD = 0;
     uint64_t numTags; // number of tags in this directory before the real metadata
 
-    siff.seekg(nextIFD, std::ios::beg); // go there first
-    while(nextIFD>0 && nextIFD<params.fileSize && !siff.eof()) {
+    while(nextIFD>0 && nextIFD<params.fileSize) {
         currIFD = nextIFD;
 
         params.allIFDs.push_back(currIFD);
         frameDatas.push_back(getTagData(currIFD, params, siff));
 
-        siff.seekg(currIFD, std::ios::beg); // go back to the beginning of the IFD
-        siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
+        memcpy(&numTags, siffMap + currIFD, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
 
         siff.seekg(numTags*params.bytesPerTag,std::ios::cur); // skip the tags
-
+        memcpy(&nextIFD, siffMap + currIFD + params.bytesPerNumTags + , params.bytesPerPointer); // get the next IFD address
         siff.read((char*)&nextIFD, params.bytesPerPointer);
 
         // go to the next IFD
@@ -200,14 +211,14 @@ bool SiffReader::dimensionsConsistent(const uint64_t frames[], const uint64_t fr
  
 
 void SiffReader::closeFile(){
-    if (siff.is_open()) siff.close();
+    if (FILE_IS_OPEN) CLOSE_FILE;
     params = SiffParams();
     filename = std::string();
     _numFrames = 0;
 }
 
 void SiffReader::reset() {
-    if (siff.is_open()) siff.close();
+    if (FILE_IS_OPEN) CLOSE_FILE;
     params = SiffParams();
     filename = std::string();
 }
@@ -222,7 +233,7 @@ uint64_t SiffReader::numFrames(){
 }
 
 void SiffReader::setDebug(bool debug_bool){
-    debug = debug_bool;
+    _debug = debug_bool;
 }
 
 
@@ -259,8 +270,7 @@ PyObject* SiffReader::readMetaData(
     // get metadata enumerated in frames
     PyObject* metaDictList = PyList_New(Py_ssize_t(0));
     try{
-        if(!siff.is_open()) throw std::runtime_error("No open file.");
-        siff.clear();
+        if(!FILE_IS_OPEN) throw std::runtime_error("No open file.");
         // create the list into which we shall stuff the numpy arrays
         for(uint64_t i = 0; i < framesN; i++){
             singleFrameMetaData(params.allIFDs[frames[i]], metaDictList);
@@ -281,7 +291,7 @@ PyObject* SiffReader::readMetaData(
 
 PyObject* SiffReader::readFixedData(){
     // returns the data in the primary ScanImage header, if it's been opened
-    if (!siff.is_open()) {
+    if (!FILE_IS_OPEN) {
         errstring = "No file open";
         PyErr_SetString(
             PyExc_AssertionError,
@@ -297,7 +307,7 @@ PyObject* SiffReader::readFixedData(){
     PyDict_SetItemString(headerDict, "Number of frames", Py_BuildValue("n", params.numFrames));
     PyDict_SetItemString(headerDict, "Non-varying frame data", Py_BuildValue("s#",params.headerstring.c_str(),Py_ssize_clean_t(params.NVFD_length)));
     PyDict_SetItemString(headerDict, "ROI string", Py_BuildValue("s#",params.ROI_string.c_str(),Py_ssize_clean_t(params.ROI_string_length)));
-    if (debug) {
+    if (_debug) {
         PyDict_SetItemString(headerDict, "IFD pointers", Py_BuildValue("O",VectorToList(params.allIFDs)));
     }
     
@@ -338,7 +348,7 @@ void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
 
 
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
-    if(!debug && (frameData.dataStripAddress < frameData.endOfIFD)) throw std::runtime_error("Negative description length -- error parsing tags?");
+    if(!_debug && (frameData.dataStripAddress < frameData.endOfIFD)) throw std::runtime_error("Negative description length -- error parsing tags?");
     
     uint64_t description_length = frameData.siffCompress ?
         frameData.dataStripAddress - frameData.endOfIFD - frameData.imageLength*frameData.imageWidth*sizeof(uint16_t)

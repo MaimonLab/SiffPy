@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string>
 #include <fstream>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 // IMPORT_ARRAY() CALLED IN MODULE INIT
 #define NO_IMPORT_ARRAY
@@ -56,13 +58,20 @@
     (((uint64_t)(px / dim_y) + y_shift) % dim_y) * dim_x \
     + (((px % dim_y) + x_shift) % dim_x)
 
+#define FILE_IS_OPEN (fcntl(fileDescriptor, F_GETFD) != -1 || errno != EBADF)
+#define CLOSE_FILE munmap(siffMap, siffStat.st_size); close(fileDescriptor)
+
 
 class SiffReader
 {
     private:
+        int fileDescriptor; // for mmap
+        char* siffMap; // for mmap
+        struct stat siffStat; // for mmap
+
         size_t _numFrames;
         // the .siff file, a very delicately wrapped tiff
-        std::ifstream siff;
+        //std::ifstream siff;
         // file for debug logging.
         std::ofstream debugger;
         // Clock for measuring time to execute functions
@@ -76,7 +85,7 @@ class SiffReader
         // a setting to ignore errors if there is an issue reading one or more frames.
         bool suppress_warnings;
         // a setting for whether or not to print to the debugger file
-        bool debug;             
+        bool _debug;             
 
         // error string for Python to retrieve
         std::string errstring;
