@@ -21,13 +21,13 @@ void readCompressedForArrivals(
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
     
     // first read the unshifted intensity data
-    uint16_t photonCounts[frameData.imageLength * frameData.imageWidth];
-    siff.read((char*)&photonCounts, pixelsInImage * sizeof(uint16_t));
+    uint16_t* photonCounts = new uint16_t[frameData.imageLength * frameData.imageWidth];
+    siff.read((char*)photonCounts, pixelsInImage * sizeof(uint16_t));
 
     // now read the arrival times
     siff.seekg(frameData.dataStripAddress);
     // uint64_t arrivalsThisFrame[nPhotons];
-    uint16_t arrivalsThisFrame[frameData.stripByteCounts/sizeof(uint16_t)];
+    uint16_t* arrivalsThisFrame = new uint16_t[frameData.stripByteCounts/sizeof(uint16_t)];
 
     siff.read((char*) arrivalsThisFrame, frameData.stripByteCounts);
 
@@ -56,6 +56,8 @@ void readCompressedForArrivals(
         lifetime_ptr[shifted_px] /= photonsThisPx; // MEAN arrival time
         lifetime_ptr[shifted_px] -= tauo; // subtract the offset
     }
+    delete [] photonCounts;
+    delete [] arrivalsThisFrame;
 }
 
 void readRawForArrivals(
@@ -72,9 +74,9 @@ void readRawForArrivals(
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
-    uint64_t frameReads[samplesThisFrame];
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.seekg(frameData.dataStripAddress);
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.read((char*)frameReads,frameData.stripByteCounts);
     siff.clear();
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
         
@@ -106,6 +108,8 @@ void readRawForArrivals(
         lifetime_ptr[px] /= intensity_ptr[px];
         lifetime_ptr[px] -= tauo; // subtract the offset
     }
+
+    delete[] frameReads;
 }
 
 // Stores the empirical lifetime in lifetime_data_ptr --
@@ -279,8 +283,8 @@ double_t sumMaskFLIMCompressed(
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
    
     // Get the frame intensity data
-    uint16_t frameReads[pixelsInImage];
-    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    uint16_t* frameReads = new uint16_t[pixelsInImage];
+    siff.read((char*)frameReads, pixelsInImage * sizeof(uint16_t));
     siff.clear();
 
     siff.seekg(frameData.dataStripAddress);
@@ -288,8 +292,8 @@ double_t sumMaskFLIMCompressed(
     uint64_t counted_photons = 0;
     uint64_t photonsSoFar = 0;
 
-    uint16_t photonStream[frameData.stripByteCounts/sizeof(uint16_t)];
-    siff.read((char*)&photonStream, frameData.stripByteCounts);
+    uint16_t *photonStream = new uint16_t[frameData.stripByteCounts/sizeof(uint16_t)];
+    siff.read((char*)photonStream, frameData.stripByteCounts);
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         uint64_t shifted_px = PIXEL_SHIFT(
             px,
@@ -309,6 +313,8 @@ double_t sumMaskFLIMCompressed(
         }
         photonsSoFar += photonCounts;
     }
+    delete[] frameReads;
+    delete[] photonStream;
 
     return summed_arrivals/counted_photons - offset;
 };
@@ -329,8 +335,8 @@ double_t sumMaskFLIMRaw(
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
-    uint64_t frameReads[samplesThisFrame];
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
+    siff.read((char*)frameReads,frameData.stripByteCounts);
     siff.clear();
     
     uint64_t n_counted = 0;
@@ -357,6 +363,7 @@ double_t sumMaskFLIMRaw(
             )
         ];
     }
+    delete[] frameReads;
     return summed_bins/n_counted - offset;
 };
 

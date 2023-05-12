@@ -23,7 +23,7 @@ inline void readCompressed(
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
    
     uint16_t* frameReads = new uint16_t[pixelsInImage];
-    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    siff.read((char*)frameReads, pixelsInImage * sizeof(uint16_t));
     siff.clear();
 
     for(uint64_t px = 0; px < pixelsInImage; px++) {
@@ -44,14 +44,16 @@ inline void readRaw(
     PyObject* &shift_tuple
     ) // every read is a uint64 of y, x, tau
     {
+
     
     // figure out the rigid deformation for registration
     uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
     uint64_t* frameReads = new uint64_t[samplesThisFrame];
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.read((char*)frameReads,frameData.stripByteCounts);
     siff.clear();
+
     for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
         // increment the appropriate numpy element
         data_ptr[
@@ -76,7 +78,7 @@ void loadArrayWithData(
     PyObject* shift_tuple
     ) {
     
-    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0), PyLong_FromLong(0));
+    if (!shift_tuple) shift_tuple = PyTuple_Pack(Py_ssize_t(2), PyLong_FromLong(0L), PyLong_FromLong(0L));
 
     // TODO: put the bool flags into the SiffParams struct.
     
@@ -99,7 +101,7 @@ void loadArrayWithData(
         // now that we're sure, just write the data into the data pointer!
         // First we read a copy because we'll need to shift it
         uint16_t* frameReads = new uint16_t[samplesThisFrame];
-        siff.read((char*)&frameReads,frameData.stripByteCounts);
+        siff.read((char*)frameReads,frameData.stripByteCounts);
         siff.clear();
 
         // figure out the rigid deformation for registration
@@ -163,7 +165,6 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
     // Build a PyArray object from the framelist
     // with length equal to the number of frames
     // and dtype uint64_t
-    PyArray_Descr* desc(PyArray_DescrFromType(NPY_UINT64));
 
     const int ND = 3;
     // TEMP
@@ -342,7 +343,7 @@ inline uint64_t sumMaskCompressed(
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
     
     uint16_t* frameReads = new uint16_t[pixelsInImage];
-    siff.read((char*)&frameReads, pixelsInImage * sizeof(uint16_t));
+    siff.read((char*)frameReads, pixelsInImage * sizeof(uint16_t));
     siff.clear();
 
     for(uint64_t px = 0; px < pixelsInImage; px++) {
@@ -373,7 +374,7 @@ inline uint64_t sumMaskRaw(
     uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
 
     uint64_t* frameReads = new uint64_t[samplesThisFrame];
-    siff.read((char*)&frameReads,frameData.stripByteCounts);
+    siff.read((char*)frameReads,frameData.stripByteCounts);
     siff.clear();
     
     // if we're just doing intensity, the pointer element to increment should be different
@@ -422,7 +423,7 @@ uint64_t sumFrameMask(
         if(!(samplesThisFrame == uint64_t(mask_dims[0]*mask_dims[1]))) throw std::runtime_error("Mask dimensions don't match frame metadata");
 
         uint16_t* frameReads = new uint16_t[samplesThisFrame];
-        siff.read((char*)&frameReads,frameData.stripByteCounts);
+        siff.read((char*)frameReads,frameData.stripByteCounts);
         siff.clear();
 
         // figure out the rigid deformation for registration

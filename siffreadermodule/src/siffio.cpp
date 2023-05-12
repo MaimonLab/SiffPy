@@ -321,9 +321,9 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
 
             if(!self->siffreader->dimensionsConsistent(framesArray, framesN)){
                 PyErr_SetString(PyExc_TypeError, "Dimensions of requested frames are not consistent");
+                delete[] framesArray;
                 return NULL;
             }
-                
             PyObject* retArray = (PyObject*) self->siffreader->retrieveFramesAsArray(
                 framesArray, framesN, registrationDict
             );
@@ -355,6 +355,7 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
             KWARG_CAST(GET_FRAMES_METADATA_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -373,6 +374,7 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
 
         PyObject* metadata = self->siffreader->readMetaData(framesArray, framesN);
         delete[] framesArray;
+        return metadata;
     }
     catch(...){
         delete[] framesArray;
