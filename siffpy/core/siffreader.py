@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, TYPE_CHECKING, Optional
 import logging
 import warnings
 from pathlib import Path
@@ -10,11 +10,13 @@ from siffreadermodule import SiffIO
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
 from siffpy.core.utils import ImParams
-from siffpy.core.utils.types import PathLike
 from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.siffmath.flim import FlimTrace
+
+if TYPE_CHECKING:
+    from siffpy.core.utils.types import PathLike
 
 # TODO:
 # __repr__
@@ -30,7 +32,7 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : PathLike = None):
+    def __init__(self, filename : Optional['PathLike'] = None):
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
@@ -69,7 +71,7 @@ class SiffReader(object):
         # TODO
         return self.__str__()
 
-    def open(self,  filename : PathLike = None) -> None:
+    def open(self,  filename : Optional['PathLike'] = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -123,7 +125,7 @@ class SiffReader(object):
 ### TIME AXIS METHODS
     def t_axis(self,
         timepoint_start : int = 0,
-        timepoint_end : int = None,
+        timepoint_end : Optional[int] = None,
         reference_z : int = 0,
         reference_time : str = 'experiment'
     ) -> np.ndarray:
@@ -178,9 +180,31 @@ class SiffReader(object):
             reference = reference_time,
         )
     
+    def save_time_axis(self)->None:
+        """ Saves the time axis of all frames as nanoseconds in a numpy array """
+        t_axis = self.t_axis(
+            timepoint_start=0,
+            timepoint_end=None,
+            reference_z=0,
+            reference_time='epoch'
+        )
+        np.save(
+            str(Path(self.filename).with_suffix('_time_axis.npy')),
+            t_axis,
+            allow_pickle=False
+        )
+
+    @classmethod
+    def load_time_axis(cls, filename : 'PathLike')->np.ndarray:
+        """ Loads the time axis of all frames as nanoseconds from a numpy array """
+        return np.load(
+            str(Path(filename).with_suffix('_time_axis.npy')),
+            allow_pickle=False
+        )
+    
     def get_time(
             self,
-            frames : list[int] = None,
+            frames : Optional[list[int]] = None,
             reference : str = "experiment"
         ) -> np.ndarray:
         """
@@ -212,7 +236,7 @@ class SiffReader(object):
         return timetools.metadata_dicts_to_time(self.siffio.get_frame_metadata(frames=frames), reference)
 
 ### METADATA METHODS
-    def get_frames_metadata(self, frames : list[int] = None) -> list[io.FrameMetaData]:
+    def get_frames_metadata(self, frames : Optional[list[int]] = None) -> list[io.FrameMetaData]:
         if frames is None:
             frames = self.im_params.flatten_by_timepoints()
         return [io.FrameMetaData(meta_dict)
@@ -225,9 +249,10 @@ class SiffReader(object):
         
 
 ### IMAGE INTENSITY METHODS
-    def get_frames(self,
-        frames: list[int] = None,
-        registration_dict : dict = None,
+    def get_frames(
+        self,
+        frames: Optional[list[int]] = None,
+        registration_dict : Optional[dict] = None,
         as_array : bool = True,
         ) -> Union[list[np.ndarray], np.ndarray]:
         """
@@ -269,10 +294,10 @@ class SiffReader(object):
             self,
             mask : np.ndarray,
             timepoint_start : int = 0,
-            timepoint_end : int = None,
-            z_index : Union[int,list[int]] = None,
+            timepoint_end : Optional[int] = None,
+            z_index : Optional[Union[int,list[int]]] = None,
             color_channel :  int = 1,
-            registration_dict : dict = None,
+            registration_dict : Optional[dict] = None,
         )->np.ndarray:
         """
         Computes the sum photon counts within a numpy mask over timesteps.
@@ -344,10 +369,10 @@ class SiffReader(object):
    
     def pool_frames(self, 
             framelist : list[list[int]], 
-            flim : bool = False,
-            registration : dict = None,
+            flim : Optional[bool] = False,
+            registration : Optional[dict] = None,
             ret_type : type = list,
-            masks : list[np.ndarray] = None 
+            masks : Optional[list[np.ndarray]] = None 
         ) -> list[np.ndarray]:
         """
         Wraps self.siffio.pool_frames
@@ -365,7 +390,7 @@ class SiffReader(object):
         return list_of_arrays
 
 ### FLIM METHODS
-    def get_histogram(self, frames: list[int] = None) -> np.ndarray:
+    def get_histogram(self, frames: Optional[list[int]] = None) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
 
@@ -387,7 +412,11 @@ class SiffReader(object):
             return self.siffio.get_histogram(frames=self.im_params.all_frames)
         return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]
 
-    def histograms(self, color_channel : 'int|list' = None, frame_endpoints : tuple[int,int] = [None,None]) -> np.ndarray:
+    def histograms(
+            self,
+            color_channel : Optional['int|list'] = None,
+            frame_endpoints : tuple[Optional[int],Optional[int]] = (None,None)
+        ) -> np.ndarray:
         """
         Returns a numpy array with arrival time histograms for all elements of the 
         keyword argument 'color_channel', which may be of type int or of type list (or any iterable).
@@ -468,9 +497,9 @@ class SiffReader(object):
             params : 'FLIMParams',
             mask : np.ndarray[bool],
             timepoint_start : int = 0,
-            timepoint_end : int = None,
+            timepoint_end : Optional[int] = None,
             color_channel : int = 0,
-            registration_dict : dict = None,
+            registration_dict : Optional[dict] = None,
         )->'FlimTrace':
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -568,7 +597,7 @@ class SiffReader(object):
     def register(
         self,
         registration_method="siffpy",
-        save_path : PathLike = None, 
+        save_path : Optional['PathLike'] = None, 
         alignment_color_channel : int = 0,
         **kwargs
         ) -> dict:
@@ -647,13 +676,13 @@ class SiffReader(object):
         return self.registration_dict
     
     @property
-    def registration_dict(self) -> dict:
+    def registration_dict(self) -> Optional[dict]:
         if hasattr(self, 'registration_info'):
             return self.registration_info.yx_shifts
         return None
 
     @property
-    def reference_frames(self)->np.ndarray:
+    def reference_frames(self)->Optional[np.ndarray]:
         if hasattr(self, 'registration_info'):
             if self.registration_info.reference_frames is None:
                 raise RuntimeError("No reference frames have been computed. Run register() first.")

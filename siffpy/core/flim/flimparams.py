@@ -1,7 +1,6 @@
 import json
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, Optional
 from pathlib import Path
-import warnings
 
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
@@ -26,9 +25,9 @@ class FLIMParams():
     
     def __init__(self,
         *args,
-        color_channel : int = None,
+        color_channel : Optional[int] = None,
         noise : float = 0.0,
-        name : str = None,
+        name : Optional[str] = None,
         ):
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
@@ -400,7 +399,7 @@ class FLIMParams():
             json.dump(self.to_dict(), f)
     
     @classmethod
-    def load(cls, path : PathLike):
+    def load(cls, path : PathLike)->'FLIMParams':
         """ Load from a json file with different extension """
         path = Path(path)
         path = path.with_suffix(".flimparams")

@@ -13,7 +13,13 @@ from siffpy.core.utils import circle_fcns
 from siffpy.siffmath.phase.traces import PhaseTrace
 import siffpy.siffmath.phase.phase_estimates as phase_estimates
 
-def estimate_phase(vector_series : np.ndarray, *args, method='pva', error_estimate = False, **kwargs)->np.ndarray:
+def estimate_phase(
+    vector_series : np.ndarray,
+    *args,
+    method='pva',
+    error_estimate = False,
+    **kwargs
+    )->np.ndarray:
     """
     Takes a time series of vectors (dimensions x time) and, assuming they
     correspond to a circularized signal, returns a 'phase' estimate, according

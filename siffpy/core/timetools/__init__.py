@@ -11,8 +11,8 @@ NANO_TO_SEC = 1e-9
 
 def epoch_to_frame_time(epoch_time : int, frame_meta : FrameMetaData)->float:
     """ Converts epoch time to frame time for this experiment (returned in seconds) """
-    frame_zero_time = frame_meta['frameTimestamps_sec'] # in seconds
-    epoch_zero_time = frame_meta['epoch'] # in nanoseconds
+    frame_zero_time : float = frame_meta['frameTimestamps_sec'] # in seconds
+    epoch_zero_time : int = frame_meta['epoch'] # in nanoseconds
     offset = frame_zero_time * SEC_TO_NANO - epoch_zero_time
     return (epoch_time + offset)/NANO_TO_SEC
 

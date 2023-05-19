@@ -1,9 +1,14 @@
 import numpy as np
-from typing import Union
+from typing import TYPE_CHECKING
+from pathlib import Path
 
-from siffpy.siffmath.utils.types import (
-    FluorescenceArrayLike, FluorescenceVectorLike
-)
+import h5py
+
+if TYPE_CHECKING:
+    from siffpy.core.utils.types import PathLike
+    from siffpy.siffmath.utils.types import (
+        FluorescenceArrayLike, FluorescenceVectorLike
+    )
 
 class FluorescenceTrace(np.ndarray):
     """
@@ -20,6 +25,7 @@ class FluorescenceTrace(np.ndarray):
         normalized : bool = False,
         F : np.ndarray = None,
         F0 : np.ndarray = np.ndarray(None),
+        #time_axis : np.ndarray = np.ndarray(None),
         max_val : np.ndarray = np.inf,
         min_val : np.ndarray = 0.0,
         angle : float = None,
@@ -37,11 +43,12 @@ class FluorescenceTrace(np.ndarray):
 
     def __new__(
         cls,
-        input_array : FluorescenceArrayLike,
+        input_array : 'FluorescenceArrayLike',
         method : str = None,
         normalized : bool = False,
         F : np.ndarray = None,
         F0 : np.ndarray = np.ndarray(None),
+        #time_axis : np.ndarray = np.ndarray(None),
         max_val : np.ndarray = np.inf,
         min_val : np.ndarray = 0.0,
         angle : float = None,
@@ -62,6 +69,7 @@ class FluorescenceTrace(np.ndarray):
             F = np.zeros_like(input_array)
         obj.F = F
         obj.F0 = F0
+        #obj.time_axis = time_axis
         obj.max_val = max_val
         obj.min_val = min_val
         obj.angle = angle
@@ -78,6 +86,7 @@ class FluorescenceTrace(np.ndarray):
         self.normalized = getattr(obj, 'normalized', False)
         self.F = getattr(obj,'F', np.full_like(self.__array__(), np.nan))
         self.F0 = getattr(obj, 'F0', 0)
+        #self.time_axis = getattr(obj, 'time_axis', np.nan*np.ones(self.__array__().shape[0]))
         self.max_val = getattr(obj, 'max_val', np.inf)
         self.min_val = getattr(obj, 'min_val', 0)
         self.angle = getattr(obj, 'angle', None)
@@ -171,6 +180,52 @@ class FluorescenceTrace(np.ndarray):
             results = tuple(resultlist)
 
         return results[0] if len(results) == 1 else results
+    
+    def save(self, path : 'PathLike'):
+        path = Path(path)
+        path = path.with_suffix('.fluor_hdf5')
+        with h5py.File(path, 'w') as f:
+            f.create_dataset("fluorescence", data = self.__array__())
+            f.create_dataset("F", data = self.F)
+            f.create_dataset("F0", data = self.F0)
+            f.attrs['normalized'] = self.normalized
+            f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
+            f.attrs['max_val'] = h5py.Empty('f') if self.max_val is None else self.max_val
+            f.attrs['min_val'] = h5py.Empty('f') if self.min_val is None else self.min_val
+            f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
+            f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
+
+
+    @classmethod
+    def load(cls, path : 'PathLike')->'FluorescenceTrace': 
+        """ Load a .flim_hdf file and create a FlimArray class from it. """
+        path = Path(path)
+        if not path.suffix == '.fluor_hdf5':
+            raise ValueError("File must be a .fluor_hdf5 file")
+
+        with h5py.File(path, 'r') as f:
+            input_array = f['fluorescence'][...]
+            F = f['F'][...]
+            F0 = f['F0'][...]
+            normalized = f.attrs['normalized']
+            method = None if isinstance(f.attrs['method'], h5py.Empty) else f.attrs['method']
+            max_val = None if isinstance(f.attrs['max_val'], h5py.Empty) else f.attrs['max_val']
+            min_val = None if isinstance(f.attrs['min_val'], h5py.Empty) else f.attrs['min_val']
+            angle = None if isinstance(f.attrs['angle'], h5py.Empty) else f.attrs['angle']
+            info_string = None if isinstance(f.attrs['info_string'], h5py.Empty) else f.attrs['info_string']
+
+        return cls(
+            input_array,
+            method = method,
+            normalized = normalized,
+            F = F,
+            F0 = F0,
+            max_val = max_val,
+            min_val = min_val,
+            angle = angle,
+            info_string = info_string
+        )
+
 
 
 class FluorescenceVector(FluorescenceTrace):
