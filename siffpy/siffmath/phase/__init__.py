@@ -1,6 +1,5 @@
 import inspect, textwrap
 
-from siffpy.siffmath.phase.phase_analyses import estimate_phase, fit_offset
 import siffpy.siffmath.phase.phase_estimates as phase_estimates
 
 def phase_alignment_functions(print_docstrings : bool = True)->None:

@@ -364,9 +364,9 @@ class SiffReader(object):
 
         # more than one slice, sum across slices
         return summed_data.reshape(
-            (-1, mask.shape[0] if mask.ndim > 2 else 1)
-        ).sum(axis=1)
-   
+            (mask.shape[0] if mask.ndim > 2 else 1, -1)
+        ).sum(axis=0)
+    
     def pool_frames(self, 
             framelist : list[list[int]], 
             flim : Optional[bool] = False,

@@ -2,7 +2,7 @@
 Analyses on extracted phase information
 """
 
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional, TYPE_CHECKING
 import random
 
 import numpy as np
@@ -13,11 +13,14 @@ from siffpy.core.utils import circle_fcns
 from siffpy.siffmath.phase.traces import PhaseTrace
 import siffpy.siffmath.phase.phase_estimates as phase_estimates
 
+if TYPE_CHECKING:
+    from siffpy.siffmath.utils.types import PhaseTraceLike
+
 def estimate_phase(
     vector_series : np.ndarray,
     *args,
     method='pva',
-    error_estimate = False,
+    error_estimate : bool = False,
     **kwargs
     )->np.ndarray:
     """
@@ -54,8 +57,8 @@ def estimate_phase(
     return phase_method(vector_series, *args, error_estimate = error_estimate, **kwargs)
 
 def fit_offset(
-        fictrac_trace   : np.ndarray,
-        phase_trace     : Union[PhaseTrace,np.ndarray],
+        fictrac_trace   : 'PhaseTraceLike',
+        phase_trace     : 'PhaseTraceLike',
         fictrac_time    : np.ndarray    = None,
         phase_time      : np.ndarray    = None,
         t_bounds        : tuple         = None,
@@ -110,30 +113,6 @@ def fit_offset(
     # random timepoints
     timepoints = np.array([random.uniform(*t_bounds) for x in range(N_points)])
 
-    # get the nearest phase points to interpolate between
-    # phase_idxs = [np.argpartition(np.abs(timepoints[x]-phase_time),2)[:2] for x in range(len(timepoints))]
-    # phasetime_endpts = phase_time[phase_idxs]
-    # phase_vals = phase_trace[phase_idxs]
-
-    # # get the nearest fictrac points to interpolate between
-    # fic_idxs = [np.argpartition(np.abs(timepoints[x]-fictrac_time),2)[:2] for x in range(len(timepoints))]
-    # fictractime_endpoints = fictrac_time[fic_idxs]
-    # fictrac_vals = fictrac_trace[fic_idxs]
-
-    # # now interpolate the phase
-    # phase_interp = circle_fcns.circ_interpolate_between_endpoints(
-    #     timepoints,
-    #     phasetime_endpts,
-    #     phase_vals
-    # )
-
-    # #interpolate the fictrac values
-    # fictrac_interp = circle_fcns.circ_interpolate_between_endpoints(
-    #     timepoints,
-    #     fictractime_endpoints,
-    #     fictrac_vals
-    # )
-
     phase_interp = circle_fcns.circ_interpolate_to_sample_points(timepoints, phase_time, phase_trace)
     fictrac_interp = circle_fcns.circ_interpolate_to_sample_points(timepoints, fictrac_time, fictrac_trace)
 
@@ -171,8 +150,8 @@ def align_two_circ_vars_timepoints(
     return (time_list[not downsample_idx], *data_list)
 
 def sliding_correlation(
-        trace_1         : np.ndarray,
-        trace_2         : np.ndarray,
+        trace_1         : 'PhaseTraceLike',
+        trace_2         : 'PhaseTraceLike',
         window_width    : int,
     )->np.ndarray:
     """
@@ -180,6 +159,9 @@ def sliding_correlation(
     signals. They must be sampled at the same rate! If they're not aligned, use
     phase_analyses.align_two_circ_vars_timepoints(trace1,trace1time,trace2,trace2time)
     """
+    trace_1 = trace_1.angle if isinstance(trace_1, PhaseTrace) else trace_1
+    trace_2 = trace_2.angle if isinstance(trace_2, PhaseTrace) else trace_2
+
     trace_1 = np.squeeze(trace_1)
     trace_2 = np.squeeze(trace_2)
     if (trace_1.ndim != 1) or (trace_2.ndim != 1):
@@ -198,8 +180,8 @@ def sliding_correlation(
             ).flatten()
 
 def multiscale_circ_corr(
-        trace_1         : np.ndarray,
-        trace_2         : np.ndarray,
+        trace_1         : 'PhaseTraceLike',
+        trace_2         : 'PhaseTraceLike',
         window_widths   : Iterable[int],
     )->list[np.ndarray]:
     """
@@ -232,7 +214,9 @@ def multiscale_circ_corr(
         Each numpy array is of length t - w_n, where w_n is the
         value of the nth element of 'windows'.
     """
-    return [sliding_correlation(
+
+    return [
+        sliding_correlation(
             trace_1,
             trace_2,
             w

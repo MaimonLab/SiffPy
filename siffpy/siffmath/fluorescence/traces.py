@@ -1,5 +1,5 @@
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 
 import h5py
@@ -46,12 +46,12 @@ class FluorescenceTrace(np.ndarray):
         input_array : 'FluorescenceArrayLike',
         method : str = None,
         normalized : bool = False,
-        F : np.ndarray = None,
-        F0 : np.ndarray = np.ndarray(None),
+        F : Optional[np.ndarray] = None,
+        F0 : Optional[np.ndarray] = np.ndarray(None),
         #time_axis : np.ndarray = np.ndarray(None),
-        max_val : np.ndarray = np.inf,
-        min_val : np.ndarray = 0.0,
-        angle : float = None,
+        max_val : Optional[np.ndarray] = np.inf,
+        min_val : Optional[np.ndarray] = 0.0,
+        angle : Optional[float] = None,
         info_string : str = None, # new attributes TBD?
         ):
         
@@ -74,7 +74,6 @@ class FluorescenceTrace(np.ndarray):
         obj.min_val = min_val
         obj.angle = angle
         obj.info_string = info_string
-        
 
         # Finally, we must return the newly created object:
         return obj
@@ -140,7 +139,15 @@ class FluorescenceTrace(np.ndarray):
         # list results can be shared if they're consonant across all args
         list_results = {}
         for prop in FluorescenceTrace.LIST_PROPERTIES:
-            if all(getattr(trace, prop) == getattr(ftraces[0], prop) for trace in ftraces):
+            if (
+                isinstance(getattr(ftraces[0], prop), list)
+                and all(getattr(trace, prop) == getattr(ftraces[0], prop) for trace in ftraces)
+            ):
+                list_results[prop] = getattr(ftraces[0],prop)
+            elif (
+                isinstance(getattr(ftraces[0], prop), np.ndarray)
+                and all(np.all(getattr(trace, prop) == getattr(ftraces[0], prop)) for trace in ftraces)
+            ):
                 list_results[prop] = getattr(ftraces[0],prop)
 
         if results is NotImplemented:
@@ -193,7 +200,7 @@ class FluorescenceTrace(np.ndarray):
             f.attrs['max_val'] = h5py.Empty('f') if self.max_val is None else self.max_val
             f.attrs['min_val'] = h5py.Empty('f') if self.min_val is None else self.min_val
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
-            f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
+            f.attrs['info_string'] = "" if self.info_string is None else self.info_string
 
 
     @classmethod
@@ -212,7 +219,7 @@ class FluorescenceTrace(np.ndarray):
             max_val = None if isinstance(f.attrs['max_val'], h5py.Empty) else f.attrs['max_val']
             min_val = None if isinstance(f.attrs['min_val'], h5py.Empty) else f.attrs['min_val']
             angle = None if isinstance(f.attrs['angle'], h5py.Empty) else f.attrs['angle']
-            info_string = None if isinstance(f.attrs['info_string'], h5py.Empty) else f.attrs['info_string']
+            info_string = None if f.attrs['info_string'] == "" else f.attrs['info_string']
 
         return cls(
             input_array,
@@ -226,8 +233,6 @@ class FluorescenceTrace(np.ndarray):
             info_string = info_string
         )
 
-
-
 class FluorescenceVector(FluorescenceTrace):
 #class FluorescenceVector(np.ndarray):
     """
@@ -239,7 +244,7 @@ class FluorescenceVector(FluorescenceTrace):
 
     def __new__(
             cls,
-            input_array : FluorescenceVectorLike,
+            input_array : 'FluorescenceVectorLike',
         ):
         
         # converts the input iterable into a standard vector one dimension larger

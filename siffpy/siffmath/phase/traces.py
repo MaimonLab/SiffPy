@@ -1,8 +1,14 @@
 import numpy as np
 from enum import Enum
+from typing import TYPE_CHECKING, Union, Optional
+
+if TYPE_CHECKING:
+    PhaseUnitsLike = Union['PhaseUnits', str]
+
 
 class PhaseUnits(Enum):
-    pass
+    RADIANS = 'radians'
+    DEGREES = 'degrees'
 
 
 class PhaseTrace(np.ndarray):
@@ -13,7 +19,7 @@ class PhaseTrace(np.ndarray):
     estimated phase, but this maintains information
     about, for example: error size, the function used...
 
-    Always bound from 0 to 2pi on creation -- unless you do
+    Always bound from -pi to pi on creation -- unless you do
     some numpy operations to it!
 
     TODO: USE COMPLEX NUMBERS INSTEAD OF RAW ANGLES
@@ -28,23 +34,26 @@ class PhaseTrace(np.ndarray):
 
     TODO: MAKE THIS IMPOSE CIRCULAR STATISTICS ON EVERYTHING!
     """
-    def __new__(cls, input_array, method : str = None,
-        error_array : np.ndarray = None,
-        time : np.ndarray = None,
-        info_string : str = '', # new attributes TBD?
+    def __new__(cls,
+        input_array : np.ndarray,
+        method : Optional[str] = None,
+        error_array : Optional[np.ndarray] = None,
+        time : Optional[np.ndarray] = None,
+        info_string : Optional[str] = '', # new attributes TBD?
+        units : 'PhaseUnitsLike' = PhaseUnits('radians'),
         ):
         
-        # Input array is an already formed ndarray instance
-        # We first cast to be our class type
-        arr = np.asarray(input_array)
-        arr = arr % (2.0*np.pi)
-        obj : PhaseTrace = arr.view(cls)
+        if not (input_array.dtype == np.complex128):
+            # Presumes this is an array of angles!
+            input_array = np.exp(1j*input_array)
+
+        obj : PhaseTrace = input_array.view(cls)
         
         # add the new attributes to the created instance
         obj.method = method
         obj.error_array = error_array # lower bound, upper bound
         obj.time = time
-        obj.units = 'radians'
+        obj.units = PhaseUnits(units)
         obj.info_string = info_string
 
         # Finally, we must return the newly created object:
@@ -57,3 +66,22 @@ class PhaseTrace(np.ndarray):
         self.error_array = getattr(obj, 'error_array', None)
         self.time = getattr(obj, 'time', None)
         self.info_string = getattr(obj,'info_string', '')
+        self.units = getattr(obj,'units', PhaseUnits('radians'))
+
+    @property
+    def angle(self)->np.ndarray[float]:
+        return np.angle(self, deg = self.units == PhaseUnits('degrees'))
+
+    def convert_units(self, to_units : 'PhaseUnitsLike'):
+        to_units = PhaseUnits(to_units)
+
+        if self.units is to_units:
+            return
+        if self.units == PhaseUnits('radians') and to_units == PhaseUnits('degrees'):
+            self[...] *= 180/np.pi
+            self.units = PhaseUnits('degrees')
+            return
+        if self.units == PhaseUnits('degrees') and to_units == PhaseUnits('radians'):
+            self[...] *= np.pi/180
+            self.units = PhaseUnits('radians')
+            return

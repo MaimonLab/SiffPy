@@ -5,7 +5,7 @@ All phase-alignment methods take, at the very least,
 an argument vector_timeseries, which is a numpy array,
 and accept a keyword argument error_estimate, which is a boolean
 """
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable, Union, Optional
 import random
 
 import numpy as np
@@ -13,18 +13,17 @@ import numpy as np
 from siffpy.siffmath.phase.traces import *
 from siffpy.siffmath.fluorescence import FluorescenceTrace
 from siffpy.siffmath.phase.phase_analyses import *
-#from ..fluorescence import FluorescenceVector
 
 __all__ = [
-    'fit_offset',
     'pva'
 ]
 
 def pva(
         vector_timeseries : Union[np.ndarray, FluorescenceTrace],
-        time              : np.ndarray                              = None,
-        error_function    : Union[Callable,str]                     = None,
-        filter_fcn        : Union[Callable,str]                     = None,
+        normalized        : bool                                              = True, 
+        time              : Optional[np.ndarray]                              = None,
+        error_function    : Optional[Union[Callable,str]]                     = None,
+        filter_fcn        : Optional[Union[Callable,str]]                     = None,
         **kwargs
     ) -> PhaseTrace:
     """
@@ -77,25 +76,23 @@ def pva(
     if (not error_function in error_fcns) and not (error_function is None) and not (callable(error_function)):
         raise ValueError(f"Error function request is not an available option. Available preset options are:\n{error_fcns}")
 
-    # First normalize each row
-    sorted_vals = np.sort(vector_timeseries,axis=1)
-    min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
-    max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
-    vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
+    if normalized:
+        sorted_vals = np.sort(vector_timeseries,axis=1)
+        min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
+        max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
+        vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
 
-    angle_coords = np.exp(np.linspace(2*np.pi, 0 , vector_timeseries.shape[0])*1j) # it goes clockwise.
+    angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
     if isinstance(vector_timeseries, FluorescenceTrace):
         if all(x is not None for x in vector_timeseries.angle):
-            angle_coords = np.exp(vector_timeseries.angle[::-1]*1j)
+            angle_coords = np.exp(-1j*vector_timeseries.angle)
     
     pva_val = np.asarray(
-                np.matmul(
-                    angle_coords,
-                    vector_timeseries
-                )
-            )
-
-    phase = np.angle(pva_val) % (2*np.pi)
+        np.matmul(
+            angle_coords,
+            vector_timeseries
+        )
+    )
 
     if not (error_function is None):
         raise NotImplementedError("Haven't implemented error functions properly yet")
@@ -105,14 +102,14 @@ def pva(
         err = error_function(vector_timeseries, pva_val)
         phase = (phase, err)
 
-    if callable(filter_fcn):
-        phase = filter_fcn(phase, **kwargs)
-
     if type(filter_fcn) == str:
 
         raise ValueError(f"No filter function implemented by the name {filter_fcn}.")
 
-    return PhaseTrace(phase, method = 'pva', time = time)
+    if callable(filter_fcn):
+        pva_val = filter_fcn(pva_val, **kwargs)
+
+    return PhaseTrace(pva_val, method = 'pva_normalized' if normalized else 'pva', time = time)
 
 def relative_magnitude(vector_timeseries : np.ndarray, pva_val : np.ndarray) -> np.ndarray:
     """
