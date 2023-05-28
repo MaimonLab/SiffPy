@@ -84,7 +84,7 @@ def pva(
 
     angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
     if isinstance(vector_timeseries, FluorescenceTrace):
-        if all(x is not None for x in vector_timeseries.angle):
+        if (vector_timeseries.angle is not None) and all(x is not None for x in vector_timeseries.angle):
             angle_coords = np.exp(-1j*vector_timeseries.angle)
     
     pva_val = np.asarray(

@@ -349,7 +349,11 @@ inline uint64_t sumMaskCompressed(
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         photon_count += frameReads[
             PIXEL_SHIFT(
-                px,y_shift,x_shift,frameData.imageLength,frameData.imageWidth
+                px,
+                y_shift,
+                x_shift,
+                mask_dims[0],
+                mask_dims[1]
             )
         ]*mask_data_ptr[px];
     }
@@ -383,10 +387,10 @@ inline uint64_t sumMaskRaw(
         photon_counts += mask_data_ptr[
             READ_TO_PX(
                 frameReads[photon],
-                -y_shift, // we're shifting the mask, not the frame
-                -x_shift,
-                frameData.imageLength,
-                frameData.imageWidth
+                y_shift, // we're shifting the mask, not the frame
+                x_shift,
+                mask_dims[0],
+                mask_dims[1]
             )
         ];
     }
@@ -489,7 +493,7 @@ PyArrayObject* SiffReader::sumMask(
 
             PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
             
-            data_ptr[frame_idx] = sumFrameMask(
+            data_ptr[frame_idx] += sumFrameMask(
                 frameData,
                 params,
                 &mask_data_ptr[(frame_idx % frames_per_mask) * pxPerMask], // point to the relevant part of the mask

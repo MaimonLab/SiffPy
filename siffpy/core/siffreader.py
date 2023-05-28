@@ -355,17 +355,19 @@ class SiffReader(object):
                 raise ValueError("Mask must have same number of z-slices as the image")
 
         frames = self.im_params.framelist_by_slices(color_channel = color_channel-1, slices = z_index, lower_bound=timepoint_start, upper_bound=timepoint_end)
-        
+        # frames are in the wrong order for automatic masking though
+        frames = np.array(frames).reshape(len(z_index),-1).T.flatten().tolist()
+
         summed_data = self.siffio.sum_roi(
-            mask,
+            mask = mask,
             frames = frames,
             registration = registration_dict
         )
 
         # more than one slice, sum across slices
         return summed_data.reshape(
-            (mask.shape[0] if mask.ndim > 2 else 1, -1)
-        ).sum(axis=0)
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
     
     def pool_frames(self, 
             framelist : list[list[int]], 

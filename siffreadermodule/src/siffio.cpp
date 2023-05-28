@@ -593,7 +593,7 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
             return NULL;
     }
 
-    if(!frames_list) { // populate with all frames.
+    if(!frames_list) { // populate with all frames. BAD to do if there are flyback frames
         Py_ssize_t nFrames = self->siffreader->numFrames();
         frames_list = PyList_New(nFrames);
         for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
