@@ -1,6 +1,6 @@
 # Functions for circularizing floats and ints
 from itertools import tee
-from tkinter import Y
+from typing import Any
 
 import numpy as np
 
@@ -197,6 +197,65 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     )
     
     return np.real(numerator/denominator)
+
+def running_circ_corr_complex(
+        x : np.ndarray[Any, np.dtype[np.complex128]],
+        y : np.ndarray[Any, np.dtype[np.complex128]],
+        window_width : int,
+        axis : int = 0,
+        )->np.ndarray:
+    """
+    Takes two arrays of complex numbers and computes the circular correlation
+    between them in a sliding window fashion. The returned array is window_width elements
+    shorter than the input array. The correlation is _centered_, meaning it will start on
+    the window_width//2-th element and end on the len - window_width//2-th element.
+
+    Arguments
+    ---------
+    x : np.ndarray
+
+    y: np.ndarray
+
+    window_width : int
+
+        The width of the sliding window in numbers of entries
+    
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+    
+    Returns
+    -------
+    circ_corrs : np.ndarray
+    """
+
+    plus = x*y
+    minus = x/y
+
+    plus_cumsum = np.cumsum(plus,axis = axis)
+    minus_cumsum = np.cumsum(minus, axis = axis)
+    run_plus = plus_cumsum[window_width:] - plus_cumsum[:-window_width]
+    run_minus = minus_cumsum[window_width:] - minus_cumsum[:-window_width]
+
+    run_num = (
+        (run_minus * np.conjugate(run_minus)) -
+        (run_plus * np.conjugate(run_plus))
+    )
+
+    x_cumsum = np.cumsum(x**2, axis=0)
+    y_cumsum = np.cumsum(y**2, axis=0)
+
+    run_xcs = x_cumsum[window_width:] - x_cumsum[:-window_width]
+    run_ycs = y_cumsum[window_width:] - y_cumsum[:-window_width]
+
+    run_den = np.sqrt(
+        (window_width**2 - run_xcs*np.conjugate(run_xcs))*
+        (window_width**2 - run_ycs*np.conjugate(run_ycs))
+    )
+
+    return (run_num/run_den).real
+    
 
 def circ_corr_non_parametric(x : np.ndarray, y : np.ndarray)->float:
     """

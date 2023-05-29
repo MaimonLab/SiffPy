@@ -118,37 +118,6 @@ def fit_offset(
 
     return circmean(np.angle(np.exp(fictrac_interp*1j)/np.exp(phase_interp*1j)))
 
-def align_two_circ_vars_timepoints(
-        data_1         : np.ndarray,
-        data_1_time    : np.ndarray,
-        data_2         : np.ndarray,
-        data_2_time    : np.ndarray
-    )->tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Downsamples to the shortest trace, circ-linearly interpolates
-    the longer trace, returns the two and their shared timebase.
-
-    Returns
-    -------
-
-    (shared_time, aligned_phase, aligned_heading)
-    """
-
-    # Figure out which to downsample
-
-    data_list = [data_1, data_2]
-    time_list = [data_1_time, data_2_time]
-
-    downsample_idx = len(data_1_time) <= len(data_2_time) # 1 if data_2 is to be downsampled
-
-    data_list[downsample_idx] = circle_fcns.circ_interpolate_to_sample_points(
-        time_list[not downsample_idx],
-        time_list[downsample_idx],
-        data_list[downsample_idx]
-    )
-
-    return (time_list[not downsample_idx], *data_list)
-
 def sliding_correlation(
         trace_1         : 'PhaseTraceLike',
         trace_2         : 'PhaseTraceLike',
@@ -173,11 +142,18 @@ def sliding_correlation(
     expd_1 = np.exp(1j*trace_1)
     expd_2 = np.exp(1j*trace_2)
 
-    return circle_fcns.circ_corr_complex(
-                sliding_window_view(expd_1, window_width, axis = 0),
-                sliding_window_view(expd_2, window_width, axis = 0),
-                axis=1,
-            ).flatten()
+    return circle_fcns.running_circ_corr_complex(
+        expd_1,
+        expd_2,
+        window_width,
+        axis = 0
+    )
+
+    # return circle_fcns.circ_corr_complex(
+    #             sliding_window_view(expd_1, window_width, axis = 0),
+    #             sliding_window_view(expd_2, window_width, axis = 0),
+    #             axis=1,
+    #         ).flatten()
 
 def multiscale_circ_corr(
         trace_1         : 'PhaseTraceLike',
