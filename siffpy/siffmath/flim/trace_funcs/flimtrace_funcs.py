@@ -177,7 +177,7 @@ def convolve_flimtrace(a, v, mode = 'full')->FlimTrace:
 def ravel_flimtrace(a, order = 'C')->FlimTrace:
     return FlimTrace(
         np.ravel(a.__array__(),order),
-        np.ravel(a.intensity,order),
+        intensity = np.ravel(a.intensity,order),
         **a._inheritance_dict
     )
 
@@ -192,15 +192,15 @@ def sort_flimtrace(flimtrace, sortby = 'flim', **kwargs):
         raise ValueError("Invalid sortby parameter for FlimTrace. Must be 'flim' or 'intensity'.")
     return FlimTrace(
         flimtrace.__array__()[idxs],
-        flimtrace.intensity[idxs],
+        intensity = flimtrace.intensity[idxs],
         **flimtrace._inheritance_dict
     )
 
 @FlimTrace.implements_func(np.squeeze)
 def squeeze_flimtrace(flimtrace, axis=None):
     return FlimTrace(
-        np.squeeze(flimtrace.__array__(),axis),
-        np.squeeze(flimtrace.intensity, axis)
+        np.squeeze(flimtrace.__array__(), axis = axis),
+        intesnity = np.squeeze(flimtrace.intensity, axis = axis)
         **flimtrace._inheritance_dict
     )
 
@@ -208,6 +208,6 @@ def squeeze_flimtrace(flimtrace, axis=None):
 def tranpose_flimtrace(flimtrace, axes):
     return FlimTrace(
         np.transpose(flimtrace.__array__(), axes),
-        np.transpose(flimtrace.intensity, axes),
+        intensity = np.transpose(flimtrace.intensity, axes),
         **flimtrace._inheritance_dict
     )

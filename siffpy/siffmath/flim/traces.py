@@ -314,7 +314,7 @@ class FlimTrace(np.ndarray):
         with h5py.File(path, 'w') as f:
             f.create_dataset("flim", data = self.__array__())
             f.create_dataset("intensity", data = self.intensity)
-            f['FLIMParams'] = self.FLIMParams
+            #f['FLIMParams'] = self.FLIMParams can't store arbitrary Python object...
             f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
             f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
