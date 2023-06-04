@@ -498,6 +498,7 @@ class SiffReader(object):
             mask : np.ndarray[Any, np.dtype[np.bool_]],
             timepoint_start : int = 0,
             timepoint_end : Optional[int] = None,
+            z_index : Optional[Union[int,list[int]]] = None,
             color_channel : int = 0,
             registration_dict : Optional[dict] = None,
         )->'FlimTrace':
@@ -554,26 +555,33 @@ class SiffReader(object):
         if not isinstance(params, FLIMParams):
             raise ValueError("params argument must be a FLIMParams object")
         
-        if not (params.units.value == 'countbins'):
-            params.convert_units('countbins')
+        params.convert_units('countbins')
 
-        if timepoint_end is None:
-            timepoint_end = self.im_params.num_timepoints
+        timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
 
-        if registration_dict is None:
-            if hasattr(self,'registration_dict'):
-                registration_dict = self.registration_dict
+        z_index = list(range(self.im_params.num_slices)) if z_index is None else z_index
+
+        if isinstance(z_index, int):
+            z_index = [z_index]
+
+        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+
+        if mask.ndim != 2:
+            if mask.shape[0] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image")
 
         frames = self.im_params.framelist_by_slice(color_channel = color_channel)
-        frames = [individual_frame for slicewise in frames for individual_frame in slicewise[timepoint_start:timepoint_end]]
+        # frames are in the wrong order for automatic masking though
+        frames = np.array(frames).reshape(len(z_index),-1).T.flatten().tolist()
 
+        
         summed_intensity_data = self.siffio.sum_roi(
             mask,
             frames = frames,
             registration = registration_dict
         ).reshape(
-            (-1, self.im_params.num_slices if mask.ndim == 2 else mask.shape[0])
-        )
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
 
         summed_flim_data = self.siffio.sum_roi_flim(
             mask,
@@ -581,8 +589,8 @@ class SiffReader(object):
             frames = frames,
             registration = registration_dict
         ).reshape(
-            (-1, self.im_params.num_slices if mask.ndim == 2 else mask.shape[0])
-        )
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
 
         return FlimTrace(
             summed_flim_data, 
