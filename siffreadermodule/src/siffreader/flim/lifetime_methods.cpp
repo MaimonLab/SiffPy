@@ -297,8 +297,8 @@ double_t sumMaskFLIMCompressed(
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         uint64_t shifted_px = PIXEL_SHIFT(
             px,
-            -y_shift, // shifting the mask, not the image
-            -x_shift,
+            y_shift, // shifting the mask, not the image
+            x_shift,
             mask_dims[0],
             mask_dims[1]
         );
@@ -346,8 +346,8 @@ double_t sumMaskFLIMRaw(
         summed_bins += mask_data_ptr[
             READ_TO_PX(
                 frameReads[photon],
-                -y_shift, // we're shifting the mask, not the frame
-                -x_shift,
+                y_shift, // we're shifting the mask, not the frame
+                x_shift,
                 mask_dims[0],
                 mask_dims[1]
             )
@@ -356,8 +356,8 @@ double_t sumMaskFLIMRaw(
         n_counted += mask_data_ptr[
             READ_TO_PX(
                 frameReads[photon],
-                -y_shift, // we're shifting the mask, not the frame
-                -x_shift,
+                y_shift, // we're shifting the mask, not the frame
+                x_shift,
                 mask_dims[0],
                 mask_dims[1]
             )

@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING, Optional
+from typing import Union, Optional, Any
 import logging
 import warnings
 from pathlib import Path
@@ -14,9 +14,7 @@ from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.siffmath.flim import FlimTrace
-
-if TYPE_CHECKING:
-    from siffpy.core.utils.types import PathLike
+from siffpy.core.utils.types import PathLike
 
 # TODO:
 # __repr__
@@ -32,7 +30,7 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : Optional['PathLike'] = None):
+    def __init__(self, filename : Optional[PathLike] = None):
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
@@ -71,7 +69,7 @@ class SiffReader(object):
         # TODO
         return self.__str__()
 
-    def open(self,  filename : Optional['PathLike'] = None) -> None:
+    def open(self,  filename : Optional[PathLike] = None) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -195,7 +193,7 @@ class SiffReader(object):
         )
 
     @classmethod
-    def load_time_axis(cls, filename : 'PathLike')->np.ndarray:
+    def load_time_axis(cls, filename : PathLike)->np.ndarray:
         """ Loads the time axis of all frames as nanoseconds from a numpy array """
         return np.load(
             str(Path(filename).with_suffix('_time_axis.npy')),
@@ -292,7 +290,7 @@ class SiffReader(object):
     
     def sum_mask(
             self,
-            mask : np.ndarray,
+            mask : np.ndarray[Any, np.dtype[np.bool_]],
             timepoint_start : int = 0,
             timepoint_end : Optional[int] = None,
             z_index : Optional[Union[int,list[int]]] = None,
@@ -496,8 +494,8 @@ class SiffReader(object):
         )
 
     def sum_mask_flim(self,
-            params : 'FLIMParams',
-            mask : np.ndarray[bool],
+            params : FLIMParams,
+            mask : np.ndarray[Any, np.dtype[np.bool_]],
             timepoint_start : int = 0,
             timepoint_end : Optional[int] = None,
             color_channel : int = 0,
@@ -599,7 +597,7 @@ class SiffReader(object):
     def register(
         self,
         registration_method="siffpy",
-        save_path : Optional['PathLike'] = None, 
+        save_path : Optional[PathLike] = None, 
         alignment_color_channel : int = 0,
         **kwargs
         ) -> dict:
