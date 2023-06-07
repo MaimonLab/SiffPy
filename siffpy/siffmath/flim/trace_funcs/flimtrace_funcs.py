@@ -197,7 +197,7 @@ def sort_flimtrace(flimtrace, sortby = 'flim', **kwargs):
     )
 
 @FlimTrace.implements_func(np.squeeze)
-def squeeze_flimtrace(flimtrace, axis=None):
+def squeeze_flimtrace(flimtrace : FlimTrace, axis=None):
     return FlimTrace(
         np.squeeze(flimtrace.__array__(), axis = axis),
         intensity = np.squeeze(flimtrace.intensity, axis = axis),

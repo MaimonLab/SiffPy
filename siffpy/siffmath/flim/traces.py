@@ -1,5 +1,5 @@
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 
 import h5py
@@ -52,11 +52,11 @@ class FlimTrace(np.ndarray):
     def __new__(
             cls,
             input_array : 'FlimArrayLike', # INPUT_ARRAY IS THE LIFETIME METRIC
-            intensity : 'FluorescenceArrayLike' = None,
-            confidence : np.ndarray = None,
-            FLIMParams : 'FLIMParams' = None,
-            method : str = None,
-            angle : float = None,
+            intensity : Optional['FluorescenceArrayLike'] = None,
+            confidence : Optional[np.ndarray] = None,
+            FLIMParams : Optional['FLIMParams'] = None,
+            method : Optional[str] = None,
+            angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             info_string : str = "", # new attributes TBD?
         ):
@@ -315,10 +315,12 @@ class FlimTrace(np.ndarray):
             f.create_dataset("flim", data = self.__array__())
             f.create_dataset("intensity", data = self.intensity)
             #f['FLIMParams'] = self.FLIMParams can't store arbitrary Python object...
+            f.attrs['units'] = h5py.Empty('s') if self.units is None else FlimUnits(self.units).value
             f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
             f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
-        self.FLIMParams.save(path.with_suffix('.flim_params'))
+        if not (self.FLIMParams is None):
+            self.FLIMParams.save(path.with_suffix('.flim_params'))
 
     @classmethod
     def load(cls, path : 'PathLike'): 
@@ -334,6 +336,11 @@ class FlimTrace(np.ndarray):
             method = None if isinstance(f.attrs['method'], h5py.Empty) else f.attrs['method']
             angle = None if isinstance(f.attrs['angle'], h5py.Empty) else f.attrs['angle']
             info_string = None if isinstance(f.attrs['info_string'], h5py.Empty) else f.attrs['info_string']
+            units = (
+                None
+                if ('units' not in f.attrs) or isinstance(f.attrs['units'], h5py.Empty)
+                else f.attrs['units']
+            )
 
         return cls(
             flim,
@@ -341,6 +348,6 @@ class FlimTrace(np.ndarray):
             FLIMParams = _FLIMParams,
             method = method,
             angle = angle,
-            units = FLIMParams.units,
+            units = _FLIMParams.units if units is None else FlimUnits(units),
             info_string = info_string
         )

@@ -45,8 +45,8 @@ def flimtrace_ufunc_call_pattern(numpy_ufunc : np.ufunc, *args, out = None, wher
         )
     if not isinstance(out, FlimTrace):
         logging.warning(
-            "Calling numpy {np_ufunc.__name__} on a FlimTrace but specifying a return value that is not a FlimTrace. "
-            "Performing standard numpy {np_ufunc.__name__} on the intensity data.",
+            f"Calling numpy {numpy_ufunc.__name__} on a FlimTrace but specifying a return value that is not a FlimTrace. "
+            f"Performing standard numpy {numpy_ufunc.__name__} on the intensity data.",
             stacklevel=2
         )
         return numpy_ufunc(*new_args, out = out, **ufunc_kwargs, **kwargs)
