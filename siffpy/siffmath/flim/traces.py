@@ -126,6 +126,7 @@ class FlimTrace(np.ndarray):
         
         self[...] = convert_flimunits(self.__array__(), self.units, units)
         self.units = units
+        self.FLIMParams.convert_units(units)
     
     @property
     def _inheritance_dict(self)->dict:
