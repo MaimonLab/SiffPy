@@ -4,14 +4,20 @@ Dedicated code for data that is purely fluorescence analysis
 
 import numpy as np
 
-from siffpy.siffmath.fluorescence.traces import *
-from siffpy.siffmath.utils import fifth_percentile
+from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector
+from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
         
 def photon_counts(fluorescence : np.ndarray, *args, **kwargs)->FluorescenceTrace:
     """ Simply returns raw photon counts. This is just the array that's passed in, wrapped in a FluorescenceTrace. """
     return FluorescenceTrace(fluorescence, F = fluorescence, method = 'Photon counts', F0 = 0)
 
-def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth_percentile, **kwargs)->FluorescenceTrace:
+def dFoF(
+        fluorescence : np.ndarray,
+        *args,
+        normalized : bool = False,
+        Fo = fifth_percentile,
+        **kwargs
+    )->FluorescenceTrace:
     """
     
     Takes a numpy array and returns a dF/F0 trace across the rows -- i.e. each row is normalized independently
@@ -61,8 +67,16 @@ def dFoF(fluorescence : np.ndarray, *args, normalized : bool = False, Fo = fifth
         max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
         df_trace = ((df_trace.T - min_val)/(max_val - min_val)).T
     
+    args_str = "args :" + ", ".join([str(arg) for arg in args])
+    kwargs_str = "kwargs :" + ", ".join([f"{key} = {value}" for key, value in kwargs.items()])
+
     return FluorescenceTrace(
-        df_trace, normalized = normalized, method = 'dF/F', 
-        F = fluorescence, F0 = F0,
-        max_val = max_val, min_val = min_val
+        df_trace,
+        normalized = normalized,
+        method = 'dF/F', 
+        F = fluorescence,
+        F0 = F0,
+        max_val = max_val,
+        min_val = min_val,
+        info_string = f"Computed dFoF trace with {args_str} and {kwargs_str}"
     )

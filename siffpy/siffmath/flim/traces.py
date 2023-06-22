@@ -38,15 +38,6 @@ class FlimTrace(np.ndarray):
     the RealisticInfoArray example provided at
     https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
     
-    FlimTrace(
-        `input_array`,
-        `intensity` : np.ndarray = None,
-        `confidence` : np.ndarray = None,
-        `FLIMParams` : FLIMParams = None,
-        `method` : str = None,
-        `angle` : float = None,
-        `info_string` : str = None
-    )
     """
 
     def __new__(
@@ -126,7 +117,8 @@ class FlimTrace(np.ndarray):
         
         self[...] = convert_flimunits(self.__array__(), self.units, units)
         self.units = units
-        self.FLIMParams.convert_units(units)
+        if self.FLIMParams is not None:
+            self.FLIMParams.convert_units(units)
     
     @property
     def _inheritance_dict(self)->dict:

@@ -1,4 +1,4 @@
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Sequence
 import logging
 import warnings
 from pathlib import Path
@@ -14,7 +14,7 @@ from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.siffmath.flim import FlimTrace
-from siffpy.core.utils.types import PathLike
+from siffpy.core.utils.types import PathLike, ImageArray
 
 # TODO:
 # __repr__
@@ -233,6 +233,20 @@ class SiffReader(object):
 
         return timetools.metadata_dicts_to_time(self.siffio.get_frame_metadata(frames=frames), reference)
 
+    @property
+    def dt_volume(self)->float:
+        """ Returns the average time between volumes in seconds """
+        if hasattr(self.im_params, 'RoiManager'):
+            return 1.0/self.im_params.RoiManager.scanVolumeRate
+        return np.diff(self.t_axis(reference = 'experiment')).mean()
+        
+    @property
+    def dt_frame(self)->float:
+        """ Returns the average time between frames in seconds """
+        if hasattr(self.im_params, 'RoiManager'):
+            return self.im_params.RoiManager.scanFramePeriod
+        return np.diff(self.get_time(reference = 'experiment')).mean()
+
 ### METADATA METHODS
     def get_frames_metadata(self, frames : Optional[list[int]] = None) -> list[io.FrameMetaData]:
         if frames is None:
@@ -252,7 +266,7 @@ class SiffReader(object):
         frames: Optional[list[int]] = None,
         registration_dict : Optional[dict] = None,
         as_array : bool = True,
-        ) -> Union[list[np.ndarray], np.ndarray]:
+        ) -> Union[list[ImageArray], ImageArray]:
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 
@@ -296,7 +310,7 @@ class SiffReader(object):
             z_index : Optional[Union[int,list[int]]] = None,
             color_channel :  int = 1,
             registration_dict : Optional[dict] = None,
-        )->np.ndarray:
+        )->ImageArray:
         """
         Computes the sum photon counts within a numpy mask over timesteps.
         Takes _timepoints_ as arguments, not frames. Returns a 1D array
@@ -506,7 +520,7 @@ class SiffReader(object):
             z_index : Optional[Union[int,list[int]]] = None,
             color_channel : int = 0,
             registration_dict : Optional[dict] = None,
-        )->'FlimTrace':
+        )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
 
@@ -702,3 +716,17 @@ class SiffReader(object):
                 raise RuntimeError("No reference frames have been computed. Run register() first.")
             return self.registration_info.reference_frames
         return None
+    
+### IMPARAMS SHORTHAND
+    @property
+    def all_frames(self) -> Sequence[int]:
+        return self.im_params.flatten_by_timepoints()
+    
+    @property
+    def series_shape(self)->Sequence[int]:
+        """
+        Alias for (-1, *self_im_params.volume), 
+        the way you should reshape most image data returned
+        as flattened frames.
+        """
+        return (-1, *self.im_params.volume)
