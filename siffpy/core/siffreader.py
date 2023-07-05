@@ -267,6 +267,7 @@ class SiffReader(object):
         registration_dict : Optional[dict] = None,
         as_array : bool = True,
         ) -> Union[list[ImageArray], ImageArray]:
+        
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
 

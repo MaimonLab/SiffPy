@@ -149,12 +149,6 @@ def sliding_correlation(
         axis = 0
     )
 
-    # return circle_fcns.circ_corr_complex(
-    #             sliding_window_view(expd_1, window_width, axis = 0),
-    #             sliding_window_view(expd_2, window_width, axis = 0),
-    #             axis=1,
-    #         ).flatten()
-
 def multiscale_circ_corr(
         trace_1         : 'PhaseTraceLike',
         trace_2         : 'PhaseTraceLike',
