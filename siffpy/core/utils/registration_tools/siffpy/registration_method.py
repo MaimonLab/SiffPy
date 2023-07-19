@@ -1,4 +1,5 @@
 import logging
+from typing import List, Tuple, Dict
 
 import numpy as np
 import numpy.fft as fft
@@ -15,11 +16,11 @@ from siffpy.core.utils.registration_tools.siffpy.alignment import (
 def register_frames(
         siffio : SiffIO,
         reference_frame : np.ndarray,
-        frames : list[int],
-        registration_dict : dict = {},
+        frames : List[int],
+        registration_dict : Dict = {},
         pbar = None,
         regularize_sigma : float = 2.0,
-        **kwargs)->dict[int, tuple[int, int]]:
+        **kwargs)->Dict[int, Tuple[int, int]]:
     """
     Registers the frames described by the list of indices in the input
     argument frames. This is for a single slice. To register multiple slices
@@ -104,7 +105,12 @@ def register_frames(
         
     return {frames[n] : rolls[n] for n in range(len(frames))}
     
-def regularize_adjacent_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : float = 2.0) -> list[tuple]:
+def regularize_adjacent_tuples(
+        tuples : List[Tuple],
+        ydim : int,
+        xdim: int,
+        sigma : float = 2.0
+        ) -> List[Tuple]:
     """
     Take a list of tuples, pretend adjacent ones are coupled by springs and to their original values.
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.
@@ -125,7 +131,7 @@ def regularize_adjacent_tuples(tuples : list[tuple], ydim : int, xdim: int, sigm
         for k in range(len(yz))
     ]
 
-def regularize_all_tuples(tuples : list[tuple], ydim : int, xdim: int, sigma : float = 2.0) -> list[tuple]:
+def regularize_all_tuples(tuples : List[Tuple], ydim : int, xdim: int, sigma : float = 2.0) -> List[Tuple]:
     """
     Take a list of tuples, pretend they're ALL coupled by springs and to their original values.
     Find the minimum energy configuration. Sigma is the ratio of ORIGINAL to COUPLING.

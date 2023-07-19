@@ -241,7 +241,7 @@ def align_to_reference(
         return (pcorr,(dy,dx))
 
     # awkward convention for returning the shift that i got myself stuck in a bit
-    return [tuple(x) for x in np.array([dy,dx]).T]
+    return [tuple(x) for x in np.array([dy,dx]).T] if im.ndim == 3 else (dy[0],dx[0])
 
 def align_references(reference_frames : list[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> List[Tuple[int,int]]:
     """
