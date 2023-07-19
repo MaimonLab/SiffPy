@@ -78,7 +78,20 @@ def register_frames(
     #if use_tqdm:    
     #    pbar.set_postfix({"Alignment iteration" : 1})
     
-    rolls = [align_to_reference(ref_im_NORMED, frame, shift_only = True, ref_Fourier_normed=True) for frame in frames_np]
+    # rolls = align_to_reference(
+    #     ref_im_NORMED,
+    #     frames_np,
+    #     ref_Fourier_normed=True,
+    # )
+
+    # why is this faster??
+    rolls = [
+        align_to_reference(
+            ref_im_NORMED,
+            frame, 
+            ref_Fourier_normed=True
+        ) for frame in frames_np
+    ]
     
     if regularize_sigma > 0:
         # adjacent timepoints should be near each other.

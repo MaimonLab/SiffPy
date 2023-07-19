@@ -1,4 +1,5 @@
 import logging
+from typing import List, Tuple
 
 import numpy as np
 import numpy.random as random
@@ -7,7 +8,12 @@ import scipy.ndimage
 
 from siffreadermodule import SiffIO
 
-def build_reference_image(siffio : SiffIO, frames : list[int], ref_method : str = 'suite2p', **kwargs) -> np.ndarray:
+def build_reference_image(
+        siffio : SiffIO,
+        frames : list[int],
+        ref_method : str = 'suite2p',
+        **kwargs
+    ) -> np.ndarray:
     """
     Constructs a reference image for alignment. WARNING: DOES NOT TYPECHECK FOR COMPATIBLE SHAPES
 
@@ -117,10 +123,16 @@ def suite2p_reference(
     seed_idx = np.argpartition(err_val, seed_ref_count)[:seed_ref_count]
     return np.squeeze(np.mean(init_frames[seed_idx,:,:],axis=0))
 
-def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = False, 
-                       subpx : bool = False, phase_corr : bool = False, blur_phase : bool = False, blur_px : bool = True,
-                       blur_size = None, ref_Fourier_normed : bool = False, regularize_sigma : float = 2.0
-                       ) -> tuple[np.ndarray, tuple[int, int]]:
+def align_to_reference(
+        ref : np.ndarray,
+        im : np.ndarray,
+        subpx : bool = False,
+        phase_corr : bool = False,
+        blur_phase : bool = False,
+        blur_px : bool = True,
+        blur_size = None,
+        ref_Fourier_normed : bool = False,
+    ) -> List[Tuple[int, int]]:
     """
     Aligns an input image "im" to a reference image "ref". Uses the shift maximizing phase-correlation,
     but only the max integer-level pixel shift. Operates on one plane at a time -- you then align each plane to one
@@ -136,7 +148,7 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
 
     im: numpy.ndarray
 
-        2-dimension numpy array to be aligned to ref.
+        t by 2 or just 1 by 2-dimension numpy array to be aligned to ref.
 
     shift_only (optional) : bool
 
@@ -194,7 +206,7 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
         ref /= np.abs(ref)
 
     # Take the normalized complex conjugate of the Fourier transform of im
-    im_fft = fft.fft2(im)
+    im_fft = fft.fft2(im, axes = (-1,-2))
     im_fft = np.conjugate(im_fft)
     im_fft /= np.abs(im_fft)
 
@@ -204,35 +216,34 @@ def align_to_reference(ref : np.ndarray, im : np.ndarray, shift_only : bool = Fa
         if blur_size is None:
             blur_size = float(min(phase_product.shape)/30.0) # maybe there's a more principled way?
         
-        xx, yy = np.meshgrid(np.arange(im.shape[0]), np.arange(im.shape[1]))
+        xx, yy = np.meshgrid(np.arange(im.shape[-1]), np.arange(im.shape[-2]))
         gauss = np.exp(-(xx/blur_size)**2)*np.exp(-(yy/blur_size))
         gauss /= np.sum(gauss)
         phase_product *= gauss
         #phase_product = scipy.ndimage.gaussian_filter(phase_product, sigma=blur_size, mode='wrap')
 
-    pcorr = np.abs(fft.ifft2(phase_product))
+    pcorr = np.abs(fft.ifft2(phase_product, axes = (-1,-2)))
 
     if blur_px:
         if blur_size is None:
             blur_size = float(min(phase_product.shape)/30.0)
         
-        pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size, mode='wrap')
+        pcorr = scipy.ndimage.gaussian_filter(pcorr, sigma=blur_size if im.ndim == 2 else (0, blur_size, blur_size), mode='wrap')
 
-    offset = np.argmax(pcorr) # the index at which the inverse FFT of the product is maximum
+    pcorr = pcorr.reshape((-1, pcorr.shape[-1]*pcorr.shape[-2]))
+    offset = np.argmax(pcorr, axis=-1) # the index at which the inverse FFT of the product is maximum
     (dy,dx) = np.unravel_index(offset, ref.shape)
 
-    (dy,dx) = (int(dy), int(dx))
-    # various return types
-    if shift_only:
-        return (dy,dx)
+    (dy,dx) = (dy.astype(int), dx.astype(int))
 
+    # various return types
     if phase_corr:
         return (pcorr,(dy,dx))
 
-    # default
-    return (np.roll(im, (dy,dx), axis=(0,1)), (dy,dx))
+    # awkward convention for returning the shift that i got myself stuck in a bit
+    return [tuple(x) for x in np.array([dy,dx]).T]
 
-def align_references(reference_frames : list[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> list[tuple[int,int]]:
+def align_references(reference_frames : list[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> List[Tuple[int,int]]:
     """
     Takes a list of reference frames, aligns each to its adjacent planes. Returns a list of tuples
     corresponding to how each slice's frames should be shifted.
