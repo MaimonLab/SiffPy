@@ -63,7 +63,11 @@ def register_frames(
         registration dict that can be passed to other siffpy functions
     """
 
-    frames_np = siffio.get_frames(frames = frames, registration=registration_dict)
+    frames_np = siffio.get_frames(
+        frames = frames, 
+        registration=registration_dict
+    ).astype(np.float32)
+    
     use_tqdm = not (pbar is None)
     
     #if use_tqdm:

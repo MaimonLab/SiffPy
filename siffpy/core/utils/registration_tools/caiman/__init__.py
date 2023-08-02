@@ -21,7 +21,11 @@ class CaimanRegistrationInfo(RegistrationInfo):
 
     backend = RegistrationType.Caiman
 
-    def __init__(self, siffio : 'SiffIO', im_params : 'ImParams'):
+    def __init__(
+            self,
+            siffio : 'SiffIO',
+            im_params : 'ImParams'
+        ):
         super().__init__(siffio, im_params)
 
     def register(self, *args, **kwargs):

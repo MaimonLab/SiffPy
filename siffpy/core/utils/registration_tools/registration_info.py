@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Callable
+from typing import Optional, Callable
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -9,6 +9,26 @@ import numpy as np
 from siffreadermodule import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.types import PathLike
+
+def populate_dict_across_colors(
+    im_params : ImParams,
+    alignment_color_channel : int,
+    yx_shifts : dict[int, tuple[int,int]],
+):
+    """
+    Populates the yx_shifts dict with the same values for all color channels
+    except the alignment color channel, which are assumed to already be populated
+    """
+    reference_frame_list = im_params.framelist_by_color(color_channel=alignment_color_channel)
+    for color_matlab_int in im_params.color_list:
+        color_channel = color_matlab_int - 1
+        if color_channel != alignment_color_channel:
+            this_color_framelist = im_params.framelist_by_color(
+                color_channel=color_channel
+            )
+            for this_frame, old_frame in zip(this_color_framelist, reference_frame_list):
+                yx_shifts[this_frame] = yx_shifts[old_frame]
+    
 
 class RegistrationType(Enum):
     Caiman = 'caiman'
@@ -59,7 +79,7 @@ class RegistrationInfo(ABC):
         )->tuple[int,int]:
         raise NotImplementedError()
 
-    def save(self, save_path : PathLike = None):
+    def save(self, save_path : Optional[PathLike] = None):
         if save_path is None:
             save_path = Path(self.filename).with_suffix("")
         save_path = Path(save_path)

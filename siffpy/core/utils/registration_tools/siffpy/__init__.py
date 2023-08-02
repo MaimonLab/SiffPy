@@ -7,7 +7,7 @@ import numpy as np
 from siffreadermodule import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools.registration_info import (
-    RegistrationInfo, RegistrationType
+    RegistrationInfo, RegistrationType, populate_dict_across_colors
 )
 from siffpy.core.utils.registration_tools.siffpy.alignment import (
     align_to_reference, suite2p_reference
@@ -124,15 +124,11 @@ class SiffpyRegistrationInfo(RegistrationInfo):
         # Now register the other color channels
         # using their corresponding element from the
         # original color channel
-        reference_frame_list = self.im_params.framelist_by_color(color_channel=alignment_color_channel)
-        for color_matlab_int in self.im_params.color_list:
-            color_channel = color_matlab_int - 1
-            if color_channel != alignment_color_channel:
-                this_color_framelist = self.im_params.framelist_by_color(
-                    color_channel=color_channel
-                )
-                for this_frame, old_frame in zip(this_color_framelist, reference_frame_list):
-                    self.yx_shifts[this_frame] = self.yx_shifts[old_frame]
+        populate_dict_across_colors(
+            self.im_params,
+            alignment_color_channel,
+            self.yx_shifts
+        )
                                         
 
     def align_to_reference(

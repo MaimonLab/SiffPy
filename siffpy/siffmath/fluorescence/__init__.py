@@ -57,7 +57,7 @@ def dFoF(
         except TypeError:
             raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
 
-    if len(F0.squeeze().shape) == 1:
+    if len(F0.squeeze().shape) <= 1:
         df_trace = ((fluorescence.T.astype(float) - F0.astype(float))/F0.astype(float)).T
     elif F0.shape == fluorescence.shape:
         df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))

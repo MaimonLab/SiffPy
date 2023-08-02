@@ -103,7 +103,8 @@ def suite2p_reference(
                     siffio.get_frames(
                         frames = init_frames_idx, 
                         registration = yx_shifts,
-                    )
+                    ),
+                    dtype=np.float32
                   )
     
     # find the few frames most correlated with the mean of these

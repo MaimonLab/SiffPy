@@ -1,8 +1,14 @@
-from typing import Any, Union
+from typing import Any, Tuple, List, Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 
-from siffpy.core import FLIMParams
+BOOL_ARRAY = np.ndarray[Any, np.dtype[np.bool_]]
+UINT16_ARRAY = np.ndarray[Any, np.dtype[np.uint16]]
+UINT64_ARRAY = np.ndarray[Any, np.dtype[np.uint64]]
+FLOAT_ARRAY = np.ndarray[Any, np.dtype[np.float64]]
+
+if TYPE_CHECKING:
+    from siffpy.core import FLIMParams
 
 class FrameData():
 
@@ -27,34 +33,34 @@ class SiffIO():
 
     def close(self)->None:...
 
-    def get_file_header(self)->dict:...
+    def get_file_header(self)->Dict:...
 
     def num_frames(self)->int:...
 
     def get_frames(
         self,
-        frames : list[int],
-        registration : dict = {},
+        frames : List[int],
+        registration : Dict = {},
         as_array : bool = True,
-    )->np.ndarray:...
+    )->UINT16_ARRAY:...
 
-    def get_frame_metadata(self, frames : list[int] = [])->list[dict]:...
+    def get_frame_metadata(self, frames : List[int] = [])->List[Dict]:...
 
     def pool_frames(
         self,
-        frames : list[int],
+        frames : List[int],
         flim : bool = False,
-        registration : dict = None,
-    )->np.ndarray:
+        registration : Optional[Dict] = None,
+    )->UINT16_ARRAY:
         """ NOT IMPLEMENTED """
 
     def flim_map(
         self,
-        params : FLIMParams,
-        frames : list[int],
+        params : 'FLIMParams',
+        frames : List[int],
         confidence_metric : str = 'chi_sq',
-        registration : dict = None,
-    )->tuple[np.ndarray, np.ndarray, np.ndarray]:
+        registration : Optional[Dict] = None,
+    )->Tuple[FLOAT_ARRAY, UINT16_ARRAY, FLOAT_ARRAY]:
         """
         Returns a tuple of (flim_map, intensity_map, confidence_map)
         where flim_map is the empirical lifetime with the offset of
@@ -64,10 +70,10 @@ class SiffIO():
 
     def sum_roi(
         self,
-        mask : np.ndarray,
-        frames : list[int] = None,
-        registration : dict = None,
-    )->np.ndarray:
+        mask : BOOL_ARRAY,
+        frames : Optional[List[int]] = None,
+        registration : Optional[Dict] = None,
+    )->UINT16_ARRAY:
         """
         Mask may have more than 2 dimensions, but
         if so then be aware that the frames will be
@@ -80,11 +86,11 @@ class SiffIO():
 
     def sum_roi_flim(
         self,
-        mask : np.ndarray,
-        params : FLIMParams,
-        frames : list[int] = None,
-        registration : dict = None,
-    )->np.ndarray:
+        mask : BOOL_ARRAY,
+        params : 'FLIMParams',
+        frames : Optional[List[int]] = None,
+        registration : Optional[Dict] = None,
+    )->UINT16_ARRAY:
         """
         Mask may have more than 2 dimensions, but
         if so then be aware that the frames will be
@@ -95,12 +101,17 @@ class SiffIO():
         provided, regardless of mask shape.
         """
 
-    def get_histogram(self,frames : list[int] = None,)->np.ndarray:...
-
+    def get_histogram(self,frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+        """
+        Returns a histogram of the arrival times of photons in the
+        frames provided. If no frames are provided, then the
+        histogram is of all the frames in the file.    
+        """
+    
 def suppress_warnings()->None:...
 
 def report_warnings()->None:...
 
 def debug()->None:...
 
-def siff_to_tiff(sourcepath : str, savepath : str = None)->None:...
+def siff_to_tiff(sourcepath : str, savepath : Optional[str] = None)->None:...

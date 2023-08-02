@@ -269,7 +269,7 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     static const char* GET_FRAMES_KWARGS[] = {
         "frames", "registration", "as_array", NULL};
 
-    bool make_array = false;
+    bool make_array = true;
 
     PyObject *frames_list = NULL;
     PyObject* registrationDict = NULL;
