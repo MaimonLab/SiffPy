@@ -42,6 +42,7 @@ class RegistrationInfo(ABC):
 
     REGISTRATION_INFO_SUFFIX = ".h5"
     backend : RegistrationType = RegistrationType.Siffpy
+    multithreading_compatible : bool = True # Whether this registration method can be run in parallel
 
     def __init__(
             self,

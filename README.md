@@ -18,7 +18,6 @@ are `uint16`.
 -    Add support for multi-ROI imaging.
 -    Use cumulative bin occupancy not point estimates in chi-sq
 -    Example code (for every module and to go through a simple analysis pipeline)
--    Batching in registration alignment to take advantage of FFT scaling without massive memory issues
 -    Improved regularization in registration, especially for systematically bad planes
 -    Enable multithreaded and batched registration to minimize reads from disk but also minimize contiguous blocks of RAM.
 -    `conda` install

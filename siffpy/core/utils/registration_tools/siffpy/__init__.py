@@ -31,7 +31,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
     For small ones, you're likely better off using suite2p's
     registration method.
     """
-
+    multithreading_compatible = True
     backend = RegistrationType.Siffpy
 
     def __init__(self, siffio : SiffIO, im_params : ImParams):

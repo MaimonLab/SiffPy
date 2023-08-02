@@ -33,7 +33,8 @@ def sct_defaults(suite2p_default_ops : dict)->dict:
     return suite2p_default_ops
 
 class Suite2pRegistrationInfo(RegistrationInfo):
-
+    
+    multithreading_compatible = False
     backend : RegistrationType = RegistrationType.Suite2p
 
     registration_params : dict[str, Parameter] = {
@@ -107,13 +108,13 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         #     for k, reg_ret in enumerate(reg_rets)
         # }
         self.yx_shifts = {}
-
+        ysize, xsize = self.im_params.ysize, self.im_params.xsize
         for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
             y_offsets = registration[4][0]
             x_offsets = registration[4][1]
             offsets = np.array([y_offsets, x_offsets]).T
             for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
-                self.yx_shifts[frame_idx] = (int(offset[0]), int(offset[1]))
+                self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
 
         populate_dict_across_colors(
             self.im_params,
