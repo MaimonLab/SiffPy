@@ -395,6 +395,10 @@ class FLIMParams():
         """ Save to a json file with different extension """
         path = Path(path)
         path = path.with_suffix(".flimparams")
+
+        # Make sure the directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(path, 'w') as f:
             json.dump(self.to_dict(), f)
     

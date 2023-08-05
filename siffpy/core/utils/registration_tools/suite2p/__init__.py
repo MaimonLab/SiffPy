@@ -27,9 +27,10 @@ SUITE2P_OPS = [
 ]
 
 def sct_defaults(suite2p_default_ops : dict)->dict:
+    """ TODO: Make this settable! Read from a file?? """
     suite2p_default_ops['do_bidiphase'] = True
     suite2p_default_ops['nonrigid'] = False
-    suite2p_default_ops['norm_frames'] = False
+    #suite2p_default_ops['norm_frames'] = F
     return suite2p_default_ops
 
 class Suite2pRegistrationInfo(RegistrationInfo):
