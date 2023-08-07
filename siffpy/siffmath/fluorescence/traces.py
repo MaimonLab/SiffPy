@@ -33,6 +33,8 @@ class FluorescenceTrace(np.ndarray):
     )
     """
 
+    FILETAG = 'fluor_hdf5'
+
     VECTOR_PROPERTIES = [
         'F', 'F0', 'max_val', 'min_val'
     ]
@@ -190,7 +192,7 @@ class FluorescenceTrace(np.ndarray):
     
     def save(self, path : 'PathLike'):
         path = Path(path)
-        path = path.with_suffix('.fluor_hdf5')
+        path = path.with_suffix(f'.{self.__class__.FILETAG}')
         with h5py.File(path, 'w') as f:
             f.create_dataset("fluorescence", data = self.__array__())
             f.create_dataset("F", data = self.F)
@@ -207,8 +209,8 @@ class FluorescenceTrace(np.ndarray):
     def load(cls, path : 'PathLike')->'FluorescenceTrace': 
         """ Load a .flim_hdf file and create a FlimArray class from it. """
         path = Path(path)
-        if not path.suffix == '.fluor_hdf5':
-            raise ValueError("File must be a .fluor_hdf5 file")
+        if not path.suffix == f'.{cls.FILETAG}':
+            raise ValueError(f"File must be a .{cls.FILETAG} file")
 
         with h5py.File(path, 'r') as f:
             input_array = f['fluorescence'][...]

@@ -40,6 +40,8 @@ class FlimTrace(np.ndarray):
     
     """
 
+    FILETAG = 'flim_hdf5'
+
     def __new__(
             cls,
             input_array : 'FlimArrayLike', # INPUT_ARRAY IS THE LIFETIME METRIC
@@ -303,7 +305,7 @@ class FlimTrace(np.ndarray):
 
     def save(self, path : 'PathLike'):
         path = Path(path)
-        path = path.with_suffix('.flim_hdf5')
+        path = path.with_suffix(f'.{self.__class__.FILETAG}')
         with h5py.File(path, 'w') as f:
             f.create_dataset("flim", data = self.__array__())
             f.create_dataset("intensity", data = self.intensity)
@@ -319,8 +321,8 @@ class FlimTrace(np.ndarray):
     def load(cls, path : 'PathLike'): 
         """ Load a .flim_hdf file and create a FlimArray class from it. """
         path = Path(path)
-        if not path.suffix == '.flim_hdf5':
-            raise ValueError("File must be a .flim_hdf5 file")
+        if not path.suffix == f'.{cls.FILETAG}':
+            raise ValueError(f"File must be a .{cls.FILETAG} file")
 
         with h5py.File(path, 'r') as f:
             flim = f['flim'][...]

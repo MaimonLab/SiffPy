@@ -14,7 +14,7 @@ from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.siffmath.flim import FlimTrace
-from siffpy.core.utils.types import PathLike, ImageArray
+from siffpy.core.utils.types import PathLike, ImageArray, BoolMaskArray
 
 # TODO:
 # __repr__
@@ -234,6 +234,14 @@ class SiffReader(object):
         return timetools.metadata_dicts_to_time(self.siffio.get_frame_metadata(frames=frames), reference)
 
     @property
+    def time_zero(self)->int:
+        """ Returns the time zero of the experiment in epoch time """
+        if hasattr(self, '_time_zero'): # only compute once, but only succeeds if we need it and it exists
+            return self._time_zero
+        self._time_zero = self.t_axis(0,1,0, reference_time = 'epoch')[0].astype(int)
+        return self._time_zero
+
+    @property
     def dt_volume(self)->float:
         """ Returns the average time between volumes in seconds """
         if hasattr(self.im_params, 'RoiManager'):
@@ -305,7 +313,7 @@ class SiffReader(object):
     
     def sum_mask(
             self,
-            mask : np.ndarray[Any, np.dtype[np.bool_]],
+            mask : BoolMaskArray,
             timepoint_start : int = 0,
             timepoint_end : Optional[int] = None,
             z_index : Optional[Union[int,list[int]]] = None,
@@ -515,7 +523,7 @@ class SiffReader(object):
 
     def sum_mask_flim(self,
             params : FLIMParams,
-            mask : np.ndarray[Any, np.dtype[np.bool_]],
+            mask : BoolMaskArray,
             timepoint_start : int = 0,
             timepoint_end : Optional[int] = None,
             z_index : Optional[Union[int,list[int]]] = None,
@@ -583,7 +591,8 @@ class SiffReader(object):
             z_index = [z_index]
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
-
+        registration_dict = {} if registration_dict is None else registration_dict
+        
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
                 raise ValueError("Mask must have same number of z-slices as the image")
