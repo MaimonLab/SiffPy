@@ -43,16 +43,6 @@ def estimate_phase(
 
     """
 
-    if error_estimate:
-        raise NotImplementedError("Error estimate on the phase is not yet implemented.")
-
-    try:
-        if not callable(getattr(phase_estimates, method)): # check that the method IS callable
-            raise ValueError(f"No phase estimate method {method} in SiffMath module {phase_estimates}")
-    except AttributeError as e:
-        raise ValueError(f"No phase estimate method {method} in SiffMath module {phase_estimates}." +
-        "To see available methods, call siffmath.phase_alignment_functions()")
-
     phase_method = getattr(phase_estimates, method)
     return phase_method(vector_series, *args, error_estimate = error_estimate, **kwargs)
 

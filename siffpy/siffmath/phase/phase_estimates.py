@@ -5,11 +5,12 @@ All phase-alignment methods take, at the very least,
 an argument vector_timeseries, which is a numpy array,
 and accept a keyword argument error_estimate, which is a boolean
 """
-from typing import Callable, Iterable, Union, Optional
-import random
+from typing import Callable, Union, Optional
+from enum import Enum
 
 import numpy as np
 
+from siffpy.core.utils.types import ComplexArray, FloatArray
 from siffpy.siffmath.phase.traces import *
 from siffpy.siffmath.fluorescence import FluorescenceTrace
 from siffpy.siffmath.phase.phase_analyses import *
@@ -18,12 +19,19 @@ __all__ = [
     'pva'
 ]
 
+class PhaseErrorFunction(Enum):
+    """
+    Enumerates the error functions available for phase estimation.
+    """
+    relative_magnitude = 'relative_magnitude'
+
+
 def pva(
         vector_timeseries : Union[np.ndarray, FluorescenceTrace],
-        normalized        : bool                                              = True, 
-        time              : Optional[np.ndarray]                              = None,
-        error_function    : Optional[Union[Callable,str]]                     = None,
-        filter_fcn        : Optional[Union[Callable,str]]                     = None,
+        normalized        : bool                              = True, 
+        time              : Optional[np.ndarray]              = None,
+        error_function    : Optional[Union[Callable,str]]     = 'relative_magnitude',
+        filter_fcn        : Optional[Union[Callable,str]]     = None,
         **kwargs
     ) -> PhaseTrace:
     """
@@ -69,13 +77,6 @@ def pva(
 
     """
     
-    error_fcns = [
-        'relative_magnitude'
-    ]
-
-    if (not error_function in error_fcns) and not (error_function is None) and not (callable(error_function)):
-        raise ValueError(f"Error function request is not an available option. Available preset options are:\n{error_fcns}")
-
     if normalized:
         sorted_vals = np.sort(vector_timeseries,axis=1)
         min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
@@ -84,7 +85,15 @@ def pva(
 
     angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
     if isinstance(vector_timeseries, FluorescenceTrace):
-        if (vector_timeseries.angle is not None) and all(x is not None for x in vector_timeseries.angle):
+        if (
+            isinstance(vector_timeseries.angle, np.ndarray) 
+            and (vector_timeseries.angle.dtype == np.complex128)
+        ):
+            angle_coords = vector_timeseries.angle
+        elif (
+            (vector_timeseries.angle is not None)
+            and all(x is not None for x in vector_timeseries.angle)
+        ):
             angle_coords = np.exp(-1j*vector_timeseries.angle)
     
     pva_val = np.asarray(
@@ -94,24 +103,40 @@ def pva(
         )
     )
 
-    if not (error_function is None):
-        raise NotImplementedError("Haven't implemented error functions properly yet")
-        err = None
-        if not callable(error_function):
-            error_function = eval(error_function)
-        err = error_function(vector_timeseries, pva_val)
-        phase = (phase, err)
-
-    if type(filter_fcn) == str:
-
+    if isinstance(filter_fcn, str):
         raise ValueError(f"No filter function implemented by the name {filter_fcn}.")
 
     if callable(filter_fcn):
         pva_val = filter_fcn(pva_val, **kwargs)
+        try:
+            vector_timeseries = filter_fcn(vector_timeseries, **kwargs)
+        except: # Take care of yourself this time.
+            pass
 
-    return PhaseTrace(pva_val, method = 'pva_normalized' if normalized else 'pva', time = time)
+    if not callable(error_function):
+        try:
+            error_function = PhaseErrorFunction(error_function)
+        except ValueError:
+            raise ValueError(
+                f"Error function {error_function} not recognized." +
+                f" Available options are {PhaseErrorFunction.__members__}"
+            )
+        if error_function == PhaseErrorFunction.relative_magnitude:
+            error_function = relative_magnitude
+    
+    err = error_function(vector_timeseries, pva_val)
 
-def relative_magnitude(vector_timeseries : np.ndarray, pva_val : np.ndarray) -> np.ndarray:
+    return PhaseTrace(
+        pva_val,
+        method = 'pva_normalized' if normalized else 'pva',
+        error_array = err,
+        time = time
+    )
+
+def relative_magnitude(
+        vector_timeseries : FloatArray,
+        pva_val : ComplexArray
+    ) -> np.ndarray:
     """
     Ranges from zero to pi, 0 when every vector component is 0 except 
     for one, and pi when every component is of equal magnitude.

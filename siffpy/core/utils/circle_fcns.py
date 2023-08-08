@@ -4,12 +4,6 @@ from typing import Any
 
 import numpy as np
 
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..., (sn-2, sn-1), (sn-1, sn)"
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
     return ((x-y + rollover/2) % rollover) - rollover/2

@@ -49,12 +49,12 @@ class FluorescenceTrace(np.ndarray):
         method : str = None,
         normalized : bool = False,
         F : Optional[np.ndarray] = None,
-        F0 : Optional[np.ndarray] = np.ndarray(None),
+        F0 : Optional[np.ndarray] = None,
         #time_axis : np.ndarray = np.ndarray(None),
         max_val : Optional[np.ndarray] = np.inf,
-        min_val : Optional[np.ndarray] = 0.0,
-        angle : Optional[float] = None,
-        info_string : str = None, # new attributes TBD?
+        min_val : Optional[np.ndarray] = np.array(0.0),
+        angle : Optional[np.ndarray] = None,
+        info_string : Optional[str] = None, # new attributes TBD?
         ):
         
         if isinstance(input_array, (list,tuple)):
