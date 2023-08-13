@@ -50,28 +50,28 @@ def dFoF(
         F0 = Fo(fluorescence, *args, **kwargs)
         #inspect.signature(Fo).
     elif isinstance(Fo, (np.ndarray, float)):
-        F0 = Fo
+        F0 = np.ndarray(Fo)
     else:
         try:
             np.array(Fo).astype(float)
         except TypeError:
             raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
-
-    if len(F0.squeeze().shape) <= 1:
-        df_trace = ((fluorescence.T.astype(float) - F0.astype(float))/F0.astype(float)).T
-    elif F0.shape == fluorescence.shape:
-        df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))
-    else:
-        raise ValueError(f"Shape of F0 ({F0.shape}) does not match shape of fluorescence ({fluorescence.shape})")
+    
+    F0 = np.atleast_2d(F0)
+    
+    df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))
+    
     max_val = None
     min_val = None
-    
+
     if normalized:
         sorted_vals = np.sort(df_trace,axis=1)
         min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
         max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
         df_trace = ((df_trace.T - min_val)/(max_val - min_val)).T
-    
+
+    df_trace = df_trace.squeeze()
+
     args_str = "args :" + ", ".join([str(arg) for arg in args])
     kwargs_str = "kwargs :" + ", ".join([f"{key} = {value}" for key, value in kwargs.items()])
 

@@ -9,6 +9,7 @@ from typing import Callable, Union, Optional
 from enum import Enum
 
 import numpy as np
+from scipy.special import i0, i1
 
 from siffpy.core.utils.types import ComplexArray, FloatArray
 from siffpy.siffmath.phase.traces import *
@@ -133,6 +134,16 @@ def pva(
         time = time
     )
 
+def load_interp_func()->Callable:
+    """ Loads the stored interp function """
+    loaded = np.load('relative_mag_lookup.npz')
+    theta = loaded['theta']
+    magnitude = loaded['magnitude']
+    from scipy.interpolate import interp1d
+    return interp1d(theta, magnitude, kind='cubic')
+
+INTERP_FUNC = load_interp_func()
+
 def relative_magnitude(
         vector_timeseries : FloatArray,
         pva_val : ComplexArray
@@ -141,9 +152,33 @@ def relative_magnitude(
     Ranges from zero to pi, 0 when every vector component is 0 except 
     for one, and pi when every component is of equal magnitude.
 
-    sinc(error_width) = |PVA| / sum(|PVA components|)
+    The error function is stored as a lookup table, because I don't have
+    an analytic expression for it. It's an interpolation between an 
+    arcsinc function (the exact expression for a rect signal) and a numerical
+    inverse of the relative magnitude of a von Mises distribution (which
+    can be computed from I1(kappa)/I0(kappa), and translating kappa to a
+    full-width half maximum).
+
+    For details, look at the source (and/or README).
+
     """
-    return arcsinc(np.abs(pva_val)/np.sum(np.abs(vector_timeseries),axis=0))
+    z = np.abs(pva_val)/np.sum(np.abs(vector_timeseries),axis=0)
+    return INTERP_FUNC(z)
+
+### BELOW IS JUST ILLUSTRATIVE, NOT USED IN THE CODE ###
+def fwhm_von_mises(kappa : float)->float:
+    """
+    Returns the full width at half maximum of a von Mises distribution
+    with concentration parameter kappa.
+    """
+    return np.arccos(1-np.log(2)/kappa)
+
+def relative_mag_vm(kappa : float) -> float:
+    """
+    Returns the relative magnitude error function for a von Mises distribution
+    with concentration parameter kappa.
+    """
+    return i1(kappa)/i0(kappa)
 
 def arcsinc(z : np.ndarray) -> np.ndarray:
     """
@@ -155,6 +190,9 @@ def arcsinc(z : np.ndarray) -> np.ndarray:
     
     Solved because the cubic is invertible, and this is a
     cubic in x^2.
+
+    Provides the FWHM of a rect signal where the relative magnitude calculation
+    produces a value of "z".
     """
     term_A = 2*(7**(1/3))
     term_A *= ( (5**(0.5)) * (405*(z**2)+198*z + 62)**(0.5) -
