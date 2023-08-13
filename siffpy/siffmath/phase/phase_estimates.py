@@ -136,11 +136,16 @@ def pva(
 
 def load_interp_func()->Callable:
     """ Loads the stored interp function """
-    loaded = np.load('relative_mag_lookup.npz')
+    import importlib_resources
+    lookup_path = str(
+        importlib_resources.files('siffpy.siffmath.phase')
+        .joinpath('relative_mag_lookup.npz')
+    )
+    loaded = np.load(lookup_path)
     theta = loaded['theta']
     magnitude = loaded['magnitude']
     from scipy.interpolate import interp1d
-    return interp1d(theta, magnitude, kind='cubic')
+    return interp1d(magnitude, theta)
 
 INTERP_FUNC = load_interp_func()
 
