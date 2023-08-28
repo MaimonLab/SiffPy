@@ -344,6 +344,160 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     }
 }
 
+static PyArrayObject* siffio_get_experiment_timestamps(SiffIO* self, PyObject *args, PyObject* kw){
+    static const char* GET_EXPERIMENT_TIME_KEYWORDS[] = {"frames", NULL};
+    PyObject *frames_list = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_experiment_timestamps", 
+            KWARG_CAST(GET_EXPERIMENT_TIME_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        return NULL;
+    }
+
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete[] framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
+    }
+
+    try{
+        PyArrayObject* timestamps = self->siffreader->getExperimentTimestamps(framesArray, framesN);
+        delete[] framesArray;
+        return timestamps;
+    }
+    catch(...){
+        delete[] framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    }
+};
+
+static PyArrayObject* siffio_get_epoch_laser(SiffIO *self, PyObject *args, PyObject *kw){
+    // Returns the frame timestamps as epoch timestamps from the laser clock
+    
+    static const char* GET_EPOCH_LASER_KEYWORDS[] = {"frames", NULL};
+    PyObject *frames_list = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_epoch_timestamps_laser", 
+            KWARG_CAST(GET_EPOCH_LASER_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        return NULL;
+    }
+
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete[] framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
+    }
+
+    try{
+        PyArrayObject* timestamps = self->siffreader->getEpochTimestampsLaser(framesArray, framesN);
+        delete[] framesArray;
+        return timestamps;
+    }
+    catch(...){
+        delete[] framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    }
+};
+
+static PyArrayObject* siffio_get_epoch_system(SiffIO *self, PyObject *args, PyObject* kw){
+    // Returns the frame timestamps as the most recent system clock time call
+    
+    static const char* GET_EPOCH_LASER_KEYWORDS[] = {"frames", NULL};
+    PyObject *frames_list = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_epoch_timestamps_system", 
+            KWARG_CAST(GET_EPOCH_LASER_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        return NULL;
+    }
+
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete[] framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
+    }
+
+    try{
+        PyArrayObject* timestamps = self->siffreader->getEpochTimestampsSystem(framesArray, framesN);
+        delete[] framesArray;
+        return timestamps;
+    }
+    catch(...){
+        delete[] framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    }
+};
+
+static PyArrayObject* siffio_epoch_both(SiffIO* self, PyObject *args, PyObject* kw) {
+       // Returns the frame timestamps as the most recent system clock time call
+    
+    static const char* GET_EPOCH_BOTH_KEYWORDS[] = {"frames", NULL};
+    PyObject *frames_list = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_epoch_both", 
+            KWARG_CAST(GET_EPOCH_BOTH_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        return NULL;
+    }
+
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete[] framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
+    }
+
+    try{
+        PyArrayObject* timestamps = self->siffreader->getEpochTimestampsBoth(framesArray, framesN);
+        delete[] framesArray;
+        return timestamps;
+    }
+    catch(...){
+        delete[] framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    } 
+};
+
 static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObject* kw) {
     // Gets the meta data for the frames in kw, or for all the frames.  
 

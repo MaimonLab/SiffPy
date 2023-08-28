@@ -44,6 +44,71 @@ PyDoc_STRVAR(
 );
 
 PyDoc_STRVAR(
+    siffio_get_experiment_timestamps_doc,
+    "SiffIO.get_experiment_timestamps()->np.ndarray[Any, np._float]\n"
+    "--\n"
+    "\n"
+    "Retrieves the timestamps of each frame computed using"
+    " the number of laser pulses since the start of the experiment."
+    "\n"
+    "Arguments:\n\n"
+    "\tframes : list[int] \n\t\tA list of the indices of the frames whose timestamps are desired. "
+    "\n"
+    "Returns:\n\n"
+    "\ttimestamps : np.ndarray[Any, np._float]\n\t\t"
+    "A numpy array of timestamps in _experiment_ time (seconds since start)."
+);
+
+PyDoc_STRVAR(
+    siffio_get_epoch_timestamps_laser_doc,
+    "SiffIO.get_epoch_timestamps_laser()->np.ndarray[Any, np._uint64]\n"
+    "--\n"
+    "\n"
+    "Retrieves the timestamps of each frame computed using"
+    " the number of laser pulses since the start of the experiment."
+    "\n"
+    "Arguments:\n\n"
+    "\tframes : list[int] \n\t\tA list of the indices of the frames whose timestamps are desired. "
+    "\n"
+    "Returns:\n\n"
+    "\ttimestamps : np.ndarray[Any, np._uint64]\n\t\t"
+    "A numpy array of timestamps in _epoch_ time (UTC)."
+);
+
+PyDoc_STRVAR(
+    siffio_get_epoch_timestamps_system_doc,
+    "SiffIO.get_epoch_timestamps_system()->np.ndarray[Any, np._uint64]\n"
+    "--\n"
+    "\n"
+    "Retrieves the timestamps of each frame computed using"
+    " the system clock."
+    "\n"
+    "Arguments:\n\n"
+    "\tframes : list[int] \n\t\tA list of the indices of the frames whose timestamps are desired. "
+    "\n"
+    "Returns:\n\n"
+    "\ttimestamps : np.ndarray[Any, np._uint64]\n\t\t"
+    "A numpy array of timestamps in _epoch_ time (UTC)."
+);
+
+PyDoc_STRVAR(
+    siffio_get_epoch_timestamps_both_doc,
+    "SiffIO.get_epoch_both)->np.ndarray[Any, np._uint64]\n"
+    "--\n"
+    "\n"
+    "Retrieves the timestamps of each frame computed using"
+    " the system clock."
+    "\n"
+    "Arguments:\n\n"
+    "\tframes : list[int] \n\t\tA list of the indices of the frames whose timestamps are desired. "
+    "\n"
+    "Returns:\n\n"
+    "\ttimestamps : np.ndarray[Any, np._uint64]\n\t\t"
+    "A numpy array of timestamps in _epoch_ time (UTC), with the first row being the laser clock"
+    " and the second row being the system clock."
+);
+
+PyDoc_STRVAR(
     siffio_get_frames_doc,
     "SiffIO.get_frames(frames : list[int] = [], flim : bool = False, registration : dict = {})->list[np.ndarray]\n"
     "--\n"

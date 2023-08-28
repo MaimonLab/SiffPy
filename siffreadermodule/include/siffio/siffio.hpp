@@ -73,6 +73,13 @@ static PyObject* siffio_close(SiffIO* self);
 static PyObject* siffio_get_file_header(SiffIO* self);
 static PyObject* siffio_num_frames(SiffIO* self);
 
+// Time methods
+
+static PyArrayObject* siffio_get_experiment_timestamps(SiffIO* self, PyObject* args, PyObject* kwargs);
+static PyArrayObject* siffio_get_epoch_laser(SiffIO* self, PyObject* args, PyObject* kwargs);
+static PyArrayObject* siffio_get_epoch_system(SiffIO* self, PyObject* args, PyObject* kwargs);
+static PyArrayObject* siffio_epoch_both(SiffIO* self, PyObject* args, PyObject* kwargs);
+
 // Frame methods
 static PyObject* siffio_get_frames(SiffIO* self, PyObject* args, PyObject *kwargs);
 static PyObject* siffio_get_frame_metadata(SiffIO* self, PyObject* args, PyObject *kwargs);
@@ -94,6 +101,12 @@ static PyMethodDef siffio_methods[] = {
     {"close", (PyCFunction) siffio_close, METH_NOARGS, siffio_close_doc},
     {"get_file_header", (PyCFunction) siffio_get_file_header, METH_NOARGS, siffio_get_file_header_doc},
     {"num_frames", (PyCFunction) siffio_num_frames, METH_NOARGS, siffio_num_frames_doc},
+
+    // Time methods
+    {"get_experiment_timestamps", (PyCFunction) siffio_get_experiment_timestamps, METH_VARARGS|METH_KEYWORDS, siffio_get_experiment_timestamps_doc},
+    {"get_epoch_timestamps_laser", (PyCFunction) siffio_get_epoch_laser, METH_VARARGS|METH_KEYWORDS, siffio_get_epoch_timestamps_laser_doc},
+    {"get_epoch_timestamps_system", (PyCFunction) siffio_get_epoch_system, METH_VARARGS|METH_KEYWORDS, siffio_get_epoch_timestamps_system_doc},
+    {"get_epoch_both", (PyCFunction) siffio_epoch_both, METH_VARARGS|METH_KEYWORDS, siffio_get_epoch_timestamps_both_doc},
 
     // Frame methods
     {"get_frames", (PyCFunction) siffio_get_frames, METH_VARARGS|METH_KEYWORDS, siffio_get_frames_doc},

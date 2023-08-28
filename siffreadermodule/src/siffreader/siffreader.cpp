@@ -217,7 +217,7 @@ void SiffReader::suppressWarnings(bool suppress){
     params.suppress_warnings = suppress;
 }
 
-uint64_t SiffReader::numFrames(){
+uint64_t SiffReader::numFrames() const {
     return _numFrames;
 }
 
@@ -309,15 +309,15 @@ PyObject* SiffReader::readFixedData(){
 ///////////////////////////
 
 
-std::string SiffReader::getNVFD() {
+std::string SiffReader::getNVFD() const {
     return params.headerstring;
 }
 
-std::string SiffReader::getROIstring() {
+std::string SiffReader::getROIstring() const {
     return params.ROI_string;
 }
 
-const char* SiffReader::getErrString(){
+const char* SiffReader::getErrString() const {
     return errstring.c_str();
 }
 

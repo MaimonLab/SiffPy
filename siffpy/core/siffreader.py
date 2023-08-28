@@ -30,7 +30,11 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : Optional[PathLike] = None):
+    def __init__(self, filename : Optional[PathLike] = None, open : bool = True):
+        """
+        Opens file `filename` if provided, otherwise creates an inactive SiffReader.
+        If open is True, opens the file. If open is False, does not open the file.
+        """
         self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
@@ -41,7 +45,7 @@ class SiffReader(object):
             filename = str(filename)
         if filename is None:
             self.filename = ''
-        else:
+        elif open:
             self.open(filename)
 
     def __del__(self):
@@ -69,13 +73,23 @@ class SiffReader(object):
         # TODO
         return self.__str__()
 
-    def open(self,  filename : Optional[PathLike] = None) -> None:
+    def open(
+            self,
+            filename : Optional[PathLike] = None,
+            load_time_axis : bool = False,
+            ) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
         ------
+        
         filename (optional):
-            (str) path to a .siff or .tiff file.
+            (PathLike) path to a .siff or .tiff file.
+
+        load_time_axis (optional, bool):
+            Whether or not to load the time axis of the data
+            on opening. Takes longer, but then you never have to
+            call it again.
 
         RETURN
         ------
@@ -107,6 +121,10 @@ class SiffReader(object):
 
         if r_info is not None:
             self.registration_info = r_info
+
+        if load_time_axis:
+            raise NotImplementedError("load_time_axis not yet implemented")
+            self._time_axis_epoch = None
 
         #self.events = io.find_events(self.im_params, self.get_frames_metadata())
         flim_params = io.load_flim_params(filename)
@@ -173,6 +191,38 @@ class SiffReader(object):
             reference_z
         )
 
+        if reference_time == 'experiment':
+            return self.siffio.get_experiment_timestamps(frames = framelist)
+        
+        if reference_time == 'epoch':
+            # Check if mostRecentSystemTimestamp_epoch exists
+            if not hasattr(self.get_frames_metadata(frames = [0])[0],'mostRecentSystemTimestamp_epoch'):
+                if hasattr(self.get_frames_metadata(frames = [0])[0],'sync Stamps'):
+                    warnings.warn(
+                        "No system timestamps found, so only using the laser clock. Note that this" +
+                        " will drift on the scale of a few parts per million (~10 ms per hour)"
+                    )
+                    return self.siffio.get_epoch_timestamps_laser(frames = framelist)
+                else:
+                    warnings.warn(
+                        "Timestamps collected using only system clock calls : will have no _drift_"
+                        + " but will contain JITTER on the order of a few milliseconds at times"
+                    )
+                    return self.siffio.get_epoch_timestamps_laser(frames = framelist) 
+            laser_time, system_time = self.siffio.get_epoch_both(frames=framelist)
+            # laser_time drifts with respect to the jittery system time.
+            # does a linear regression to correct for this drift
+            slope, _ = np.polyfit(
+                laser_time,
+                (
+                    (laser_time-laser_time[0]).astype(float)
+                    - (system_time-system_time[0]).astype(float)
+                ),
+                1
+            )
+
+            return laser_time - (slope*(laser_time-laser_time[0])).astype('uint64')
+            
         return timetools.metadata_dicts_to_time(
             self.siffio.get_frame_metadata(frames=framelist),
             reference = reference_time,

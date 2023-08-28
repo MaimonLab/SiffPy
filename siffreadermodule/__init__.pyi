@@ -107,6 +107,46 @@ class SiffIO():
         frames provided. If no frames are provided, then the
         histogram is of all the frames in the file.    
         """
+
+    def get_experiment_timestamps(self, frames : Optional[List[int]] = None,)->FLOAT_ARRAY:
+        """
+        Returns an array of timestamps of each frame based on
+        counting laser pulses since the start of the experiment.
+
+        Units are SECONDS.
+
+        Extremely low jitter, small amounts of drift (maybe 50 milliseconds an hour).
+        """
+
+    def get_epoch_timestamps_laser(self, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+        """
+        Returns an array of timestamps of each frame based on
+        counting laser pulses since the start of the experiment.
+        Extremely low jitter, small amounts of drift (maybe 50 milliseconds an hour).
+
+        Can be corrected using get_epoch_timestamps_system.
+        """
+
+    def get_epoch_timestamps_system(self, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+        """
+        Returns an array of timestamps of each frame based on
+        the system clock. High jitter, but no drift.
+
+        WARNING if system timestamps do not exist, the function
+        will CRASH.
+        """
+
+    def get_epoch_both(self, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+        """
+        Returns an array containing both the laser timestamps
+        and the system timestamps.
+
+        The first row is laser timestamps, the second
+        row is system timestamps.
+
+        WARNING if system timestamps do not exist, the function
+        will CRASH.
+        """
     
 def suppress_warnings()->None:...
 

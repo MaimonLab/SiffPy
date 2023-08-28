@@ -62,7 +62,10 @@ class SiffReader
     private:
         size_t _numFrames;
         // the .siff file, a very delicately wrapped tiff
-        std::ifstream siff;
+        // Mutable: the file stream is expected to change
+        // in almost all cases, so the meaning of const
+        // should ignore changes to this object.
+        mutable std::ifstream siff;
         // file for debug logging.
         std::ofstream debugger;
         // Clock for measuring time to execute functions
@@ -196,20 +199,40 @@ class SiffReader
         );
         // returns the data in the primary ScanImage header
         PyObject* readFixedData();
+
+        PyArrayObject* getExperimentTimestamps(
+            const uint64_t frames[],
+            const uint64_t framesN
+        ) const ;
+
+        PyArrayObject* getEpochTimestampsLaser(
+            const uint64_t frames[],
+            const uint64_t framesN
+        ) const ;
+
+        PyArrayObject* getEpochTimestampsSystem(
+            const uint64_t frames[],
+            const uint64_t framesN
+        ) const ;
+
+        PyArrayObject* getEpochTimestampsBoth(
+            const uint64_t frames[],
+            const uint64_t framesN
+        ) const ;
         
-        std::string getNVFD();
-        std::string getROIstring();
+        std::string getNVFD() const;
+        std::string getROIstring() const;
 
         /////// Debug methods /////////
         
         // Returns a string of the last error thrown
-        const char* getErrString();
+        const char* getErrString() const;
 
         // Whether or not to elicit warnings when not-catastrophic events occur
         void suppressWarnings(bool suppress);
 
         // Number of frames in the file
-        uint64_t numFrames();
+        uint64_t numFrames() const;
 
         // Toggles debug mode on and off
         void setDebug(bool debug_bool);
