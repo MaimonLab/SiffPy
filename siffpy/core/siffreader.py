@@ -14,6 +14,7 @@ from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
 from siffpy.siffmath.flim import FlimTrace
+from siffpy.siffmath.utils import Timeseries
 from siffpy.core.utils.types import PathLike, ImageArray, BoolMaskArray
 
 # TODO:
@@ -192,23 +193,36 @@ class SiffReader(object):
         )
 
         if reference_time == 'experiment':
-            return self.siffio.get_experiment_timestamps(frames = framelist)
+            return Timeseries(
+                self.siffio.get_experiment_timestamps(frames = framelist),
+                'experiment_seconds'
+            )
         
         if reference_time == 'epoch':
             # Check if mostRecentSystemTimestamp_epoch exists
             if not hasattr(self.get_frames_metadata(frames = [0])[0],'mostRecentSystemTimestamp_epoch'):
                 if hasattr(self.get_frames_metadata(frames = [0])[0],'sync Stamps'):
                     warnings.warn(
+                        "\n!!!!!!!!!!!\n" +
                         "No system timestamps found, so only using the laser clock. Note that this" +
                         " will drift on the scale of a few parts per million (~10 ms per hour)"
+                        +"\n!!!!!!!!!!!!\n"
                     )
-                    return self.siffio.get_epoch_timestamps_laser(frames = framelist)
+                    return Timeseries(
+                        self.siffio.get_epoch_timestamps_laser(frames = framelist),
+                        'epoch_nanoseconds'
+                    )
                 else:
                     warnings.warn(
+                        "\n!!!!!!!!!!\n" +
                         "Timestamps collected using only system clock calls : will have no _drift_"
                         + " but will contain JITTER on the order of a few milliseconds at times"
+                        + "\n!!!!!!!!!!!\n"
                     )
-                    return self.siffio.get_epoch_timestamps_laser(frames = framelist) 
+                    return Timeseries(
+                        self.siffio.get_epoch_timestamps_laser(frames = framelist),
+                        'epoch_nanoseconds'
+                    )
             laser_time, system_time = self.siffio.get_epoch_both(frames=framelist)
             # laser_time drifts with respect to the jittery system time.
             # does a linear regression to correct for this drift
@@ -221,7 +235,10 @@ class SiffReader(object):
                 1
             )
 
-            return laser_time - (slope*(laser_time-laser_time[0])).astype('uint64')
+            return Timeseries(
+                laser_time - (slope*(laser_time-laser_time[0])).astype('uint64'),
+                'epoch_nanoseconds'
+            )
             
         return timetools.metadata_dicts_to_time(
             self.siffio.get_frame_metadata(frames=framelist),

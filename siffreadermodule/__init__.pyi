@@ -19,7 +19,12 @@ class FrameData():
     def imageHeight(self)->int:...
 
 class SiffIO():
+    """
+    This class is a wrapper for the C++ SiffReader class.
 
+    Controls file reading and formats data streams into
+    numpy arrays.
+    """
     @property
     def filename(self)->str:...
 
