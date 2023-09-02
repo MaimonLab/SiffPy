@@ -7,6 +7,8 @@ import numpy as np
 
 from siffreadermodule import SiffIO
 
+## Should I move some import statements to function definitions
+
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
 from siffpy.core.utils import ImParams

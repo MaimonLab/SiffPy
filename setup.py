@@ -12,16 +12,26 @@ if (
       (platform.system() == 'Darwin') and
       ('Clang' in sys.version)
    ):
+   # For some reason libstdc++ doesn't define <string>?
+   # Sadly libc++ has painfully slow regex, but for now
+   # I don't need to rely on regex tools.
    extra_compile_args = ["-stdlib=libc++"]
 else:
-   print("""
+   print(
+      """
       SiffPy's `siffreadermodule` has only been tested on
       MacOS with a python distribution compiled with clang.
-      Your Python was apparently not built with clang.
-      No guarantees it will work for you!"""
+      Your Python was apparently not built with clang,
+      or you are not on MacOS!
+      No guarantees it will work for you!
+
+      That said, all C++ code is built with the
+      standard C++11 tools, so it should work on
+      any platform with a C++11 compiler 
+      """
    )
 
-
+# TDOO: decide if I want to 
 #written for Darwin. Probably should write a Windows and/or GNU compatible
 siffmodule = Extension(
    name='siffreadermodule',

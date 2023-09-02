@@ -31,4 +31,18 @@ dependencies = [
     "numpy >= 1.15",
     "scipy",
     "h5py",
+    "importlib_resources",
+]
+
+[project.optional-dependencies]
+# development dependency groups
+suite2p = ['suite2p']
+all = ['siffpy[suite2p]']
+
+# pyproject.toml
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
 ]
