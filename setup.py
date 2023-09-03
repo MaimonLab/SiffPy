@@ -31,8 +31,6 @@ else:
       """
    )
 
-# TDOO: decide if I want to 
-#written for Darwin. Probably should write a Windows and/or GNU compatible
 siffmodule = Extension(
    name='siffreadermodule',
    sources = [
