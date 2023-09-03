@@ -26,7 +26,7 @@ PyArrayObject* SiffReader::getExperimentTimestamps(
     siff.clear();
 
     // 1 dimensional
-    npy_intp dims[1] = {framesN};
+    npy_intp dims[1] = {(int) framesN};
 
     // Allocate the array
     PyArrayObject* timestamps = (PyArrayObject*) PyArray_SimpleNew(1, dims, NPY_DOUBLE);
@@ -99,7 +99,7 @@ PyArrayObject* SiffReader::getEpochTimestampsLaser(
     siff.clear();
 
     // 1 dimensional
-    npy_intp dims[1] = {framesN};
+    npy_intp dims[1] = { (int) framesN};
 
     // Allocate the array
     PyArrayObject* timestamps = (PyArrayObject*) PyArray_SimpleNew(1, dims, NPY_UINT64);
@@ -173,7 +173,7 @@ PyArrayObject* SiffReader::getEpochTimestampsSystem(
     siff.clear();
 
     // 1 dimensional
-    npy_intp dims[1] = {framesN};
+    npy_intp dims[1] = { (int) framesN};
 
     // Allocate the array
     PyArrayObject* timestamps = (PyArrayObject*) PyArray_SimpleNew(1, dims, NPY_UINT64);
@@ -239,7 +239,7 @@ PyArrayObject* SiffReader::getEpochTimestampsBoth(
     siff.clear();
 
     // 2 dimensional
-    npy_intp dims[2] = {2, framesN};
+    npy_intp dims[2] = {2, (int) framesN};
 
     // Allocate the array
     PyArrayObject* timestamps = (PyArrayObject*) PyArray_SimpleNew(2, dims, NPY_UINT64);

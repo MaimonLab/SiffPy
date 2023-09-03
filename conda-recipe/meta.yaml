@@ -1,0 +1,56 @@
+{% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
+{% set project = pyproject.get('project',{}) %}
+
+package:
+  name: {{ project.get('name') }}
+  version: {{ project.get('version') }}
+  #version: {{ data.get('version') }}
+
+source:
+  path: ../
+  git_url: ../
+  #git_url: https://github.com/maimonlab/siffpy.git
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  script: "{{ PYTHON }} -m pip install '.'"
+
+requirements:
+  build:
+    - git
+    - python >=3.9
+    - pip
+    - numpy >=1.15
+    - setuptools>=45
+    - setuptools_scm[toml]>=6.2
+    - wheel
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+  host:
+    - python >=3.9
+    - numpy >=1.15
+    - scipy
+    - h5py
+    - importlib_resources
+  run:
+    - python >=3.9
+    - numpy >=1.15
+    - scipy
+    - h5py
+    - importlib_resources
+
+test:
+  requires:
+    - pytest
+  imports:
+    - pytest
+
+about:
+  home: "https://github.com/maimonlab/siffpy"
+  summary : {{ project.get('description') }}
+  license: {{ project.get('license') }}
+  license_file: ../LICENSE.md
+
+extra:
+  recipe-maintainers:
+    - StephenThornquist

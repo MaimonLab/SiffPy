@@ -37,6 +37,18 @@ To really spell it out:
 - Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I've been using `>3.9` with `futures` but none of that seems essential.
 - Type `python3 -m pip install "."`.
 
+Once you've downloaded it, please test it by running the testing
+version, at least until I start uploading it to `conda-forge` or
+`PyPI` or anywhere else that automatically runs the test suite.
+
+```
+python3 -m pip install ".[test]"
+pytest
+python3 -m pip install "."
+```
+
+
+
 This will also compile the C extension module `siffreadermodule` that does most of the heavy lifting, stick the library into your path for this environment, and then make the SiffPy Python code accessible.
 
 Image registration is currently done in numpy but does not require loading the whole dataset into memory.

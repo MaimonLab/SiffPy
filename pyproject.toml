@@ -36,8 +36,9 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependency groups
+test = ['pytest']
 suite2p = ['suite2p']
-all = ['siffpy[suite2p]']
+all = ['siffpy[suite2p, test]']
 
 # pyproject.toml
 [tool.pytest.ini_options]

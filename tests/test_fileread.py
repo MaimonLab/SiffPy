@@ -12,8 +12,25 @@ if TYPE_CHECKING:
 
 import pytest
 
-@pytest.fixture
-def test_file_in()->List['SiffReader']:
+RAW_FILE_NAME = "raw_test"
+COMPRESSED_FILE_NAME = "compressed_test"
+
+@pytest.fixture(scope='session')
+def load_test_files(tmp_path_factory)->List[str]:
+    """
+    Loads test files from the specified url into a temp
+    directory for use in other tests
+    """
+
+    FILES_URL = ""
+
+
+    file_dir = tmp_path_factory.mktemp("test_siff_files")
+    return file_dir
+
+
+@pytest.fixture(scope = 'function')
+def test_file_in(load_test_files)->List['SiffReader']:
     """
     Tests that the test file is read in properly.
     """
@@ -23,7 +40,7 @@ def test_file_in()->List['SiffReader']:
 
     assert not sr.opened
 
-    filename = "not_a_real_path.siff"
+    filename = load_test_files / "not_a_real_file.siff"
     try:
         sr = SiffReader(filename)
     except Exception as e:
@@ -33,12 +50,12 @@ def test_file_in()->List['SiffReader']:
     # each with their own compressions / implementations
     # of the various forms.
 
-    filename = "a_real_path.siff"
+    filename = (load_test_files / RAW_FILE_NAME).with_suffix('.siff')
 
     sr_raw = SiffReader(filename)
     assert sr_raw.opened
 
-    filename = 'path_to_compressed.siff'
+    filename = (load_test_files / COMPRESSED_FILE_NAME).with_suffix('.siff')
     sr_compressed = SiffReader(filename)
 
     assert sr_compressed.opened

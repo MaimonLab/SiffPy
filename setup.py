@@ -3,7 +3,7 @@ from setuptools import setup, Extension
 try:
    import numpy
 except ImportError as error:
-   raise Exception("Numpy is not yet installed on this distribution. Set up numpy using command 'pip install <directory_containing_this_setup.py>' instead.")
+   raise Exception("Numpy is not yet installed on this distribution. Install numpy with pip or conda")
 
 import platform, sys
 
