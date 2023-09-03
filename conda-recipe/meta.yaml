@@ -3,8 +3,7 @@
 
 package:
   name: {{ project.get('name') }}
-  version: {{ project.get('version') }}
-  #version: {{ data.get('version') }}
+  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
   path: ../
@@ -48,8 +47,8 @@ test:
 about:
   home: "https://github.com/maimonlab/siffpy"
   summary : {{ project.get('description') }}
-  # license: GPL3
-  # license_file: ../LICENSE.md
+  license: GPL3
+  license_file: ../LICENSE.md
 
 extra:
   recipe-maintainers:
