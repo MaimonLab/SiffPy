@@ -1,9 +1,9 @@
 python:
   - 3.9
   - 3.10
-  - 3.11
+  #- 3.11
 
 pin_run_as_build:
   numpy:
-      min_pin: x.x
+      min_pin: 1.15
       max_pin: x.x

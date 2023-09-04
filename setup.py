@@ -50,6 +50,7 @@ siffmodule = Extension(
    ],
    extra_compile_args=extra_compile_args,
    language="c++",
+   use_scm_version=True,
 )
 
 setup (
