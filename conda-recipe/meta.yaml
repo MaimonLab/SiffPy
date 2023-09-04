@@ -20,6 +20,8 @@ requirements:
     - pip
     - numpy
     - wheel
+    - setuptools>=45
+    - setuptools_scm[toml]>=6.2
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
   host:
