@@ -12,10 +12,7 @@ if (
       (platform.system() == 'Darwin') and
       ('Clang' in sys.version)
    ):
-   # For some reason libstdc++ doesn't define <string>?
-   # Sadly libc++ has painfully slow regex, but for now
-   # I don't need to rely on regex tools.
-   extra_compile_args = ["-stdlib=libc++"]
+   pass
 else:
    print(
       """
@@ -52,8 +49,29 @@ siffmodule = Extension(
    language="c++",
    use_scm_version=True,
 )
+try:
+   setup (
+      packages = ['siffpy'],
+      ext_modules = [siffmodule],
+   )
+except:
+   if (
+      (platform.system() == 'Darwin') and
+      ('Clang' in sys.version)
+   ):
+      # For some reason libstdc++ in some compilers doesn't define <string>?
+      # Sadly libc++ has painfully slow regex, but for now
+      # I don't need to rely on regex tools.
+      import warnings
+      warnings.warn(
+         """
+         Some Xcode sets don't define <string> in libstdc++,
+         so trying again with libc++
+         """
+      )
 
-setup (
-   packages = ['siffpy'],
-   ext_modules = [siffmodule],
-)
+      siffmodule.extra_compile_args.append("-stdlib=libc++")
+      setup (
+         packages = ['siffpy'],
+         ext_modules = [siffmodule],
+      )
