@@ -19,11 +19,17 @@ SiffReader::SiffReader(){
     debug = false;
     debug_clock = std::chrono::high_resolution_clock();
     _numFrames = -1;
+    DEBUG(
+        tick = debug_clock.now();
+        tock = debug_clock.now();
+    )
 }
 
 int SiffReader::openFile(const char* _filename) {
     // Opens a .siff file for further analysis / use.
     try{
+        DEBUG(tick = debug_clock.now();)
+
         // First make sure we can open it at all.
         if(siff.is_open()) {
             if (strcmp(filename.c_str(), _filename) == 0) {
@@ -38,6 +44,29 @@ int SiffReader::openFile(const char* _filename) {
         if (!siff.good()) {siff.clear();}
         if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
         
+        DEBUG(
+            // Find the position of the last dot in the filename
+            const char* lastDot = std::strrchr(_filename, '.');
+            
+            std::string logFileName;
+            // Check if there is a dot in the filename
+            if (lastDot != nullptr) {
+                // Calculate the length of the substring before the last dot
+                std::size_t length = static_cast<std::size_t>(lastDot - _filename);
+
+                // Append "_debug.txt" to the filename without extension
+                logFileName = std::string(_filename, length) + "_debug.log";
+
+            } else {
+                // If there's no dot in the filename, simply append "_debug.txt"
+                logFileName += std::string(_filename) + "_debug.log";
+
+            }
+            logstream.open(logFileName, std::ios::out);
+            if (!logstream.is_open()) throw std::runtime_error("Could not open log file.");
+            logstream << "Opening file " << _filename << std::endl;
+        )
+
         // Get the file size:
         siff.seekg(0, siff.end);
         params.fileSize = siff.tellg();
@@ -124,7 +153,22 @@ int SiffReader::openFile(const char* _filename) {
         filename = std::string(_filename);
         params.suppress_warnings = suppress_warnings;
 
+        DEBUG(
+            tock = debug_clock.now(); // end the timer
+            logstream << "Primary meta-data read in " << printLastTickTock() << std::endl;
+            tick = debug_clock.now(); // start the timer
+        )
+
         discernFrames(); // updates params.numFrames with the number of frames in the siff
+
+        DEBUG(
+            tock = debug_clock.now(); // end the timer
+            logstream << "Frame data read in " << printLastTickTock() << std::endl;
+            logstream << "Number of frames: " << params.numFrames << std::endl;
+            logstream << "File size: " << params.fileSize << std::endl;
+            //tick = debug_clock.now(); // start the timer
+        )
+
         _numFrames = params.allIFDs.size();
         return 0;
     }
@@ -201,6 +245,11 @@ bool SiffReader::dimensionsConsistent(const uint64_t frames[], const uint64_t fr
 
 void SiffReader::closeFile(){
     if (siff.is_open()) siff.close();
+
+    DEBUG(
+        logstream.close();
+    )
+
     params = SiffParams();
     filename = std::string();
     _numFrames = 0;
@@ -321,6 +370,15 @@ const char* SiffReader::getErrString() const {
     return errstring.c_str();
 }
 
+DEBUG(
+    std::string SiffReader::printLastTickTock() {
+        auto dur = tock - tick;
+        std::string outstring = std::to_string(
+            std::chrono::duration_cast<std::chrono::microseconds>(dur).count()
+        ) + " microseconds";
+        return outstring;
+    }
+)
 
 //////////////////////////////////
 //////// INTERNAL FUNCTIONS //////

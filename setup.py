@@ -7,7 +7,13 @@ except ImportError as error:
 
 import platform, sys
 
+define_macros = None
 extra_compile_args = []
+
+DEBUG = False
+if DEBUG:
+   define_macros = [('__DEBUG', None)]
+
 if (
       (platform.system() == 'Darwin') and
       ('Clang' in sys.version)
@@ -43,12 +49,15 @@ siffmodule = Extension(
        #'siffreadermodule/src/pyFrameData.cpp',
    ],
    include_dirs = [
-       numpy.get_include()
+       numpy.get_include(),
+       'siffreadermodule/include',
    ],
    extra_compile_args=extra_compile_args,
    language="c++",
+   define_macros = define_macros,
    use_scm_version=True,
 )
+
 try:
    setup (
       packages = ['siffpy'],
@@ -60,7 +69,7 @@ except:
       ('Clang' in sys.version)
    ):
       # For some reason libstdc++ in some compilers doesn't define <string>?
-      # Sadly libc++ has painfully slow regex, but for now
+      # Sadly libc++ has painfully slow regex, but now
       # I don't need to rely on regex tools.
       import warnings
       warnings.warn(

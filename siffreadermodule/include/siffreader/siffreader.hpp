@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string>
 #include <fstream>
+#include <sys/mman.h>
+#include <chrono>
 
 // IMPORT_ARRAY() CALLED IN MODULE INIT
 #define NO_IMPORT_ARRAY
@@ -16,6 +18,7 @@
 #include "../siffparams/siffparams.hpp"
 #include "../framedata/framedatastruct.hpp"
 #include "../framedata/pyFrameData.hpp"
+#include "../debug.hpp"
 #include <numpy/arrayobject.h>
 #define PY_SSIZE_T_CLEAN
 
@@ -66,13 +69,22 @@ class SiffReader
         // in almost all cases, so the meaning of const
         // should ignore changes to this object.
         mutable std::ifstream siff;
-        // file for debug logging.
-        std::ofstream debugger;
-        // Clock for measuring time to execute functions
-        std::chrono::high_resolution_clock debug_clock;
+        
+        DEBUG(
+            // file for debug logging.
+            std::ofstream logstream;
+            // Clock for measuring time to execute functions
+            std::chrono::high_resolution_clock debug_clock;
+        )
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
         std::vector<const FrameData> frameDatas;
+
+        // used when debugging
+        DEBUG(
+            std::chrono::high_resolution_clock::time_point tick;
+            std::chrono::high_resolution_clock::time_point tock;
+        )
 
         // a setting to suppress potentially kernel-killing errors thrown by checks
         bool suppress_errors;
@@ -236,6 +248,11 @@ class SiffReader
 
         // Toggles debug mode on and off
         void setDebug(bool debug_bool);
+
+        DEBUG(
+            // Returns the latest debug tick-tock
+            std::string printLastTickTock();
+        )
 };
 
 #endif
