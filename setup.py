@@ -11,15 +11,14 @@ define_macros = None
 extra_compile_args = []
 
 DEBUG = False
+
 if DEBUG:
    define_macros = [('__DEBUG', None)]
 
-if (
+if not (
       (platform.system() == 'Darwin') and
       ('Clang' in sys.version)
    ):
-   pass
-else:
    print(
       """
       SiffPy's `siffreadermodule` has only been tested on
@@ -50,7 +49,6 @@ siffmodule = Extension(
    ],
    include_dirs = [
        numpy.get_include(),
-       'siffreadermodule/include',
    ],
    extra_compile_args=extra_compile_args,
    language="c++",

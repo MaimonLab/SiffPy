@@ -17,9 +17,10 @@ SiffReader::SiffReader(){
     suppress_errors = false; 
     suppress_warnings = false;
     debug = false;
-    debug_clock = std::chrono::high_resolution_clock();
+    
     _numFrames = -1;
     DEBUG(
+        debug_clock = std::chrono::high_resolution_clock();
         tick = debug_clock.now();
         tock = debug_clock.now();
     )
@@ -62,7 +63,7 @@ int SiffReader::openFile(const char* _filename) {
                 logFileName += std::string(_filename) + "_debug.log";
 
             }
-            logstream.open(logFileName, std::ios::out);
+            logstream.open(logFileName, std::ios::out | std::ios_base::app);
             if (!logstream.is_open()) throw std::runtime_error("Could not open log file.");
             logstream << "Opening file " << _filename << std::endl;
         )

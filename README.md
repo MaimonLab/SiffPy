@@ -51,7 +51,12 @@ python3 -m pip install "."
 
 This will also compile the C extension module `siffreadermodule` that does most of the heavy lifting, stick the library into your path for this environment, and then make the SiffPy Python code accessible.
 
-Image registration is currently done in numpy but does not require loading the whole dataset into memory.
+If you want to compile the file reader in debug mode, which logs most of its operations,
+please set the `DEBUG` parameter in `setup.py` to `True`. I will make this a command line
+option at some point, but for now figuring out the proper way to snag things from the
+command line with `distutils`/`setuptools` (instead of just pulling with `sys.argv`)
+is a little more work than I'm planning to do.
+
 For now, it just does alignment using the intensity images, rather than
 considering what source a photon is likely to have arrived from using FLIM.
 So it can be run on laptops with relative ease.

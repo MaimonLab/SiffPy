@@ -7,7 +7,7 @@
 #include "sifdefin.hpp"
 #include "../siffparams/siffparams.hpp"
 
-struct FrameData{
+typedef struct FrameData{
     uint64_t imageWidth;
     uint64_t imageLength;
     uint16_t bitsPerSample;
@@ -32,9 +32,9 @@ struct FrameData{
     uint64_t stringlength;
     PyObject* tagList;
     // TODO: ADD A TIMESTAMP OR MAYBE OTHER NICE THINGS
-};
+} FrameData ;
 
-const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff);
+const FrameData getTagData(const uint64_t IFD, SiffParams& params, std::ifstream& siff);
 
 PyObject* frameDataToDict(FrameData& frameData);
 

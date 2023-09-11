@@ -120,6 +120,10 @@ class SiffReader
             uint64_t nextIFD,
             PyObject* shift_tuple = NULL
         );
+
+        // Takes a frame from the opened .siff file and writes it to the opened .tiff file
+        // Presumes that the .tiff file is where the new frame's IFD should begin.
+        void siffFrameToTiffFrame(const uint64_t thisIFD,std::ofstream& tiff);
         
         // when you close one file and open another, wipe the slate clean
         void reset();

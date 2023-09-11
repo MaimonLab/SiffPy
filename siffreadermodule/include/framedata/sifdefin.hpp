@@ -43,7 +43,7 @@
 #define TIFF_SLONG8 17
 #define TIFF_IFD8 18
 
-inline uint16_t tiffDataType(uint16_t tiffTag){
+inline const uint16_t tiffDataType(const uint16_t tiffTag){
 
     switch(tiffTag) {
         case IMAGEWIDTH:
@@ -90,7 +90,7 @@ inline uint16_t tiffDataType(uint16_t tiffTag){
 };
 
 
-inline uint16_t datatypeToCharCount(uint16_t typeTag) {
+inline const uint16_t datatypeToCharCount(const uint16_t typeTag) {
     switch(typeTag) {
         
         case TIFF_BYTE:

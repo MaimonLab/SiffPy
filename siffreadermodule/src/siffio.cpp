@@ -146,9 +146,14 @@ static PyObject* siffio_get_file_header(SiffIO *self) {
     return self->siffreader->readFixedData();
 };
 
-static PyObject* siffio_num_frames(SiffIO* self){
-    // Returns number of frames in file
+/*
+Returns the number of frames in the file from counting
+IFDs
 
+@param self: SiffIO object
+*/
+static PyObject* siffio_num_frames(SiffIO* self){
+    
     uint64_t ret_val = self->siffreader->numFrames();
 
     if (ret_val < 0) {
@@ -165,7 +170,24 @@ static PyObject* siffio_num_frames(SiffIO* self){
  * 
  * *****/
 
+/*
+Checks a list with the data for a set of frames
+to be analyzed. Makes sure they're siffreader-compatible.
+Then loads the correct list into a C++ array.
 
+@param frameList: A list object from Python to be inspected for
+validity.
+
+@param framesArray: A pointer to a C++ array to be filled with the
+frame numbers from the frameList.
+
+@param framesArrayN: The length of the framesArray
+
+@param nTotalFrames: The total number of frames in the file.
+
+@return 0 on success, -1 on failure. Error is written to the
+Python error state.
+*/
 int check_framelist(
     PyObject* frameList,
     uint64_t* framesArray,
@@ -197,9 +219,23 @@ int check_framelist(
     return 0;
 };
 
+/*
+Checks a registration dictionary for validity. If a requested
+frame is not in the dictionary, it is added with a registration
+of (0,0). If a requested frame is in the dictionary but the
+registration is not a tuple of ints, it is cast to a tuple of ints.
+
+@param registrationDict: A dictionary of frame numbers to tuples of
+integers.
+
+@param frames_list: A list of frame numbers to be checked against
+the registration dictionary.
+
+@return 0 on success, -1 on failure. Error is written to the
+Python error state.
+*/
 int check_registration(PyObject* registrationDict, PyObject* frames_list){
-    // Check to make sure the dict contains all the frames requested
-    // and if not, set their registration to (0,0)
+    
     for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
         // Stick to the PyList objects so we don't have to make and destroy PyLongs            
         PyObject* item = PyList_GET_ITEM(frames_list, idx);
@@ -263,6 +299,16 @@ int check_registration(PyObject* registrationDict, PyObject* frames_list){
     return 0;
 };
 
+/*
+Returns a list of frames or a numpy array from the opened file
+
+@param self: SiffIO object
+
+@param args: A list of arguments. Not actually inspected. Only takes kwargs
+
+@param kw: A dict of keyword arguments. Looks for "frames", "registration", and "as_array",
+of type List, Dict, and Bool respectively.
+*/
 static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     // 
 

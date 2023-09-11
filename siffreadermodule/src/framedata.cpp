@@ -26,7 +26,7 @@ PyObject* frameDataToDict(FrameData& frameData){
     return dataDict;
 };
 
-const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff){
+const FrameData getTagData(const uint64_t IFD, SiffParams& params, std::ifstream& siff){
     // return a FrameData structure that has parsed all the tag information at location:
     // IFD
 
@@ -39,15 +39,22 @@ const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff
     siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
     siff.clear();
     FrameData frameData;
+
+    char thisTag[params.bytesPerTag];
+
+    uint16_t tagID; // the tag identifier
+    uint16_t datatype; // the datatype of the tag (coded)
+    uint16_t contentChars; // the number of characters in the tag
+    uint64_t contentVals; // the value of the tag
+
     // tag parsing TODO: SHOULD BE INLINED SOMEWHERE ELSE
     for(uint64_t tagNum = 0; tagNum < numTags; tagNum++) {
-        char thisTag[params.bytesPerTag];
         siff.read(thisTag, params.bytesPerTag);
         
-        uint16_t tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
+        tagID = ((uint8_t) thisTag[(1-params.little)]) + (thisTag[params.little] << 8 );
         // figure out the number of bytes needed to read the data correctly
-        uint16_t datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
-        uint16_t contentChars = datatypeToCharCount(datatype); // defined in sifdefin
+        datatype = (uint8_t) thisTag[(3-params.little)] + (((uint8_t) thisTag[2+params.little]) << 8);
+        contentChars = datatypeToCharCount(datatype); // defined in sifdefin
 
         if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
         // TODO: DO THIS RIGHT. I ALREADY KNOW THEY ALL ONLY USE A SINGLE TAG VALUE HERE BUT I SHOULD
@@ -55,7 +62,7 @@ const FrameData getTagData(uint64_t IFD, SiffParams& params, std::ifstream& siff
         
         // convert to a single value
         
-        uint64_t contentVals = 0;
+        contentVals = 0;
         // 8 + 4*bigtiff corresponds to the 4 bytes of identifier + the 4 bytes for number of values in tag (or 8 if bigtiff)
         for(int16_t charnum = (contentChars-1); 0<=charnum; charnum--) {
             contentVals <<= 8;

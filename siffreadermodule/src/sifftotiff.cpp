@@ -3,10 +3,47 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string>
-#include <map>
 #include "../include/sifftotiff.hpp"
 #include "../include/siffparams/siffparams.hpp"
 #include "../include/framedata/framedatastruct.hpp"
+
+
+/*
+Converts a siff file to a tiff file by reading each frame and
+re-writing the intensity data to the tiff format. Writes to
+the same location as the source file.
+
+@param sourcepath the path to the siff file to be converted
+*/
+void siff_to_tiff(std::string sourcepath) {
+
+}
+
+/*
+Converts a siff file to a tiff file by reading each frame and
+re-writing the intensity data to the tiff format
+
+@param sourcepath the path to the siff file to be converted
+@param savepath the path to the tiff file to be written
+*/
+void siff_to_tiff(std::string sourcepath, std::string savepath){
+
+    SiffReader *siffreader = new SiffReader();
+
+    if (siffreader->openFile(sourcepath.c_str()) != 0) {
+        delete(siffreader);
+        throw std::runtime_error("Could not open putative .siff file. Check that path exists.\n");
+    }
+
+    // Could open the file, let's make a save file
+    std::ofstream outfile(savepath, std::ios::out | std::ios::binary);
+    if (!outfile.is_open()) {
+        delete(siffreader);
+        throw std::runtime_error("Could not open save file for writing.\nPossible invalid path?");
+    }
+
+    delete(siffreader);
+}
 
 
 

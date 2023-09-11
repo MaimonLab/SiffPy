@@ -6,6 +6,7 @@
 
 #include "siffparams/siffparams.hpp"
 #include "framedata/sifdefin.hpp"
+#include "siffreader/siffreader.hpp"
 
 void siff_to_tiff(std::string sourcepath);
 void siff_to_tiff(std::string sourcepath, std::string savepath);
