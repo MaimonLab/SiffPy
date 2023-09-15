@@ -8,7 +8,7 @@ except ImportError as error:
 import platform, sys
 
 define_macros = None
-extra_compile_args = []
+extra_compile_args = ["-std=c++11"]
 
 DEBUG = False
 
@@ -38,13 +38,14 @@ siffmodule = Extension(
    sources = [
        'siffreadermodule/src/siffio.cpp',
        'siffreadermodule/src/siffreader/siffreader.cpp',
+       'siffreadermodule/src/siffreader/siffreader_writer.cpp',
        'siffreadermodule/src/siffreader/flim/histogram_methods.cpp',
        'siffreadermodule/src/siffreader/flim/lifetime_methods.cpp',
        'siffreadermodule/src/siffreader/intensity/intensity_methods.cpp',
        'siffreadermodule/src/siffreader/time/time_methods.cpp',
        'siffreadermodule/src/siffreadermodule.cpp',
        'siffreadermodule/src/framedata.cpp',
-       #'siffreadermodule/src/sifftotiff.cpp',
+       'siffreadermodule/src/sifftotiff.cpp',
        #'siffreadermodule/src/pyFrameData.cpp',
    ],
    include_dirs = [

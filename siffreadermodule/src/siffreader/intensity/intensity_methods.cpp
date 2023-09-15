@@ -457,7 +457,7 @@ PyArrayObject* SiffReader::sumMask(
     const uint64_t framesN,
     PyArrayObject* mask,
     PyObject* registrationDict
-    ){
+    ) const {
     // Sums all pixel elements of the desired frames within the mask and returns a 1d PyArrayObject.
     try{
         if (!siff.is_open()) throw std::runtime_error("No open file.");

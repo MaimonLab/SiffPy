@@ -1,6 +1,5 @@
 from typing import Union, Optional, Any, Sequence
-import logging
-import warnings
+import logging, warnings, copy
 from pathlib import Path
 
 import numpy as np
@@ -15,9 +14,10 @@ from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import (
     to_reg_info_class, RegistrationInfo
 )
+from siffpy.core.utils.types import PathLike, ImageArray, BoolMaskArray
+
 from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.utils import Timeseries
-from siffpy.core.utils.types import PathLike, ImageArray, BoolMaskArray
 
 # TODO:
 # __repr__
@@ -77,10 +77,10 @@ class SiffReader(object):
         return self.__str__()
 
     def open(
-            self,
-            filename : Optional[PathLike] = None,
-            load_time_axis : bool = False,
-            ) -> None:
+        self,
+        filename : Optional[PathLike] = None,
+        load_time_axis : bool = False,
+        ) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
         INPUTS
@@ -142,12 +142,13 @@ class SiffReader(object):
         self.filename = ''
 
 ### TIME AXIS METHODS
-    def t_axis(self,
+    def t_axis(
+        self,
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         reference_z : int = 0,
-        reference_time : str = 'experiment'
-    ) -> np.ndarray:
+        reference_time : str = 'experiment',
+        ) -> np.ndarray:
         """
         Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
         to acquisition start.
@@ -270,9 +271,9 @@ class SiffReader(object):
         )
     
     def get_time(
-            self,
-            frames : Optional[list[int]] = None,
-            reference : str = "experiment"
+        self,
+        frames : Optional[list[int]] = None,
+        reference : str = "experiment"
         ) -> np.ndarray:
         """
         Gets the recorded time (in seconds) of the frame(s) numbered in list frames
@@ -381,13 +382,13 @@ class SiffReader(object):
         return framelist
     
     def sum_mask(
-            self,
-            mask : BoolMaskArray,
-            timepoint_start : int = 0,
-            timepoint_end : Optional[int] = None,
-            z_index : Optional[Union[int,list[int]]] = None,
-            color_channel :  int = 1,
-            registration_dict : Optional[dict] = None,
+        self,
+        mask : BoolMaskArray,
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[Union[int,list[int]]] = None,
+        color_channel :  int = 1,
+        registration_dict : Optional[dict] = None,
         )->ImageArray:
         """
         Computes the sum photon counts within a numpy mask over timesteps.
@@ -465,11 +466,11 @@ class SiffReader(object):
         ).sum(axis=1)
     
     def pool_frames(self, 
-            framelist : list[list[int]], 
-            flim : Optional[bool] = False,
-            registration : Optional[dict] = None,
-            ret_type : type = list,
-            masks : Optional[list[np.ndarray]] = None 
+        framelist : list[list[int]], 
+        flim : Optional[bool] = False,
+        registration : Optional[dict] = None,
+        ret_type : type = list,
+        masks : Optional[list[np.ndarray]] = None 
         ) -> list[np.ndarray]:
         """
         Wraps self.siffio.pool_frames
@@ -510,9 +511,9 @@ class SiffReader(object):
         return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]
 
     def histograms(
-            self,
-            color_channel : Optional['int|list'] = None,
-            frame_endpoints : tuple[Optional[int],Optional[int]] = (None,None)
+        self,
+        color_channel : Optional['int|list'] = None,
+        frame_endpoints : tuple[Optional[int],Optional[int]] = (None,None)
         ) -> np.ndarray:
         """
         Returns a numpy array with arrival time histograms for all elements of the 
@@ -550,11 +551,12 @@ class SiffReader(object):
         true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
         return np.array([self.get_histogram(frames) for frames in true_framelists])
 
-    def get_frames_flim(self,
-            params : FLIMParams,
-            frames: list[int] = None,
-            registration_dict : dict = None,
-            confidence_metric : str = 'chi_sq',
+    def get_frames_flim(
+        self,
+        params : FLIMParams,
+        frames: list[int] = None,
+        registration_dict : dict = None,
+        confidence_metric : str = 'chi_sq',
         ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
@@ -590,14 +592,15 @@ class SiffReader(object):
             units = 'countbins',
         )
 
-    def sum_mask_flim(self,
-            params : FLIMParams,
-            mask : BoolMaskArray,
-            timepoint_start : int = 0,
-            timepoint_end : Optional[int] = None,
-            z_index : Optional[Union[int,list[int]]] = None,
-            color_channel : int = 0,
-            registration_dict : Optional[dict] = None,
+    def sum_mask_flim(
+        self,
+        params : FLIMParams,
+        mask : BoolMaskArray,
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[Union[int,list[int]]] = None,
+        color_channel : int = 0,
+        registration_dict : Optional[dict] = None,
         )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -651,7 +654,7 @@ class SiffReader(object):
 
         if not isinstance(params, FLIMParams):
             raise ValueError("params argument must be a FLIMParams object")
-        
+        params = copy.deepcopy(params) 
         params.convert_units('countbins')
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
         z_index = list(range(self.im_params.num_slices)) if z_index is None else z_index

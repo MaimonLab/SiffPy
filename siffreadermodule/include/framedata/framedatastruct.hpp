@@ -34,7 +34,9 @@ typedef struct FrameData{
     // TODO: ADD A TIMESTAMP OR MAYBE OTHER NICE THINGS
 } FrameData ;
 
-const FrameData getTagData(const uint64_t IFD, SiffParams& params, std::ifstream& siff);
+
+const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff);
+void writeFrameDataAsTiff(const FrameData& frameData, std::ofstream& outfile, const SiffParams& params);
 
 PyObject* frameDataToDict(FrameData& frameData);
 

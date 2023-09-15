@@ -89,3 +89,6 @@ def test_imparams(test_file_in : List['SiffReader']):
 
     check_imparams(sr_raw.im_params, 1, 1, 1, 1)
     check_imparams(sr_compressed.im_params, 1, 1, 1, 1)
+
+def test_siff_to_tiff():
+    pass

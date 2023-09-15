@@ -180,7 +180,7 @@ int SiffReader::openFile(const char* _filename) {
     }
 };
 
-bool SiffReader::isOpen(){
+bool SiffReader::isOpen() const{
     return siff.is_open();
 }
 //
@@ -216,7 +216,7 @@ void SiffReader::discernFrames() {
 }
 
 // frameDataList has to be a list
-void SiffReader::packFrameDataList(PyObject* frameDataList){
+void SiffReader::packFrameDataList(PyObject* frameDataList) const {
     if (PyList_Size(frameDataList) != numFrames()) {
         PyErr_SetString(PyExc_ValueError, "FrameDataList must be the same length as the number of frames in the SiffReader.");
         return;

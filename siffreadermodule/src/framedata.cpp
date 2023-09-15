@@ -26,7 +26,7 @@ PyObject* frameDataToDict(FrameData& frameData){
     return dataDict;
 };
 
-const FrameData getTagData(const uint64_t IFD, SiffParams& params, std::ifstream& siff){
+const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff){
     // return a FrameData structure that has parsed all the tag information at location:
     // IFD
 

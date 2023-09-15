@@ -129,16 +129,19 @@ class ImParams():
 
     @property
     def discard_frames(self)->bool:
+        """ Whether or not to discard frames because they are flyback frames"""
         if hasattr(self, 'FastZ'):
             return self.FastZ.discardFlybackFrames and self.FastZ.enable
 
     @property
     def num_discard_flyback_frames(self)->int:
+        """ Number of frames per volume discarded due to flyback """
         if hasattr(self, 'FastZ'):
             return self.FastZ.numDiscardFlybackFrames*self.num_colors
 
     @property
     def flyback_frames(self)->list[int]:
+        """ Lists the indices of flyback frames """
         if not (hasattr(self, 'FastZ') and self.FastZ.enable):
             return []
         return [
@@ -148,22 +151,30 @@ class ImParams():
 
     @property
     def all_frames(self)->list[int]:
+        """
+        Returns all _NON-FLYBACK_ frames...
+        including those which will not constitute a full
+        volume (e.g. the last half of a volume in the acquisition).
+        """
         return list(set(range(self.num_frames)) - set(self.flyback_frames))
 
     @property
     def picoseconds_per_bin(self)->int:
+        """ Picoseconds per photon arrival time bin """
         if hasattr(self, 'Scan2D'):
             if hasattr(self.Scan2D, 'Acq'):
                 return MULTIHARP_BASE_RES*(2**(self.Scan2D.Acq.binResolution))
     
     @property
     def num_bins(self)->int:
+        """ Number of photon arrival time bins """
         if hasattr(self, 'Scan2D'):
             if hasattr(self.Scan2D, 'Acq'):
                 return self.Scan2D.Acq.Tau_bins
 
     @property
     def num_frames(self)->int:
+        """ Total number of frames in the image set (INCLUDES FLYBACK)"""
         if hasattr(self, '_num_frames_from_siffio'):
             return self._num_frames_from_siffio
         if hasattr(self, 'StackManager'):
@@ -190,6 +201,7 @@ class ImParams():
 
     @property
     def num_slices(self)->int:
+        """ Number of slices per volume """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
                 return self.StackManager.actualNumSlices
@@ -197,6 +209,7 @@ class ImParams():
     
     @property
     def frames_per_slice(self)->int:
+        """ Number of frames per slice in one volume """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
                 return self.StackManager.framesPerSlice
@@ -204,6 +217,7 @@ class ImParams():
     
     @property
     def step_size(self)->float:
+        """ Step size between slices """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
                 return self.StackManager.actualStackZStepSize
@@ -211,6 +225,7 @@ class ImParams():
     
     @property
     def z_vals(self)->list[float]:
+        """ List of z values for each slice """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
                 return self.StackManager.zsRelative
@@ -232,16 +247,19 @@ class ImParams():
 
     @property
     def zoom(self)->float:
+        """ Scan zoom factor """
         if hasattr(self, 'RoiManager'):
             return self.RoiManager.scanZoomFactor
     
     @property
     def imaging_fov(self)->list[float]:
+        """ Imaging field of view (in microns) -- relies on correct objective settings """
         if hasattr(self, 'RoiManager'):
             return self.RoiManager.imagingFovUm
 
     @property
     def xsize(self)->int:
+        """ Number of pixels in the x dimension """
         if hasattr(self, 'RoiManager'):
             if self.RoiManager.mroiEnable:
                 raise NotImplementedError(
@@ -284,8 +302,10 @@ class ImParams():
     def single_channel_volume(self)->tuple[int]:
         """ Return the shape of one volume of one color channel (num_slices, ysize, xsize) """
         return (self.num_slices, *self.shape)
+    
     @property
     def stack(self)->tuple[int]:
+        """ Shape of one stack: (num_colors, num_slices, ysize, xsize)"""
         ret_list = [self.num_true_frames // (self.frames_per_volume), self.num_slices]
         if self.frames_per_slice > 1 :
             ret_list += [self.frames_per_slice]
@@ -315,6 +335,7 @@ class ImParams():
 
     @property
     def axis_labels(self) -> list[str]:
+        """ Labels for each array axis """
         ret_list = ['Time']
         if self.frames_per_slice > 1:
             ret_list += ['Sub-slice repeats']
@@ -337,10 +358,12 @@ class ImParams():
 
     @property
     def lowest_color_channel(self)->int:
+        """ Lowest color channel acquired (0 indexed)"""
         return min(self.color_list)
 
     @property
     def num_colors(self) -> int:
+        """ Number of color channels acquired """
         if hasattr(self.colors, '__len__'):
             return len(self.colors)
         else:
@@ -348,18 +371,25 @@ class ImParams():
 
     @property
     def final_full_volume_frame(self)->int:
+        """ Final frame that is in a full volume """
         return self.num_true_frames - self.num_true_frames % self.frames_per_volume
 
+    ### DICT-LIKE INTERFACE ###
+    ### You can treat an ImParams like a dict.
+    ### This is maybe more intuitive to some people.
     def __getitem__(self, key : str) -> None:
+        """ Aliases attributes to allow this to be treated like a dict """
         if hasattr(self, key):
             return getattr(self, key)
         else:
             raise KeyError(f"Im param field {key} does not exist")
 
     def __setitem__(self, key : str, value) -> None:
+        """ Aliases attribute setting so you can treat this as a dict """
         setattr(self, key.lower(), value)
 
     def __getattr__(self, __name: str) -> Any:
+        """ Access to ScanImage module parameters like properties """
         if any(__name == module.module_name for _, module in self.si_modules.items()):
             return self.si_modules[__name]
         return super().__getattribute__(__name)
@@ -386,7 +416,10 @@ class ImParams():
     
     @property
     def array_shape(self) -> tuple[int]:
-        """ Returns the shape that an array would be in standard order """
+        """
+        Returns the shape that an array of frames would be in standard order:
+        `(t, z, c, y, x)`
+        """
         return (
             self.num_timepoints, # t
             self.num_slices, # z
@@ -562,7 +595,10 @@ class ImParams():
 
     @classmethod
     def from_dict(cls, header_dict: dict, num_frames : int= None)->'ImParams':
-
+        """
+        Builds an `ImParams` object from a dict of header data,
+        which is easier to generate with C++ than the correct Python object
+        """
         params = ImParams(num_frames=num_frames)
 
         key : str

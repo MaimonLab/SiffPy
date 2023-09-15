@@ -30,7 +30,7 @@
 
 #include "../include/siffreader/siffreader.hpp"
 #include "../include/siffmoduledefin.hpp"
-//#include "../include/sifftotiff.hpp"
+#include "../include/sifftotiff.hpp"
 #include "../include/siffio/siffio.hpp"
 #include "../include/framedata/pyFrameData.hpp"
 
@@ -101,11 +101,12 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     // Converts the open .siff file to a .tiff file and saves it in the location specified
     // (or next to the original, if no argument is provided).
 
-    PyErr_SetString(
-        PyExc_NotImplementedError,
-        "Siff to tiff conversion not implemented yet."
-    );
-    return NULL;
+    // PyErr_SetString(
+    //     PyExc_NotImplementedError,
+    //     "Siff to tiff conversion not implemented yet. "
+    //     "Check status in the siffreadermodule src code. "
+    // );
+    // return NULL;
 
     char* sourcepath;
     Py_ssize_t sourcepath_len = Py_ssize_t(0);
@@ -123,10 +124,10 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     }
     try{
         if (savepath_len > 0) {
-        //    siff_to_tiff(sourcepath, savepath);
+            siff_to_tiff(sourcepath, savepath);
         }
         else {
-        //    siff_to_tiff(sourcepath);
+            siff_to_tiff(sourcepath);
         }
     }
     catch(std::exception& e) {

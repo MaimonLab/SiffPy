@@ -10,6 +10,7 @@ from siffpy.core import SiffReader
 from siffpy.core import ImParams
 from siffpy.core import FLIMParams
 
+
 #TODO: IMPLEMENT SIFFTOTIFF import siffreader
 
 def siff_to_tiff(source_file : str, target_file : str = None)->None:
@@ -29,10 +30,12 @@ def siff_to_tiff(source_file : str, target_file : str = None)->None:
 
         Path to where the .tiff should be saved
     """
-    raise NotImplementedError()
-    siffreader.siff_to_tiff(source_file, savepath=target_file)
+    import siffreadermodule
+    siffreadermodule.siff_to_tiff(source_file, savepath=target_file)
 
-
+def siff_to_tiff_command_line(argv):
+    """ Function used as an entry point from the command line """
+    pass
     
 
 

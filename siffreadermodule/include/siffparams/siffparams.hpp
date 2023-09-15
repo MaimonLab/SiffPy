@@ -3,16 +3,16 @@
 
 #define LITTLEENDIAN "II"
 #define BIGENDIAN "MM"
-#define TIFFID 42
-#define BIGTIFFID 43
-#define MAGICNUMBER 117637889 // identifies this as a scanimage file
-#define SI2019 4 // identifies this as 2019 or later
+constexpr uint16_t TIFFID = 42;
+constexpr uint16_t BIGTIFFID = 43;
+constexpr uint32_t MAGICNUMBER = 117637889; // identifies this as a scanimage file
+constexpr uint32_t SI2019 = 4; // identifies this as 2019 or later
 
 #include <stdlib.h>
 #include <string>
 #include <vector>
 
-struct SiffParams{
+typedef struct SiffParams{
     std::string filename;
     bool little;
     bool bigtiff;
@@ -37,6 +37,6 @@ struct SiffParams{
     uint64_t numZStacks; // number of z stacks
     uint64_t numColors; // number of color channels
     std::vector<uint64_t> allIFDs;
-};
+} SiffParams;
 
 #endif
