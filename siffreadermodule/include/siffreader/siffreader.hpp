@@ -275,24 +275,14 @@ class SiffReader
         dimensions in the same order as the mask!!!
         NOT smart enough to know better.
         
-        @param frames 
-            the frames to be summed
-        
-        @param framesN
-            the number of frames to be summed
-
-        @param FLIMParams
-            A `PyObject*` to a `FLIMParams` object
-
-        @param mask
-            A P`yArrayObject*` to a `numpy` array of the mask
-            of `dtype bool`
-
-        @param registrationDict
-            A `PyObject*` to a dictionary of registration
-            parameters. The keys are frame numbers and the
-            values are tuples of the form (`yshift`, `xshift`)
-
+        @param frames The frames to be summed
+        @param framesN The number of frames to be summed
+        @param FLIMParams A `PyObject*` to a `FLIMParams` object
+        @param mask A `PyArrayObject*` to a `numpy` array of the mask
+        of `dtype bool`
+        @param registrationDict A `PyObject*` to a dictionary of registration
+        parameters. The keys are frame numbers and the
+        values are tuples of the form (`yshift`, `xshift`)
         @return A `PyArrayObject*` to a `numpy` array of
         dimensions: framesN, y, x
         */
