@@ -49,16 +49,84 @@ constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
 // Get the arrival time of a siff pixel read (uncompressed)
 #define U64TOTAU(photon) (uint64_t) (photon & TAUMASK)
 
+#define READ_TO_PX_NOSHIFT(photon, dim_y, dim_x) \
+    (((U64TOY(photon)) * dim_x) + (U64TOX(photon)))
+
 // Converts an uncompressed read to a pixel index (y*x_dim + x)
-#define READ_TO_PX(photon, shift_y, shift_x, dim_y, dim_x) \
+#define READ_TO_PX(photon, y_shift, x_shift, dim_y, dim_x) \
     ((((U64TOY(photon) + y_shift) % dim_y) * dim_x) \
-    + (U64TOX(photon) +shift_x) % dim_x)
+    + (U64TOX(photon) + x_shift) % dim_x)
 
 // Shifts the pixel location px by shift_y, shift_x in an
 // image of dimensions dim_y, dim_x
-#define PIXEL_SHIFT(px, shift_y, shift_x, dim_y, dim_x) \
+#define PIXEL_SHIFT(px, y_shift, x_shift, dim_y, dim_x) \
     ((((uint64_t)(px / dim_y) + y_shift) % dim_y) * dim_x \
     + (((px % dim_y) + x_shift) % dim_x))
+
+
+/*
+Loads an array with the intensity data from the
+provided frame. No pixel shift, intended to load
+a C-style array.
+
+@param data_ptr
+    A pointer to the array to load with the data.
+
+@param params
+    The `SiffParams` object containing the parameters of the
+    file being read from.
+
+@param frameData
+    The `FrameData` object containing the parameters of the
+    frame being read from.
+
+@param siff
+    The `std::ifstream` object managing the file being read from.
+*/
+void loadArrayWithData(
+    uint16_t* data_ptr,
+    const SiffParams& params,
+    const FrameData& frameData,
+    std::ifstream& siff
+);
+
+/*
+Implemented in `siffreader/intensity_methods`.
+
+Loads an array with the intensity data from the
+provided frame. Shifts pixels according to the
+registration parameters. Intended for loading
+a `numpy` array
+
+@param data_ptr
+    A pointer to the data portion of array to load with the data.
+
+@param dims
+    The dimensions of the array to load with the data.
+
+@param params
+    The `SiffParams` object containing the parameters of the
+    file being read from.
+
+@param frameData
+    The `FrameData` object containing the parameters of the
+    frame being read from.
+
+@param siff
+    The `std::ifstream` object managing the file being read from.
+
+@param shift_tuple
+    A `PyObject*` to a tuple of the form (y_shift, x_shift) to
+    shift the pixels by. If NULL, no shifting is performed.
+*/
+void loadArrayWithData(
+    uint16_t* data_ptr,
+    const npy_intp* dims,
+    const SiffParams& params,
+    const FrameData& frameData,
+    std::ifstream& siff,
+    PyObject* shift_tuple
+);
 
 
 /*
@@ -191,7 +259,7 @@ class SiffReader
         @param frame
             The frame number to rewrite.
         */
-        void writeFrameAsTiff(std::ofstream& outfile, const uint64_t& frame) const;
+        void writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) const;
 
         ////// Mask methods /////////
 

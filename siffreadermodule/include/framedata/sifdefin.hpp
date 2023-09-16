@@ -5,43 +5,43 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define IMAGEWIDTH 256
-#define IMAGELENGTH 257
-#define BITSPERSAMPLE 258
-#define COMPRESSION 259
-#define PHOTOMETRIC_INTERPRETATION 262
-#define IMAGEDESCRIPTION 270
-#define STRIPOFFSETS 273
-#define ORIENTATION 274
-#define SAMPLESPERPIXEL 277
-#define ROWSPERSTRIP 278
-#define STRIPBYTECOUNTS 279
-#define XRESOLUTION 282
-#define YRESOLUTION 283
-#define PLANARCONFIGURATION 284
-#define RESOLUTIONUNIT 296
-#define SOFTWAREPACKAGE 305
-#define ARTIST 315
-#define SAMPLEFORMAT 339
-#define SIFFTAG 907
+constexpr uint16_t IMAGEWIDTH = 256;
+constexpr uint16_t IMAGELENGTH = 257;
+constexpr uint16_t BITSPERSAMPLE = 258;
+constexpr uint16_t COMPRESSION = 259;
+constexpr uint16_t PHOTOMETRIC_INTERPRETATION = 262;
+constexpr uint16_t IMAGEDESCRIPTION = 270;
+constexpr uint16_t STRIPOFFSETS = 273;
+constexpr uint16_t ORIENTATION = 274;
+constexpr uint16_t SAMPLESPERPIXEL = 277;
+constexpr uint16_t ROWSPERSTRIP = 278;
+constexpr uint16_t STRIPBYTECOUNTS = 279;
+constexpr uint16_t XRESOLUTION = 282;
+constexpr uint16_t YRESOLUTION = 283;
+constexpr uint16_t PLANARCONFIGURATION = 284;
+constexpr uint16_t RESOLUTIONUNIT = 296;
+constexpr uint16_t SOFTWAREPACKAGE = 305;
+constexpr uint16_t ARTIST = 315;
+constexpr uint16_t SAMPLEFORMAT = 339;
+constexpr uint16_t SIFFTAG = 907;
 
-#define TIFF_BYTE 1
-#define TIFF_ASCII 2
-#define TIFF_SHORT 3
-#define TIFF_LONG 4
-#define TIFF_RATIONAL 5
-#define TIFF_SBYTE 6
-#define TIFF_UNDEFINE 7
-#define TIFF_SSHORT 8
-#define TIFF_SLONG 9
-#define TIFF_SRATION 10
-#define TIFF_FLOAT 11
-#define TIFF_DOUBLE 12
+constexpr uint16_t TIFF_BYTE = 1;
+constexpr uint16_t TIFF_ASCII = 2;
+constexpr uint16_t TIFF_SHORT = 3;
+constexpr uint16_t TIFF_LONG = 4;
+constexpr uint16_t TIFF_RATIONAL = 5;
+constexpr uint16_t TIFF_SBYTE = 6;
+constexpr uint16_t TIFF_UNDEFINE = 7;
+constexpr uint16_t TIFF_SSHORT = 8;
+constexpr uint16_t TIFF_SLONG = 9;
+constexpr uint16_t TIFF_SRATION = 10;
+constexpr uint16_t TIFF_FLOAT = 11;
+constexpr uint16_t TIFF_DOUBLE = 12;
 
 // BigTIFF only
-#define TIFF_LONG8 16
-#define TIFF_SLONG8 17
-#define TIFF_IFD8 18
+constexpr uint16_t TIFF_LONG8 = 16;
+constexpr uint16_t TIFF_SLONG8 = 17;
+constexpr uint16_t TIFF_IFD8 = 18;
 
 inline const uint16_t tiffDataType(const uint16_t tiffTag){
 

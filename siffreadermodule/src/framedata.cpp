@@ -57,8 +57,6 @@ const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::if
         contentChars = datatypeToCharCount(datatype); // defined in sifdefin
 
         if (tagID == IMAGEDESCRIPTION) contentChars = 8; // UGH this is to correct a mistake I made early on
-        // TODO: DO THIS RIGHT. I ALREADY KNOW THEY ALL ONLY USE A SINGLE TAG VALUE HERE BUT I SHOULD
-        // MAKE THIS WORK FOR _ALL_ TIFFS
         
         // convert to a single value
         

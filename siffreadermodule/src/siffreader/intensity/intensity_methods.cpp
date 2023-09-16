@@ -1,6 +1,26 @@
 #include "../../../include/siffreader/siffreader.hpp"
 #include "../../../include/framedata/sifdefin.hpp"
 
+/*
+
+Some bad style in all of this. Lot of code repetition, I should
+be getting better at my C++ style by now..
+
+*/
+
+inline void readCompressed(
+    const uint64_t& samplesThisFrame,
+    const FrameData& frameData,
+    std::ifstream& siff,
+    uint16_t* data_ptr
+){
+    uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
+    // Goes to the region where the photon count framedata is stored
+    siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
+    siff.read((char*)data_ptr, pixelsInImage * sizeof(uint16_t));
+    siff.clear();
+}
+
 inline void readCompressed(
     const uint64_t& samplesThisFrame,
     const FrameData& frameData,
@@ -32,8 +52,28 @@ inline void readCompressed(
         ] += frameReads[px];
     }
     delete[] frameReads;
-    return;
 }
+
+inline void readRaw(
+    const uint64_t& samplesThisFrame,
+    const FrameData& frameData,
+    std::ifstream& siff,
+    uint16_t* data_ptr
+){
+    const size_t ydim = frameData.imageLength;
+    const size_t xdim = frameData.imageWidth;
+    uint64_t* frameReads = new uint64_t[samplesThisFrame];
+    siff.read((char*)frameReads,frameData.stripByteCounts);
+    siff.clear();
+
+    for(uint64_t photon = 0; photon < samplesThisFrame; photon++) {
+        data_ptr[
+            (((frameReads[photon] & YMASK) >> 48)*xdim) +
+            ((frameReads[photon] & XMASK) >> 32)
+        ]++; // increment the appropriate numpy element
+    }
+    delete[] frameReads;    
+};
 
 inline void readRaw(
     const uint64_t& samplesThisFrame,
@@ -68,6 +108,31 @@ inline void readRaw(
     }
     delete[] frameReads;
 }
+
+void loadArrayWithData(
+    uint16_t* data_ptr,
+    const SiffParams& params,
+    const FrameData& frameData,
+    std::ifstream& siff
+) {
+    siff.clear();
+    siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
+    if (!(siff.good() || params.suppress_warnings)) throw std::runtime_error("Failure to navigate to data in frame.");
+
+    uint16_t bytesPerSample = frameData.bitsPerSample/8;
+    uint64_t samplesThisFrame = frameData.stripByteCounts / bytesPerSample;
+    siff.clear();
+
+    if (params.issiff) {
+        frameData.siffCompress ?
+            readCompressed(samplesThisFrame, frameData, siff, data_ptr) : 
+            readRaw(samplesThisFrame, frameData, siff, data_ptr);
+    }
+    else { // read in the tiff
+        siff.read((char*)data_ptr,frameData.stripByteCounts);
+        siff.clear();
+    } 
+};
 
 void loadArrayWithData(
     uint16_t* data_ptr,
