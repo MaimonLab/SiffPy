@@ -187,7 +187,7 @@ void SiffReader::singleFrameAddToList(
     PyObject* numpyArrayList,
     const bool flim,
     PyObject* shift_tuple
-    ){
+    ) const {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
     
@@ -279,7 +279,7 @@ PyObject* SiffReader::retrieveFrames(
     const uint64_t frames[],
     const uint64_t &framesN,
     PyObject* registrationDict
-    ){
+    ) const {
     // Eliminated some of the flexibility. Always is called with frames[], no more massive FLIM array
     // with this method.
     try{

@@ -15,6 +15,7 @@
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
 
+#include "bitmasks.hpp"
 #include "../siffparams/siffparams.hpp"
 #include "../framedata/framedatastruct.hpp"
 #include "../framedata/pyFrameData.hpp"
@@ -36,33 +37,6 @@
         errstring = std::string(x) + e.what();\
         throw e;\
     }
-
-
-constexpr uint64_t YMASK = (((uint64_t) 1 << 63) - ((uint64_t) 1 << 48) + ((uint64_t) 1 << 63)); // that last bit'll getcha
-constexpr uint64_t XMASK = (((uint64_t) 1 << 48) - ((uint64_t) 1 << 32));
-constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
-
-// Get the y value of a siff pixel read (uncompressed)
-#define U64TOY(photon) (uint64_t) ((photon & YMASK) >> 48)
-// Get the x value of a siff pixel read (uncompressed)
-#define U64TOX(photon) (uint64_t) ((photon & XMASK) >> 32)
-// Get the arrival time of a siff pixel read (uncompressed)
-#define U64TOTAU(photon) (uint64_t) (photon & TAUMASK)
-
-#define READ_TO_PX_NOSHIFT(photon, dim_y, dim_x) \
-    (((U64TOY(photon)) * dim_x) + (U64TOX(photon)))
-
-// Converts an uncompressed read to a pixel index (y*x_dim + x)
-#define READ_TO_PX(photon, y_shift, x_shift, dim_y, dim_x) \
-    ((((U64TOY(photon) + y_shift) % dim_y) * dim_x) \
-    + (U64TOX(photon) + x_shift) % dim_x)
-
-// Shifts the pixel location px by shift_y, shift_x in an
-// image of dimensions dim_y, dim_x
-#define PIXEL_SHIFT(px, y_shift, x_shift, dim_y, dim_x) \
-    ((((uint64_t)(px / dim_y) + y_shift) % dim_y) * dim_x \
-    + (((px % dim_y) + x_shift) % dim_x))
-
 
 /*
 Loads an array with the intensity data from the
@@ -181,39 +155,42 @@ class SiffReader
             PyObject* numpyArrayList,
             const bool flim,
             PyObject* shift_tuple = NULL
-        ); 
-        // internal method called in loops to get each frame and point to the next, MASKED BY AN ROI numpy array
-        void singleFrameRetrievalMask(uint64_t thisIFD, PyObject* numpyArrayList, bool flim, PyArrayObject* mask, PyObject* shift_tuple = NULL);
-
-        // internal method to get metadata for one frame
-        void singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList);
-        // add this frame's arrival times to the 1-d array numpyArray
-        void singleFrameHistogram(const uint64_t thisIFD, PyArrayObject* numpyArray);
+        ) const;
         
-        // takes a vector of photon reads and adds the next frame's reads to it.
-        void fuseReadVector(
-            std::vector<uint64_t>& photonReadsTogether,
-            uint64_t nextIFD,
-            PyObject* shift_tuple = NULL
-        );
-
-        // Takes a frame from the opened .siff file and writes it to the opened .tiff file
-        // Presumes that the .tiff file is where the new frame's IFD should begin.
-        void siffFrameToTiffFrame(const uint64_t thisIFD,std::ofstream& tiff);
+        // internal method to get metadata for one frame
+        void singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDictList) const;
+        // add this frame's arrival times to the 1-d array numpyArray
+        void singleFrameHistogram(const uint64_t& thisIFD, PyArrayObject* numpyArray) const;
         
         // when you close one file and open another, wipe the slate clean
         void reset();
 
     public:
+        /*
+        Initializes a SiffReader, which does nothing until it
+        opens a file with the function `openFile`.
+        */
         SiffReader();
         //SiffReader operator=(const SiffReader& siffreader);
         ~SiffReader(){closeFile();};
         
+        /*
+        Opens the .siff file at the provided filename.
+
+        @param filename
+            The name of the .siff file to open.
+
+        @return 0 if successful, -1 if unsuccessful.
+        */
         int openFile(const char* filename);
+
+        // Close the `ifstream` internal reader
         void closeFile();
 
         /*
         Whether the `ifstream` internal reader is open.
+
+        @return Whether the `ifstream` internal reader is open.
         */
         bool isOpen() const;
         
@@ -263,7 +240,27 @@ class SiffReader
 
         ////// Mask methods /////////
 
-        // sums area inside the provided mask
+        /*
+        Sums pixels in the area inside the provided mask
+
+        @param frames 
+            the frames to be summed
+        
+        @param framesN
+            the number of frames to be summed
+
+        @param mask
+            A `PyArrayObject*` to a `numpy` array of the mask
+            of `dtype bool`
+
+        @param registrationDict
+            A `PyObject*` to a dictionary of registration
+            parameters. The keys are frame numbers and the
+            values are tuples of the form (`yshift`, `xshift`)
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: (framesN,)
+        */
         PyArrayObject* sumMask(
             const uint64_t frames[],
             const uint64_t framesN,
@@ -293,10 +290,11 @@ class SiffReader
 
         @param registrationDict
             A `PyObject*` to a dictionary of registration
-            parameters. If NULL, no registration is performed.
-            If not NULL, must contain the following keys:
-                'x_shift' : int
-                'y_shift' : int
+            parameters. The keys are frame numbers and the
+            values are tuples of the form (`yshift`, `xshift`)
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: framesN, y, x
         */
         PyArrayObject* sumFLIMMask(
             const uint64_t frames[],
@@ -306,36 +304,125 @@ class SiffReader
             PyObject* registrationDict
         );
         
-        // Returns a 1d numpy array of only the within-mask values.
-        PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict);
+        /*
+        TODO:
+        Returns a 1d numpy array of only the within-mask values.    
+        */
+        //PyArrayObject* roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict);
 
         /////// Frame methods /////////
 
-        // returns whether the dimensions of all the frames are consistent;
-        bool dimensionsConsistent(const uint64_t frames[], const uint64_t framesN);
+        /*
+        Returns whether the dimensions of all the frames are consistent;
+        that is, whether they all have the same dimensions.
 
-        // Returns a list of length framesN, with each
-        // element an array of dimensions y, x
-        PyObject* retrieveFrames(const uint64_t frames[], const uint64_t& framesN, PyObject* registrationDict);
+        @param frames
+            The frames to check for consistency.
 
-        // Returns an array of dimensions: framesN, y, x
+        @param framesN
+            The number of frames to check for consistency.
+        
+        @return Whether the dimensions of all the frames are consistent.
+        */
+        bool dimensionsConsistent(const uint64_t frames[], const uint64_t framesN) const;
+
+        /*
+        Returns a list of length framesN, with each
+        element an array of dimensions y, x
+
+        @param frames
+            The frames to retrieve
+        
+        @param framesN
+            The number of frames to retrieve
+
+        @param registrationDict
+            A `PyObject*` to a dictionary of registration
+            parameters. The keys are the frame number,
+            and the values are a tuple of the form
+            (`yshift`, `xshift`)
+
+        @return A `PyObject*` to a list of `PyArrayObject*`s
+        each of dimensions y,x
+        */
+        PyObject* retrieveFrames(const uint64_t frames[], const uint64_t& framesN, PyObject* registrationDict) const;
+
+        /*
+        Returns an array of dimensions: framesN, y, x
+
+        @param frames
+            The frames to retrieve
+        
+        @param framesN
+            The number of frames to retrieve
+
+        @param registrationDict
+            A `PyObject*` to a dictionary of registration
+            parameters. The keys are the frame number,
+            and the values are a tuple of the form
+            (`yshift`, `xshift`)
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: framesN, y, x
+        */
         PyArrayObject* retrieveFramesAsArray(
             const uint64_t frames[],
             const uint64_t framesN,
             PyObject* registrationDict
         );
 
-        // Takes a list of lists, and for each
-        // internal list sums the frames and returns
-        // them as an array. Returns an array of
-        // dimensions : length of outer list, y, x
+        /*
+        Takes a list of lists, and for each
+        internal list sums the frames and returns
+        them as an array. Returns an array of
+        dimensions : length of outer list, y, x
+
+        @param listOfLists
+            A `PyObject*` to a list of lists of frames
+            to be summed. Each inner list will be summed
+            together, and the result will be an array of
+            dimensions: len(listOfLists), y, x
+
+        @param flim
+            Whether or not to sum the frames as FLIM arrays
+            with a tau dimension
+
+        @param registrationDict
+            A `PyObject*` to a dictionary of registration
+            parameters. The keys are the frame number,
+            and the values are a tuple of the form
+            (`yshift`, `xshift`)
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: len(listOfLists), y, x
+        */
         PyArrayObject* poolFrames(
             PyObject* listOfLists,
             const bool &flim,
             PyObject* registrationDict = NULL
         );
 
-        // returns a tuple: arrays of lifetimes, intensity, goodness-of-fit
+        /*
+        Returns a tuple: arrays of lifetimes, intensity, goodness-of-fit
+
+        @param FLIMParams
+            A `PyObject*` to a `FLIMParams` object
+
+        @param frames
+            The frames to retrieve
+
+        @param framesN
+            The number of frames to retrieve
+
+        @param registrationDict
+            A `PyObject*` to a dictionary of registration
+            parameters. The keys are the frame number,
+            and the values are a tuple of the form
+            (`yshift`, `xshift`)
+
+        @return A `PyObject*` to a tuple of 3 `PyArrayObject*`s
+        each of dimensions framesN,y,x
+        */
         PyObject* flimTuple(
             PyObject* FLIMParams,
             const uint64_t frames[],
@@ -344,40 +431,136 @@ class SiffReader
             PyObject* registrationDict = NULL
         );
 
-        // returns an arrival time vector, independent of pixel location.
+        /*
+        Returns an arrival time vector, independent of pixel location.
+        The vector is of length framesN
+
+        @param frames
+            The frames to retrieve
+
+        @param framesN
+            The number of frames to retrieve
+        
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: framesN
+        */
         PyArrayObject* getHistogram(const uint64_t frames[] = NULL, const uint64_t framesN = 0);
 
 
         /////// Metadata methods /////////
-        // get metadata enumerated in frames
+        /*
+        Read the metadata in a set of frames and return
+        it as a list of dictionaries of metadata contents.
+
+        @param frames
+            The frames to retrieve metadata from
+
+        @param framesN
+            The number of frames to retrieve metadata from
+
+        @return A `PyObject*` to a list of `PyDict`s
+        each of which contains the metadata for a frame.
+        */
         PyObject* readMetaData(
             const uint64_t frames[],
             const uint64_t framesN
-        );
-        // returns the data in the primary ScanImage header
-        PyObject* readFixedData();
+        ) const ;
 
+        /*
+        @return Returns the data in the primary ScanImage header
+        as a dict
+        */
+        PyObject* readFixedData() const;
+
+        /*
+        Return the timestamps of each frame in the "experiment"
+        time coordinates (0 from start of acquisition) measured
+        entirely with laser pulses.
+
+        @param frames
+            The frames to retrieve timestamps from
+
+        @param framesN
+            The number of frames to retrieve timestamps from
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: (framesN,)
+        */
         PyArrayObject* getExperimentTimestamps(
             const uint64_t frames[],
             const uint64_t framesN
         ) const ;
 
+        /*
+        Return the timestamps of each frame in the "system"
+        time coordinates (in epoch time) measured
+        entirely with laser pulses -- no drift correction!
+
+        @param frames
+            The frames to retrieve timestamps from
+
+        @param framesN
+            The number of frames to retrieve timestamps from
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: (framesN,)
+        */
         PyArrayObject* getEpochTimestampsLaser(
             const uint64_t frames[],
             const uint64_t framesN
         ) const ;
 
+        /*
+        Return the timestamps of each frame in the "system"
+        time coordinates (in epoch time) measured
+        entirely with clock checks -- no correction for the
+        latency between reading the MultiHarp buffer and
+        when the clock check is actually performed.
+
+        @param frames
+            The frames to retrieve timestamps from
+
+        @param framesN
+            The number of frames to retrieve timestamps from
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: (framesN,)
+        */
         PyArrayObject* getEpochTimestampsSystem(
             const uint64_t frames[],
             const uint64_t framesN
         ) const ;
 
+        /*
+        Return the timestamps of each frame in the "system"
+        time coordinates (in epoch time) measured
+        both with laser clock and system clock checks, one
+        in each row.
+
+        @param frames
+            The frames to retrieve timestamps from
+
+        @param framesN
+            The number of frames to retrieve timestamps from
+
+        @return A `PyArrayObject*` to a `numpy` array of
+        dimensions: (2, framesN)
+        */
         PyArrayObject* getEpochTimestampsBoth(
             const uint64_t frames[],
             const uint64_t framesN
         ) const ;
         
+        /*
+        @return Returns the data in the primary ScanImage header
+        (aka NVFD, non-varying frame data)
+        */
         std::string getNVFD() const;
+
+        /*
+        @return Returns the data in the ROI string containing
+        all the mROI data.
+        */
         std::string getROIstring() const;
 
         /////// Debug methods /////////

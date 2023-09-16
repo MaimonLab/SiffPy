@@ -228,7 +228,7 @@ void SiffReader::packFrameDataList(PyObject* frameDataList) const {
     //}
 }
 
-bool SiffReader::dimensionsConsistent(const uint64_t frames[], const uint64_t framesN){
+bool SiffReader::dimensionsConsistent(const uint64_t frames[], const uint64_t framesN) const{
     // Checks that all the frames have the same dimensions.
     // Returns true if they are consistent, false otherwise.
     if (framesN == 0) return true;
@@ -282,7 +282,7 @@ void SiffReader::setDebug(bool debug_bool){
 ////////////////////////////
 
 // TODO!!!!!
-PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict) {
+/*PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool flim, PyArrayObject* mask, PyObject* registrationDict) {
     // Returns a 1d numpy array of only the pixels within the mask of the mask object
 
     
@@ -292,7 +292,7 @@ PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool fli
     }
     REPORT_ERR("Error in roiMask method: ");
 }
-
+*/
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -301,11 +301,10 @@ PyArrayObject* SiffReader::roiMask(uint64_t frames[], uint64_t framesN, bool fli
 ////////////////////////////////////////////////////////////////////////
 
 
-
 PyObject* SiffReader::readMetaData(
     const uint64_t frames[],
     const uint64_t framesN
-    ){
+    ) const {
     // get metadata enumerated in frames
     PyObject* metaDictList = PyList_New(Py_ssize_t(0));
     try{
@@ -329,7 +328,7 @@ PyObject* SiffReader::readMetaData(
 ///// HEADER DATA ///////
 /////////////////////////
 
-PyObject* SiffReader::readFixedData(){
+PyObject* SiffReader::readFixedData() const {
     // returns the data in the primary ScanImage header, if it's been opened
     if (!siff.is_open()) {
         errstring = "No file open";
@@ -385,7 +384,7 @@ DEBUG(
 //////// INTERNAL FUNCTIONS //////
 //////////////////////////////////
 
-void SiffReader::singleFrameMetaData(uint64_t thisIFD, PyObject* metaDictList){
+void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDictList) const {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
     // siff.clear();

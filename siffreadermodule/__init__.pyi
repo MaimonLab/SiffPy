@@ -26,13 +26,16 @@ class SiffIO():
     numpy arrays.
     """
     @property
-    def filename(self)->str:...
+    def filename(self)->str:
+        """The name of the file being read"""
 
     @property
-    def debug(self, debug_status : bool)->bool:...
+    def debug(self, debug_status : bool)->bool:
+        """ Whether operating in debug mode """
 
     @property
-    def status(self)->str:...
+    def status(self)->str:
+        """ The status of the file reader. Maybe one day I'll actually use this.. """
 
     def open(self, filename : str)->None:...
 
@@ -160,3 +163,22 @@ def report_warnings()->None:...
 def debug()->None:...
 
 def siff_to_tiff(sourcepath : str, savepath : Optional[str] = None)->None:...
+"""
+Converts a .siff file to a .tiff file containing only intensity information.
+
+TODO: Contain OME-TIFF metadata for more convenient ImageJ/Fiji viewing of
+output.
+
+Arguments
+--------
+
+sourcepath : str
+
+    Path to a .siff file (will also work for a .tiff file, though I don't know
+    why you'd try that)
+
+savepath : str
+
+    Path to where the .tiff should be saved. If None, will be saved
+    in same directory as the .siff file.
+"""

@@ -80,7 +80,7 @@ PyArrayObject* SiffReader::getHistogram(const uint64_t frames[], const uint64_t 
     REPORT_ERR("Error collecting histogram: ");
 }
 
-void SiffReader::singleFrameHistogram(const uint64_t thisIFD, PyArrayObject* numpyArray){
+void SiffReader::singleFrameHistogram(const uint64_t& thisIFD, PyArrayObject* numpyArray) const {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     const FrameData frameData = getTagData(thisIFD, params, siff);
 
