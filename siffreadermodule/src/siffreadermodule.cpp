@@ -114,20 +114,52 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     char* savepath;
     Py_ssize_t savepath_len = Py_ssize_t(0);
 
+    char* mode;
+    Py_ssize_t mode_len = Py_ssize_t(0);
+
+    const char* scanimageMode = "scanimage";
+    const char* omeMode = "ome";
+
     if(
-        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
+        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#z#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
         &sourcepath, &sourcepath_len,
-        &savepath, &savepath_len
+        &savepath, &savepath_len,
+        &mode, &mode_len
         ))
         {
             return NULL;
     }
     try{
+        TiffMode saveMode = SCANIMAGE;
+        if (mode_len > 0){
+            if (strcmp(mode, scanimageMode) == 0) {
+                saveMode = SCANIMAGE;
+            }
+            else if (strcmp(mode, omeMode) == 0) {
+                saveMode = OME;
+                // If the extension is not right, fix it.
+                if (savepath_len > 0) {
+                    std::string savepathStr(savepath);
+                    std::string extension = ".ome.tiff";
+                    if (savepathStr.substr(savepath_len - extension.length(), extension.length()) != extension) {
+                        savepathStr = savepathStr + extension;
+                        savepath = const_cast<char*>(savepathStr.c_str());
+                    }
+                }
+            }
+            else {
+                PyErr_SetString(
+                    PyExc_ValueError,
+                    "Invalid mode specified. Must be either 'scanimage' or 'ome'."
+                );
+                return NULL;
+            }
+        }
         if (savepath_len > 0) {
-            siff_to_tiff(sourcepath, savepath);
+            siff_to_tiff(sourcepath, savepath, saveMode);
         }
         else {
-            siff_to_tiff(sourcepath);
+            siff_to_tiff(sourcepath, saveMode);
         }
     }
     catch(std::exception& e) {

@@ -223,6 +223,25 @@ class SiffReader
         /*
         Copies the frame at the provided frame number to
         the provided `std::ofstream` object as it would
+        be formatted in an OME-TIFF frame. Expects the
+        `std::ofstream` object to be at the correct
+        position to write the frame. Note that this
+        frame will NOT contain the standard ScanImage metadata.
+
+        @param outfile
+            The `std::ofstream` object managing the
+            file to write the frame to. Ensure that
+            it is at the correct position to write
+            the frame.
+
+        @param frame
+            The frame number to rewrite.
+        */
+       void writeOMEXMLFrame(std::ofstream& outfile, const uint64_t frame) const;
+
+        /*
+        Copies the frame at the provided frame number to
+        the provided `std::ofstream` object as it would
         be formatted in a .tiff frame. Expects the
         `std::ofstream` object to be at the correct
         position to write the frame.

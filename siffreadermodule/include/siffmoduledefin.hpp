@@ -4,7 +4,7 @@
 
 // KEYWORD ARGS BY FUNCTION
 // NOTE: REGULAR ARGS HAVE TO BE HERE TOO!
-#define SIFF_TO_TIFF_KEYWORDS (const char*[]){"sourcepath", "savepath", NULL}
+#define SIFF_TO_TIFF_KEYWORDS (const char*[]){"sourcepath", "savepath", "mode", NULL}
 
 
 // DOCSTRING DEFS

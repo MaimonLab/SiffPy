@@ -166,3 +166,84 @@ void SiffReader::writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) 
         );
     }
 };
+
+void SiffReader::writeOMEXMLFrame(std::ofstream& outfile, const uint64_t frameNum) const{
+    // BAD! Lots of copied code..
+
+    const FrameData frameData = frameDatas[frameNum];
+    // Write the frame data in a format consistent with the file type
+    outfile.write((char*)&numTagsWrittenToTiffs, params.bytesPerNumTags);
+
+    uint16_t dtype;
+    const size_t startOfTags = outfile.tellp();
+    const size_t endOfTags = startOfTags + params.bytesPerTag*numTagsWrittenToTiffs
+        + params.bytesPerPointer; // for the nextIFD pointer
+
+    // Writes the tag of appropriate size for this format
+    void (*tagWriteFunction) (std::ofstream&, const uint16_t, const uint64_t);
+
+    if (params.bigtiff) {
+        tagWriteFunction = &writeTagBigTiff;
+    } else {
+        tagWriteFunction = &writeTagTiff;
+    }
+
+    tagWriteFunction(outfile, IMAGEWIDTH, frameData.imageWidth);
+    tagWriteFunction(outfile, IMAGELENGTH, frameData.imageLength);
+    tagWriteFunction(outfile, BITSPERSAMPLE, 8*sizeof(uint16_t));
+    tagWriteFunction(outfile, COMPRESSION, 1);
+    tagWriteFunction(outfile, PHOTOMETRIC_INTERPRETATION, 1);
+    tagWriteFunction(outfile, IMAGEDESCRIPTION, endOfTags);
+
+    const std::string XMLString = toOMEXML(frameData, params);
+    const size_t lengthOfDescription = XMLString.size();    
+
+    tagWriteFunction(outfile, STRIPOFFSETS, endOfTags + lengthOfDescription);
+    tagWriteFunction(outfile, ORIENTATION, frameData.orientation);
+    tagWriteFunction(outfile, SAMPLESPERPIXEL, 1);
+    tagWriteFunction(outfile, ROWSPERSTRIP, frameData.rowsPerStrip);
+    tagWriteFunction(outfile, STRIPBYTECOUNTS, sizeof(uint16_t)*frameData.imageLength*frameData.imageWidth);
+    tagWriteFunction(outfile, XRESOLUTION, frameData.xResolution);
+    tagWriteFunction(outfile, YRESOLUTION, frameData.yResolution);
+    tagWriteFunction(outfile, PLANARCONFIGURATION, frameData.planarConfig);
+    tagWriteFunction(outfile, RESOLUTIONUNIT, frameData.resUnit);
+    tagWriteFunction(outfile, SOFTWAREPACKAGE, frameData.NVFD_address);
+    tagWriteFunction(outfile, ARTIST, frameData.ROI_address);
+    tagWriteFunction(outfile, SAMPLEFORMAT, 1);
+
+    // Write when the end of the frame will be, i.e. next IFD
+    const size_t nextIFD = frameNum == (params.numFrames - 1) ? 0 :
+        endOfTags
+        + lengthOfDescription
+        + (frameData.imageLength*frameData.imageWidth*sizeof(uint16_t))
+    ;
+
+    // Points to nextIFD, we'll come back to it and rewrite it if there was a mistake,
+    // corrupting this frame but hopefully not the next.
+    const size_t nextIFDPointer = outfile.tellp();
+    outfile.write((char*)&nextIFD, params.bytesPerPointer);
+
+    // Now write the actual metadata and frame data
+    // First read from the siff
+
+    outfile.write(XMLString.c_str(), lengthOfDescription);
+
+    // Now write the frame data
+    uint16_t* photonCounts = new uint16_t[frameData.imageLength*frameData.imageWidth]{0};
+    loadArrayWithData(photonCounts,params,frameData,siff);
+    outfile.write(
+        (char*)photonCounts,
+        frameData.imageLength*frameData.imageWidth*sizeof(uint16_t)
+    );
+    delete[] photonCounts; 
+
+    // Now check that the next IFD pointer is where it should be
+    if ((nextIFD > 0) & (outfile.tellp() != nextIFD)) {
+        throw std::runtime_error(
+            "Error writing frame: next IFD pointer is not where it should be. "
+            "Current position: " + std::to_string(outfile.tellp()) + ", "
+            "Expected position: " + std::to_string(nextIFD)
+        );
+    }
+    throw std::runtime_error("OME XML writing not yet implemented.");
+}

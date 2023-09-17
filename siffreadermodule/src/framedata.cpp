@@ -7,6 +7,7 @@
 #include "../include/framedata/framedatastruct.hpp"
 #include "../include/framedata/sifdefin.hpp"
 #include "../include/siffparams/siffparams.hpp"
+#include "../include/ome.hpp"
 
 PyObject* frameDataToDict(FrameData& frameData){
     PyObject* dataDict = PyDict_New();
@@ -141,4 +142,10 @@ const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::if
     if (frameData.dataStripAddress<frameData.endOfIFD) throw std::runtime_error("Invalid data strip address read.");    
     siff.clear();
     return frameData;
+}
+
+const std::string toOMEXML(const FrameData& frameData, const SiffParams& params){
+    std::string retString(OME_WARNING_BLOCK);
+
+    return retString;
 }

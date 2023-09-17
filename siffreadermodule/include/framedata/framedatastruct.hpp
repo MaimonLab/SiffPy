@@ -70,6 +70,23 @@ Writes the header data for a given frame to the output file.
 void writeFrameDataAsTiff(const FrameData& frameData, std::ofstream& outfile, const SiffParams& params);
 
 /*
+Returns a string containing the OME-XML specification given a frame's metadata
+and the file's metadata
+
+@param frameData
+    The `FrameData` struct containing the metadata for the frame to be
+    converted to OME-XML.
+
+@param params
+    The `SiffParams` struct containing the main file parameters of the file
+    being read from.
+
+@return A string containing the OME-XML specification for the given frame to
+be copied into the IMAGEDESCRIPTION tag of the output file.
+*/
+const std::string toOMEXML(const FrameData& frameData, const SiffParams& params);
+
+/*
 Converts a `FrameData` struct to a Python dictionary.
 
 @param frameData
