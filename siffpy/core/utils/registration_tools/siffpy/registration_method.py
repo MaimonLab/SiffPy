@@ -42,7 +42,7 @@ def register_frames(
 
         A single reference image to which the frames will be aligned.
 
-    frames : list[int]
+    frames : List[int]
 
         The indices of the frames to be aligned.
 

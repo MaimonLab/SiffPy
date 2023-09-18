@@ -1,3 +1,4 @@
+from typing import List
 import inspect
 
 from siffpy.core.utils import ImParams
@@ -24,7 +25,7 @@ EVENT_CLASSES = [
     for event_class in inspect.getmembers(module, _isSiffEvent)
 ]
 
-def find_events(im_params : ImParams, metadata_list : list[FrameMetaData] = None) -> list[SiffEvent]:
+def find_events(im_params : ImParams, metadata_list : List[FrameMetaData] = None) -> List[SiffEvent]:
     """
     Returns a list of metadata objects corresponding to all frames where
     'events' occured, i.e. in which the Appended Text field is not empty.
@@ -32,7 +33,7 @@ def find_events(im_params : ImParams, metadata_list : list[FrameMetaData] = None
     list_of_list_of_events = [parse_meta_as_events(meta) for meta in metadata_list if meta.hasEventTag]
     return [event for list_of_events in list_of_list_of_events for event in list_of_events]
 
-def parse_meta_as_events(metadata : FrameMetaData) -> list[SiffEvent]:
+def parse_meta_as_events(metadata : FrameMetaData) -> List[SiffEvent]:
     """
     Returns a list of all SiffEvents described in this FrameMetaData object
     """

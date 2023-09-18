@@ -8,6 +8,9 @@ except ImportError as error:
 import platform, sys
 
 define_macros = None
+extra_compile_args = None
+library_dirs = None
+libraries = None
 
 DEBUG = False
 
@@ -15,7 +18,9 @@ if DEBUG:
    define_macros = [('__DEBUG', None)]
 
 if platform.system() == 'Windows':
-   extra_compile_args = ["/std:c++20"]
+   extra_compile_args = ["/std:c++17"]
+   library_dirs = [sys.exec_prefix] + sys.path
+   libraries = ['python38']
 else:
    extra_compile_args = ["-std=c++11", "-Werror"]
 
@@ -52,14 +57,15 @@ siffmodule = Extension(
        'siffreadermodule/src/sifftotiff.cpp',
        #'siffreadermodule/src/pyFrameData.cpp',
    ],
+   library_dirs=library_dirs,
    include_dirs = [
        numpy.get_include(),
    ],
-   
+   libraries = libraries,
    extra_compile_args=extra_compile_args,
    language="c++",
    define_macros = define_macros,
-   use_scm_version=True,
+   #use_scm_version=True,
 )
 
 try:
@@ -67,7 +73,7 @@ try:
       packages = ['siffpy'],
       ext_modules = [siffmodule],
    )
-except:
+except Exception:
    if (
       (platform.system() == 'Darwin') and
       ('Clang' in sys.version)

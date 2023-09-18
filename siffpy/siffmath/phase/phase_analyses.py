@@ -2,7 +2,7 @@
 Analyses on extracted phase information
 """
 
-from typing import Union, Iterable, Optional, TYPE_CHECKING
+from typing import Union, Iterable, List, TYPE_CHECKING
 import random
 
 import numpy as np
@@ -143,7 +143,7 @@ def multiscale_circ_corr(
         trace_1         : 'PhaseTraceLike',
         trace_2         : 'PhaseTraceLike',
         window_widths   : Iterable[int],
-    )->list[np.ndarray]:
+    )->List[np.ndarray]:
     """
     Returns a sliding window computation of the circular correlation
     between two traces across a selection of window widths. Calls
@@ -168,7 +168,7 @@ def multiscale_circ_corr(
     Returns
     -------
 
-    circ_corrs : list[np.ndarray]
+    circ_corrs : List[np.ndarray]
 
         A list of numpy arrays, one for each element of 'windows'.
         Each numpy array is of length t - w_n, where w_n is the

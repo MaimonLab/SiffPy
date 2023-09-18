@@ -2,7 +2,7 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union, TYPE_CHECKING
+from typing import Any, Union, List, Dict, Tuple, TYPE_CHECKING
 from functools import wraps
 
 import numpy as np
@@ -18,7 +18,7 @@ def correct_flyback(f):
     @wraps(f)
     def shift_by_flybacks_wrapper(
         *args, **kwargs
-        )->Union[list[int], list[list[int]]]:
+        )->Union[List[int], List[List[int]]]:
         """
         Calls a function, checks that it returns the correct types
         of values (frames or lists of frames), and then removes
@@ -94,7 +94,7 @@ class ImParams():
         computes a few other useful parameters too.
 
         """
-        self.si_modules : dict[str, ScanImageModule]= {}
+        self.si_modules : Dict[str, ScanImageModule]= {}
 
         if not num_frames is None:
             self._num_frames_from_siffio = num_frames
@@ -108,7 +108,7 @@ class ImParams():
         except AttributeError: # then some of the above params were not defined.
             pass
     
-    def add_roi_data(self, roi_data : dict):
+    def add_roi_data(self, roi_data : Dict):
         self.roi_groups = {}
         for roi_group_name, roi_group_data in roi_data['RoiGroups'].items():
             if not roi_group_data is None:
@@ -140,7 +140,7 @@ class ImParams():
             return self.FastZ.numDiscardFlybackFrames*self.num_colors
 
     @property
-    def flyback_frames(self)->list[int]:
+    def flyback_frames(self)->List[int]:
         """ Lists the indices of flyback frames """
         if not (hasattr(self, 'FastZ') and self.FastZ.enable):
             return []
@@ -150,7 +150,7 @@ class ImParams():
         ]
 
     @property
-    def all_frames(self)->list[int]:
+    def all_frames(self)->List[int]:
         """
         Returns all _NON-FLYBACK_ frames...
         including those which will not constitute a full
@@ -224,7 +224,7 @@ class ImParams():
         return 0.0
     
     @property
-    def z_vals(self)->list[float]:
+    def z_vals(self)->List[float]:
         """ List of z values for each slice """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
@@ -232,13 +232,13 @@ class ImParams():
         return None
     
     @property
-    def colors(self)->Union[list[int],int]:
+    def colors(self)->Union[List[int],int]:
         """ Can be int or list of ints, inherited from MATLAB """
         if hasattr(self, 'Channels'):
             return self.Channels.channelSave
 
     @property
-    def color_list(self)->list[int]:
+    def color_list(self)->List[int]:
         """ Guaranteed to be a list of ints """
         if isinstance(self.colors,list):
             return self.colors
@@ -252,7 +252,7 @@ class ImParams():
             return self.RoiManager.scanZoomFactor
     
     @property
-    def imaging_fov(self)->list[float]:
+    def imaging_fov(self)->List[float]:
         """ Imaging field of view (in microns) -- relies on correct objective settings """
         if hasattr(self, 'RoiManager'):
             return self.RoiManager.imagingFovUm
@@ -285,12 +285,12 @@ class ImParams():
             return self.RoiManager.linesPerFrame
 
     @property
-    def shape(self)->tuple[int]:
+    def shape(self)->Tuple[int]:
         """ Shape of one frame: (n ysize, xsize)"""
         return (self.ysize, self.xsize)
 
     @property
-    def volume(self)->tuple[int]:
+    def volume(self)->Tuple[int]:
         """ Shape of one full volume: (num_slices, num_colors, ysize, xsize)"""
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
@@ -299,12 +299,12 @@ class ImParams():
         return tuple(ret_list)
     
     @property
-    def single_channel_volume(self)->tuple[int]:
+    def single_channel_volume(self)->Tuple[int]:
         """ Return the shape of one volume of one color channel (num_slices, ysize, xsize) """
         return (self.num_slices, *self.shape)
     
     @property
-    def stack(self)->tuple[int]:
+    def stack(self)->Tuple[int]:
         """ Shape of one stack: (num_colors, num_slices, ysize, xsize)"""
         ret_list = [self.num_true_frames // (self.frames_per_volume), self.num_slices]
         if self.frames_per_slice > 1 :
@@ -313,7 +313,7 @@ class ImParams():
         return tuple(ret_list)
 
     @property
-    def scale(self)->list[float]:
+    def scale(self)->List[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
         [time , z , y , x]
@@ -334,7 +334,7 @@ class ImParams():
         return ret_list
 
     @property
-    def axis_labels(self) -> list[str]:
+    def axis_labels(self) -> List[str]:
         """ Labels for each array axis """
         ret_list = ['Time']
         if self.frames_per_slice > 1:
@@ -415,7 +415,7 @@ class ImParams():
         return retstr
     
     @property
-    def array_shape(self) -> tuple[int]:
+    def array_shape(self) -> Tuple[int]:
         """
         Returns the shape that an array of frames would be in standard order:
         `(t, z, c, y, x)`
@@ -433,7 +433,7 @@ class ImParams():
         timepoint_start : int = 0,
         timepoint_end : int = None,
         reference_z : int = None,
-    )->list[int]:
+    )->List[int]:
         """
         Returns all frame indices within a set of timepoints.
         
@@ -471,7 +471,7 @@ class ImParams():
         return framelist
 
     @correct_flyback
-    def framelist_by_slice(self, color_channel : int = None, upper_bound = None, slice_idx : int = None) -> list[list[int]]:
+    def framelist_by_slice(self, color_channel : int = None, upper_bound = None, slice_idx : int = None) -> List[List[int]]:
         """
         List of lists, each sublist containing the frames indices that share a z slice
         
@@ -511,7 +511,7 @@ class ImParams():
         return frame_list
     
     #@correct_flyback flyback is already corrected in framelist_by_slice
-    def framelist_by_slices(self, color_channel : int = None, lower_bound : int = 0, upper_bound : int = None, slices : list[int] = None)->list[int]:
+    def framelist_by_slices(self, color_channel : int = None, lower_bound : int = 0, upper_bound : int = None, slices : List[int] = None)->List[int]:
         """
         Flattened list of all frames corresponding to the color channel and slices provided
         """
@@ -554,7 +554,7 @@ class ImParams():
         color_channel : int,
         timepoint_start : int = 0,
         timepoint_end : int = None,
-        slice_idx : int = None)->list[list[int]]:
+        slice_idx : int = None)->List[List[int]]:
         """
         If slice_idx is None:
         list of lists, each containing frames that share a timepoint, i.e. same stack but different slices or colors

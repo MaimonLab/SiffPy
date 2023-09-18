@@ -10,7 +10,7 @@ from siffreadermodule import SiffIO
 
 def build_reference_image(
         siffio : SiffIO,
-        frames : list[int],
+        frames : List[int],
         ref_method : str = 'suite2p',
         **kwargs
     ) -> np.ndarray:
@@ -19,7 +19,7 @@ def build_reference_image(
 
     INPUTS
     ------
-    frames : list[int]
+    frames : List[int]
 
         list of the integer indices of the frames to use to build the reference image.
 
@@ -51,7 +51,7 @@ def build_reference_image(
 
 def suite2p_reference(
         siffio : SiffIO, 
-        frames : list[int],
+        frames : List[int],
         yx_shifts : dict = {},
         **kwargs
     ) -> np.ndarray:
@@ -64,7 +64,7 @@ def suite2p_reference(
     INPUTS
     ------
 
-    frames : list[int]
+    frames : List[int]
 
         List of the frames to use to compute a reference
 
@@ -244,7 +244,7 @@ def align_to_reference(
     # awkward convention for returning the shift that i got myself stuck in a bit
     return [tuple(x) for x in np.array([dy,dx]).T] if im.ndim == 3 else (dy[0],dx[0])
 
-def align_references(reference_frames : list[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> List[Tuple[int,int]]:
+def align_references(reference_frames : List[np.ndarray], phase_blur : float = 10, regularize_sigma : float = 2.0, ignore_first : bool = True) -> List[Tuple[int,int]]:
     """
     Takes a list of reference frames, aligns each to its adjacent planes. Returns a list of tuples
     corresponding to how each slice's frames should be shifted.
@@ -252,7 +252,7 @@ def align_references(reference_frames : list[np.ndarray], phase_blur : float = 1
     Arguments
     ---------
 
-    reference_frames : list[np.ndarray]
+    reference_frames : List[np.ndarray]
 
         List of images that are the reference for each 
 
@@ -272,7 +272,7 @@ def align_references(reference_frames : list[np.ndarray], phase_blur : float = 1
     Returns
     -------
 
-    shift_tuples : list[tuple[int,int]]
+    shift_tuples : List[tuple[int,int]]
 
         One tuple for each frame with the y shift and x shift of the reference frame to align them all in z
     """

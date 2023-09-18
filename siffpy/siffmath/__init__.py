@@ -1,3 +1,4 @@
+from typing import List
 import inspect, textwrap
 
 from siffpy.siffmath.phase import phase_alignment_functions
@@ -5,7 +6,7 @@ from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.fluorescence import *
 from siffpy.siffmath.utils import Timeseries
 
-def fluorescence_fcns(print_docstrings : bool = True) -> list[str]:
+def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
     """
     List of public functions available from fluorescence
     submodule. Seems a little silly since I can just use
