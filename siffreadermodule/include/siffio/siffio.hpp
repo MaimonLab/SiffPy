@@ -11,7 +11,12 @@ interpreter
 2) Allows each SiffReader object from SiffPy to
 operate independently
 
-TODO: IMPLEMENT
+All in the header file, which means every file that
+includes this will compile a separate static SiffIO
+class (so manipulations to class variables won't communicate
+well across any other extension module). This seems
+unlikely to happen, but my plan is to come back and implement
+this with `PyCapsule`s at some point to resolve that.
 
 */
 

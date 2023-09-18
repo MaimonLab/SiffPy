@@ -103,7 +103,7 @@ def roi_mean(rois : ImageArray) -> np.ndarray:
 
 def compute_rolling_baseline(
     f_array : ImageArray,
-    sorted_f_idxs : np.ndarray[Any, np.dtype[np.uintc]],
+    sorted_f_idxs : 'np.ndarray[Any, np.dtype[np.uintc]]',
     width : int,
     percentile : float = 0.05
 ):

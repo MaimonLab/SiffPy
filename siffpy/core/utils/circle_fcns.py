@@ -193,8 +193,8 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     return np.real(numerator/denominator)
 
 def running_circ_corr_complex(
-        x : np.ndarray[Any, np.dtype[np.complex128]],
-        y : np.ndarray[Any, np.dtype[np.complex128]],
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
         )->np.ndarray:
