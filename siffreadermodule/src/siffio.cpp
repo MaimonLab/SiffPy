@@ -31,7 +31,7 @@ static PyObject* siffio_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
     self = (SiffIO *) type->tp_alloc(type, 0);
     if (self != NULL) {
         self->siffreader = new SiffReader();
-        self->frameDataList = PyList_New(0);
+        //self->frameDataList = PyList_New(0);
         self->status = std::string("");
     }
     return (PyObject *) self;
@@ -69,7 +69,7 @@ static void siffio_dealloc(SiffIO *self){
     // Called on deallocation -- close the siffreader object.
     self->siffreader->closeFile();
     delete self->siffreader;
-    Py_CLEAR(self->frameDataList);
+    //Py_CLEAR(self->frameDataList);
 
     Py_TYPE(self)->tp_free((PyObject *) self);
 };
@@ -85,7 +85,7 @@ static PyObject* siffio_repr(SiffIO *self){
 
 static int siffio_clear(SiffIO *self){
     // If I ever update to the new module spec...
-    Py_CLEAR(self->frameDataList);
+    //Py_CLEAR(self->frameDataList);
     return 0;
 };
 
@@ -198,7 +198,7 @@ int check_framelist(
     // and converts it to a C++ array if the framesArray pointer passed
     // is not NULL.
     Py_ssize_t framesN = PyList_Size(frameList);
-    if (framesArrayN != framesN) {
+    if (framesArrayN != ((size_t)framesN)) {
         PyErr_SetString(PyExc_RuntimeError, "Failure to allocate frames array.");
         return -1;
     }
@@ -614,8 +614,9 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
     }
 
     PyErr_SetString(PyExc_NotImplementedError, "Pooling is not yet implemented. Some bug...");
+    if(need_to_decref_regdict) Py_DECREF(registrationDict);
     return NULL;
-
+/*
     // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
     for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
         PyObject* item = PyList_GET_ITEM(listOfFramesListed, idx);
@@ -658,6 +659,7 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
         PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
         return NULL;
     }
+*/
 };
 
 /*******

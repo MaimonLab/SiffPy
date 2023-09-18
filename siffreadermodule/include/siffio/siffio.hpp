@@ -54,7 +54,7 @@ typedef struct _SiffIO {
     struct PyGetSetDef *tp_getset;
     newfunc tp_new;
 
-    PyObject* frameDataList;
+    //PyObject* frameDataList;
     SiffReader* siffreader; // each SiffIO has a C++ siffreader
     std::string status;
     std::iostream debug_log; // only defined when debug called. TODO
@@ -63,7 +63,7 @@ typedef struct _SiffIO {
 
 static PyMemberDef siffio_members[] = {
     //{Attribute name, attribute type, location in struct, flags, docstring}
-    {"frame_data", T_OBJECT_EX, offsetof(SiffIO, frameDataList), 0, "List of frame data."},
+    //{"frame_data", T_OBJECT_EX, offsetof(SiffIO, frameDataList), 0, "List of frame data."},
     {NULL},
 };
 

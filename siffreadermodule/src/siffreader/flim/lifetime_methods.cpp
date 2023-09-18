@@ -104,7 +104,7 @@ void readRawForArrivals(
     }
 
     // Divide the lifetime by the intensity for every pixel
-    for (size_t px = 0; px < dims[0]*dims[1]; px++) {
+    for (size_t px = 0; px < ((size_t)(dims[0]*dims[1])); px++) {
         lifetime_ptr[px] /= intensity_ptr[px];
         lifetime_ptr[px] -= tauo; // subtract the offset
     }
@@ -230,7 +230,7 @@ PyObject* SiffReader::flimTuple(
             (PyObject*) confidenceArray
         );
 
-        for(Py_ssize_t idx(0); idx < framesN; idx++) {
+        for(Py_ssize_t idx(0); ((uint64_t)idx) < framesN; idx++) {
             // one merged numpy array for all of them.
             frameIdx = frames[idx];
             frameData = getTagData(params.allIFDs[frameIdx],params,siff);
@@ -429,12 +429,12 @@ PyArrayObject* SiffReader::sumFLIMMask(
         npy_intp* mask_dims = PyArray_DIMS(mask);
         npy_intp* mask_frame_dims = &mask_dims[PyArray_NDIM(mask) - 2];
         size_t frames_per_mask = 1;
-        for (size_t dim_idx = 0; dim_idx < PyArray_NDIM(mask) - 2; dim_idx++) {
+        for (size_t dim_idx = 0; dim_idx < ((size_t)(PyArray_NDIM(mask) - 2)); dim_idx++) {
             frames_per_mask *= mask_dims[dim_idx];
         }
         const size_t pxPerMask = mask_frame_dims[0] * mask_frame_dims[1];
 
-        for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
+        for(size_t frame_idx = 0; ((uint64_t)frame_idx) < framesN; frame_idx++){
 
             const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
 

@@ -8,12 +8,16 @@ except ImportError as error:
 import platform, sys
 
 define_macros = None
-extra_compile_args = ["-std=c++11"]
 
 DEBUG = False
 
 if DEBUG:
    define_macros = [('__DEBUG', None)]
+
+if platform.system() == 'Windows':
+   extra_compile_args = ["/std:c++20"]
+else:
+   extra_compile_args = ["-std=c++11", "-Werror"]
 
 if not (
       (platform.system() == 'Darwin') and

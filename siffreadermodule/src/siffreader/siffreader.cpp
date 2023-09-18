@@ -219,7 +219,7 @@ void SiffReader::discernFrames() {
 
 // frameDataList has to be a list
 void SiffReader::packFrameDataList(PyObject* frameDataList) const {
-    if (PyList_Size(frameDataList) != numFrames()) {
+    if ( ((uint64_t)PyList_Size(frameDataList)) != numFrames()) {
         PyErr_SetString(PyExc_ValueError, "FrameDataList must be the same length as the number of frames in the SiffReader.");
         return;
     }

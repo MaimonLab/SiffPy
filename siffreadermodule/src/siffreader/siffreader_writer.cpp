@@ -33,7 +33,7 @@ void SiffReader::writeParamsToHeader(std::ofstream& outfile) const {
     outfile.write(params.ROI_string.c_str(), params.ROI_string_length);
 
     // Make sure the current position is the supposed first IFD location
-    if (outfile.tellp() != params.firstIFDAddress){
+    if ( ((uint64_t)outfile.tellp()) != params.firstIFDAddress){
         throw std::runtime_error("Error writing header: written first IFD address is not where file ended up after writing headers.");
     }
 };
@@ -88,7 +88,7 @@ void SiffReader::writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) 
     // Write the frame data in a format consistent with the file type
     outfile.write((char*)&numTagsWrittenToTiffs, params.bytesPerNumTags);
 
-    uint16_t dtype;
+    //uint16_t dtype;
     const size_t startOfTags = outfile.tellp();
     const size_t endOfTags = startOfTags + params.bytesPerTag*numTagsWrittenToTiffs
         + params.bytesPerPointer; // for the nextIFD pointer
@@ -136,7 +136,8 @@ void SiffReader::writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) 
 
     // Points to nextIFD, we'll come back to it and rewrite it if there was a mistake,
     // corrupting this frame but hopefully not the next.
-    const size_t nextIFDPointer = outfile.tellp();
+    //const size_t nextIFDPointer = outfile.tellp();
+    
     outfile.write((char*)&nextIFD, params.bytesPerPointer);
 
     // Now write the actual metadata and frame data
@@ -158,7 +159,7 @@ void SiffReader::writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) 
     delete[] photonCounts; 
 
     // Now check that the next IFD pointer is where it should be
-    if ((nextIFD > 0) & (outfile.tellp() != nextIFD)) {
+    if ((nextIFD > 0) & ( ((uint64_t)outfile.tellp()) != nextIFD)) {
         throw std::runtime_error(
             "Error writing frame: next IFD pointer is not where it should be. "
             "Current position: " + std::to_string(outfile.tellp()) + ", "
@@ -174,7 +175,7 @@ void SiffReader::writeOMEXMLFrame(std::ofstream& outfile, const uint64_t frameNu
     // Write the frame data in a format consistent with the file type
     outfile.write((char*)&numTagsWrittenToTiffs, params.bytesPerNumTags);
 
-    uint16_t dtype;
+    //uint16_t dtype;
     const size_t startOfTags = outfile.tellp();
     const size_t endOfTags = startOfTags + params.bytesPerTag*numTagsWrittenToTiffs
         + params.bytesPerPointer; // for the nextIFD pointer
@@ -220,7 +221,7 @@ void SiffReader::writeOMEXMLFrame(std::ofstream& outfile, const uint64_t frameNu
 
     // Points to nextIFD, we'll come back to it and rewrite it if there was a mistake,
     // corrupting this frame but hopefully not the next.
-    const size_t nextIFDPointer = outfile.tellp();
+    //const size_t nextIFDPointer = outfile.tellp();
     outfile.write((char*)&nextIFD, params.bytesPerPointer);
 
     // Now write the actual metadata and frame data
@@ -238,7 +239,7 @@ void SiffReader::writeOMEXMLFrame(std::ofstream& outfile, const uint64_t frameNu
     delete[] photonCounts; 
 
     // Now check that the next IFD pointer is where it should be
-    if ((nextIFD > 0) & (outfile.tellp() != nextIFD)) {
+    if ((nextIFD > 0) & ( ((uint64_t)outfile.tellp()) != nextIFD)) {
         throw std::runtime_error(
             "Error writing frame: next IFD pointer is not where it should be. "
             "Current position: " + std::to_string(outfile.tellp()) + ", "

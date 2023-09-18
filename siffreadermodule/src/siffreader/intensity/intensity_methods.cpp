@@ -60,7 +60,7 @@ inline void readRaw(
     std::ifstream& siff,
     uint16_t* data_ptr
 ){
-    const size_t ydim = frameData.imageLength;
+    //const size_t ydim = frameData.imageLength;
     const size_t xdim = frameData.imageWidth;
     uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.read((char*)frameReads,frameData.stripByteCounts);
@@ -178,7 +178,7 @@ void loadArrayWithData(
                 PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
              ] += frameReads[px];
         }
-        delete frameReads;
+        delete[] frameReads;
     }
 };
 
@@ -296,6 +296,7 @@ PyObject* SiffReader::retrieveFrames(
     REPORT_ERR("Error parsing frames: ")
 }
 
+/*
 PyArrayObject* SiffReader::poolFrames(
     PyObject* listOfLists,
     const bool& flim,
@@ -352,7 +353,7 @@ PyArrayObject* SiffReader::poolFrames(
 
             // more than one frame in the list
             for(Py_ssize_t frameIdx(0); frameIdx < PyList_Size(listOfFrames); frameIdx++) {
-                PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,frameIdx)); 
+                //PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyList_GetItem(listOfFrames,frameIdx)); 
                 
                 const FrameData frameData = getTagData(
                     params.allIFDs[ PyLong_AsLongLong(PyList_GetItem(listOfFrames,frameIdx)) ],
@@ -362,7 +363,7 @@ PyArrayObject* SiffReader::poolFrames(
 
                 siff.seekg(frameData.dataStripAddress); //  go to the data (skip the metadata for the frame)
                 if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to navigate to data in frame.");
-                /*
+    
                 loadArrayWithData(
                     &data_ptr[idx * sizeOfFrame],
                     &PyArray_DIMS(retArray)[1], // y, x only
@@ -371,14 +372,14 @@ PyArrayObject* SiffReader::poolFrames(
                     siff,
                     shift_tuple
                 );
-                */
+              
             }
         }
         return retArray;
     }
     REPORT_ERR("Error in pool frames: ")
 }
-
+*/
 
 //////////////////////////////////////////////
 //////////////////////////////////////////////
@@ -547,7 +548,7 @@ PyArrayObject* SiffReader::sumMask(
         const npy_intp* mask_dims = PyArray_DIMS(mask);
         const npy_intp* mask_frame_dims = &mask_dims[PyArray_NDIM(mask) - 2];
         size_t frames_per_mask = 1;
-        for (size_t dim_idx = 0; dim_idx < PyArray_NDIM(mask) - 2; dim_idx++) {
+        for (size_t dim_idx = 0; dim_idx < ((size_t) PyArray_NDIM(mask) - 2); dim_idx++) {
             frames_per_mask *= mask_dims[dim_idx];
         }
         const size_t pxPerMask = mask_frame_dims[0] * mask_frame_dims[1];
