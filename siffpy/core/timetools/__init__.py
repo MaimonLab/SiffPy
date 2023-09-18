@@ -1,7 +1,8 @@
+from typing import List, Dict
+import logging
+
 import numpy as np
 from scipy.ndimage import uniform_filter1d
-
-import logging
 
 from siffpy.core.io import FrameMetaData, frame_metadata_to_dict
 from siffpy.core.utils import ImParams
@@ -16,7 +17,7 @@ def epoch_to_frame_time(epoch_time : int, frame_meta : FrameMetaData)->float:
     offset = frame_zero_time * SEC_TO_NANO - epoch_zero_time
     return (epoch_time + offset)/NANO_TO_SEC
 
-def metadata_dicts_to_time(dicts : list[dict], reference : str = "experiment")->np.ndarray:
+def metadata_dicts_to_time(dicts : List[Dict], reference : str = "experiment")->np.ndarray:
     """ 
     Takes an iterable of metadata dictionaries output by
     get_frame_metadata and converts them into a single
@@ -37,7 +38,7 @@ def metadata_dicts_to_time(dicts : list[dict], reference : str = "experiment")->
         ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
 
 def to_t_axis(
-        frame_metadata : list[FrameMetaData],
+        frame_metadata : List[FrameMetaData],
         im_params : ImParams,
         timepoint_start : int = 0,
         timepoint_end : int = None,

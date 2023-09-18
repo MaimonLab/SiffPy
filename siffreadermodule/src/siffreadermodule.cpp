@@ -120,8 +120,10 @@ static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject 
     const char* scanimageMode = "scanimage";
     const char* omeMode = "ome";
 
+    static const char *keywords[] = {"sourcepath", "savepath", "mode", NULL};
+
     if(
-        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#z#:siff_to_tiff", const_cast<char**>(SIFF_TO_TIFF_KEYWORDS),
+        !PyArg_ParseTupleAndKeywords(args, kwargs, "s#|$z#z#:siff_to_tiff", const_cast<char**>(keywords),
         &sourcepath, &sourcepath_len,
         &savepath, &savepath_len,
         &mode, &mode_len

@@ -9,7 +9,7 @@ from enum import Enum
 
 import numpy as np
 
-TimestampLike = Union[int, float, np.dtype[np.int_], np.dtype[np.float_]]
+TimestampLike = Union[int, float, 'np.dtype[np.int_]', 'np.dtype[np.float_]']
 
 class TimeseriesUnits(Enum):
     """

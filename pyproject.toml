@@ -12,14 +12,15 @@ write_to = "siffpy/core/_version.py"
 
 [tool.setuptools.packages.find]
 exclude = [
-    "temp_analysis_notebooks",
+    "temp_analysis_notebooks*",
     ".vscode",
+    "siffreadermodule*",
 ]
 
 [project]
 name = "siffpy"
-#version = "0.7.2"
-dynamic = ["version"]
+version = "0.7.4"
+#dynamic = ["version"]
 readme = "README.md"
 description = "A package for reading and analyzing .siff data"
 license = {text="GPL-3.0-or-later"}

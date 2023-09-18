@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from siffpy.core.flim.flimunits import FlimUnits
     from siffpy.siffmath.phase.traces import PhaseTrace
 
-ImageArray = np.ndarray[Any, np.dtype[np.int_]]
+ImageArray = 'np.ndarray[Any, np.dtype[np.int_]]'
 
 FluorescenceVectorLike = Union[
     List['FluorescenceTrace'],

@@ -2,10 +2,10 @@ from typing import Any, Tuple, List, Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 
-BOOL_ARRAY = np.ndarray[Any, np.dtype[np.bool_]]
-UINT16_ARRAY = np.ndarray[Any, np.dtype[np.uint16]]
-UINT64_ARRAY = np.ndarray[Any, np.dtype[np.uint64]]
-FLOAT_ARRAY = np.ndarray[Any, np.dtype[np.float64]]
+BOOL_ARRAY = 'np.ndarray[Any, np.dtype[np.bool_]]'
+UINT16_ARRAY = 'np.ndarray[Any, np.dtype[np.uint16]]'
+UINT64_ARRAY = 'np.ndarray[Any, np.dtype[np.uint64]]'
+FLOAT_ARRAY = 'np.ndarray[Any, np.dtype[np.float64]]'
 
 if TYPE_CHECKING:
     from siffpy.core import FLIMParams

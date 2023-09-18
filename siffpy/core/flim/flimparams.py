@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, TYPE_CHECKING, Optional
+from typing import Any, Callable, TYPE_CHECKING, Optional, List, Dict
 from pathlib import Path
 
 import numpy as np
@@ -48,7 +48,7 @@ class FLIMParams():
             return self.irf.tau_offset
 
     @property
-    def params(self)->list['FLIMParameter']:
+    def params(self)->List['FLIMParameter']:
         """ Returns a list of all FLIMParameter objects contained by this FLIMParams """
         retlist = [x for x in self.exps]
         retlist += [self.irf]
@@ -331,7 +331,7 @@ class FLIMParams():
         )
 
     @property
-    def constraints(self)->list[LinearConstraint]:
+    def constraints(self)->List[LinearConstraint]:
         """ Exponential fractions sum to one, taus in increasing order """
         sum_exps_constraint = [
                 LinearConstraint(
@@ -356,7 +356,7 @@ class FLIMParams():
         return sum_exps_constraint + increasing_taus_constraint
 
     @property
-    def fraction_constraints(self)->list[LinearConstraint]:
+    def fraction_constraints(self)->List[LinearConstraint]:
         """ For when the taus and IRF are fixed """
         return [LinearConstraint(
             A=np.array([1.0]*self.n_exp),
@@ -364,7 +364,7 @@ class FLIMParams():
             ub=1,
         )]
     
-    def to_dict(self)->dict[str, Any]:
+    def to_dict(self)->Dict[str, Any]:
         """ Converts the FLIMParams to a JSON-compatible dictionary """
         return {
             'exps' : [exp.to_dict() for exp in self.exps],
@@ -376,7 +376,7 @@ class FLIMParams():
         }
 
     @classmethod
-    def from_dict(cls, data_dict : dict[str, Any])->'FLIMParams':
+    def from_dict(cls, data_dict : Dict[str, Any])->'FLIMParams':
         """ Converts a JSON-compatible dictionary to a FLIMParams """
         exps = [Exp.from_dict(exp_dict) for exp_dict in data_dict['exps']]
         irf = Irf.from_dict(data_dict['irf'])

@@ -1,5 +1,5 @@
 # Functions for loading different types of files.
-from typing import Union
+from typing import Union, Tuple
 import pickle
 import pathlib
 import logging
@@ -69,7 +69,7 @@ def load_registration_legacy(filename : str)->tuple:
 
 def load_flim_params(
         filename : PathLike
-    )->tuple['FLIMParams']:
+    )->Tuple['FLIMParams']:
     """
     Returns a tuple of FLIMParams if any are stored in a directory
     with the name of the file, but with a .flimparams extension.

@@ -1,12 +1,6 @@
 #ifndef SIFFMODULEDEFIN_HPP
 #define SIFFMODULEDEFIN_HPP
 
-
-// KEYWORD ARGS BY FUNCTION
-// NOTE: REGULAR ARGS HAVE TO BE HERE TOO!
-#define SIFF_TO_TIFF_KEYWORDS (const char*[]){"sourcepath", "savepath", "mode", NULL}
-
-
 // DOCSTRING DEFS
 
 #define MODULE_DOC \

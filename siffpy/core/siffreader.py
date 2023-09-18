@@ -1,4 +1,4 @@
-from typing import Union, Optional, Any, Sequence
+from typing import Union, Optional, Any, Sequence, List, Dict, Tuple
 import logging, warnings, copy
 from pathlib import Path
 
@@ -272,7 +272,7 @@ class SiffReader(object):
     
     def get_time(
         self,
-        frames : Optional[list[int]] = None,
+        frames : Optional[List[int]] = None,
         reference : str = "experiment"
         ) -> np.ndarray:
         """
@@ -326,7 +326,7 @@ class SiffReader(object):
         return np.diff(self.get_time(reference = 'experiment')).mean()
 
 ### METADATA METHODS
-    def get_frames_metadata(self, frames : Optional[list[int]] = None) -> list[io.FrameMetaData]:
+    def get_frames_metadata(self, frames : Optional[List[int]] = None) -> List[io.FrameMetaData]:
         if frames is None:
             frames = self.im_params.flatten_by_timepoints()
         return [io.FrameMetaData(meta_dict)
@@ -341,10 +341,10 @@ class SiffReader(object):
 ### IMAGE INTENSITY METHODS
     def get_frames(
         self,
-        frames: Optional[list[int]] = None,
+        frames: Optional[List[int]] = None,
         registration_dict : Optional[dict] = None,
         as_array : bool = True,
-        ) -> Union[list[ImageArray], ImageArray]:
+        ) -> Union[List[ImageArray], ImageArray]:
         
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -353,7 +353,7 @@ class SiffReader(object):
 
         INPUTS
         ------
-        frames (optional) : list[int]
+        frames (optional) : List[int]
 
             Indices of input frames requested
 
@@ -367,7 +367,7 @@ class SiffReader(object):
 
         RETURN VALUES
         -------------
-        np.ndarray or list[np.ndarray]
+        np.ndarray or List[np.ndarray]
 
             Either a n_frames by y by x array or a list of numpy arrays.
         """
@@ -386,7 +386,7 @@ class SiffReader(object):
         mask : BoolMaskArray,
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
-        z_index : Optional[Union[int,list[int]]] = None,
+        z_index : Optional[Union[int,List[int]]] = None,
         color_channel :  int = 1,
         registration_dict : Optional[dict] = None,
         )->ImageArray:
@@ -413,7 +413,7 @@ class SiffReader(object):
 
             Ending timepoint for the sum. Default is None, which means the last timepoint.
 
-        z_index : list[int]
+        z_index : List[int]
 
             List of z-slices to sum over. Default is None, which means all z-slices.
 
@@ -466,12 +466,12 @@ class SiffReader(object):
         ).sum(axis=1)
     
     def pool_frames(self, 
-        framelist : list[list[int]], 
+        framelist : List[List[int]], 
         flim : Optional[bool] = False,
-        registration : Optional[dict] = None,
-        ret_type : type = list,
-        masks : Optional[list[np.ndarray]] = None 
-        ) -> list[np.ndarray]:
+        registration : Optional[Dict] = None,
+        ret_type : type = List,
+        masks : Optional[List[np.ndarray]] = None 
+        ) -> List[np.ndarray]:
         """
         Wraps self.siffio.pool_frames
         TODO: Docstring.
@@ -488,7 +488,7 @@ class SiffReader(object):
         return list_of_arrays
 
 ### FLIM METHODS
-    def get_histogram(self, frames: Optional[list[int]] = None) -> np.ndarray:
+    def get_histogram(self, frames: Optional[List[int]] = None) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
 
@@ -513,7 +513,7 @@ class SiffReader(object):
     def histograms(
         self,
         color_channel : Optional['int|list'] = None,
-        frame_endpoints : tuple[Optional[int],Optional[int]] = (None,None)
+        frame_endpoints : Tuple[Optional[int],Optional[int]] = (None,None)
         ) -> np.ndarray:
         """
         Returns a numpy array with arrival time histograms for all elements of the 
@@ -554,7 +554,7 @@ class SiffReader(object):
     def get_frames_flim(
         self,
         params : FLIMParams,
-        frames: list[int] = None,
+        frames: List[int] = None,
         registration_dict : dict = None,
         confidence_metric : str = 'chi_sq',
         ) -> FlimTrace:
@@ -598,7 +598,7 @@ class SiffReader(object):
         mask : BoolMaskArray,
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
-        z_index : Optional[Union[int,list[int]]] = None,
+        z_index : Optional[Union[int,List[int]]] = None,
         color_channel : int = 0,
         registration_dict : Optional[dict] = None,
         )->FlimTrace:
@@ -639,7 +639,7 @@ class SiffReader(object):
             The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
             defaults to the final timepoint of the .siff file.
 
-        color_list : list[int] (optional) (default is None)
+        color_list : List[int] (optional) (default is None)
 
             If the FLIMParams objects do not have a color_channel attribute, then this
             argument is REQUIRED. Explains which channel's frames should used to compute

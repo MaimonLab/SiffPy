@@ -1,3 +1,4 @@
+from typing import List, Dict
 import logging, re
 
 from siffpy.core.utils import ImParams
@@ -45,7 +46,7 @@ def vector_to_list(vector, vec_num : int = 0, ret_type=float):
     else:
         return [ret_type(element) for element in row_split]
 
-def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> list[list]:
+def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> List[List]:
     """
     Converts the string representation of a MATLAB matrix into a list of lists
     """
@@ -75,7 +76,7 @@ def header_data_to_nvfd(hd):
         for entry in hd["Non-varying frame data"].split("\n")
     }
 
-def header_data_to_roi_string(hd : str) -> dict:
+def header_data_to_roi_string(hd : str) -> Dict:
     """ Iterate through the many layers of the ROI strings to return the appropriate dict """
     return eval(hd['ROI string'].replace("null", "None"))
 

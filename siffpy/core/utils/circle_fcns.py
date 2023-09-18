@@ -1,6 +1,6 @@
 # Functions for circularizing floats and ints
 from itertools import tee
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 
@@ -12,7 +12,7 @@ def re_circ(x : float, rollover : float) -> float:
     """ Takes de-circularized data and reverts it to circularized """
     return (x + rollover) % rollover
 
-def roll_d(roll1 : tuple[float, float], roll2: tuple[float,float], rollover_y: float, rollover_x : float)->float:
+def roll_d(roll1 : Tuple[float, float], roll2: Tuple[float,float], rollover_y: float, rollover_x : float)->float:
     """ Distance between two rollovers """
     d_y = circ_d(roll1[0],roll2[0],rollover_y)
     d_x = circ_d(roll1[1],roll2[1],rollover_x)
@@ -193,8 +193,8 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     return np.real(numerator/denominator)
 
 def running_circ_corr_complex(
-        x : np.ndarray[Any, np.dtype[np.complex128]],
-        y : np.ndarray[Any, np.dtype[np.complex128]],
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
         )->np.ndarray:

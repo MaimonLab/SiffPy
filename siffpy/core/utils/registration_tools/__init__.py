@@ -9,7 +9,7 @@ from siffpy.core.utils.registration_tools.registration_info import (
 
 def to_reg_info_class(
     stringname : str
-)->type[RegistrationInfo]:
+)->'type[RegistrationInfo]':
     """ Returns a class of registration info """
     registration_type = RegistrationType(stringname)
 

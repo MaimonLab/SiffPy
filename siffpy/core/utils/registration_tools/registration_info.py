@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple, Dict
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -13,7 +13,7 @@ from siffpy.core.utils.types import PathLike
 def populate_dict_across_colors(
     im_params : ImParams,
     alignment_color_channel : int,
-    yx_shifts : dict[int, tuple[int,int]],
+    yx_shifts : Dict[int, Tuple[int,int]],
 ):
     """
     Populates the yx_shifts dict with the same values for all color channels
@@ -50,7 +50,7 @@ class RegistrationInfo(ABC):
             im_params : ImParams,
         ):
         self.filename = siffio.filename if not siffio is None else None
-        self.yx_shifts : dict[int, tuple[int,int]]= {}
+        self.yx_shifts : Dict[int, Tuple[int,int]]= {}
         self.reference_frames : np.ndarray = None
         self.im_params = im_params
         self.registration_color_channel = None
@@ -77,7 +77,7 @@ class RegistrationInfo(ABC):
         self,
         images : np.ndarray,
         z_plane : int
-        )->tuple[int,int]:
+        )->Tuple[int,int]:
         raise NotImplementedError()
 
     def save(self, save_path : Optional[PathLike] = None):
@@ -124,7 +124,7 @@ class RegistrationInfo(ABC):
         self.siffio = siffio
         self.filename = siffio.filename
 
-    def from_dict(self, dict : dict):
+    def from_dict(self, dict : Dict):
         self.filename = dict['filename']
         self.registration_color_channel = dict['registration_color']
         self.yx_shifts = dict['yx_shifts']
@@ -190,5 +190,5 @@ class CustomRegistrationInfo(RegistrationInfo):
             self,
             image : np.ndarray,
             z_plane : int
-        )->tuple[int,int]:
+        )->Tuple[int,int]:
         return self.alignment_func(image, z_plane)

@@ -1,6 +1,6 @@
 import builtins
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
@@ -136,7 +136,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
             image : np.ndarray,
             z_plane : int,
             *args, **kwargs
-        )->tuple[int,int]:
+        )->Tuple[int,int]:
         return align_to_reference(
             self.reference_frames[z_plane],
             image,

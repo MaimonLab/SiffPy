@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 class FrameMetaData(object):
     """
     A glorified dictionary, contains the metadata stored on a framewise
@@ -79,7 +81,7 @@ class FrameMetaData(object):
         "Appended text",
     )
 
-    def __init__(self, param_dict : dict):
+    def __init__(self, param_dict : Dict):
         """
         Initialized by reading in a param dict extracted by the C API.
         """
@@ -155,7 +157,7 @@ def line_to_dict_val(line : str) -> str:
     else:
         return line
 
-def single_frame_metadata_to_dict(frame : dict) -> dict:
+def single_frame_metadata_to_dict(frame : Dict) -> Dict:
     """
     Each list item returned by siffreader.get_frame_metadata
     is a dict, one entry in which corresponds to the string
@@ -165,7 +167,7 @@ def single_frame_metadata_to_dict(frame : dict) -> dict:
     """
     return {line.split(' = ')[0]:line_to_dict_val(line) for line in frame['Frame metadata'].split('\n') if len(line.split(' = '))>0}
 
-def frame_metadata_to_dict(metadata : list[dict]) -> list[dict]:
+def frame_metadata_to_dict(metadata : List[Dict]) -> List[Dict]:
     """ Returns a list of metadata dicts from a list of siffreader metadata returns """
     return [single_frame_metadata_to_dict(frame) for frame in metadata]
 

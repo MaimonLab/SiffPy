@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string>
 #include <fstream>
-#include <sys/mman.h>
+//#include <sys/mman.h>
 #include <chrono>
 
 // IMPORT_ARRAY() CALLED IN MODULE INIT
@@ -127,7 +127,7 @@ class SiffReader
         // fixed TIFF parameters invariant from frame to frame
         SiffParams params;
 
-        std::vector<const FrameData> frameDatas;
+        std::vector<FrameData> frameDatas;
 
         // used when debugging
         DEBUG(
