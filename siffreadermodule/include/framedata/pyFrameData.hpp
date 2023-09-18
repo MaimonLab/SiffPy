@@ -65,18 +65,44 @@ static PyMemberDef pyframedata_members[] = {
 
 static PyTypeObject PyFrameDataType = {
     PyVarObject_HEAD_INIT(NULL,0)
-    .tp_name = PYFRAMEDATA_TPNAME,
-    .tp_basicsize = sizeof(PyFrameData),
-    .tp_itemsize = 0,
+    PYFRAMEDATA_TPNAME,        /* tp_name */
+    sizeof(PyFrameData),       /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    (destructor) pyframedata_dealloc, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
     
-    //.tp_dealloc = (destructor)framedata_dealloc,
-
-    .tp_doc = PYFRAMEDATA_DOCSTRING,
-    
-    .tp_members = pyframedata_members,
-
-    .tp_new = pyframedata_new,
-    .tp_dealloc = (destructor) pyframedata_dealloc,
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,        /* tp_flags */
+    PYFRAMEDATA_DOCSTRING,     /* tp_doc */
+    0,                         /* tp_traverse */
+    0,                         /* tp_clear */
+    0,                         /* tp_richcompare */
+    0,                         /* tp_weaklistoffset */
+    0,                         /* tp_iter */
+    0,                         /* tp_iternext */
+    0,                         /* tp_methods */
+    pyframedata_members,       /* tp_members */
+    0,                         /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    0,                         /* tp_init */
+    0,                         /* tp_alloc */
+    pyframedata_new            /* tp_new */
 };
 
 

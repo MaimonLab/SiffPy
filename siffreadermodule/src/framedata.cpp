@@ -41,7 +41,7 @@ const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::if
     siff.clear();
     FrameData frameData;
 
-    char thisTag[params.bytesPerTag];
+    char* thisTag = new char[params.bytesPerTag];
 
     uint16_t tagID; // the tag identifier
     uint16_t datatype; // the datatype of the tag (coded)
@@ -138,7 +138,8 @@ const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::if
         }
         siff.clear();        
     }
-
+    delete[] thisTag;
+    
     if (frameData.dataStripAddress<frameData.endOfIFD) throw std::runtime_error("Invalid data strip address read.");    
     siff.clear();
     return frameData;

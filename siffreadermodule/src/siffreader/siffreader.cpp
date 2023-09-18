@@ -142,13 +142,15 @@ int SiffReader::openFile(const char* _filename) {
         siff.read((char*)&(params.ROI_string_length), sizeof(uint32_t));
 
         
-        char headerstring[params.NVFD_length];
+        char* headerstring = new char[params.NVFD_length];
         siff.read(headerstring, params.NVFD_length);
         params.headerstring = std::string(headerstring);
+        delete[] headerstring;
 
-        char roistring[params.ROI_string_length];
+        char* roistring = new char[params.ROI_string_length];
         siff.read(roistring, params.ROI_string_length);
         params.ROI_string = std::string(roistring);
+        delete[] roistring;
               
         // Finally, keep track of the filename. We're happy.
         filename = std::string(_filename);

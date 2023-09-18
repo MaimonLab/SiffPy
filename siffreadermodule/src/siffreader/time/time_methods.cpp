@@ -70,17 +70,6 @@ PyArrayObject* SiffReader::getExperimentTimestamps(
         if (patternStart != NULL) {
             timestampsPtr[i] = std::stod(patternStart + strlen(EXPERIMENT_PATTERN));
         }
-
-        // auto match = ctre::match<laserPattern>(input);
-        // if (match) {
-        //     auto epochView = match.get<1>();
-        //     timestampsPtr[i] = std::stoull(epochView.to_string());
-        // }
-
-        // if (std::regex_search(metaString, matches, laserPattern)) {
-        //     std::string epochString(matches[1].first, matches[1].second);
-        //     timestampsPtr[i] = std::stoull(epochString);
-        // }
     }
 
     delete[] metaString;

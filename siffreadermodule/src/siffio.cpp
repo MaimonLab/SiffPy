@@ -722,7 +722,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
         return NULL;
     }
 
-    uint64_t frames[PyList_Size(listOfFrames)];
+    uint64_t* frames = new uint64_t[PyList_Size(listOfFrames)];
     check_framelist(listOfFrames, frames, PyList_Size(listOfFrames), self->siffreader->numFrames());
     check_registration(registrationDict, listOfFrames);
 
@@ -1124,19 +1124,41 @@ static int siffio_debug_set(SiffIO* self, PyObject* args){
 
 PyTypeObject SiffIOType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = SIFFIO_TPNAME,
-    .tp_doc = PyDoc_STR(SIFFIO_DOCSTRING),
-    .tp_basicsize = sizeof(SiffIO),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = (newfunc) siffio_new,
-    .tp_init = (initproc) siffio_init,
-    .tp_dealloc = (destructor) siffio_dealloc,
-    .tp_clear = (inquiry) siffio_clear,
-//    .tp_getattr = (getattrfunc) siffio_getattr,
-    .tp_repr = (reprfunc) siffio_repr,
-    .tp_members = siffio_members,
-    .tp_methods = siffio_methods,
-    .tp_getset  = siffio_getset,
-
+    SIFFIO_TPNAME,        /* tp_name */
+    sizeof(SiffIO),       /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    (destructor) siffio_dealloc, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    (reprfunc) siffio_repr,    /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,        /* tp_flags */
+    PyDoc_STR(SIFFIO_DOCSTRING),     /* tp_doc */
+    0,                         /* tp_traverse */
+    (inquiry) siffio_clear,    /* tp_clear */
+    0,                         /* tp_richcompare */
+    0,                         /* tp_weaklistoffset */
+    0,                         /* tp_iter */
+    0,                         /* tp_iternext */
+    siffio_methods,            /* tp_methods */
+    siffio_members,            /* tp_members */
+    siffio_getset,             /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    (initproc) siffio_init,    /* tp_init */
+    0,                         /* tp_alloc */
+    (newfunc) siffio_new       /* tp_new */
 };
