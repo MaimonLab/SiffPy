@@ -3,6 +3,7 @@ Wrapper code to facilitate running suite2p from
 inside siffpy
 """
 from inspect import Parameter
+from typing import Tuple, Dict
 
 try:
     from suite2p import default_ops
@@ -39,7 +40,7 @@ class Suite2pRegistrationInfo(RegistrationInfo):
     multithreading_compatible = False
     backend : RegistrationType = RegistrationType.Suite2p
 
-    registration_params : dict[str, Parameter] = {
+    registration_params : Dict[str, Parameter] = {
         **{
             str(key) : Parameter(
                 str(key),
@@ -130,5 +131,5 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             self,
             image : np.ndarray,
             z_plane : int
-        )->tuple[int,int]:
+        )->Tuple[int,int]:
         raise NotImplementedError()

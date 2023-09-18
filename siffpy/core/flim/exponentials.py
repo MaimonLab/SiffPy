@@ -21,11 +21,11 @@ p = monoexponential_probability(photon_arrivals, tau, tau_g)
 
 SCT March 27 2021
 """
-
+from typing import Tuple
 import numpy as np
 from scipy.stats import exponnorm
 
-def param_tuple_to_pdf(x_axis : np.ndarray, param_tuple : tuple)->np.ndarray:
+def param_tuple_to_pdf(x_axis : np.ndarray, param_tuple : Tuple)->np.ndarray:
     """
     Convert a tuple of parameters to a probability density function.
     Presumes x_axis and param_tuple are in the same units.

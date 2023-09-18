@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
@@ -37,5 +37,5 @@ class CaimanRegistrationInfo(RegistrationInfo):
             image : np.ndarray,
             z_plane : int,
             *args, **kwargs
-        )->tuple[int,int]:
+        )->Tuple[int,int]:
         raise NotImplementedError()
