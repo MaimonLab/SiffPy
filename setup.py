@@ -40,7 +40,7 @@ if not (
 siffmodule = Extension(
    name='siffreadermodule',
    sources = [
-       'siffreadermodule/src/siffio.cpp',
+       #'siffreadermodule/src/siffio.cpp',
        'siffreadermodule/src/siffreader/siffreader.cpp',
        'siffreadermodule/src/siffreader/siffreader_writer.cpp',
        'siffreadermodule/src/siffreader/flim/histogram_methods.cpp',
@@ -55,6 +55,7 @@ siffmodule = Extension(
    include_dirs = [
        numpy.get_include(),
    ],
+   
    extra_compile_args=extra_compile_args,
    language="c++",
    define_macros = define_macros,

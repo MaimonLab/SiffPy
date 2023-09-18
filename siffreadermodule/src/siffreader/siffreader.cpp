@@ -407,9 +407,10 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
 
     frameData.stringlength = description_length;
     siff.seekg(frameData.endOfIFD, siff.beg);
-    char metaString[description_length];
+    char* metaString = new char[description_length];
     siff.read(metaString, description_length);
     frameData.frameMetaData = std::string(metaString);
+    delete[] metaString;
     PyObject* frameDict = frameDataToDict(frameData);
     PyList_Append(metaDictList, frameDict); // append adds a reference
     Py_DECREF(frameDict);
