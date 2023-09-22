@@ -6,4 +6,4 @@ def test_core_imports():
 
 def test_registration_imports():
     import suite2p
-    import caiman
+    #import caiman

@@ -16,17 +16,41 @@ RAW_FILE_NAME = "raw_test"
 COMPRESSED_FILE_NAME = "compressed_test"
 
 @pytest.fixture(scope='session')
-def load_test_files(tmp_path_factory)->List[str]:
+def load_test_files(tmp_path_factory, request)->List[str]:
     """
     Loads test files from the specified url into a temp
     directory for use in other tests
     """
 
-    FILES_URL = ""
+    import shutil
+    import tifffile
+    from pathlib import Path
+
+    # Create a temporary directory, install
+    # a file from the server to it.
+    tmp_dir = tmp_path_factory.mktemp("test_siff_files")
+
+    filename = request.module.__file__
+    test_dir = Path(filename).with_suffix("")
+
+    # TODO copy the data over correctly, and from an online source!!!
+    shutil.copy(
+        (test_dir / RAW_FILE_NAME).with_suffix('.siff'),
+        (tmp_dir / RAW_FILE_NAME).with_suffix('.siff')
+    )
+
+    shutil.copy(
+        (test_dir / COMPRESSED_FILE_NAME).with_suffix('.siff'),
+        (tmp_dir / COMPRESSED_FILE_NAME).with_suffix('.siff')
+    )
 
 
-    file_dir = tmp_path_factory.mktemp("test_siff_files")
-    return file_dir
+    # shutil.copy(
+    #     test_dir / "seed_mus.npy",
+    #     tmp_dir / "seed_mus.npy"
+    # )
+
+    return tmp_dir
 
 
 @pytest.fixture(scope = 'function')
