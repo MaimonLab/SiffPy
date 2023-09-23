@@ -24,6 +24,7 @@ This ```readthedocs``` documentation contains information on:
    :caption: Tutorials:
 
    notebook_documentation
+   trace_notebook
 
 .. toctree::
    :maxdepth: 2
