@@ -44,8 +44,7 @@ pip-delete-this-directory.txt
 
 # Sphinx documentation
 docs/_build/
-docs/*.rst
+#docs/*.rst
 !docs/index.rst
 !docs/notebook_documentation.ipynb
 rdict.csv
-flimenv.yml
