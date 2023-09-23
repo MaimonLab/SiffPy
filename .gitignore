@@ -46,5 +46,6 @@ pip-delete-this-directory.txt
 docs/_build/
 docs/*.rst
 !docs/index.rst
+!docs/notebook_documentation.ipynb
 rdict.csv
 flimenv.yml

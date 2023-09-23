@@ -6,10 +6,32 @@
 Welcome to SiffPy's documentation!
 ==================================
 
+This ```readthedocs``` documentation contains information on:
+
+- how to install SiffPy
+- how to use SiffPy to generate arrays of data from ```.siff``` files
+- analyses on those data using the ```trace_analysis``` tools in ```siffmath```
+- How the ```C++``` ```siffreadermodule``` extension module works
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Installation:
+   
+   installation_guide
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials:
+
+   notebook_documentation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: APIs:
+
+   siffreader_api
+   trace_analysis_api
+   siffreadermodule_api
 
 
 Indices and tables

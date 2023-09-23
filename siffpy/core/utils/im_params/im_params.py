@@ -2,7 +2,7 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union, List, Dict, Tuple, TYPE_CHECKING
+from typing import Any, Union, List, Dict, Tuple, TYPE_CHECKING, Optional
 from functools import wraps
 
 import numpy as np
@@ -511,13 +511,23 @@ class ImParams():
         return frame_list
     
     #@correct_flyback flyback is already corrected in framelist_by_slice
-    def framelist_by_slices(self, color_channel : int = None, lower_bound : int = 0, upper_bound : int = None, slices : List[int] = None)->List[int]:
+    def framelist_by_slices(
+            self,
+            color_channel : Optional[int] = None,
+            lower_bound : int = 0,
+            upper_bound : Optional[int] = None,
+            slices : Optional[List[int]] = None
+        )->List[int]:
         """
         Flattened list of all frames corresponding to the color channel and slices provided
         """
         if upper_bound is None:
             upper_bound = self.num_timepoints
         frames = []
+
+        if not hasattr(slices, '__len__'):
+            slices = [slices]
+
         for slice_idx in slices:
             frames.extend(
                 self.framelist_by_slice(color_channel, upper_bound, slice_idx)[lower_bound:upper_bound]
