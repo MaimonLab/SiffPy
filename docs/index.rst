@@ -6,12 +6,14 @@
 Welcome to SiffPy's documentation!
 ==================================
 
-This ```readthedocs``` documentation contains information on:
+This ``readthedocs`` documentation contains information on:
 
 - how to install SiffPy
-- how to use SiffPy to generate arrays of data from ```.siff``` files
-- analyses on those data using the ```trace_analysis``` tools in ```siffmath```
-- How the ```C++``` ```siffreadermodule``` extension module works
+- how to use SiffPy to generate arrays of data from ``.siff`` files
+- analyses on those data using the ``trace_analysis`` tools in ``siffmath``
+- How the ``C++`` ``siffreadermodule`` extension module works
+
+These tools are used to read and manipulate data in ``.siff`` files (ScanImage-FLIM format).
 
 .. toctree::
    :maxdepth: 2
