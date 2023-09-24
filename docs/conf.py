@@ -31,7 +31,7 @@ release = '0.7.4'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    #'nbsphinx',
+    'nbsphinx',
     'sphinx.ext.autodoc',
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
