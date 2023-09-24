@@ -4,7 +4,6 @@ requires = [
     "setuptools_scm[toml]>=6.2",
     "wheel",
     "numpy",
-    'sphinx_rtd_theme',
 ]
 build-backend = "setuptools.build_meta"
 
@@ -35,7 +34,6 @@ dependencies = [
     "scipy",
     "h5py",
     "importlib_resources",
-    'sphinx_rtd_theme',
 ]
 
 [project.optional-dependencies]
