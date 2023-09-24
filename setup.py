@@ -21,7 +21,10 @@ if platform.system() == 'Windows':
    extra_compile_args = ["/std:c++17"]
    #library_dirs = [sys.exec_prefix] + sys.path
 else:
-   extra_compile_args = ["-std=c++11", "-Werror"]
+   extra_compile_args = [
+      "-std=c++11",
+      #"-Werror"
+   ]
 
 if not (
       (platform.system() == 'Darwin') and
