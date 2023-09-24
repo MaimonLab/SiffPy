@@ -1,6 +1,7 @@
 #include "../../../include/siffreader/siffreader.hpp"
 #include "../../../include/framedata/sifdefin.hpp"
 #include <string_view>
+#include <cstring>
 //#include <ctre.hpp>
 //#include <regex>
 
