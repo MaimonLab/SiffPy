@@ -34,6 +34,7 @@ dependencies = [
     "scipy",
     "h5py",
     "importlib_resources",
+    'sphinx_rtd_theme',
 ]
 
 [project.optional-dependencies]
