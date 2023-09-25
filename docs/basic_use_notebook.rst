@@ -1,4 +1,4 @@
-Siffpy: A package for reading ``.siff`` files and performing standard transformations of the data
+An introduction to ``SiffPy``
 =================================================================================================
 
 One major downside to collecting FLIM (fluorescence lifetime imaging
