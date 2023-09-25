@@ -36,8 +36,11 @@
     "Creates a debug log if debug is True. If False, stops debugging.\n"
 
 #define SIFF_TO_TIFF_DOCSTRING \
-    "siff_to_tiff(sourcepath : str, savepath : str = None) -> None\n"\
-    "Converts a siff file located at sourcepath to a tiff file and saves it in location savepath"
+    "siff_to_tiff(sourcepath : str, savepath : str = None, mode : str = 'scanimage') -> None\n"\
+    "Converts a siff file located at sourcepath to a tiff file and saves it in location savepath\n" \
+    "If savepath is not specified, the file will be saved in the same location as the source file.\n"\
+    "If mode is 'scanimage', the file will be saved as a ScanImage tiff.\n"\
+    "If mode is 'ome', the file will be saved as an OME tiff.\n"\
 
 
 #endif

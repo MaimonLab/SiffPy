@@ -1,5 +1,5 @@
 An introduction to ``SiffPy``
-=================================================================================================
+=============================
 
 One major downside to collecting FLIM (fluorescence lifetime imaging
 microscopy) data is that it does not naturally conform to the structure
@@ -17,7 +17,9 @@ workflows.
 This page contains examples for some simple workflows that are
 constrained entirely to ``SiffPy`` or external pacakges. There are also
 other packages that exist with the intention of working with ``SiffPy``
-(e.g. ``SiffROI``, ``siff-napari``) that do this job as well.
+(e.g. ``SiffROI``, ``siff-napari``) that do this job as well. For this
+example, we will use a very small ``.siff`` file, but all the usual
+semantics will still hold
 
 File I/O
 --------
@@ -165,6 +167,9 @@ like attributes.
     
 
 
+.. code:: ipython3
+
+    print(im_par.FastZ)
 
 
 .. parsed-literal::
@@ -188,18 +193,13 @@ like attributes.
     	waveformType : sawtooth
 
 
-
-.. code:: ipython3
-
-    print(im_par.FastZ)
-
 The most useful thing you’ll likely use the ``ImParams`` object to do is
 call its framelist functions. These use the ScanImage metadata to
 compute which frames in the ``.siff`` file correspond to which parts of
 the imaging volume / session. This way you don’t need to figure out
 things like what order frames are in, which frames to skip because
 they’re flyback, etc. etc. For more information, please check the
-``SiffReader`` documentation in the ``API`` section of the docs.
+``SiffReader`` documentation and the ``ImParams`` one.
 
 .. code:: ipython3
 
@@ -310,4 +310,63 @@ slice/color/whatever, use the ``framelist_by_x`` methods:
     All frames in timepoint < 5 in the third slice:
     [2, 9, 16, 23, 30]
 
+
+Now we can get all of the frames from, let’s say, the fourth plane
+
+.. code:: ipython3
+
+    slice_frames = sr.get_frames(frames = im_par.framelist_by_slices(color_channel=0, slices = [3]))
+    print(slice_frames.shape)
+
+
+.. parsed-literal::
+
+    (55, 256, 256)
+
+
+Or we can get the whole imaging series and then reshape it
+
+.. code:: ipython3
+
+    full_session = (
+        sr
+        .get_frames(frames=sr.im_params.flatten_by_timepoints())
+        .reshape(sr.im_params.array_shape)
+    )
+    
+    print([
+        f"{dim_name}: {dim_val}"
+        for dim_name, dim_val in zip(("timepoints", "slices", "channels", "rows", "columns"),full_session.shape)
+        ]
+    )
+
+
+.. parsed-literal::
+
+    ['timepoints: 55', 'slices: 6', 'channels: 1', 'rows: 256', 'columns: 256']
+
+
+.. code:: ipython3
+
+    import matplotlib.pyplot as plt
+    
+    f, x = plt.subplots(1, full_session.shape[1], figsize=(10, 5))
+    
+    # This was a short time series because the FastZ calibration was not
+    # correct, so notice how the different planes do not span the whole
+    # ellipsoid body....
+    for plane, ax in zip(range(full_session.shape[1]), x):
+        ax.imshow(full_session[:,plane, ...].mean(axis=0).squeeze())
+        ax.axis("off")
+        
+
+
+
+.. image:: basic_use_notebook_files/basic_use_notebook_16_0.png
+
+
+Registration
+------------
+
+Almost all imaging sessions will have some motion artifacts.
 
