@@ -83,7 +83,8 @@ class SiffReader(object):
         ) -> None:
         """
         Opens a .siff or .tiff file with path "filename". If no value provided for filename, prompts with a file dialog.
-        INPUTS
+        
+        Arguments
         ------
         
         filename (optional):
@@ -94,9 +95,6 @@ class SiffReader(object):
             on opening. Takes longer, but then you never have to
             call it again.
 
-        RETURN
-        ------
-        NONE
         """
         if filename is None:
             raise NotImplementedError("Dialog to navigate to file not yet implemented")
@@ -153,7 +151,7 @@ class SiffReader(object):
         Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
         to acquisition start.
 
-        INPUTS
+        Arguments
         ------
         
         timepoint_start (optional, int):
@@ -178,7 +176,7 @@ class SiffReader(object):
                 experiment - referenced to experiment
                 epoch      - referenced to epoch
 
-        RETURN VALUES
+        Returns
         -------
         timepoints (1-d ndarray):
             Time point of the requested frames, relative to beginning of the
@@ -278,7 +276,7 @@ class SiffReader(object):
         """
         Gets the recorded time (in seconds) of the frame(s) numbered in list frames
 
-        INPUTS
+        Arguments
         ------
         frames (optional, list):
             If not provided, retrieves time value of ALL frames.
@@ -290,7 +288,7 @@ class SiffReader(object):
                 experiment - referenced to experiment
                 epoch      - referenced to epoch
 
-        RETURN VALUES
+        Returns
         -------------
         time (np.ndarray):
             Ordered like the list in frames (or in order from 0 to end if frames is None).
@@ -351,7 +349,7 @@ class SiffReader(object):
 
         Wraps self.siffio.get_frames
 
-        INPUTS
+        Arguments
         ------
         frames (optional) : List[int]
 
@@ -365,7 +363,7 @@ class SiffReader(object):
 
             Type of returned PyObject. Default is np.ndarray, if False will return list
 
-        RETURN VALUES
+        Returns
         -------------
         np.ndarray or List[np.ndarray]
 
@@ -495,13 +493,13 @@ class SiffReader(object):
         Note: uses FRAME numbers, not timepoints. So you will mix color channels
         if you're not careful.
         
-        INPUTS
+        Arguments
         -----
         frames (optional, list of ints):
 
             Frames to get arrival times of. If NONE, collects from all frames.
 
-        RETURN VALUES
+        Returns
         -------------
         histogram (np.ndarray):
             1 dimensional histogram of arrival times
@@ -523,7 +521,7 @@ class SiffReader(object):
         of frames (FOR THE COLOR CHANNEL, NOT TOTAL IMAGING FRAMES) with the other keyword argument
         frame_endpoints
 
-        INPUTS
+        Arguments
         ----------
         color_channel : int or list (default None)
 
@@ -612,7 +610,7 @@ class SiffReader(object):
 
         If params is a single FLIMParams object, returns a numpy array.
 
-        ARGUMENTS
+        Arguments
         ----------
 
         params : FLIMParams object or list of FLIMParams
@@ -723,7 +721,7 @@ class SiffReader(object):
         
         TODO: provide support for more sophisticated registration methods
 
-        INPUTS
+        Arguments
         ------
 
         reference_method : str
