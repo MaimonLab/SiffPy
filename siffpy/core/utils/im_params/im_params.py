@@ -89,7 +89,7 @@ class ImParams():
 
     def __init__(self, num_frames = None, **param_dict):
         """
-        x
+        
         Initialized by reading in a param dict straight out of ScanImage,
         computes a few other useful parameters too.
 
@@ -109,6 +109,7 @@ class ImParams():
             pass
     
     def add_roi_data(self, roi_data : Dict):
+        """ Adds ROI data to the ImParams object """
         self.roi_groups = {}
         for roi_group_name, roi_group_data in roi_data['RoiGroups'].items():
             if not roi_group_data is None:
@@ -273,6 +274,7 @@ class ImParams():
 
     @property
     def ysize(self)->int:
+        """ Number of pixels in the y dimension """
         if hasattr(self, 'RoiManager'):
             if self.RoiManager.mroiEnable:
                 raise NotImplementedError(
@@ -415,7 +417,7 @@ class ImParams():
         return retstr
     
     @property
-    def array_shape(self) -> Tuple[int]:
+    def array_shape(self) -> Tuple[int, int, int, int, int]:
         """
         Returns the shape that an array of frames would be in standard order:
         `(t, z, c, y, x)`
@@ -431,8 +433,8 @@ class ImParams():
     @correct_flyback
     def flatten_by_timepoints(self,
         timepoint_start : int = 0,
-        timepoint_end : int = None,
-        reference_z : int = None,
+        timepoint_end : Optional[int] = None,
+        reference_z : Optional[int] = None,
     )->List[int]:
         """
         Returns all frame indices within a set of timepoints.
@@ -471,7 +473,11 @@ class ImParams():
         return framelist
 
     @correct_flyback
-    def framelist_by_slice(self, color_channel : int = None, upper_bound = None, slice_idx : int = None) -> List[List[int]]:
+    def framelist_by_slice(
+            self,
+            color_channel : Optional[int] = None,
+            slice_idx : Optional[int] = None
+        ) -> List[List[int]]:
         """
         List of lists, each sublist containing the frames indices that share a z slice
         
@@ -530,7 +536,7 @@ class ImParams():
 
         for slice_idx in slices:
             frames.extend(
-                self.framelist_by_slice(color_channel, upper_bound, slice_idx)[lower_bound:upper_bound]
+                self.framelist_by_slice(color_channel, slice_idx)[lower_bound:upper_bound]
             )
         return frames
 
@@ -539,7 +545,7 @@ class ImParams():
         self,
         color_channel : int,
         lower_bound_timepoint : int = 0,
-        upper_bound_timepoint : int = None
+        upper_bound_timepoint : Optional[int] = None
         )->list:
         "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
 
@@ -563,8 +569,8 @@ class ImParams():
         self,
         color_channel : int,
         timepoint_start : int = 0,
-        timepoint_end : int = None,
-        slice_idx : int = None)->List[List[int]]:
+        timepoint_end : Optional[int] = None,
+        slice_idx : Optional[int] = None)->List[List[int]]:
         """
         If slice_idx is None:
         list of lists, each containing frames that share a timepoint, i.e. same stack but different slices or colors
@@ -599,12 +605,11 @@ class ImParams():
             else:
                 return [framenum for framenum in all_frames[:,:,color_channel].tolist() if framenum < timepoint_end]
         else:
-            if not (type(slice_idx) is int):
-                slice_idx = int(slice_idx)
+            slice_idx = int(slice_idx)
             return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
 
     @classmethod
-    def from_dict(cls, header_dict: dict, num_frames : int= None)->'ImParams':
+    def from_dict(cls, header_dict: Dict, num_frames : Optional[int] = None)->'ImParams':
         """
         Builds an `ImParams` object from a dict of header data,
         which is easier to generate with C++ than the correct Python object
