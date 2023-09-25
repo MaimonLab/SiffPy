@@ -25,7 +25,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
    :maxdepth: 2
    :caption: Tutorials:
 
-   notebook_documentation
+   basic_use_notebook
    trace_notebook
 
 .. toctree::

@@ -352,21 +352,17 @@ class SiffReader(object):
         Arguments
         ------
         frames (optional) : List[int]
-
             Indices of input frames requested
 
         registration_dict (optional) : dict
-
             Registration dictionary, if used
 
         as_array : bool (True)
-
             Type of returned PyObject. Default is np.ndarray, if False will return list
 
         Returns
         -------------
         np.ndarray or List[np.ndarray]
-
             Either a n_frames by y by x array or a list of numpy arrays.
         """
         registration_dict = self.registration_dict if registration_dict is None else registration_dict
@@ -398,36 +394,29 @@ class SiffReader(object):
         Arguments
         ---------
         mask : np.ndarray[bool]
-
             Mask to sum over. Must be either the same shape as individual frames
             (in which case z_index is used) or have a 0th axis with length equal
             to the number of z slices.
 
         timepoint_start : int
-            
             Starting timepoint for the sum. Default is 0.
 
         timepoint_end : int
-
             Ending timepoint for the sum. Default is None, which means the last timepoint.
 
         z_index : List[int]
-
             List of z-slices to sum over. Default is None, which means all z-slices.
 
         color_channel : int
-
             Color channel to sum over. Default is 1, which means the FIRST color channel.
         
         registration_dict : dict
-
             Registration dictionary, if there is not a stored one or if you want to use a different one.
 
 
         Returns
         -------
         np.ndarray
-
             Summed photon counts as an array of shape (n_timepoints, mask.shape[0])
         """
 
@@ -496,7 +485,6 @@ class SiffReader(object):
         Arguments
         -----
         frames (optional, list of ints):
-
             Frames to get arrival times of. If NONE, collects from all frames.
 
         Returns
@@ -524,12 +512,10 @@ class SiffReader(object):
         Arguments
         ----------
         color_channel : int or list (default None)
-
             0 indexed list of color channels you want returned.
             If None is provided, returns for all color channels.
 
         frame_endpoints : tuple(int,int) (default (None, None))
-
             Start and end bounds on the frames from which to collect the histograms.
         """
         # I'm sure theres a more Pythonic way... I'm ignoring it
@@ -614,7 +600,6 @@ class SiffReader(object):
         ----------
 
         params : FLIMParams object or list of FLIMParams
-
             The FLIMParams objects fit to the FLIM data of this .siff file. If
             the FLIMParams objects do not all have a color_channel attribute,
             then the optional argument color_list must be provided and be a list
@@ -622,30 +607,25 @@ class SiffReader(object):
             each FLIMParams, unless there is only one color channel in the data.
 
         mask : np.ndarray[bool]
-
             A mask that defines the boundaries of the region being considered.
             May be 2d (in which case it is applied to all z-planes) or higher
             dimensional (in which case it must have the same number of z-planes
             as the image data frames requested).
 
         timepoint_start : int (optional) (default is 0)
-
             The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
 
         timepoint_end : int (optional) (default is None)
-
             The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
             defaults to the final timepoint of the .siff file.
 
         color_list : List[int] (optional) (default is None)
-
             If the FLIMParams objects do not have a color_channel attribute, then this
             argument is REQUIRED. Explains which channel's frames should used to compute
             the empirical lifetime. Must be of the same length as the params argument. Will
             be superceded by the corresponding FLIMParams color_channel if both are required.
 
         registration_dict : dict
-
             Registration dictionary for frames.
 
         """
@@ -725,31 +705,25 @@ class SiffReader(object):
         ------
 
         reference_method : str
-
             What method to use to construct the reference image for alignment. Options are:
                 'average' -- Take the average over all frames in each z plane.
                 'siffpy' -- A minimal version of suite2p's alignment procedure
 
         color_channel : int
-
             Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
 
         save (optional) : bool
-
             Whether or not to save the dict. Name will be as TODO
 
         align_zplanes (optional) : bool
-
             Whether or not to align each z plane to the others.
         
         elastic_slice (optional) : float
-
             After each slice is registered, regularize estimated shifts. To ignore, use np.nan, None, or False.
             Defaults to off. The larger the argument, the stronger the "prior" (i.e. the less adjacent slices
             in time matter to compress the shift). Sometimes this works well. Sometimes it does not.
 
         save_dict_name (optional) : string
-            
             What to name the saved pickled registration dict. Defaults to filename.dict
 
         Other kwargs are as in siffpy.core.utils.registration.register_frames
