@@ -9,6 +9,13 @@ simple functions to convert to ``.tiff``. For now, it only implements the ``Scan
 ``.tiff`` specification (which is not OME compliant!!), but soon I will add ``OME-TIFF``
 support as a keyword argument.
 
+I will also (soon) implement a command line tool to call the ``siff_to_tiff`` C++ code
+directly. Not yet though!
+
+``SiffPy`` hosts a wrapper function for the ``siffreadermodule`` function (described below)
+
+.. autofunction:: siffpy.siff_to_tiff
+
 
 Warning: the function below is autodocumented using the DOCSTRING attached to the
 ``siffreadermodule``'s ``siff_to_tiff`` function, which may be out of date from the
