@@ -14,4 +14,5 @@ Warning: the function below is autodocumented using the DOCSTRING attached to th
 ``siffreadermodule``'s ``siff_to_tiff`` function, which may be out of date from the
 current implementation. The more reliable documentation is in the ``siff_to_tiff``
 function's stub file in ``siffreadermodule/__init__.pyi``.
+
 .. autofunction:: siffreadermodule.siff_to_tiff
