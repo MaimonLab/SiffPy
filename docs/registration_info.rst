@@ -14,7 +14,7 @@ used in ``SiffPy``. The basic layout is [TODO!!]
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: siffpy.core.utils.registration_tools.siffpy.SiffPyRegistrationInfo
+.. autoclass:: siffpy.core.utils.registration_tools.siffpy.SiffpyRegistrationInfo
    :members:
    :undoc-members:
    :show-inheritance:
