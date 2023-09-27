@@ -13,16 +13,17 @@ I will also (soon) implement a command line tool to call the ``siff_to_tiff`` C+
 directly. Not yet though!
 
 ``SiffPy`` hosts a wrapper function for the ``siffreadermodule`` function (described below)
-which can be called easily:
+which can be called easily
 
-```
-from siffpy import siff_to_tiff
+.. code-block:: python
+    :emphasize-lines: 6
+    
+    from siffpy import siff_to_tiff
 
-my_input_path = "somewhere_like_here"
-my_target_path = "this_place_looks_good/a_cool_directory"
+    my_input_path = "somewhere_like_here"
+    my_target_path = "this_place_looks_good/a_cool_directory"
 
-siff_to_tiff(my_target_path, target_file = my_target_path)
-```
+    siff_to_tiff(my_target_path, target_file = my_target_path)
 
 .. autofunction:: siffpy.siff_to_tiff
 

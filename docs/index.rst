@@ -20,6 +20,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
    :caption: Installation:
    
    installation_guide
+   additional_dependencies
 
 .. toctree::
    :maxdepth: 2
@@ -37,6 +38,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
    im_params_api
    trace_analysis_api
    siffreadermodule_api
+   registration_info
 
 
 Indices and tables
