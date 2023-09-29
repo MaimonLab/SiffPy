@@ -31,7 +31,7 @@ with a path to a ``.siff`` file, which will be opened automatically, or
 it can be initialized in isolation and a file can be passed later with
 the ``open`` function:
 
-::
+.. code-block:: python
 
    sr = SiffReader()
 
@@ -45,7 +45,7 @@ pretty fast (no more than a few seconds for several-GB files), but if
 you’re reading data from a mounted server that’s not local, I haven’t
 optimized the reader to maximize bandwidth yet and it can be slow.
 
-.. code:: ipython3
+.. code-block:: python
 
     from siffpy import SiffReader
     import matplotlib.pyplot as plt
@@ -85,7 +85,7 @@ report some of this metadata (e.g. the number of frames). Some of it is
 stored in the metadata of the ScanImage modules, which can be accessed
 like attributes.
 
-.. code:: ipython3
+.. code-block:: python
 
     im_par = sr.im_params
     print(im_par)
@@ -143,7 +143,7 @@ like attributes.
     
 
 
-.. code:: ipython3
+.. code-block:: python
 
     print(im_par.FastZ)
 
@@ -177,7 +177,7 @@ things like what order frames are in, which frames to skip because
 they’re flyback, etc. etc. For more information, please check the
 ``SiffReader`` documentation and the ``ImParams`` one.
 
-.. code:: ipython3
+.. code-block:: python
 
     # Get the indices of all frames by timepoint (i.e. across all planes, technically
     # slightly separated in time). Note that this example skips frame 6, which
@@ -254,7 +254,7 @@ they’re flyback, etc. etc. For more information, please check the
 
 You can also ask for just the frames of a specific z plane
 
-.. code:: ipython3
+.. code-block:: python
 
     im_par.flatten_by_timepoints(timepoint_start = 0, timepoint_end = 10, reference_z = 3)
 
@@ -270,7 +270,7 @@ You can also ask for just the frames of a specific z plane
 If you want all of the frames corresponding to a given
 slice/color/whatever, use the ``framelist_by_x`` methods:
 
-.. code:: ipython3
+.. code-block:: python
 
     print ("All frames with color channel 0:")
     print(im_par.framelist_by_color(color_channel = 0, lower_bound_timepoint = 0, upper_bound_timepoint=10))
@@ -289,7 +289,7 @@ slice/color/whatever, use the ``framelist_by_x`` methods:
 
 Now we can get all of the frames from, let’s say, the fourth plane
 
-.. code:: ipython3
+.. code-block:: python
 
     slice_frames = sr.get_frames(frames = im_par.framelist_by_slices(color_channel=0, slices = [3]))
     print(slice_frames.shape)
@@ -302,7 +302,7 @@ Now we can get all of the frames from, let’s say, the fourth plane
 
 Or we can get the whole imaging series and then reshape it
 
-.. code:: ipython3
+.. code-block:: python
 
     full_session = (
         sr
@@ -322,7 +322,7 @@ Or we can get the whole imaging series and then reshape it
     ['timepoints: 55', 'slices: 6', 'channels: 1', 'rows: 256', 'columns: 256']
 
 
-.. code:: ipython3
+.. code-block:: python
 
     import matplotlib.pyplot as plt
     
@@ -361,7 +361,7 @@ frames as it reads them from disk.
 For more info please refer to
 :literal:`{eval-rst} :ref:\`registration\``
 
-.. code:: ipython3
+.. code-block:: python
 
     # SiffPy as a registration method is probably one of the worse ones,
     # but it doesn't require any additional dependencies!
@@ -457,7 +457,7 @@ The registration_dict is also stored in the siffreader as
 ``sr.registration_dict``, but more info is in the ``RegistrationInfo``
 object
 
-.. code:: ipython3
+.. code-block:: python
 
     reg_info = sr.registration_info
     print(reg_info)
@@ -482,7 +482,7 @@ object
 .. image:: basic_use_notebook_files/basic_use_notebook_21_1.png
 
 
-.. code:: ipython3
+.. code-block:: python
 
     # If your siffreader performed the registration, it will also automatically use it unless you override the
     # registration_dict keyword argument, but
