@@ -1,5 +1,6 @@
+.. _registration:
 ``RegistrationInfo`` classes
-=========================
+=============================
 
 ``RegistrationInfo`` classes are the interface to registration that are
 used in ``SiffPy``. The point of this class is that there are many registration methods
@@ -26,7 +27,7 @@ fixed. TODO: provide this option?
 Any ``RegistrationInfo`` class **must** define the following methods:
 
 - ``register(self, siffio : SiffIO, *args, alignment_color_channel : int =0, **kwargs)->None:``
-    This function is usually the one called on a file opened by a :ref:`_siffio` ``SiffIO``
+    This function is usually the one called on a file opened by a :ref:`_siffio<``SiffIO``>`
     object. It accepts whatever other arguments and keyword arguments are needed to
     perform the registration. It should then modify the ``SiffIO`` object *in place* to
     store the registration parameters, e.g. in a ``reference_frames`` or ``yx_shifts``
@@ -42,7 +43,7 @@ class attributes:
    fail in nested threads
 
 - ``backend : RegistrationType``
-    The :ref:`registration_type` ``RegistrationType`` enum defined in ``registration_info.py`` enumerates the
+    The :ref:`registration_type<``RegistrationType``>` enum defined in ``registration_info.py`` enumerates the
     list of implemented core ``RegistrationInfo`` classes and provides typical ``str``
     names for them, making it easier for automated code inspection to generate GUI
     tools (as in ``siff-napari``) and providing aliases that can be stored in metadata
@@ -51,7 +52,7 @@ class attributes:
 Saving and loading
 ------------------
 
-:ref:`registration_info_abc` ``RegistrationInfo`` classes are designed to be saved and loaded from disk. The
+:ref:`registration_info_abc<``RegistrationInfo``>` classes are designed to be saved and loaded from disk. The
 ``RegistrationInfo`` base class provides a ``save`` and ``load_as_dict`` method that stores
 the basic paremeters in a ``.h5`` file (with no custom suffix, in this case). The stored
 attributes are:
@@ -63,7 +64,7 @@ attributes are:
     a file, but provide a reminder.
 
 -  ``registration_type``
-    A string that can be mapped using the :ref:`registration_type` ``RegistrationType``
+    A string that can be mapped using the :ref:`registration_type<``RegistrationType``>`
     ``Enum`` to the class of ``RegistrationInfo`` that was used to register the file.
 
 -  ``registration_color``

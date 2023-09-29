@@ -48,6 +48,7 @@ optimized the reader to maximize bandwidth yet and it can be slow.
 .. code:: ipython3
 
     from siffpy import SiffReader
+    import matplotlib.pyplot as plt
     
     # file_path can be a string or a pathlib.Path object,
     # or anything that can be cast to a pathlib.Path object
@@ -59,44 +60,19 @@ optimized the reader to maximize bandwidth yet and it can be slow.
     # Returns a `numpy` array of the photon count (i.e. intensity) data
     # contained in the frames indexed as in the provided `frames`
     # argument.
-    first_frames = sr.get_frames(frames = [0,1,2,3])
+    first_few_frame_indices = [0,1,2,3]
+    first_frames = sr.get_frames(frames = first_few_frame_indices)
     
-    print(first_frames)
+    f, axes = plt.subplots(1, len(first_frames))
+    for i, x in enumerate(axes):
+        x.axis('off')
+        x.set_aspect('equal')
+        x.set_adjustable('box')
+        x.imshow(first_frames[i])
 
 
-.. parsed-literal::
 
-    [[[0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      ...
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]]
-    
-     [[0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      ...
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]]
-    
-     [[0 0 0 ... 0 0 0]
-      [0 0 0 ... 1 0 0]
-      [0 0 0 ... 0 0 0]
-      ...
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]]
-    
-     [[0 0 0 ... 0 0 0]
-      [0 0 0 ... 1 0 0]
-      [0 0 0 ... 0 0 0]
-      ...
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]
-      [0 0 0 ... 0 0 0]]]
+.. image:: basic_use_notebook_files/basic_use_notebook_2_0.png
 
 
 ImParams and figuring out which frames to load
@@ -368,5 +344,16 @@ Or we can get the whole imaging series and then reshape it
 Registration
 ------------
 
-Almost all imaging sessions will have some motion artifacts.
+Almost all imaging sessions will have some motion artifacts. We need to
+do some image registration to correct those and align to a template. The
+template is also usually very useful for drawing ROIs, since it’s
+generally some form of consensus image across the timeseries. In this
+section, we will look at the tools for registration built in to
+``SiffPy`` and explore how to pipe these data into another registration
+pipeline of our choice. There are native registration tools mainly
+because: 1) Many pipelines want to take in a ``.tiff`` file, which we
+just don’t have! Even if you *do* convert the ``.siff`` to a ``.tiff``
+
+For more info please refer to
+:literal:`{eval-rst} :ref:\`registration\``
 
