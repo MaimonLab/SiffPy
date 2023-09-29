@@ -72,7 +72,6 @@ class RegistrationInfo(ABC):
         ):
         raise NotImplementedError()
 
-    @abstractmethod
     def align_to_reference(
         self,
         images : np.ndarray,
