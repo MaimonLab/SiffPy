@@ -704,18 +704,7 @@ class SiffReader(object):
         save_path (optional) : `PathLike`
             Whether or not to save the dict. Name will be as TODO
 
-        align_zplanes (optional) : bool
-            Whether or not to align each z plane to the others.
-        
-        elastic_slice (optional) : float
-            After each slice is registered, regularize estimated shifts. To ignore, use np.nan, None, or False.
-            Defaults to off. The larger the argument, the stronger the "prior" (i.e. the less adjacent slices
-            in time matter to compress the shift). Sometimes this works well. Sometimes it does not.
-
-        save_dict_name (optional) : string
-            What to name the saved pickled registration dict. Defaults to filename.dict
-
-        Other kwargs are as in siffpy.core.utils.registration.register_frames
+        Other kwargs are passed to the registration method!
         """
 
         logging.warn("\n\n \t Don't forget to fix the zplane alignment!!")
