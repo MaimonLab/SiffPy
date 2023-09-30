@@ -690,29 +690,18 @@ class SiffReader(object):
         **kwargs
         ) -> dict:
         """
-        Performs image registration by finding the rigid shift of each frame that maximizes its
-        phase correlation with a reference image. The reference image is constructed according to 
-        the requested reference method. If there are multiple color channels, defaults to the 'green'
-        channel unless color_channel is passed as an argument. Returns the registration dict but also
-        stores it in the Siffreader class. Internal alignment methods can be reached in the registration
-        program registration.py in siffpy.core.utils. Aligns each z plane independently.
-
-        Takes additional keyword args of siffpy.core.utils.registration.register_frames
-        
-        TODO: provide support for more sophisticated registration methods
+        Performs image registration dependent on the registration method
+        called 
 
         Arguments
         ------
-
-        reference_method : str
-            What method to use to construct the reference image for alignment. Options are:
-                'average' -- Take the average over all frames in each z plane.
-                'siffpy' -- A minimal version of suite2p's alignment procedure
-
-        color_channel : int
+        registration_method (optional) : string
+            String version of the `RegistrationInfo` class to use. Defaults to "siffpy".
+        
+        alignment_color_channel : int
             Color channel to use for alignment (0-indexed). Defaults to 0, the green channel, if present.
 
-        save (optional) : bool
+        save_path (optional) : `PathLike`
             Whether or not to save the dict. Name will be as TODO
 
         align_zplanes (optional) : bool
