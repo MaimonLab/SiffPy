@@ -538,8 +538,8 @@ class SiffReader(object):
     def get_frames_flim(
         self,
         params : FLIMParams,
-        frames: List[int] = None,
-        registration_dict : dict = None,
+        frames: Optional[List[int]] = None,
+        registration_dict : Optional[Dict] = None,
         confidence_metric : str = 'chi_sq',
         ) -> FlimTrace:
         """

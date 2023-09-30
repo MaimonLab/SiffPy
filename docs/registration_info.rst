@@ -105,3 +105,29 @@ objects without learning to use this specific framework if they want...
    :members:
    :undoc-members:
    :show-inheritance:
+
+Calling with ``SiffReader``
+---------------------------
+
+You can call the ``register`` method of a ``SiffReader`` object to
+perform registration:
+
+.. code-block:: python
+
+    from siffpy import SiffReader
+    from siffpy.core.utils.registration_tools import RegistrationType
+
+    reader = SiffReader("path/to/file.siff")
+    reader.register(
+        registration_method = 'suite2p',
+        alignment_color_channel = 0,
+        batch_size = 200,
+        do_bidiphase = True,
+        smooth_sigma_time = 5,
+        norm_frames = False
+    )
+
+The convention and syntax for calling ``register`` is:
+
+.. autoclass:: siffpy.core.siffreader.SiffReader
+    :members: register
