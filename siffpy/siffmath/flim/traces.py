@@ -33,6 +33,10 @@ class FlimTrace(np.ndarray):
     Most numpy functions will actually operate on the INTENSITY
     array, altering the FlimTrace core array only if those operations
     make sense.
+
+    The intensity data _will_ be cast to an array of FLOATS to make
+    computation much faster. If you do not want to cast to floats,
+    use the nocast kwarg in the constructor.
     
     Modeled after
     the RealisticInfoArray example provided at
@@ -51,9 +55,17 @@ class FlimTrace(np.ndarray):
             method : Optional[str] = None,
             angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
+            nocast : bool = False,
             info_string : str = "", # new attributes TBD?
         ):
-        """ WARNING: CONFIDENCE NOT IMPLEMENTED, MUST BE NONE (FOR NOW)"""
+        """ 
+        nocast : bool
+            If True, the intensity array will not be cast to float.
+            Makes the operations run slower, but preserves the original
+            data type.
+
+        WARNING: CONFIDENCE NOT IMPLEMENTED, MUST BE NONE (FOR NOW)
+        """
         
         if hasattr(input_array, '__iter__') and all(isinstance(x, FlimTrace) for x in input_array):
             intensity = np.asarray([x.intensity for x in input_array])
@@ -74,6 +86,9 @@ class FlimTrace(np.ndarray):
             obj.intensity = np.zeros_like(input_array)
         else:
             obj.intensity = np.asarray(intensity)
+
+        if not nocast:
+            obj.intensity = obj.intensity.astype(float)
         
         obj.confidence = confidence
         if not (obj.confidence is None):
@@ -96,8 +111,15 @@ class FlimTrace(np.ndarray):
 
     @property
     def lifetime(self)->np.ndarray:
-        """ Returns a COPY of the FLIM data of a FlimArray as a regular numpy array """
-        return self.__array__().copy()
+        """
+        Returns a pointer to the FLIM data of a
+        FlimArray as a regular numpy array. I think
+        this might be dangerous but... leaving it as
+        a copy means all the 'intuitive' code one
+        might write becomes very slow because it makes
+        copy after copy after copy...
+        """
+        return self.__array__()
 
     @property
     def fluorescence(self)->FluorescenceTrace:
@@ -106,13 +128,13 @@ class FlimTrace(np.ndarray):
 
     def set_units(self, units : 'FlimUnitsLike'):
         """
-        Allows setting of units, but ONLY if the trace has
-        unknown units
+        Allows setting of units even if the units are unknown. Basically
+        a forced version of `convert_units`
         """
         if self.units == FlimUnits.UNKNOWN:
             self.units = FlimUnits(units)
         else:
-            raise ValueError("Cannot set units of a FlimTrace that already has units!")
+            self.convert_units(units)
 
     def convert_units(self, units : 'FlimUnitsLike'):
         """ Converts units in place """
@@ -191,7 +213,7 @@ class FlimTrace(np.ndarray):
             return func._implementation(*replaced_args, **kwargs)
         return FlimTrace.HANDLED_FUNCTIONS[func](*args, **kwargs)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key)->'FlimTrace':
         """
         Returns the indexed version of BOTH arrays
         """
@@ -318,7 +340,7 @@ class FlimTrace(np.ndarray):
             self.FLIMParams.save(path.with_suffix('.flim_params'))
 
     @classmethod
-    def load(cls, path : 'PathLike'): 
+    def load(cls, path : 'PathLike')->'FlimTrace': 
         """ Load a .flim_hdf file and create a FlimArray class from it. """
         path = Path(path)
         if not path.suffix == f'.{cls.FILETAG}':

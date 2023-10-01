@@ -37,6 +37,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autosummary',
     'sphinx_rtd_theme',
+    #myst-nb,
 ]
 
 source_suffix = [".rst", ".md"]

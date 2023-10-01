@@ -11,7 +11,7 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
-  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed"
+  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv 
 
 requirements:
   build:
@@ -20,9 +20,9 @@ requirements:
     - pip
     - numpy
     - wheel
-    - setuptools
-    #- setuptools>=45
-    #- setuptools_scm[toml]>=6.2
+    #- setuptools
+    - setuptools>=45
+    - setuptools_scm[toml]>=6.2
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
   host:
@@ -52,6 +52,7 @@ about:
   summary : {{ project.get('description') }}
   license: GPL3
   license_file: ../LICENSE.md
+  doc_url: siffpy.readthedocs.io
 
 extra:
   recipe-maintainers:

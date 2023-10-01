@@ -207,7 +207,7 @@ PyObject* SiffReader::flimTuple(
             0 // C order, i.e. last index increases fastest
         ));
 
-        size_t frameSize = dims[1] * dims[2];
+        const size_t frameSize = dims[1] * dims[2];
         double_t* lifetimeArrayData = (double_t*) PyArray_DATA(lifetimeArray);
         uint16_t* intensityArrayData = (uint16_t*) PyArray_DATA(intensityArray);
         uint64_t frameIdx;

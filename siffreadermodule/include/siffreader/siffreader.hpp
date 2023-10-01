@@ -354,7 +354,11 @@ class SiffReader
         @return A `PyObject*` to a list of `PyArrayObject*`s
         each of dimensions y,x
         */
-        PyObject* retrieveFrames(const uint64_t frames[], const uint64_t& framesN, PyObject* registrationDict) const;
+        PyObject* retrieveFrames(
+            const uint64_t frames[],
+            const uint64_t& framesN,
+            PyObject* registrationDict
+        ) const;
 
         /*
         Returns an array of dimensions: framesN, y, x

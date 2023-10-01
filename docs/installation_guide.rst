@@ -29,3 +29,12 @@ channel.
 .. code-block:: console
     
     (.venv) $ conda install siffpy -c <path_to_Maimon_server>/lab_resources/maimon-forge
+
+Or you can make its own environment and install it there:
+
+.. code-block:: console
+    
+    conda create --name siffpy python=3.9
+    conda activate siffpy
+    git clone git@github.com:MaimonLab/SiffPy.git
+    PYTHON -m pip install SiffPy/.

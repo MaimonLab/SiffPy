@@ -568,8 +568,8 @@ class SiffReader(object):
             )
 
         return FlimTrace(
-            np.array(flim_arrays[0]),
-            intensity = np.array(flim_arrays[1]),
+            flim_arrays[0],
+            intensity = flim_arrays[1],
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = 'empirical lifetime',

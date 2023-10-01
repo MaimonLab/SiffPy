@@ -59,8 +59,7 @@ def convert_flimunits(
     """
     Converts an array or float `in_array` from one type of FLIMUnit to another.
 
-    UNITLESS nondimensionalizes assuming a 12.5 nanosecond unit, i.e. 80 MHz, approximately
-    the longest timescale one would expect under usual conditions
+    UNITLESS is a special case, where the input is returned unchanged.
     """
     if isinstance(from_units, str):
         from_units = FlimUnits(from_units)
