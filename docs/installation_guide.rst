@@ -36,5 +36,5 @@ Or you can make its own environment and install it there:
     
     conda create --name siffpy python=3.9
     conda activate siffpy
-    git clone git@github.com:MaimonLab/SiffPy.git
-    PYTHON -m pip install SiffPy/.
+    (siffpy) $ git clone git@github.com:MaimonLab/SiffPy.git
+    (siffpy) $ PYTHON -m pip install SiffPy/.
