@@ -38,7 +38,6 @@ class SiffReader(object):
         Opens file `filename` if provided, otherwise creates an inactive SiffReader.
         If open is True, opens the file. If open is False, does not open the file.
         """
-        self.im_params : ImParams = None
         self.ROI_group_data = {}
         self.opened = False
         self.debug = False
@@ -138,6 +137,7 @@ class SiffReader(object):
         self.siffio.close()
         self.opened = False
         self.filename = ''
+        delattr(self, 'im_params')
 
 ### TIME AXIS METHODS
     def t_axis(
@@ -314,7 +314,7 @@ class SiffReader(object):
         """ Returns the average time between volumes in seconds """
         if hasattr(self.im_params, 'RoiManager'):
             return 1.0/self.im_params.RoiManager.scanVolumeRate
-        return np.diff(self.t_axis(reference = 'experiment')).mean()
+        return np.diff(self.t_axis(reference_time = 'experiment')).mean()
         
     @property
     def dt_frame(self)->float:
@@ -342,7 +342,7 @@ class SiffReader(object):
         frames: Optional[List[int]] = None,
         registration_dict : Optional[dict] = None,
         as_array : bool = True,
-        ) -> Union[List[ImageArray], ImageArray]:
+        ) -> Union[List['ImageArray'], 'ImageArray']:
         
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -377,13 +377,13 @@ class SiffReader(object):
     
     def sum_mask(
         self,
-        mask : BoolMaskArray,
+        mask : 'BoolMaskArray',
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[Union[int,List[int]]] = None,
         color_channel :  int = 1,
         registration_dict : Optional[dict] = None,
-        )->ImageArray:
+        )->'ImageArray':
         """
         Computes the sum photon counts within a numpy mask over timesteps.
         Takes _timepoints_ as arguments, not frames. Returns a 1D array
@@ -464,15 +464,7 @@ class SiffReader(object):
         TODO: Docstring.
         """
             
-        if not masks is None:
-            # TODO
-            raise NotImplementedError("Haven't implemented masks in pool_frames yet")
-        if registration is None:
-            list_of_arrays = self.siffio.pool_frames(framelist, flim=flim) 
-        else:
-            list_of_arrays = self.siffio.pool_frames(framelist, flim=flim, registration= registration)
-        
-        return list_of_arrays
+        raise NotImplementedError("Haven't re-implemented pool_frames yet")
 
 ### FLIM METHODS
     def get_histogram(self, frames: Optional[List[int]] = None) -> np.ndarray:
@@ -499,7 +491,7 @@ class SiffReader(object):
     def histograms(
         self,
         color_channel : Optional['int|list'] = None,
-        frame_endpoints : Tuple[Optional[int],Optional[int]] = (None,None)
+        frame_endpoints : Sequence[Optional[int]] = (None,None)
         ) -> np.ndarray:
         """
         Returns a numpy array with arrival time histograms for all elements of the 
@@ -520,19 +512,29 @@ class SiffReader(object):
         """
         # I'm sure theres a more Pythonic way... I'm ignoring it
         # Accept the tuple, and then mutate it internal
-        if type(frame_endpoints is tuple):
+        if isinstance(frame_endpoints, tuple):
             frame_endpoints = list(frame_endpoints)
         if frame_endpoints[0] is None:
             frame_endpoints[0] = 0
         if frame_endpoints[1] is None:
-            frame_endpoints[1] = int(self.im_params.num_volumes*self.im_params.frames_per_volume/self.im_params.num_colors)
+            frame_endpoints[1] = int(
+                self.im_params.num_volumes
+                *self.im_params.frames_per_volume
+                /self.im_params.num_colors
+            )
         if color_channel is None:
-            color_channel = [c-1 for c in self.im_params.colors]
+            color_channel = self.im_params.colors if isinstance(
+                self.im_params.colors, int
+            ) else [c-1 for c in self.im_params.colors]
         if isinstance(color_channel, int):
             color_channel = [color_channel]
 
         framelists = [self.im_params.framelist_by_color(c) for c in color_channel]
-        true_framelists = [fl[frame_endpoints[0] : frame_endpoints[1]] for fl in framelists]
+        true_framelists = [
+            fl[frame_endpoints[0] : frame_endpoints[1]]
+            for fl in framelists
+        ]
+        
         return np.array([self.get_histogram(frames) for frames in true_framelists])
 
     def get_frames_flim(
@@ -579,7 +581,7 @@ class SiffReader(object):
     def sum_mask_flim(
         self,
         params : FLIMParams,
-        mask : BoolMaskArray,
+        mask : 'BoolMaskArray',
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[Union[int,List[int]]] = None,

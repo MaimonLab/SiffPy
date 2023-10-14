@@ -48,7 +48,7 @@ test:
   #   - pytest tests
 
 about:
-  home: "https://github.com/maimonlab/siffpy"
+  home: https://github.com/maimonlab/siffpy
   summary : {{ project.get('description') }}
   license: GPL3
   license_file: ../LICENSE.md

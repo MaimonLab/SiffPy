@@ -1,9 +1,10 @@
-from typing import List, Dict
+from typing import List, Dict, Union, Any, Optional
 import logging, re
 
 from siffpy.core.utils import ImParams
 
-def vector_to_list(vector, vec_num : int = 0, ret_type=float):
+def vector_to_list(vector, vec_num : int = 0, ret_type : type = float
+    )->Union[List, Any]:
     """
     list = vector_to_list(vector, type=float)
 
@@ -46,7 +47,8 @@ def vector_to_list(vector, vec_num : int = 0, ret_type=float):
     else:
         return [ret_type(element) for element in row_split]
 
-def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> List[List]:
+def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type : type = float
+    ) -> Union[List[List], List, Any]:
     """
     Converts the string representation of a MATLAB matrix into a list of lists
     """
@@ -67,7 +69,7 @@ def matrix_to_listlist(matrix : str, vec_num : int = 0, ret_type = float) -> Lis
         return [[ret_type(element) for element in column.split(" ")] for column in col_split]
     # if it's just a vector, use the vector parser
     else:
-        return vector_to_list(matrix, ret_type)
+        return vector_to_list(matrix, ret_type=ret_type)
     
 def header_data_to_nvfd(hd):
     return {
@@ -76,11 +78,11 @@ def header_data_to_nvfd(hd):
         for entry in hd["Non-varying frame data"].split("\n")
     }
 
-def header_data_to_roi_string(hd : str) -> Dict:
+def header_data_to_roi_string(hd : Dict) -> Dict:
     """ Iterate through the many layers of the ROI strings to return the appropriate dict """
     return eval(hd['ROI string'].replace("null", "None"))
 
-def header_to_imparams(header : str, num_frames : int = None)->ImParams:
+def header_to_imparams(header : Dict, num_frames : Optional[int] = None)->ImParams:
     """
     Returns an object containing the most important image parameters
     """

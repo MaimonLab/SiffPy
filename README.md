@@ -15,6 +15,7 @@ that it takes so long to read a file from the server!! Almost certainly this
 can and should be done by swapping out the `ifstream` framework
 for an `mmap`. I just have to learn how those work.
 -   Read the MultiHarp base resolution from the siff file and convert `FlimUnits` appropriately.
+-   Other lifetime measurements (e.g. amplitude-averaged empirical lifetime)
 -   Add measurements of noise to `FLIMParams` fitting.
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
 -   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`.

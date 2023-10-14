@@ -24,14 +24,19 @@ from siffpy.core.utils.registration_tools.registration_info import (
 SUITE2P_OPS = [
     'batch_size', 'do_bidiphase', 'smooth_sigma',
     'maxregshift', 'smooth_sigma_time', 'norm_frames',
-    'nonrigid', 
+    'nonrigid', 'two_step_registration', 'nimg_init',
 ]
 
 def sct_defaults(suite2p_default_ops : dict)->dict:
     """ TODO: Make this settable! Read from a file?? """
     suite2p_default_ops['do_bidiphase'] = True
     suite2p_default_ops['nonrigid'] = False
-    suite2p_default_ops['maxregshift'] = 0.7
+    suite2p_default_ops['maxregshift'] = 1.0
+    suite2p_default_ops['two_step_registration'] = True
+    suite2p_default_ops['smooth_sigma'] = 2.0
+    suite2p_default_ops['batch_size'] = 2000
+    suite2p_default_ops['two_step_registration'] = True
+    suite2p_default_ops['nimg_init'] = 600
     #suite2p_default_ops['norm_frames'] = F
     return suite2p_default_ops
 
@@ -113,8 +118,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         self.yx_shifts = {}
         ysize, xsize = self.im_params.ysize, self.im_params.xsize
         for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
-            y_offsets = registration[4][0]
-            x_offsets = registration[4][1]
+            y_offsets = registration[4][1]
+            x_offsets = registration[4][0] # I think maybe suite2p is transposed?
             offsets = np.array([y_offsets, x_offsets]).T
             for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
                 self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
@@ -128,8 +133,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         self.registration_color_channel = alignment_color_channel
 
     def align_to_reference(
-            self,
-            image : np.ndarray,
-            z_plane : int
+        self,
+        image : np.ndarray,
+        z_plane : int
         )->Tuple[int,int]:
         raise NotImplementedError()
