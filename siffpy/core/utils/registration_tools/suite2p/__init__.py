@@ -103,8 +103,6 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             for k in range(self.im_params.num_slices)
         ]
 
-        np.save(siffio.filename + "_reg.npy", registered_frames)
-
         self.reference_frames = np.array(
             [reg_ret[0] for reg_ret in reg_rets]
         ).astype(np.float32)/100
