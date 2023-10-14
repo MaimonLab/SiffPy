@@ -35,8 +35,8 @@ def sct_defaults(suite2p_default_ops : dict)->dict:
     suite2p_default_ops['two_step_registration'] = True
     suite2p_default_ops['smooth_sigma'] = 2.0
     suite2p_default_ops['batch_size'] = 2000
-    suite2p_default_ops['two_step_registration'] = True
-    suite2p_default_ops['nimg_init'] = 600
+    suite2p_default_ops['two_step_registration'] = False
+    suite2p_default_ops['nimg_init'] = 300
     #suite2p_default_ops['norm_frames'] = F
     return suite2p_default_ops
 
@@ -81,7 +81,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         """
 
         frames = siffio.get_frames(
-            frames = self.im_params.flatten_by_timepoints()
+            frames = self.im_params.flatten_by_timepoints(),
+            registration = {}, # guarantee the raw frames
         ).astype(np.float32)
 
         registered_frames = np.zeros_like(frames)
@@ -118,8 +119,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         self.yx_shifts = {}
         ysize, xsize = self.im_params.ysize, self.im_params.xsize
         for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
-            y_offsets = registration[4][1]
-            x_offsets = registration[4][0] # I think maybe suite2p is transposed?
+            y_offsets = registration[4][0]
+            x_offsets = registration[4][1]
             offsets = np.array([y_offsets, x_offsets]).T
             for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
                 self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
