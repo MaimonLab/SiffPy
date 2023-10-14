@@ -83,21 +83,18 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         frames = siffio.get_frames(
             frames = self.im_params.flatten_by_timepoints(),
             registration = {}, # guarantee the raw frames
-        ).astype(np.float32)
+        ).astype(np.float32).reshape(-1, *self.im_params.volume)
 
         registered_frames = np.zeros_like(frames)
-
-        nc = self.im_params.num_colors
-
 
         # Each list element is a tuple:
         # reference image, _, _, _, offsets (y, x), _, _
         reg_rets = [ # hee hee
             register.registration_wrapper(
-                registered_frames,
+                registered_frames[: , k, alignment_color_channel, :, :].squeeze(),
                 # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
                 # this keeps the values from being truncated to 0
-                f_raw = 100*frames[k*nc + alignment_color_channel::nc*self.im_params.num_slices],
+                f_raw = 100*frames[:, k, alignment_color_channel, :, :].squeeze(),
                 ops = {
                     **default_ops(),
                     **kwargs,
@@ -106,21 +103,19 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             for k in range(self.im_params.num_slices)
         ]
 
+        np.save(siffio.filename + "_reg.npy", registered_frames)
+
         self.reference_frames = np.array(
             [reg_ret[0] for reg_ret in reg_rets]
         ).astype(np.float32)/100
 
         frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
 
-        # self.yx_shifts = {
-        #     frame_idxs[k] : (reg_ret[4][0], reg_ret[4][1])
-        #     for k, reg_ret in enumerate(reg_rets)
-        # }
         self.yx_shifts = {}
         ysize, xsize = self.im_params.ysize, self.im_params.xsize
         for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
-            y_offsets = registration[4][0]
-            x_offsets = registration[4][1]
+            y_offsets = -registration[4][0]
+            x_offsets = -registration[4][1]
             offsets = np.array([y_offsets, x_offsets]).T
             for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
                 self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
