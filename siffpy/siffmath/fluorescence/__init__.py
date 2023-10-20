@@ -1,7 +1,7 @@
 """
 Dedicated code for data that is purely fluorescence analysis
 """
-from typing import Callable, Union, float
+from typing import Callable, Union
 import numpy as np
 
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector
