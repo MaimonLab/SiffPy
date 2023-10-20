@@ -119,7 +119,7 @@ class FlimTrace(np.ndarray):
         might write becomes very slow because it makes
         copy after copy after copy...
         """
-        return self.__array__()
+        return self[...]
 
     @property
     def fluorescence(self)->FluorescenceTrace:
@@ -368,3 +368,11 @@ class FlimTrace(np.ndarray):
             units = _FLIMParams.units if units is None else FlimUnits(units),
             info_string = info_string
         )
+    
+    def to_alpha(self, threshold : int, scale : float)->np.ndarray:
+        """
+        Returns an array that can be used an as alpha channel for
+        imshow (i.e. 0 to 1 scaled by intensity of the array). Operation
+        is (intensity - threshold) * scale, clipped to 0 and 1.
+        """
+        return np.clip(scale*(self.intensity - threshold), 0, 1)

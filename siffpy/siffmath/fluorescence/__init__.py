@@ -1,7 +1,7 @@
 """
 Dedicated code for data that is purely fluorescence analysis
 """
-
+from typing import Callable, Union, float
 import numpy as np
 
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector
@@ -15,7 +15,7 @@ def dFoF(
         fluorescence : np.ndarray,
         *args,
         normalized : bool = False,
-        Fo = fifth_percentile,
+        Fo : Union[np.ndarray, float, Callable] = fifth_percentile,
         **kwargs
     )->FluorescenceTrace:
     """

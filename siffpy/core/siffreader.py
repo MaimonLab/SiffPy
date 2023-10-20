@@ -137,7 +137,8 @@ class SiffReader(object):
         self.siffio.close()
         self.opened = False
         self.filename = ''
-        delattr(self, 'im_params')
+        if hasattr(self, 'im_params'):
+            delattr(self, 'im_params')
 
 ### TIME AXIS METHODS
     def t_axis(
@@ -311,14 +312,26 @@ class SiffReader(object):
 
     @property
     def dt_volume(self)->float:
-        """ Returns the average time between volumes in seconds """
+        """
+        Returns the average time between volumes in seconds. Only as
+        accurate as ScanImage -- does not use timestamps if the ScanImage
+        RoiManager metadata is available.
+        """
         if hasattr(self.im_params, 'RoiManager'):
             return 1.0/self.im_params.RoiManager.scanVolumeRate
         return np.diff(self.t_axis(reference_time = 'experiment')).mean()
         
     @property
     def dt_frame(self)->float:
-        """ Returns the average time between frames in seconds """
+        """
+        Returns the average time between frames in seconds.
+        Only as accurate as ScanImage -- does not use timestamps
+        if the ScanImage RoiManager metadata is available.
+
+        Might take a long time... suboptimally implemented since it
+        reads the frame metadata for every frame, then parses out the
+        timestamps...
+        """
         if hasattr(self.im_params, 'RoiManager'):
             return self.im_params.RoiManager.scanFramePeriod
         return np.diff(self.get_time(reference = 'experiment')).mean()
@@ -333,7 +346,10 @@ class SiffReader(object):
 
     def epoch_to_frame_time(self, epoch_time : int) -> float:
         """ Converts epoch time to frame time for this experiment (returned in seconds) """
-        return timetools.epoch_to_frame_time(epoch_time, self.get_frames_metadata(frames = [0])[0])
+        return timetools.epoch_to_frame_time(
+            epoch_time,
+            self.get_frames_metadata(frames = [0])[0]
+        )
         
 
 ### IMAGE INTENSITY METHODS
@@ -554,7 +570,11 @@ class SiffReader(object):
         if frames is None:
             frames = list(range(self.im_params.num_frames))
 
-        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = self.registration_dict if (
+                registration_dict is None
+                and hasattr(self, 'registration_dict') 
+            ) else registration_dict
+        
         if registration_dict is None:
             flim_arrays = self.siffio.flim_map(
                 params,
@@ -690,7 +710,7 @@ class SiffReader(object):
         save_path : Optional[PathLike] = None, 
         alignment_color_channel : int = 0,
         **kwargs
-        ) -> dict:
+        ) -> Dict:
         """
         Performs image registration dependent on the registration method
         called 
@@ -738,7 +758,7 @@ class SiffReader(object):
         return self.registration_dict
     
     @property
-    def registration_dict(self) -> Optional[dict]:
+    def registration_dict(self) -> Optional[Dict]:
         if hasattr(self, 'registration_info'):
             return self.registration_info.yx_shifts
         return None
