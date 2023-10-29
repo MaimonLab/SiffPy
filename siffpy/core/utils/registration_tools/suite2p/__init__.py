@@ -34,7 +34,7 @@ def sct_defaults(suite2p_default_ops : dict)->dict:
     suite2p_default_ops['maxregshift'] = 1.0
     suite2p_default_ops['two_step_registration'] = True
     suite2p_default_ops['smooth_sigma'] = 2.0
-    suite2p_default_ops['batch_size'] = 2000
+    suite2p_default_ops['batch_size'] = 300
     suite2p_default_ops['two_step_registration'] = False
     suite2p_default_ops['nimg_init'] = 300
     #suite2p_default_ops['norm_frames'] = F
