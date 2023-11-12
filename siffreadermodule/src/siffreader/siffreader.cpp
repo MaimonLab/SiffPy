@@ -13,12 +13,13 @@
 //
 // BIG TIME TODO: MAKE THIS CROSS-ENDIAN COMPATIBLE.
 
-SiffReader::SiffReader(){
-    suppress_errors = false; 
-    suppress_warnings = false;
-    debug = false;
-    
-    _numFrames = -1;
+SiffReader::SiffReader() : 
+        suppress_errors(false),
+        suppress_warnings(false),
+        debug(false),
+        _numFrames(-1)
+    {
+        
     DEBUG(
         debug_clock = std::chrono::high_resolution_clock();
         tick = debug_clock.now();

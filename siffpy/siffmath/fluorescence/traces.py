@@ -98,7 +98,7 @@ class FluorescenceTrace(np.ndarray):
         When you use ufuncs on FluorescenceTraces,
         their vectorlike properties should behave accordingly
         """
-        
+
         np_args = [] # args as numpy arrays for the ufunc call
         ftraces = [] # args that are FluorescenceTraces
         for input_ in inputs:
@@ -111,7 +111,7 @@ class FluorescenceTrace(np.ndarray):
         outputs = out
         if outputs:
             out_args = []
-            for j, output in enumerate(outputs):
+            for output in outputs:
                 if isinstance(output, FluorescenceTrace):
                     out_args.append(output.view(np.ndarray))
                 else:
@@ -134,7 +134,7 @@ class FluorescenceTrace(np.ndarray):
                 else:
                     prop_args.append(input_)
             try:
-                prop_results[prop] = super().__array_ufunc__(ufunc, method, *prop_args, **kwargs)
+                prop_results[prop] = np.ndarray.__array_ufunc__(ufunc, method, *prop_args, **kwargs)
             except:
                 continue
 
@@ -158,7 +158,6 @@ class FluorescenceTrace(np.ndarray):
 
         if ufunc.nout == 1:
             results = np.asarray(results).view(FluorescenceTrace)
-            
             for key, val in prop_results.items():
                 if not (val is NotImplemented):
                     setattr(results, key, np.asarray(val))
@@ -169,7 +168,6 @@ class FluorescenceTrace(np.ndarray):
             results = (results,)
         
         else:
-
             results = tuple(
                 (np.asarray(result).view(FluorescenceTrace) if output is None else output)
                 for result, output in zip(results, outputs)

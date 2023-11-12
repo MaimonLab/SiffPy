@@ -27,7 +27,7 @@ SUITE2P_OPS = [
     'nonrigid', 'two_step_registration', 'nimg_init',
 ]
 
-def sct_defaults(suite2p_default_ops : dict)->dict:
+def sct_defaults(suite2p_default_ops : Dict)->Dict:
     """ TODO: Make this settable! Read from a file?? """
     suite2p_default_ops['do_bidiphase'] = True
     suite2p_default_ops['nonrigid'] = False
