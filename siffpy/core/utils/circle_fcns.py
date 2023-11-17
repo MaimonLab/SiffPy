@@ -61,7 +61,12 @@ def circ_unwrap(arr: np.ndarray, offset : float = 0.0)->np.ndarray:
     """
     return np.insert(np.cumsum(circ_diff(arr)),0,offset)
 
-def circ_corr(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
+def circ_corr(
+        x : np.ndarray,
+        y : np.ndarray,
+        axis : int = 0,
+        method : str = 'Fisher'
+    )->float:
     """
     Warning: recommend putting your angles in the complex plane
     FIRST and using circ_corr_complex, because putting your time series
@@ -111,13 +116,24 @@ def circ_corr(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
+
+    method : str = "Fisher"
+
+        The method to use to compute the correlation. Options are "Fisher" and
+        "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
+        Defaults to "Fisher".
     """
     expd_1 = np.exp(1j*x)
     expd_2 = np.exp(1j*y)
 
-    return circ_corr_complex(expd_1, expd_2, axis=axis)
+    return circ_corr_complex(expd_1, expd_2, axis=axis, method = method)
 
-def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
+def circ_corr_complex(
+        x : np.ndarray,
+        y : np.ndarray,
+        axis : int = 0,
+        method : str = "Fisher"
+    )->float:
     """
     Presumes x and y are already complex numbers on the unit circle!
     This one is even faster because it skips the exp step. Recommended
@@ -163,6 +179,126 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
+
+    method : str = "Fisher"
+
+        The method to use to compute the correlation. Options are "Fisher" and
+        "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
+        Defaults to "Fisher".
+    """
+    if method == "Fisher":
+        return circ_corr_complex_fisher(x,y,axis)
+    elif method in ["Jammalamadaka", "Pearson-sine"]:
+        return circ_corr_complex_jl(x,y,axis)
+    
+    raise ValueError(
+        "Invalid method passed to circ_corr_complex. Must be"
+        "either 'Fisher' or 'Jammalamadaka'"
+        )
+    
+def circ_corr_complex_jl(
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        axis : int = 0,
+    )->float:
+    """
+    Presumes x and y are already complex numbers on the unit circle!
+    This one is even faster because it skips the exp step. Recommended
+    if you're going to run the function many times that you put it in
+    the complex plane first and then execute this.
+
+    Compute circular correlation a la Jammalamadaka et al (2001)
+
+    rho = Sum( sin(x - E[x]) * sin(y - E[y])) /
+    sqrt( Sum(sin(x - E[x])**2) * Sum(sin(y - E[y])**2) )
+
+    This measure reflects the difference between an estimated positive exact relationship
+    between x and y vs. an estimated negative relationship. Each term is the expected magnitude of
+    a resultant vector made from either x - y (a constant if there's a positive relationship
+    between the two) or x + y (a constant if there's a negative relationship between the two.)
+    The expected magnitude of the constant vector is 1, and so if rho is approximately 0 if the
+    two have no relationship, 1 if the two have a constant positive relationship, and -1 if
+    the two have a constant negative offset
+
+    TODO: figure out good bounds
+    on the error.
+
+    Implemented with complex numbers instead of cos and sine as in the original
+    paper because it runs faster and is far more elegant.
+
+    ARGUMENTS
+    ---------
+
+    x : np.ndarray
+
+        One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
+
+    y : np.ndarray
+
+        The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
+
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+
+    """
+    x_zeroed, y_zeroed = x/np.mean(x, axis=axis), y/np.mean(y, axis=axis)
+    return np.sum(x_zeroed.imag * y_zeroed.imag, axis=axis) / np.sqrt(
+        np.sum(x_zeroed.imag**2, axis=axis) * np.sum(y_zeroed.imag**2, axis=axis)
+    )
+
+def circ_corr_complex_fisher(
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        axis : int = 0,
+    )->float:
+    """
+    Presumes x and y are already complex numbers on the unit circle!
+    This one is even faster because it skips the exp step. Recommended
+    if you're going to run the function many times that you put it in
+    the complex plane first and then execute this.
+
+    Compute circular correlation a la Green, Adachi, Maimon 2017,
+    itself borrowing a circular correlation toolkit from 
+    Jessica B. Hamrick and Peter W. Battaglia, who in turn
+    built their function after the MATLAB circ functions,
+    themselves deriving this function from Fisher et al. 1983.
+
+    rho = 2*( (E[cos(x-y)]**2 + E[sin(x-y)]**2) - (E[cos(x+y)]**2 + E[sin(x+y)]**2) ) / Z
+
+    Z is the normalization constant
+
+    This measure reflects the difference between an estimated positive exact relationship
+    between x and y vs. an estimated negative relationship. Each term is the expected magnitude of
+    a resultant vector made from either x - y (a constant if there's a positive relationship
+    between the two) or x + y (a constant if there's a negative relationship between the two.)
+    The expected magnitude of the constant vector is 1, and so if rho is approximately 0 if the
+    two have no relationship, 1 if the two have a constant positive relationship, and -1 if
+    the two have a constant negative offset
+
+    TODO: figure out good bounds
+    on the error.
+
+    Implemented with complex numbers instead of cos and sine as in the original
+    paper because it runs faster and is far more elegant.
+
+    ARGUMENTS
+    ---------
+
+    x : np.ndarray
+
+        One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
+
+    y : np.ndarray
+
+        The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
+
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+
     """
     
     plus = x*y
@@ -193,6 +329,99 @@ def circ_corr_complex(x : np.ndarray, y : np.ndarray, axis : int = 0)->float:
     return np.real(numerator/denominator)
 
 def running_circ_corr_complex(
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        window_width : int,
+        axis : int = 0,
+        method : str = "Fisher"
+        )->np.ndarray:
+    """
+    Takes two arrays of complex numbers and computes the circular correlation
+    between them in a sliding window fashion. The returned array is window_width elements
+    shorter than the input array. The correlation is _centered_, meaning it will start on
+    the window_width//2-th element and end on the len - window_width//2-th element.
+
+    Arguments
+    ---------
+    x : np.ndarray
+
+    y: np.ndarray
+
+    window_width : int
+
+        The width of the sliding window in numbers of entries
+    
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+
+    method : str = "Fisher"
+
+        The method to use to compute the correlation. Options are "Fisher" and
+        "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
+        Defaults to "Fisher".
+    
+    Returns
+    -------
+    circ_corrs : np.ndarray
+    """ 
+
+    if method in ("Fisher", 'fisher'):
+        return running_circ_corr_complex_fisher(x,y,window_width,axis)
+    elif method in ("jammalamadaka", "Jammalamadaka", "Pearson-sine"):
+        return running_circ_corr_complex_jl(x,y,window_width,axis)
+    
+    raise ValueError(
+        "Invalid method passed to running_circ_corr_complex. Must be"
+        "either 'Fisher' or 'Jammalamadaka'"
+        )
+
+def running_circ_corr_complex_jl(
+        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        window_width : int,
+        axis : int = 0,
+        )->'np.ndarray[Any, np.dtype[np.float64]]':
+    """
+    Takes two arrays of complex numbers and computes the circular correlation
+    between them in a sliding window fashion. The returned array is window_width elements
+    shorter than the input array. The correlation is _centered_, meaning it will start on
+    the window_width//2-th element and end on the len - window_width//2-th element.
+
+    Arguments
+    ---------
+    x : np.ndarray
+
+    y: np.ndarray
+
+    window_width : int
+
+        The width of the sliding window in numbers of entries
+    
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+    
+    Returns
+    -------
+    circ_corrs : np.ndarray
+    """
+    x_zeroed, y_zeroed = x/np.mean(x, axis=axis), y/np.mean(y, axis=axis)
+    
+    numerator = np.cumsum(x_zeroed.imag * y_zeroed.imag, axis=axis)
+    x_sq, y_sq = np.cumsum(x_zeroed.imag**2, axis=axis), np.cumsum(y_zeroed.imag**2, axis=axis)
+
+    return (
+        (numerator[window_width:] - numerator[:-window_width])
+        / np.sqrt(
+            (x_sq[window_width:] - x_sq[:-window_width]) *
+            (y_sq[window_width:] - y_sq[:-window_width])
+        )
+    )
+
+def running_circ_corr_complex_fisher(
         x : 'np.ndarray[Any, np.dtype[np.complex128]]',
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,

@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import add
-import re
+import re, warnings
 
 from siffpy.core.utils.im_params.from_matlab import *
 
@@ -102,18 +102,16 @@ class SIROI():
     def __init__(self, roi_dict : dict):
         for key, val in roi_dict.items():
             if key == 'scanfields':
-                if not isinstance(val, dict):
-                    raise NotImplementedError(
-                        """
-                        Scanfields is not simply a dictionary,
-                        meaning that you're probably using
-                        mROI functionality. Yay! Send
-                        the code to Stephen so he can
-                        implement it.
-                        """
-                    )
-                self.scanfields = Scanfield(val)
-            else:
+                if isinstance(val, dict):
+                    
+                    self.scanfields = [Scanfield(val)]
+
+                elif isinstance(val, list):
+                    self.scanfields = [
+                        Scanfield(field)
+                        for field in val
+                    ]
+
                 setattr(self, key, _unsafe_eval(val))
 
     def __repr__(self):
