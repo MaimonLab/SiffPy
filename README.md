@@ -10,15 +10,12 @@ custom modified ScanImage (currently reachable as a bunch of distributed repos b
 code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
--   Speed up file reading!!!!!! This is a big one!!!! Super annoying
-that it takes so long to read a file from the server!! Almost certainly this
-can and should be done by swapping out the `ifstream` framework
-for an `mmap`. I just have to learn how those work.
 -   Read the MultiHarp base resolution from the siff file and convert `FlimUnits` appropriately.
+-   IEM for lifetime estimates as an option (seems like it will always be slow though??)
 -   Other lifetime measurements (e.g. amplitude-averaged empirical lifetime)
 -   Add measurements of noise to `FLIMParams` fitting.
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
--   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`.
+-   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`?
 -   Add support for multi-ROI imaging.
 -   Use cumulative bin occupancy not point estimates in chi-sq
 -   Example code (for every module and to go through a simple analysis pipeline)
@@ -30,6 +27,7 @@ for an `mmap`. I just have to learn how those work.
 In some cases, if you're on the Rockefeller University network, and if you prefer to
 manage with `conda`, and if the latest version has been compiled and packaged, you
 can install with `conda` using a custom channel. You can install it with
+
 ```
 conda install siffpy -c <path_to_maimondata01>/maimondata01/lab_resources/maimon-forge
 ```

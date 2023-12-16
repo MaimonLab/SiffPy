@@ -119,7 +119,7 @@ class SiffReader
         
         DEBUG(
             // file for debug logging.
-            std::ofstream logstream;
+            mutable std::ofstream logstream;
             // Clock for measuring time to execute functions
             std::chrono::high_resolution_clock debug_clock;
         )

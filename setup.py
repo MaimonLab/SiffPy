@@ -12,10 +12,12 @@ extra_compile_args = None
 library_dirs = None
 libraries = None
 
+
+# CHANGE THIS TO TRUE FOR DEBUG MODE
 DEBUG = False
 
 if DEBUG:
-   define_macros = [('__DEBUG', None)]
+   define_macros = [('__DEBUG', 1)]
 
 if platform.system() == 'Windows':
    extra_compile_args = ["/std:c++17"]
@@ -43,6 +45,33 @@ if not (
       any platform with a C++11 compiler 
       """
    )
+
+# Undoing this one for now.... seems like options in pip are being deprecated
+# from setuptools.command.install import install
+
+# class InstallCommandWithDebug(install):             
+#    """ Provides the '--config-settings=debug' option to setup.py install """
+#    user_options = install.user_options + [
+#       ('debug', None, 'Installs in debug mode (logs operations)'),
+#    ]                                      
+
+#    def initialize_options(self):          
+#       self.debug = None
+#       super().initialize_options()   
+
+#    def finalize_options(self):
+#       if self.debug:
+#          self.debug = True
+#          assert False
+#       else:
+#          self.debug = False
+#       super().finalize_options()            
+
+#    def run(self):
+#       global DEBUG
+#       DEBUG = self.debug
+#       print("DEBUG MODE: ", DEBUG)                                
+#       super().run()  
 
 siffmodule = Extension(
    name='siffreadermodule',
@@ -74,6 +103,9 @@ try:
    setup (
       packages = ['siffpy'],
       ext_modules = [siffmodule],
+      # cmdclass={
+      #    'install': InstallCommandWithDebug,
+      # }
    )
 except Exception:
    if (
@@ -95,4 +127,7 @@ except Exception:
       setup (
          packages = ['siffpy'],
          ext_modules = [siffmodule],
+         # cmdclass={
+         #    'install': InstallCommandWithDebug,
+         # }
       )

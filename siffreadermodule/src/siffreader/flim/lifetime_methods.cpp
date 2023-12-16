@@ -262,6 +262,20 @@ PyObject* SiffReader::flimTuple(
 /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////
 
+
+// TODO: IEM estimates of lifetime!
+double_t sumMaskFLIMCompressedIEM(
+    const FrameData& frameData,
+    std::ifstream &siff,
+    const double_t& offset,
+    const bool* mask_data_ptr,
+    const npy_intp* mask_dims,
+    PyObject* shift_tuple
+    ){
+    return 0.0;
+ }
+
+
 double_t sumMaskFLIMCompressed(
     const FrameData& frameData, 
     std::ifstream &siff,
@@ -274,8 +288,13 @@ double_t sumMaskFLIMCompressed(
     double_t summed_arrivals = 0;
     
     // figure out the rigid deformation for registration
-    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
-    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(
+        PyTuple_GetItem(shift_tuple, Py_ssize_t(0))
+    );
+
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(
+        PyTuple_GetItem(shift_tuple, Py_ssize_t(1))
+    );
     
     
     uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
@@ -332,8 +351,13 @@ double_t sumMaskFLIMRaw(
     double_t summed_bins = 0;
 
     // figure out the rigid deformation for registration
-    uint64_t y_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(0)));
-    uint64_t x_shift = PyLong_AsUnsignedLongLong(PyTuple_GetItem(shift_tuple, Py_ssize_t(1)));
+    uint64_t y_shift = PyLong_AsUnsignedLongLong(
+        PyTuple_GetItem(shift_tuple, Py_ssize_t(0))
+    );
+    
+    uint64_t x_shift = PyLong_AsUnsignedLongLong(
+        PyTuple_GetItem(shift_tuple, Py_ssize_t(1))
+    );
 
     uint64_t* frameReads = new uint64_t[samplesThisFrame];
     siff.read((char*)frameReads,frameData.stripByteCounts);
