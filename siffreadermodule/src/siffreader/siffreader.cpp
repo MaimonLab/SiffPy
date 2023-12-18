@@ -424,7 +424,7 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
     )
 
     DEBUG(
-        logstream << "Frame metadata for frame at " << thisIFD;
+        logstream << "Frame metadata for frame at " << thisIFD << std::flush;
     )
 
     if (!(siff.good() || suppress_errors)) throw std::runtime_error("Failure to discern description string");
@@ -443,7 +443,7 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
     delete[] metaString;
 
     DEBUG(
-        logstream << "...Assigning to dict ";
+        logstream << " ...Assigning to dict " << std::flush;
     )
 
     PyObject* frameDict = frameDataToDict(frameData);
