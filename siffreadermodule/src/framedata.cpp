@@ -27,6 +27,36 @@ PyObject* frameDataToDict(FrameData& frameData){
     return dataDict;
 };
 
+PyObject* frameDataToDict(FrameData& frameData, std::ofstream& logstream){
+    PyObject* dataDict = PyDict_New();
+    logstream << "new dict" << std::endl;
+
+    PyDict_SetItemString(dataDict, "Width", Py_BuildValue("K", frameData.imageWidth));
+
+    logstream << "width: " << frameData.imageWidth << std::endl;
+    PyDict_SetItemString(dataDict, "Length", Py_BuildValue("K", frameData.imageLength));
+    logstream << "length: " << frameData.imageLength << std::endl;
+    PyDict_SetItemString(dataDict, "endOfIFD", Py_BuildValue("K", frameData.endOfIFD));
+    logstream << "endOfIFD: " << frameData.endOfIFD << std::endl;
+    PyDict_SetItemString(dataDict, "dataStripAddress",Py_BuildValue("K", frameData.dataStripAddress));
+    logstream << "dataStripAddress: " << frameData.dataStripAddress << std::endl;
+    PyDict_SetItemString(dataDict, "stringLength", Py_BuildValue("K", frameData.stringlength));
+    logstream << "stringLength: " << frameData.stringlength << std::endl;
+    PyDict_SetItemString(dataDict, "X Resolution", Py_BuildValue("K", frameData.xResolution));
+    logstream << "xResolution: " << frameData.xResolution << std::endl;
+    PyDict_SetItemString(dataDict, "YResolution", Py_BuildValue("K", frameData.yResolution));
+    logstream << "yResolution: " << frameData.yResolution << std::endl;
+    PyDict_SetItemString(dataDict, "Bytecount", Py_BuildValue("K", frameData.stripByteCounts));
+    logstream << "stripByteCounts: " << frameData.stripByteCounts << std::endl;
+    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
+    logstream << "frameMetaData: " << frameData.frameMetaData << std::endl;
+    //PyDict_SetItemString(dataDict, "Tag bytes", Py_BuildValue("O",frameData.tagList));
+    PyDict_SetItemString(dataDict, "Siff compression", Py_BuildValue("O",frameData.siffCompress ? Py_True : Py_False));
+    logstream << "siffCompress: " << frameData.siffCompress << std::endl;
+
+    return dataDict;    
+}
+
 // const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff){
 //     // return a FrameData structure that has parsed all the tag information at location:
 //     // IFD

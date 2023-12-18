@@ -446,12 +446,12 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
         logstream << " ...Assigning to dict " << std::flush;
     )
 
-    PyObject* frameDict = frameDataToDict(frameData);
+    PyObject* frameDict = frameDataToDict(frameData DEBUG(,logstream));
 
     DEBUG(
         logstream << "...Assigned to dict" << std::flush;
     )
-    
+
     PyList_Append(metaDictList, frameDict); // append adds a reference
 
     DEBUG(

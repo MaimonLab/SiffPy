@@ -101,6 +101,8 @@ All keys are `str`
 */
 PyObject* frameDataToDict(FrameData& frameData);
 
+PyObject* frameDataToDict(FrameData& frameData, std::ofstream& logstream);
+
 template <class T>
 PyObject* VectorToList(std::vector<T> vec) {
     PyObject* list = PyList_New(vec.size());
