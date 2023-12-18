@@ -309,10 +309,10 @@ PyObject* SiffReader::readMetaData(
     const uint64_t framesN
     ) const {
     // get metadata enumerated in frames
-    // DEBUG(
-    //     tick = debug_clock.now();
-    //     logstream << "Starting readMetaData" << std::endl;
-    // )
+    DEBUG(
+        tick = debug_clock.now();
+        logstream << "Starting readMetaData" << std::endl;
+    )
 
     PyObject* metaDictList = PyList_New(Py_ssize_t(0));
     try{
@@ -320,9 +320,9 @@ PyObject* SiffReader::readMetaData(
         siff.clear();
         // create the list into which we shall stuff the numpy arrays
         for(uint64_t i = 0; i < framesN; i++){
-            // DEBUG(
-            //     logstream << "Reading metadata from frame " << std::to_string(i) << std::endl;
-            // )
+            DEBUG(
+                logstream << "Reading metadata from frame " << std::to_string(i) << std::endl;
+            )
             singleFrameMetaData(params.allIFDs[frames[i]], metaDictList);
         }
         return metaDictList;

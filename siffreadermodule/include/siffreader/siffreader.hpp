@@ -131,8 +131,8 @@ class SiffReader
 
         // used when debugging
         DEBUG(
-            std::chrono::high_resolution_clock::time_point tick;
-            std::chrono::high_resolution_clock::time_point tock;
+            mutable std::chrono::high_resolution_clock::time_point tick;
+            mutable std::chrono::high_resolution_clock::time_point tock;
         )
 
         // a setting to suppress potentially kernel-killing errors thrown by checks
