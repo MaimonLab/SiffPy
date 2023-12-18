@@ -402,7 +402,14 @@ DEBUG(
 void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDictList) const {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
-    // siff.clear();
+
+    // is this the problem??    
+    siff.clear();
+
+    DEBUG(
+        logstream << "Reading tag data from frame at " << thisIFD << std::endl;
+    )
+
     FrameData frameData = getTagData(
         thisIFD,
         params,
