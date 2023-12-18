@@ -430,6 +430,10 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
     )
 
     DEBUG(
+        logstream << "Here's another thing that doesn't need the thisIFD";
+    )
+
+    DEBUG(
         logstream << "Frame metadata for frame at " << thisIFD;
     )
 
