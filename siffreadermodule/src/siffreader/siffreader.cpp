@@ -410,11 +410,24 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
         logstream << "Reading tag data from frame at " << thisIFD << std::endl;
     )
 
+    DEBUG(
+        FrameData frameData = getTagDataDebug(
+            thisIFD,
+            params,
+            siff,
+            logstream
+        );
+    )
+
+    DEBUG_IGNORE(
+
     FrameData frameData = getTagData(
         thisIFD,
         params,
-        siff
+        siff,
     );
+
+    )
 
     DEBUG(
         logstream << "Frame metadata for frame at " << thisIFD;
