@@ -18,7 +18,7 @@ libraries = None
 
 # CHANGE THIS TO TRUE FOR DEBUG MODE
 # TODO: debug as a command line option
-DEBUG = True
+DEBUG = False
 
 # Undoing this one for now.... seems like options in pip are being deprecated
 

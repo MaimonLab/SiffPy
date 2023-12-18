@@ -12,7 +12,6 @@ code being in `PicoQuantScanImageTools`).
 ### TODOS:
 -   Read the MultiHarp base resolution from the siff file and convert `FlimUnits` appropriately.
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
--   More sophisticated debug log.
 -   Add measurements of noise to `FLIMParams` fitting.
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
 -   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`?
