@@ -48,9 +48,8 @@ PyObject* frameDataToDict(FrameData& frameData, std::ofstream& logstream){
     logstream << "yResolution: " << frameData.yResolution << std::endl;
     PyDict_SetItemString(dataDict, "Bytecount", Py_BuildValue("K", frameData.stripByteCounts));
     logstream << "stripByteCounts: " << frameData.stripByteCounts << std::endl;
-    logstream << "frameMetaData: " << frameData.frameMetaData << std::endl;
-    logstream << "stringlength: " << frameData.stringlength << std::endl;
-    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
+    //PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s#", frameData.frameMetaData.c_str(), frameData.stringlength));
+    PyDict_SetItemString(dataDict, "Frame metadata", Py_BuildValue("s", frameData.frameMetaData.c_str()));
     logstream << "frameMetaData BUILT: " << frameData.frameMetaData << std::endl;
     //PyDict_SetItemString(dataDict, "Tag bytes", Py_BuildValue("O",frameData.tagList));
     PyDict_SetItemString(dataDict, "Siff compression", Py_BuildValue("O",frameData.siffCompress ? Py_True : Py_False));
