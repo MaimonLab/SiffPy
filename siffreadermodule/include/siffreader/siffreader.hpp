@@ -598,6 +598,7 @@ class SiffReader
         DEBUG(
             // Returns the latest debug tick-tock
             std::string printLastTickTock();
+            void toDebugLog(const std::string& message) const;
         )
 };
 

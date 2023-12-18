@@ -7,6 +7,9 @@ except ImportError as error:
 
 import platform, sys
 
+from setuptools.command.install import install
+from setuptools.command.install import clean
+
 define_macros = None
 extra_compile_args = None
 library_dirs = None
@@ -14,14 +17,47 @@ libraries = None
 
 
 # CHANGE THIS TO TRUE FOR DEBUG MODE
+# TODO: debug as a command line option
 DEBUG = False
+
+# Undoing this one for now.... seems like options in pip are being deprecated
+
+class CleanInstallCommand(install):             
+   """ Provides the '--config-settings=debug' option to setup.py install """
+   user_options = install.user_options + [
+      ('debug', None, 'Installs in debug mode (logs operations)'),
+   ]                                      
+
+   def initialize_options(self):          
+      self.debug = None
+      super().initialize_options()   
+
+   def finalize_options(self):
+      if self.debug:
+         self.debug = True
+         assert False
+      else:
+         self.debug = False
+      super().finalize_options()            
+
+   def run(self):
+      global DEBUG
+      DEBUG = self.debug
+      print("DEBUG MODE: ", DEBUG) 
+      super().run()  
+      c = clean(self.distribution)
+      c.all = True
+      c.finalize_options()
+      c.run()     
+
+installclass = install
+installclass = CleanInstallCommand
 
 if DEBUG:
    define_macros = [('__DEBUG', 1)]
 
 if platform.system() == 'Windows':
    extra_compile_args = ["/std:c++17"]
-   #library_dirs = [sys.exec_prefix] + sys.path
 else:
    extra_compile_args = [
       "-std=c++11",
@@ -45,33 +81,6 @@ if not (
       any platform with a C++11 compiler 
       """
    )
-
-# Undoing this one for now.... seems like options in pip are being deprecated
-# from setuptools.command.install import install
-
-# class InstallCommandWithDebug(install):             
-#    """ Provides the '--config-settings=debug' option to setup.py install """
-#    user_options = install.user_options + [
-#       ('debug', None, 'Installs in debug mode (logs operations)'),
-#    ]                                      
-
-#    def initialize_options(self):          
-#       self.debug = None
-#       super().initialize_options()   
-
-#    def finalize_options(self):
-#       if self.debug:
-#          self.debug = True
-#          assert False
-#       else:
-#          self.debug = False
-#       super().finalize_options()            
-
-#    def run(self):
-#       global DEBUG
-#       DEBUG = self.debug
-#       print("DEBUG MODE: ", DEBUG)                                
-#       super().run()  
 
 siffmodule = Extension(
    name='siffreadermodule',
@@ -99,14 +108,20 @@ siffmodule = Extension(
    #use_scm_version=True,
 )
 
+# defined once here so that when it gets called
+# multiple times I don't have to remember to re-write
+# and update bits
+
+setupcall = lambda: setup (
+   packages = ['siffpy'],
+   ext_modules = [siffmodule],
+   cmdclass={
+      'install': installclass,
+   }
+)
+
 try:
-   setup (
-      packages = ['siffpy'],
-      ext_modules = [siffmodule],
-      # cmdclass={
-      #    'install': InstallCommandWithDebug,
-      # }
-   )
+   setupcall()
 except Exception:
    if (
       (platform.system() == 'Darwin') and
@@ -124,10 +139,4 @@ except Exception:
       )
 
       siffmodule.extra_compile_args.append("-stdlib=libc++")
-      setup (
-         packages = ['siffpy'],
-         ext_modules = [siffmodule],
-         # cmdclass={
-         #    'install': InstallCommandWithDebug,
-         # }
-      )
+      setupcall()

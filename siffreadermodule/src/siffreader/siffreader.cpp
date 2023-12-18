@@ -389,6 +389,10 @@ DEBUG(
         ) + " microseconds";
         return outstring;
     }
+
+    void SiffReader::toDebugLog(const std::string& message) const {
+        logstream << message << std::endl;
+    }
 )
 
 //////////////////////////////////

@@ -618,6 +618,7 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
 
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
+    DEBUG(self->siffreader->toDebugLog("About to check framelist");)
     if(
         check_framelist(
             frames_list, framesArray, framesN, self->siffreader->numFrames()
@@ -628,7 +629,7 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
         return NULL;
     }
     try{
-
+        DEBUG(self->siffreader->toDebugLog("calling readMetaData");)
         PyObject* metadata = self->siffreader->readMetaData(framesArray, framesN);
         delete[] framesArray;
         return metadata;
