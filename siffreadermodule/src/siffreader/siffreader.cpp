@@ -199,7 +199,7 @@ void SiffReader::discernFrames() {
         currIFD = nextIFD;
 
         params.allIFDs.push_back(currIFD);
-        frameDatas.push_back(getTagData(currIFD, params, siff DEBUG(,logstream)));
+        frameDatas.push_back(getTagData(currIFD, params, siff));
 
         siff.seekg(currIFD, std::ios::beg); // go back to the beginning of the IFD
         siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.

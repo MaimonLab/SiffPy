@@ -51,7 +51,9 @@ Reads the header data for a given frame from the input file.
 
 @return A `FrameData` struct containing the header data for the given frame.
 */
-const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff DEBUG(, std::ofstream& logstream));
+const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff);
+
+const FrameData getTagData(const uint64_t IFD, const SiffParams& params, std::ifstream& siff, std::ofstream& logstream);
 
 
 /*
