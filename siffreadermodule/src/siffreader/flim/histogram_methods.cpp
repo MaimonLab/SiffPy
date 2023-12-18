@@ -82,7 +82,7 @@ PyArrayObject* SiffReader::getHistogram(const uint64_t frames[], const uint64_t 
 
 void SiffReader::singleFrameHistogram(const uint64_t& thisIFD, PyArrayObject* numpyArray) const {
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
-    const FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff DEBUG(, logstream));
 
     uint64_t* data_ptr = (uint64_t *) PyArray_DATA(numpyArray);
     uint16_t taudim = PyArray_DIM(numpyArray, 0);

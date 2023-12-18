@@ -199,7 +199,7 @@ void SiffReader::discernFrames() {
         currIFD = nextIFD;
 
         params.allIFDs.push_back(currIFD);
-        frameDatas.push_back(getTagData(currIFD, params, siff));
+        frameDatas.push_back(getTagData(currIFD, params, siff DEBUG(,logstream)));
 
         siff.seekg(currIFD, std::ios::beg); // go back to the beginning of the IFD
         siff.read((char*)&numTags, params.bytesPerNumTags); // this style should avoid hairiness of bigtiff vs tiff spec.
@@ -410,24 +410,14 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
         logstream << "Reading tag data from frame at " << thisIFD << std::endl;
     )
 
-    DEBUG(
-        FrameData frameData = getTagDataDebug(
-            thisIFD,
-            params,
-            siff,
-            logstream
-        );
-    )
-
-    DEBUG(logstream << "just a test" << std::endl;)
-
-    DEBUG_IGNORE(
     FrameData frameData = getTagData(
         thisIFD,
         params,
         siff
+        DEBUG(,logstream)
     );
-    )
+
+    DEBUG(logstream << "just a test" << std::endl;)
 
     DEBUG(
         logstream << "Here's another thing that doesn't need the thisIFD" << std::endl;

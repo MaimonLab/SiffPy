@@ -191,7 +191,7 @@ void SiffReader::singleFrameAddToList(
     // Reads an image's IFD, uses that to guide the output of array data in the siffreader.
     // Then appends that IFD to a list of numpy arrays
     
-    const FrameData frameData = getTagData(thisIFD, params, siff);
+    const FrameData frameData = getTagData(thisIFD, params, siff DEBUG(, logstream));
     // create a new numpy array of dimensions:
     // (y, x)
     const int ND = 2; // number of dimensions
@@ -257,7 +257,7 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
     // Now parse the frames into the array
     for (uint64_t listIdx = 0; listIdx < framesN; listIdx++){
         frameIdx = frames[listIdx];
-        frameData = getTagData(params.allIFDs[frameIdx], params, siff);
+        frameData = getTagData(params.allIFDs[frameIdx], params, siff DEBUG(, logstream));
         shift_tuple = PyDict_GetItem(
             registrationDict,
             PyLong_FromUnsignedLongLong(frameIdx)
@@ -555,7 +555,7 @@ PyArrayObject* SiffReader::sumMask(
 
         for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
 
-            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff DEBUG(, logstream));
 
             PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
             

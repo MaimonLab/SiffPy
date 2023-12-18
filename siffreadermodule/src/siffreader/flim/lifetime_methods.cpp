@@ -233,7 +233,7 @@ PyObject* SiffReader::flimTuple(
         for(Py_ssize_t idx(0); ((uint64_t)idx) < framesN; idx++) {
             // one merged numpy array for all of them.
             frameIdx = frames[idx];
-            frameData = getTagData(params.allIFDs[frameIdx],params,siff);
+            frameData = getTagData(params.allIFDs[frameIdx],params,siff DEBUG(,logstream));
             shift_tuple = PyDict_GetItem(
                 registrationDict,
                 PyLong_FromUnsignedLong(frameIdx)
@@ -460,7 +460,7 @@ PyArrayObject* SiffReader::sumFLIMMask(
 
         for(size_t frame_idx = 0; ((uint64_t)frame_idx) < framesN; frame_idx++){
 
-            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff DEBUG(,logstream));
 
             PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
             
