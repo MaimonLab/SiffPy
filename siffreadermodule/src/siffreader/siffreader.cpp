@@ -419,14 +419,14 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
         );
     )
 
-    DEBUG_IGNORE(
+    DEBUG(logstream << "just a test" << std::endl;)
 
+    DEBUG_IGNORE(
     FrameData frameData = getTagData(
         thisIFD,
         params,
-        siff,
+        siff
     );
-
     )
 
     DEBUG(
