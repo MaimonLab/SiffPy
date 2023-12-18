@@ -8,7 +8,7 @@ except ImportError as error:
 import platform, sys
 
 from setuptools.command.install import install
-from setuptools.command.install import clean
+#from setuptools.command.install import clean
 
 define_macros = None
 extra_compile_args = None
@@ -22,36 +22,36 @@ DEBUG = False
 
 # Undoing this one for now.... seems like options in pip are being deprecated
 
-class CleanInstallCommand(install):             
-   """ Provides the '--config-settings=debug' option to setup.py install """
-   user_options = install.user_options + [
-      ('debug', None, 'Installs in debug mode (logs operations)'),
-   ]                                      
+# class CleanInstallCommand(install):             
+#    """ Provides the '--config-settings=debug' option to setup.py install """
+#    user_options = install.user_options + [
+#       ('debug', None, 'Installs in debug mode (logs operations)'),
+#    ]                                      
 
-   def initialize_options(self):          
-      self.debug = None
-      super().initialize_options()   
+#    def initialize_options(self):          
+#       self.debug = None
+#       super().initialize_options()   
 
-   def finalize_options(self):
-      if self.debug:
-         self.debug = True
-         assert False
-      else:
-         self.debug = False
-      super().finalize_options()            
+#    def finalize_options(self):
+#       if self.debug:
+#          self.debug = True
+#          assert False
+#       else:
+#          self.debug = False
+#       super().finalize_options()            
 
-   def run(self):
-      global DEBUG
-      DEBUG = self.debug
-      print("DEBUG MODE: ", DEBUG) 
-      super().run()  
-      c = clean(self.distribution)
-      c.all = True
-      c.finalize_options()
-      c.run()     
+#    def run(self):
+#       global DEBUG
+#       DEBUG = self.debug
+#       print("DEBUG MODE: ", DEBUG) 
+#       super().run()  
+#       c = clean(self.distribution)
+#       c.all = True
+#       c.finalize_options()
+#       c.run()     
 
 installclass = install
-installclass = CleanInstallCommand
+#installclass = CleanInstallCommand
 
 if DEBUG:
    define_macros = [('__DEBUG', 1)]
