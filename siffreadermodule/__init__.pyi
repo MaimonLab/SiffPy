@@ -155,6 +155,18 @@ class SiffIO():
         WARNING if system timestamps do not exist, the function
         will CRASH.
         """
+
+    def get_appended_text(self, frames : Optional[List[int]] = None,)->List[Tuple[int, str, Optional[float]]]:
+        """
+        Returns a list of strings containing the text appended
+        to each frame. Only returns elements where there was appeneded text.
+        If no frames are provided, searches all frames.
+
+        Returns a list of tuples of (frame number, text, timestamp).
+
+        For some versions of `ScanImageFLIM`, there is no timestamp entry,
+        so the tuple for those files will be (frame number, text, None).
+        """
     
 def suppress_warnings()->None:...
 

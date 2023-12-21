@@ -641,6 +641,43 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
     }
 };
 
+static PyObject* siffio_get_appended_text(SiffIO *self, PyObject *args, PyObject* kw){
+    static const char* GET_APPENDED_TEXT_KEYWORDS[] = {"frames", NULL};
+    PyObject *frames_list = NULL;
+
+    // | indicates optional args, $ indicates all following args are keyword ONLY
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_appended_text", 
+            KWARG_CAST(GET_APPENDED_TEXT_KEYWORDS), 
+            &PyList_Type, &frames_list)
+        ) {
+        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        return NULL;
+    }
+
+    const uint64_t framesN = PyList_Size(frames_list);
+    uint64_t* framesArray = new uint64_t[framesN];
+    if(
+        check_framelist(
+            frames_list, framesArray, framesN, self->siffreader->numFrames()
+        )<0
+    ){  
+        delete[] framesArray;
+        // PyErr_SetString called in check_framelist
+        return NULL;
+    }
+
+    try{
+        PyObject* appendedText = self->siffreader->getAppendedText(framesArray, framesN);
+        delete[] framesArray;
+        return appendedText;
+    }
+    catch(...){
+        delete[] framesArray;
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        return NULL;
+    }
+};
+
 static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw) {
     // Pools frames together, returns list of pooled frames.
     static const char* POOL_FRAMES_KEYWORDS[] = {"pool_lists", "flim", "registration", NULL};
@@ -1160,6 +1197,7 @@ static PyMethodDef siffio_methods[] = {
     // Frame methods
     {"get_frames", (PyCFunction) siffio_get_frames, METH_VARARGS|METH_KEYWORDS, siffio_get_frames_doc},
     {"get_frame_metadata", (PyCFunction) siffio_get_frame_metadata, METH_VARARGS|METH_KEYWORDS, siffio_get_frame_metadata_doc},
+    {"get_appended_text", (PyCFunction) siffio_get_appended_text, METH_VARARGS | METH_KEYWORDS, siffio_get_appended_text_doc},
     {"pool_frames", (PyCFunction) siffio_pool_frames, METH_VARARGS|METH_KEYWORDS, siffio_pool_frames_doc},
     
     // Flim methods

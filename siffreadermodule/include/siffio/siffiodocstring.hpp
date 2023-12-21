@@ -235,4 +235,9 @@ PyDoc_STRVAR(
     "HISTOGRAM (ndarray): 1 dimensional numpy.ndarray"
 );
 
+PyDoc_STRVAR(
+    siffio_get_appended_text_doc,
+    "SiffIO.get_appended_text(frames : Optional[List[int]] = None)->List[str]\n"
+);
+
 #endif

@@ -563,6 +563,24 @@ class SiffReader
             const uint64_t frames[],
             const uint64_t framesN
         ) const ;
+
+        /*
+        Return the appended text component for each frame
+        requested
+
+        @param frames
+            The frames to retrieve timestamps from
+
+        @param framesN
+            The number of frames to retrieve timestamps from
+
+        @return A `PyObject*` to a list of strings corresponding
+        to the frames.
+        */
+        PyObject* getAppendedText(
+            const uint64_t frames[],
+            const uint64_t framesN
+        ) const ;
         
         /*
         @return Returns the data in the primary ScanImage header

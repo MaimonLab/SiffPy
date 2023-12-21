@@ -13,6 +13,8 @@
 const char* EXPERIMENT_PATTERN = "\nframeTimestamps_sec = ";
 const char* LASER_PATTERN = "\nepoch = ";
 const char* SYSTEM_PATTERN = "\nmostRecentSystemTimestamp_epoch = ";
+const char* APPENDED_TEXT_PATTERN = "\nAppended text = ";
+const char* TEXT_TIMESTAMP_PATTERN = "\nText timestamp = ";
 
 // constexpr auto laserPattern = ctll::fixed_string("\nepoch\\s=\\s(\\d+)");
 // constexpr auto systemPattern = ctll::fixed_string("\nmostRecentSystemTimestamp_epoch\\s=\\s(\\d+)");
@@ -292,4 +294,82 @@ PyArrayObject* SiffReader::getEpochTimestampsBoth(
     delete[] metaString;
 
     return timestamps;
+};
+
+
+PyObject* SiffReader::getAppendedText(
+    const uint64_t frames[], const uint64_t framesN
+    ) const {
+    // Get the appended text for each frame
+    if (!siff.is_open()) throw std::runtime_error("No file open.");
+    siff.clear();
+
+    PyObject* retList = PyList_New(0);
+
+    const size_t initial_description_length = frameDatas[frames[0]].siffCompress ?
+            frameDatas[frames[0]].dataStripAddress 
+                - frameDatas[frames[0]].endOfIFD
+                - frameDatas[frames[0]].imageLength*frameDatas[frames[0]].imageWidth*sizeof(uint16_t)
+            :
+            frameDatas[frames[0]].dataStripAddress - frameDatas[frames[0]].endOfIFD
+    ;
+
+    char* metaString = new char[initial_description_length];
+    size_t descrLength = initial_description_length;
+    
+    // std::cmatch matches;
+    
+    for (uint64_t i = 0; i < framesN; i++) {
+        // Reallocate if needed
+        const size_t new_description_length = frameDatas[frames[i]].siffCompress ?
+            frameDatas[frames[i]].dataStripAddress 
+                - frameDatas[frames[i]].endOfIFD
+                - frameDatas[frames[i]].imageLength*frameDatas[frames[i]].imageWidth*sizeof(uint16_t)
+            :
+            frameDatas[frames[i]].dataStripAddress - frameDatas[frames[i]].endOfIFD
+        ;
+        // need more space!
+        if (new_description_length > descrLength) {
+            delete[] metaString;
+            metaString = new char[new_description_length];
+            descrLength = new_description_length;
+        }
+        siff.seekg(frameDatas[frames[i]].endOfIFD, siff.beg);
+        siff.read(metaString, descrLength);
+
+        const char* patternStart = std::strstr(metaString, APPENDED_TEXT_PATTERN);
+        if (patternStart != NULL) {
+
+            // Find the end of the substring, or if TEXT_TIMESTAMP_PATTERN is found
+            // before that, use that as the end of the substring
+            const char* substringStart = patternStart + strlen(APPENDED_TEXT_PATTERN);
+            const char* substringEnd = std::strstr(substringStart, TEXT_TIMESTAMP_PATTERN);
+
+            // If TEXT_TIMESTAMP_PATTERN is found, calculate the length of the substring
+            size_t substringLength = (substringEnd != nullptr) ?
+                (substringEnd - substringStart)
+                : std::strlen(substringStart);
+
+            std::string appendedStr(
+                patternStart + strlen(APPENDED_TEXT_PATTERN),
+                substringLength
+            );
+
+            PyList_Append(
+                retList,
+                PyTuple_Pack(
+                    3,
+                    PyLong_FromUnsignedLongLong(frames[i]),
+                    PyUnicode_FromString(appendedStr.c_str()),
+                    substringEnd == nullptr ? (Py_INCREF(Py_None), Py_None) : PyFloat_FromDouble(
+                        std::stod(substringEnd + strlen(TEXT_TIMESTAMP_PATTERN))
+                    )
+                )
+            );
+        }
+    }
+
+    delete[] metaString;
+
+    return retList;
 };
