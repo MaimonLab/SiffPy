@@ -293,7 +293,7 @@ class ImParams():
 
     @property
     def volume(self)->Tuple[int, ...]:
-        """ Shape of one full volume: (num_slices, num_colors, ysize, xsize)"""
+        """ Shape of one full volume: (num_slices, frames_per_slice, num_colors, ysize, xsize)"""
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
             ret_list += [self.frames_per_slice]
