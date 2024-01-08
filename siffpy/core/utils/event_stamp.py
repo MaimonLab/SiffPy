@@ -17,16 +17,22 @@ class EventStamp():
 
     @property
     def timestamp_epoch(self):
-        if hasattr(self, 'experiment_to_epoch'):
-            return self.experiment_to_epoch(self.timestamp)
+        if hasattr(self, '_timestamp_epoch'):
+            return self._timestamp_epoch
         raise AttributeError("No experiment_to_epoch conversion defined."
             + " Please define one using define_experiment_to_epoch.")
         
     def define_experiment_to_epoch(self, experiment_to_epoch : Callable):
-        self.experiment_to_epoch = experiment_to_epoch
+        self._timestamp_epoch = experiment_to_epoch(self.timestamp)
 
     @property
     def timestamp_experiment(self):
         """ Alias of the timestamp which is already in experiment time """
         return self.timestamp
+    
+    def __repr__(self):
+        return f"EventStamp(frame_number={self.frame_number}, text={self.text}, timestamp={self.timestamp})"
+
+    def __str__(self):
+        return f"EventStamp(frame_number={self.frame_number}, text={self.text}, timestamp={self.timestamp})"
     

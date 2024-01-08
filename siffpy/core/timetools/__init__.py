@@ -22,7 +22,7 @@ def frame_time_to_epoch(frame_time : float, frame_meta : FrameMetaData)->int:
     frame_zero_time : float = frame_meta['frameTimestamps_sec'] # in seconds
     epoch_zero_time : int = frame_meta['epoch'] # in nanoseconds
     offset = frame_zero_time * SEC_TO_NANO - epoch_zero_time
-    return int(frame_time * NANO_TO_SEC - offset)
+    return int(frame_time * SEC_TO_NANO - offset)
 
 def metadata_dicts_to_time(dicts : List[Dict], reference : str = "experiment")->np.ndarray:
     """ 

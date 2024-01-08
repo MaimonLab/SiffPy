@@ -184,7 +184,7 @@ class ImParams():
                     self.StackManager.actualNumVolumes *
                     self.StackManager.numFramesPerVolume
                 )
-        return None
+        return 0
     
     @property
     def frames_per_volume(self)->int:
@@ -287,12 +287,12 @@ class ImParams():
             return self.RoiManager.linesPerFrame
 
     @property
-    def shape(self)->Tuple[int]:
+    def shape(self)->Tuple[int, int]:
         """ Shape of one frame: (n ysize, xsize)"""
         return (self.ysize, self.xsize)
 
     @property
-    def volume(self)->Tuple[int]:
+    def volume(self)->Tuple[int, ...]:
         """ Shape of one full volume: (num_slices, num_colors, ysize, xsize)"""
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
@@ -301,13 +301,13 @@ class ImParams():
         return tuple(ret_list)
     
     @property
-    def single_channel_volume(self)->Tuple[int]:
+    def single_channel_volume(self)->Tuple[int, ...]:
         """ Return the shape of one volume of one color channel (num_slices, ysize, xsize) """
         return (self.num_slices, *self.shape)
     
     @property
-    def stack(self)->Tuple[int]:
-        """ Shape of one stack: (num_colors, num_slices, ysize, xsize)"""
+    def stack(self)->Tuple[int, ...]:
+        """ Shape of one stack: (num_slices, frames_per_slice, ysize, xsize)"""
         ret_list = [self.num_true_frames // (self.frames_per_volume), self.num_slices]
         if self.frames_per_slice > 1 :
             ret_list += [self.frames_per_slice]
@@ -323,7 +323,7 @@ class ImParams():
         # units of microns, except for time, which is in frames.
         ret_list = [1.0] # time axis!
         if not (self.frames_per_slice == 1):
-            raise AttributeError("Scale attribute of im_params not implemented for more than one frame per slice.")
+            ret_list.append(1.0/(self.frames_per_volume)) 
         if self.num_slices > 1: # otherwise irrelevant
             ret_list.append(self.step_size)
         if not len(self.imaging_fov) == 4:
@@ -417,18 +417,39 @@ class ImParams():
         return retstr
     
     @property
-    def array_shape(self) -> Tuple[int, int, int, int, int]:
+    def array_shape(self) -> Union[Tuple[int, int, int, int, int], Tuple[int, int, int, int, int, int]]:
         """
         Returns the shape that an array of frames would be in standard order:
-        `(t, z, c, y, x)`
+        `(t, z, frames_per_slice (if greater than 1), c, y, x)`
         """
-        return (
-            self.num_timepoints, # t
-            self.num_slices, # z
-            self.num_colors,
-            self.ysize,
-            self.xsize
-        )
+        if self.frames_per_slice > 1:
+            return (
+                self.num_timepoints, # t
+                self.num_slices, # z
+                self.frames_per_slice, # s
+                self.num_colors,
+                self.ysize,
+                self.xsize
+            )
+        else:
+            return (
+                self.num_timepoints, # t
+                self.num_slices, # z
+                self.num_colors,
+                self.ysize,
+                self.xsize
+            )
+
+    
+    # TODO: write function that gets the frames between
+    # a given time start and end in experiment time (seconds)
+
+    # def correct_flyback(self, framelist : List[int])->List[int]:
+    #     """
+    #     Applies local `correct_flyback` function, in case
+    #     it needs to be used externally
+    #     """
+    #     return correct_flyback(lambda x: x)(framelist)
     
     @correct_flyback
     def flatten_by_timepoints(self,
