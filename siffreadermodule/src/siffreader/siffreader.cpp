@@ -84,7 +84,7 @@ int SiffReader::openFile(const char* _filename) {
         if ((strcmp(endian,BIGENDIAN) != 0) && (strcmp(endian,LITTLEENDIAN) != 0)){
             throw std::runtime_error(
                 std::string("Could not deduce endian. May not be .siff/.tiff file.")+
-                " First two bytes (should be II or MM): "+
+                " First two bytes (should be II or MM) but was: "+
                 std::string(endian)
             );
         }

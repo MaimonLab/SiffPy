@@ -85,7 +85,7 @@ class ImParams():
     intuitive to people (myself included).
     """
 
-    CHANNEL_AXIS : int = 1 # index of the color channel dimension
+    CHANNEL_AXIS : int = -3 # index of the color channel dimension
 
     def __init__(self, num_frames = None, **param_dict):
         """
@@ -293,12 +293,25 @@ class ImParams():
 
     @property
     def volume(self)->Tuple[int, ...]:
-        """ Shape of one full volume: (num_slices, frames_per_slice, num_colors, ysize, xsize)"""
+        """
+        Shape of one full volume: (num_slices, <frames_per_slice>, num_colors, ysize, xsize)
+        with entries in <> only printed if they are greater than 1
+        """
         ret_list = [self.num_slices]
         if self.frames_per_slice > 1:
-            ret_list += [self.frames_per_slice]
-        ret_list += [self.num_colors, self.ysize, self.xsize]
+            ret_list.append(self.frames_per_slice)
+        #if self.num_colors > 1:
+        ret_list.append(self.num_colors)
+        ret_list += [self.ysize, self.xsize]
         return tuple(ret_list)
+    
+    @property
+    def volume_one_color(self)->Tuple[int, ...]:
+        """ Shape of one full volume in one color channel """
+        if self.num_colors == 1:
+            return tuple(self.volume)
+        
+        return tuple(self.volume[:-3] + self.volume[-2:])
     
     @property
     def single_channel_volume(self)->Tuple[int, ...]:
@@ -318,7 +331,7 @@ class ImParams():
     def scale(self)->List[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
-        [time , z , y , x]
+        [time , (frames_per_slice_in_units_time), (z), color, y , x]
         """
         # units of microns, except for time, which is in frames.
         ret_list = [1.0] # time axis!
@@ -328,6 +341,28 @@ class ImParams():
             ret_list.append(self.step_size)
         if not len(self.imaging_fov) == 4:
             raise ArithmeticError("Scale for mROI im_params not yet implemented")
+        fov = self.imaging_fov
+        ret_list.append(1) # color channel
+        xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
+        yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
+        ret_list.append(yrange/self.ysize)
+        ret_list.append(xrange/self.xsize)
+        return ret_list
+    
+    @property
+    def scale_no_color_no_fps(self)->List[float]:
+        """
+        Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
+        [time , z , y , x]
+        """
+        ret_list = [1.0] # time axis!
+        if not (self.frames_per_slice == 1):
+            ret_list.append(1.0/(self.frames_per_volume)) 
+        if not len(self.imaging_fov) == 4:
+            raise ArithmeticError("Scale for mROI im_params not yet implemented")
+        if self.num_slices > 1:
+            ret_list.append(self.step_size)
+        
         fov = self.imaging_fov
         xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
         yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
@@ -456,11 +491,14 @@ class ImParams():
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         reference_z : Optional[int] = None,
+        color_channel : Optional[int] = None,
     )->List[int]:
         """
         Returns all frame indices within a set of timepoints.
         
         If reference_z is None, returns _all_ frames, irrespective of z.
+
+        If color_channel (0-indexed) is None, returns all colors.
         """
 
         timestep_size = self.frames_per_volume # how many frames constitute a timepoint
@@ -484,12 +522,18 @@ class ImParams():
         if reference_z is None:
             framelist = list(range(frame_start, frame_end))
         else:
-            framelist = [frame for frame in range(frame_start, frame_end) 
+            framelist = [
+                frame for frame in range(frame_start, frame_end) 
                 if (
                 (
                     ((frame-frame_start) % timestep_size)//self.num_colors
                 ) == reference_z)
             ]
+
+        if color_channel is not None:
+            framelist = framelist[color_channel::self.num_colors]
+            
+
 
         return framelist
 
@@ -578,7 +622,7 @@ class ImParams():
         )
 
         if upper_bound_timepoint is None:
-            return list(range(lower_bound_frame, self.num_frames, self.num_colors))
+            return list(range(lower_bound_frame, self.num_true_frames, self.num_colors))
         else:
             upper_bound_frame = (color_channel +
                 upper_bound_timepoint * self.frames_per_volume
