@@ -10,6 +10,7 @@ except ImportError:
 from siffpy.core import SiffReader
 from siffpy.core import ImParams
 from siffpy.core import FLIMParams
+from siffpy.siffmath import FlimTrace
 
 def siff_to_tiff(
         source_file : str,

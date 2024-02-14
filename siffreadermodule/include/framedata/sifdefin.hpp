@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+/*
+Constants used for decoding .siff files
+(and, generally, tiff files)
+*/
+
 constexpr uint16_t IMAGEWIDTH = 256;
 constexpr uint16_t IMAGELENGTH = 257;
 constexpr uint16_t BITSPERSAMPLE = 258;

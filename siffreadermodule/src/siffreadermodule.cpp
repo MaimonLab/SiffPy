@@ -97,10 +97,15 @@ static PyObject* siffreader_debug(PyObject* self, PyObject *args){
     Py_RETURN_NONE;
 }
 
+/**
+ *
+ *  Converts the open .siff file to a .tiff file and saves it in the location specified
+ * 
+ *  @param self the `SiffIO` object
+ *  @param args the arguments passed to the function (no positional arguments)
+ * @param kwargs the keyword arguments passed to the function (`sourcepath`, `savepath`, `mode`)
+*/
 static PyObject* siffreader_sifftotiff(PyObject *self, PyObject *args, PyObject *kwargs) {
-    // Converts the open .siff file to a .tiff file and saves it in the location specified
-    // (or next to the original, if no argument is provided).
-
     // PyErr_SetString(
     //     PyExc_NotImplementedError,
     //     "Siff to tiff conversion not implemented yet. "

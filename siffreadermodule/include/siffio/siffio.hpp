@@ -75,9 +75,9 @@ static PyMemberDef siffio_members[] = {
 #define KWARG_CAST(x) const_cast<char **>(x) // so fucking dumb
 
 /*
-Called on creation of an instance of a siffio.
+ * Called on creation of an instance of a siffio.
 
-Creates a blank C++ siffreader
+ * Creates a blank C++ siffreader
 */
 
 bool debug_SIFFIO = false;
@@ -276,20 +276,20 @@ int check_framelist(
     return 0;
 };
 
-/*
-Checks a registration dictionary for validity. If a requested
-frame is not in the dictionary, it is added with a registration
-of (0,0). If a requested frame is in the dictionary but the
-registration is not a tuple of ints, it is cast to a tuple of ints.
+/**
+ * Checks a registration dictionary for validity. If a requested
+ * frame is not in the dictionary, it is added with a registration
+ * of (0,0). If a requested frame is in the dictionary but the
+ * registration is not a tuple of ints, it is cast to a tuple of ints.
 
-@param registrationDict: A dictionary of frame numbers to tuples of
-integers.
+ * @param registrationDict: A dictionary of frame numbers to tuples of
+ * integers.
 
-@param frames_list: A list of frame numbers to be checked against
-the registration dictionary.
+ * @param frames_list: A list of frame numbers to be checked against
+ * the registration dictionary.
 
-@return 0 on success, -1 on failure. Error is written to the
-Python error state.
+ * @return 0 on success, -1 on failure. Error is written to the
+ * Python error state.
 */
 int check_registration(PyObject* registrationDict, PyObject* frames_list){
     
@@ -356,15 +356,15 @@ int check_registration(PyObject* registrationDict, PyObject* frames_list){
     return 0;
 };
 
-/*
-Returns a list of frames or a numpy array from the opened file
+/**
+ * Returns a list of frames or a numpy array from the opened file
 
-@param self: SiffIO object
+ * @param self: SiffIO object
 
-@param args: A list of arguments. Not actually inspected. Only takes kwargs
+ * @param args: A list of arguments. Not actually inspected. Only takes kwargs
 
-@param kw: A dict of keyword arguments. Looks for "frames", "registration", and "as_array",
-of type List, Dict, and Bool respectively.
+ * @param kw: A dict of keyword arguments. Looks for "frames", "registration", and "as_array",
+ * of type List, Dict, and Bool respectively.
 */
 static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     // 
@@ -1180,6 +1180,11 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
 // Histogram methods
 static PyArrayObject* siffio_get_histogram(SiffIO* self, PyObject* args, PyObject* kwargs);
+*/
+
+/**
+ * 
+ * The `SiffIO` type's methods, stored as an array of `PyMethodDef` structs.
 */
 static PyMethodDef siffio_methods[] = {
     // {Method name, (PyCFunction) Function, flags, doc}

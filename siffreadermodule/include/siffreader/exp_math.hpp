@@ -5,6 +5,10 @@
 #include <Python.h>
 #include <vector>
 
+/**
+ * TODO FINISH
+*/
+
 
 double mono_exp(uint16_t x, double tau, double sigma, double tauo) {
     // TODO: NOT QUITE RIGHT, USES EDGE INSTEAD OF INTEGRATING BIN

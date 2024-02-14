@@ -5,7 +5,7 @@ All phase-alignment methods take, at the very least,
 an argument vector_timeseries, which is a numpy array,
 and accept a keyword argument error_estimate, which is a boolean
 """
-from typing import Callable, Union, Optional
+from typing import Callable, Union, Optional, Tuple
 from enum import Enum
 
 import numpy as np
@@ -14,6 +14,7 @@ from scipy.special import i0, i1
 from siffpy.core.utils.types import ComplexArray, FloatArray
 from siffpy.siffmath.phase.traces import *
 from siffpy.siffmath.fluorescence import FluorescenceTrace
+from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.phase.phase_analyses import *
 
 __all__ = [
@@ -26,6 +27,69 @@ class PhaseErrorFunction(Enum):
     """
     relative_magnitude = 'relative_magnitude'
 
+def pva_flim(
+        vector_timeseries : Union[np.ndarray, FlimTrace],
+        lifetime_bounds : Tuple[float, float],
+        time : Optional[np.ndarray] = None,
+        error_function : Optional[Union[Callable,str]] = 'relative_magnitude',
+        filter_fcn : Optional[Callable] = None,
+        **kwargs
+) -> PhaseTrace:
+    """
+    Computes the PVA of a FLIM trace, using the lifetime bounds to
+    determine the phase of timepoint.
+
+    Arguments
+    ---------
+
+    vector_timeseries : np.ndarray (even better if a FlimTrace)
+    
+            Standard for phase estimation procedures
+            (call siffmath.phase_alignment_functions() for more info).
+
+    lifetime_bounds : Tuple[float, float]
+
+        The bounds of the sensor lifetime (in whatever units are passed in).
+        (Lower, upper)
+
+    time : np.ndarray
+
+        A time axis. May be None to just be ignored.
+
+    error_function : str
+
+        Name of error functions that can be returned. If error functions are used,
+        returns a tuple, not just the pva. Can also provide a callable function for
+        your own error. The function should take two arguments, the first being the
+        vector_timeseries and the second being the PVA value itself. You can choose
+        to ignore either argument if you want.
+
+    filter_fcn : function
+
+        A function to apply to the time series before computing the PVA.
+
+    Returns
+    -------
+
+    pva_val : PhaseTrace
+
+        The phase trace of the PVA. If error_function is not None,
+        the PhaseTrace will have an attribute `error_array` that
+        contains the lower and upper bounds of the error for
+        each timepoint.
+    
+    """
+    if isinstance(vector_timeseries, FlimTrace):
+        vector_timeseries = vector_timeseries.lifetime
+    vector_timeseries = (vector_timeseries - lifetime_bounds[0])/(lifetime_bounds[1] - lifetime_bounds[0])
+    #TODO: Do something smarter with the intensity stuff if it's a FLIMTrace
+    return pva(
+        vector_timeseries,
+        time = time,
+        error_function = error_function,
+        filter_fcn = filter_fcn,
+        **kwargs
+    )
 
 def pva(
         vector_timeseries : Union[np.ndarray, FluorescenceTrace],
@@ -52,8 +116,7 @@ def pva(
 
     error_function : str
 
-        Name of error functions that can be returned. If error functions are used,
-        returns a tuple, not just the pva. Can also provide a callable function for
+        Name of error functions that can be returned. Can also provide a callable function for
         your own error. The function should take two arguments, the first being the
         vector_timeseries and the second being the PVA value itself. You can choose
         to ignore either argument if you want.
@@ -66,16 +129,9 @@ def pva(
                     is perfectly peaked to pi when the population 
                     vector is perfectly uniform.
 
-    filter_fcn : function or string
+    filter_fcn : function
 
-        A function to apply to the time series, OR a string.
-        The string specifies the function name, and if a string is used, 
-        the other keyword arguments must be provided!
-
-            Available options (and arguments):
-
-                - 'lowpass' : NOT YET IMPLEMENTED
-
+        A function to apply to the time series before computing the PVA.
     """
     
     if normalized:
@@ -141,9 +197,9 @@ def load_interp_func()->Callable:
         importlib_resources.files('siffpy.siffmath.phase')
         .joinpath('relative_mag_lookup.npz')
     )
-    loaded = np.load(lookup_path)
-    theta = loaded['theta']
-    magnitude = loaded['magnitude']
+    with np.load(lookup_path) as loaded:
+        theta = loaded['theta']
+        magnitude = loaded['magnitude']
     from scipy.interpolate import interp1d
     return interp1d(magnitude, theta)
 

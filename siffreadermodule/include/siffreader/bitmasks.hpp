@@ -3,8 +3,11 @@
 
 #include <stdint.h>
 
+// Extract the y value of a photon read (uncompressed)
 constexpr uint64_t YMASK = (((uint64_t) 1 << 63) - ((uint64_t) 1 << 48) + ((uint64_t) 1 << 63)); // that last bit'll getcha
+// Extract the x value of a photon read (uncompressed)
 constexpr uint64_t XMASK = (((uint64_t) 1 << 48) - ((uint64_t) 1 << 32));
+// Extract the arrival time of a photon read (uncompressed)
 constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
 
 // Get the y value of a siff pixel read (uncompressed)

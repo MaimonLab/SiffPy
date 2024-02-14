@@ -19,6 +19,9 @@
 #define PYFRAMEDATA_TPNAME "siffreader.FrameData"
 #define PYFRAMEDATA_DOCSTRING "FrameData object"
 
+/*
+TODO: MAKE THIS A USABLE PYOBJECT
+*/
 typedef struct _PyFrameData {
     PyObject_VAR_HEAD
     const char *tp_name;

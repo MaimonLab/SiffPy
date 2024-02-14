@@ -1,21 +1,24 @@
 """
 Dedicated code for data that is purely fluorescence analysis
 """
-from typing import Callable, Union
+from typing import Callable, Union, TYPE_CHECKING
 import numpy as np
 
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector
 from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
+
+if TYPE_CHECKING:
+    from siffpy.siffmath.utils.types import FluorescenceArrayLike
         
-def photon_counts(fluorescence : np.ndarray, *args, **kwargs)->FluorescenceTrace:
+def photon_counts(fluorescence : 'FluorescenceArrayLike', *args, **kwargs)->FluorescenceTrace:
     """ Simply returns raw photon counts. This is just the array that's passed in, wrapped in a FluorescenceTrace. """
     return FluorescenceTrace(fluorescence, F = fluorescence, method = 'Photon counts', F0 = 0)
 
 def dFoF(
-        fluorescence : np.ndarray,
+        fluorescence : 'FluorescenceArrayLike',
         *args,
         normalized : bool = False,
-        Fo : Union[np.ndarray, float, Callable] = fifth_percentile,
+        Fo : Union[np.ndarray, float, Callable[[np.ndarray], Union[np.ndarray, int, float]]] = fifth_percentile,
         **kwargs
     )->FluorescenceTrace:
     """
@@ -49,8 +52,6 @@ def dFoF(
     if callable(Fo):
         F0 = Fo(fluorescence, *args, **kwargs)
         #inspect.signature(Fo).
-    elif isinstance(Fo, (np.ndarray, float)):
-        F0 = np.ndarray(Fo)
     else:
         try:
             np.array(Fo).astype(float)
@@ -58,6 +59,9 @@ def dFoF(
             raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
     
     F0 = np.atleast_2d(F0)
+    # Code smell, BIG TIME. Quick fix for the way numpy does the atleast_2d thing...
+    if F0.shape[-1] == fluorescence.shape[0]:
+        F0 = F0.T
     
     df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))
     

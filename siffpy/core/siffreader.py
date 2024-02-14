@@ -130,7 +130,7 @@ class SiffReader(object):
         #self.events = io.find_events(self.im_params, self.get_frames_metadata())
         flim_params = io.load_flim_params(filename)
         if any(flim_params):
-            self.flim_params = flim_params
+            self._flim_params = flim_params
         #print("Finished opening and reading file")
 
     def close(self) -> None:
@@ -140,6 +140,20 @@ class SiffReader(object):
         self.filename = ''
         if hasattr(self, 'im_params'):
             delattr(self, 'im_params')
+
+    @property
+    def flim_params(self)->Tuple[FLIMParams]:
+        """ Returns the FLIMParams object if it exists """
+        if hasattr(self, '_flim_params'):
+            return self._flim_params
+        return (None,)
+    
+    @flim_params.setter
+    def flim_params(self, flim_params : Union[FLIMParams, str])->None:
+        """ Sets the FLIMParams object """
+        if isinstance(flim_params, str):
+            flim_params = io.load_flim_params(flim_params)
+        self._flim_params = flim_params
 
 ### TIME AXIS METHODS
     def t_axis(

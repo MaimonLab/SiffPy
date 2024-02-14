@@ -2,6 +2,7 @@ from typing import List
 import inspect, textwrap
 
 from siffpy.siffmath.phase import phase_alignment_functions
+from siffpy.siffmath.phase.phase_estimates import estimate_phase
 from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.fluorescence import *
 from siffpy.siffmath.utils import Timeseries

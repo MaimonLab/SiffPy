@@ -20,7 +20,6 @@ def estimate_phase(
     vector_series : np.ndarray,
     *args,
     method='pva',
-    error_estimate : bool = False,
     **kwargs
     )->np.ndarray:
     """
@@ -44,7 +43,7 @@ def estimate_phase(
     """
 
     phase_method = getattr(phase_estimates, method)
-    return phase_method(vector_series, *args, error_estimate = error_estimate, **kwargs)
+    return phase_method(vector_series, *args, **kwargs)
 
 def fit_offset(
         fictrac_trace   : 'PhaseTraceLike',

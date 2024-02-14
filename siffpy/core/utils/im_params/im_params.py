@@ -491,14 +491,16 @@ class ImParams():
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         reference_z : Optional[int] = None,
-        color_channel : Optional[int] = None,
+        color_channel : Optional[int] = 0,
     )->List[int]:
         """
         Returns all frame indices within a set of timepoints.
         
         If reference_z is None, returns _all_ frames, irrespective of z.
 
-        If color_channel (0-indexed) is None, returns all colors.
+        If color_channel (0-indexed) is None, returns all colors. But since
+        timestamps for each color channel are the same, typically you expect
+        NOT to use this.
         """
 
         timestep_size = self.frames_per_volume # how many frames constitute a timepoint
@@ -533,8 +535,6 @@ class ImParams():
         if color_channel is not None:
             framelist = framelist[color_channel::self.num_colors]
             
-
-
         return framelist
 
     @correct_flyback
