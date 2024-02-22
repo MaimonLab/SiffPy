@@ -49,7 +49,7 @@ def correct_flyback(f):
             return true_frames
         
         imparams : ImParams = args[0]
-        if hasattr(imparams, 'discard_frames') and imparams.discard_frames:
+        if imparams.discard_frames:
             frames = f(*args, **kwargs)
             if all(isinstance(item, list) for item in frames):
                 return [
@@ -131,8 +131,11 @@ class ImParams():
     @property
     def discard_frames(self)->bool:
         """ Whether or not to discard frames because they are flyback frames"""
-        if hasattr(self, 'FastZ'):
-            return self.FastZ.discardFlybackFrames and self.FastZ.enable
+        return (
+            hasattr(self, 'FastZ')
+            and self.FastZ.discardFlybackFrames 
+            and self.FastZ.enable
+        )
 
     @property
     def num_discard_flyback_frames(self)->int:
@@ -147,7 +150,10 @@ class ImParams():
             return []
         return [
             frame for frame in range(self.num_frames)
-            if frame % (self.frames_per_volume + self.num_discard_flyback_frames) >= self.frames_per_volume
+            if (
+                frame % (self.frames_per_volume + self.num_discard_flyback_frames)
+                >= self.frames_per_volume
+            )
         ]
 
     @property
@@ -188,7 +194,12 @@ class ImParams():
     
     @property
     def frames_per_volume(self)->int:
-        return self.num_slices * self.frames_per_slice * self.num_colors
+        """ Product of elements in the volume tuple """
+        fr = 1
+        for x in self.volume[:-2]:
+            fr *= x
+        return fr
+            
     
     @property
     def num_true_frames(self)->int:
@@ -403,8 +414,7 @@ class ImParams():
         """ Number of color channels acquired """
         if hasattr(self.colors, '__len__'):
             return len(self.colors)
-        else:
-            return 1
+        return 1
 
     @property
     def final_full_volume_frame(self)->int:
@@ -418,8 +428,7 @@ class ImParams():
         """ Aliases attributes to allow this to be treated like a dict """
         if hasattr(self, key):
             return getattr(self, key)
-        else:
-            raise KeyError(f"Im param field {key} does not exist")
+        raise KeyError(f"Im param field {key} does not exist")
 
     def __setitem__(self, key : str, value) -> None:
         """ Aliases attribute setting so you can treat this as a dict """
@@ -532,7 +541,7 @@ class ImParams():
                 ) == reference_z)
             ]
 
-        if color_channel is not None:
+        if ~(color_channel is None):
             framelist = framelist[color_channel::self.num_colors]
             
         return framelist
@@ -611,7 +620,7 @@ class ImParams():
         color_channel : int,
         lower_bound_timepoint : int = 0,
         upper_bound_timepoint : Optional[int] = None
-        )->list:
+        )->List:
         "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
 
         if color_channel >= self.num_colors:

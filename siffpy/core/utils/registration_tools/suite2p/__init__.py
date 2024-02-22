@@ -81,9 +81,9 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         """
 
         frames = siffio.get_frames(
-            frames = self.im_params.flatten_by_timepoints(),
+            frames = self.im_params.flatten_by_timepoints(color_channel=alignment_color_channel),
             registration = {}, # guarantee the raw frames
-        ).astype(np.float32).reshape(-1, *self.im_params.volume)
+        ).astype(np.float32).reshape(-1, *self.im_params.volume_one_color)
 
         registered_frames = np.zeros_like(frames)
 
@@ -91,10 +91,10 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         # reference image, _, _, _, offsets (y, x), _, _
         reg_rets = [ # hee hee
             register.registration_wrapper(
-                registered_frames[: , k, alignment_color_channel, :, :].squeeze(),
+                registered_frames[: , k, :, :].squeeze(),
                 # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
                 # this keeps the values from being truncated to 0
-                f_raw = 100*frames[:, k, alignment_color_channel, :, :].squeeze(),
+                f_raw = 100*frames[:, k, :, :].squeeze(),
                 ops = {
                     **default_ops(),
                     **kwargs,
