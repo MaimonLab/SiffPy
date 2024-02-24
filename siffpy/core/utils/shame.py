@@ -5,12 +5,13 @@ the issue is, this is a workaround. Hopefully nobody
 will see that this file exists except for me, and then
 only briefly.    
 """
+import logging
+
 __version__ = version = '0.0.0'
 __version_tuple__ = version_tuple = (0, 0, 0)
 
-import logging
 logging.error(
-    f"""
+    """
     The version of siffpy you are using was not built
     correctly, either due to a bug in my implementation,
     an incorrect installation command, or a bug in

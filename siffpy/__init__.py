@@ -4,13 +4,13 @@ from typing import Optional
 try:
     from siffpy.core._version import __version__, __version_tuple__
 except ImportError:
-    from siffpy.core.utils.shame import __version__, __version_tuple__
+    from siffpy.core.utils.shame import __version__, __version_tuple__ # noqa: F401
     print("Used shame.py. Please shame Stephen for not fixing this bug.")
 
-from siffpy.core import SiffReader
-from siffpy.core import ImParams
-from siffpy.core import FLIMParams
-from siffpy.siffmath import FlimTrace
+from siffpy.core import SiffReader # noqa: F401
+from siffpy.core import ImParams # noqa: F401
+from siffpy.core import FLIMParams # noqa: F401
+from siffpy.siffmath import FlimTrace # noqa: F401
 
 def siff_to_tiff(
         source_file : str,

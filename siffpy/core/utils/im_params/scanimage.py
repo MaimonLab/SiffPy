@@ -1,8 +1,10 @@
 from functools import reduce
 from operator import add
-import re, warnings
+import re
 
-from siffpy.core.utils.im_params.from_matlab import *
+from siffpy.core.utils.im_params.from_matlab import (
+    contains_vector, matrix_to_listlist
+)
 
 def _unsafe_eval(val):
     """
@@ -18,11 +20,11 @@ def _unsafe_eval(val):
                     ret = matrix_to_listlist(val)
                 else:
                     ret = eval(val.capitalize())
-            except:
+            except Exception:
                 ret = val
         else:
             ret = val
-    except:
+    except Exception:
         ret = val
     
     return ret

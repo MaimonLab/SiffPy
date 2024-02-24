@@ -45,7 +45,7 @@ class RegistrationInfo(ABC):
             siffio : SiffIO,
             im_params : ImParams,
         ):
-        self.filename = siffio.filename if not siffio is None else None
+        self.filename = siffio.filename if siffio is not None else None
         self.yx_shifts : Dict[int, Tuple[int,int]]= {}
         self.reference_frames : np.ndarray = None
         self.im_params = im_params

@@ -1,24 +1,22 @@
-from typing import Union, Optional, Any, Sequence, List, Dict, Tuple
-import logging, warnings, copy
+import copy
+import logging
+import warnings
 from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from siffreadermodule import SiffIO
-
 ## Should I move some import statements to function definitions
-
 from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits
-from siffpy.core.utils import ImParams
-from siffpy.core.utils.registration_tools import (
-    to_reg_info_class, RegistrationInfo
-)
-from siffpy.core.utils.types import PathLike, ImageArray, BoolMaskArray
 from siffpy.core.utils.event_stamp import EventStamp
 
+#from siffpy.core.utils import ImParams
+from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_class
+from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
 from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.utils import Timeseries
+from siffreadermodule import SiffIO
 
 # TODO:
 # __repr__
@@ -63,7 +61,7 @@ class SiffReader(object):
             ret_string += "\n"
         else:
             ret_string += "Inactive siffreader\n"
-        ret_string += self.im_params.__repr__()
+        #ret_string += self.im_params.__repr__()
         return ret_string
 
     def __repr__(self):

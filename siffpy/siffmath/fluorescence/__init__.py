@@ -4,7 +4,7 @@ Dedicated code for data that is purely fluorescence analysis
 from typing import Callable, Union, TYPE_CHECKING
 import numpy as np
 
-from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector
+from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector # noqa: F401
 from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
 
 if TYPE_CHECKING:
@@ -56,7 +56,10 @@ def dFoF(
         try:
             np.array(Fo).astype(float)
         except TypeError:
-            raise TypeError(f"Keyword argument Fo is not of type float, a numpy array, or a callable, nor can it be cast to such.")
+            raise TypeError(
+                "Keyword argument Fo is not of type float, a numpy array, "
+                 + "or a callable, nor can it be cast to such."
+            )
     
     F0 = np.atleast_2d(F0)
     # Code smell, BIG TIME. Quick fix for the way numpy does the atleast_2d thing...

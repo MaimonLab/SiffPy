@@ -30,9 +30,9 @@ def vector_to_list(vector, vec_num : int = 0)->List[Any]:
     except ValueError:
         try:
             return float(vector)
-        except:
+        except Exception:
             pass
-    except:
+    except Exception:
         pass
     
     betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",vector)
@@ -74,9 +74,9 @@ def matrix_to_listlist(matrix : str, vec_num : int = 0) -> List[List[Any]]:
     except ValueError:
         try:
             return float(matrix)
-        except:
+        except Exception:
             pass
-    except:
+    except Exception:
         pass
     
     betwixt_brackets = re.findall(r"^.*\[(.*)\].*$",matrix)

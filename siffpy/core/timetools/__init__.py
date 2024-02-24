@@ -1,11 +1,9 @@
 from typing import List, Dict
-import logging
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
 from siffpy.core.io import FrameMetaData, frame_metadata_to_dict
-from siffpy.core.utils import ImParams
 
 SEC_TO_NANO = 1e9
 NANO_TO_SEC = 1e-9
@@ -43,34 +41,6 @@ def metadata_dicts_to_time(dicts : List[Dict], reference : str = "experiment")->
         ])
     else:
         ValueError("Reference argument not a valid parameter (must be 'epoch' or 'experiment')")
-
-def to_t_axis(
-        frame_metadata : List[FrameMetaData],
-        im_params : ImParams,
-        timepoint_start : int = 0,
-        timepoint_end : int = None,
-        reference_z : int = 0,
-    )->np.ndarray:
-    
-    if timepoint_end > im_params.num_timepoints:
-        logging.warning(
-            "\ntimepoint_end greater than total number of frames.\n"+
-            "Using maximum number of complete timepoints in image instead.\n"
-        )
-        timepoint_end = im_params.num_timepoints
-        
-    # now convert to a list of all the frames whose metadata we want
-    framelist = [
-        im_params.framelist_by_slice(
-            im_params.colors[0], # colors are simultaneous
-            upper_bound = timepoint_end,
-            slice_idx = reference_z
-        )
-    ]
-    
-    return np.array([frame['frameTimestamps_sec']
-        for frame in frame_metadata_to_dict(frame_metadata)
-    ])
 
 def rolling_avg(trace : np.ndarray, time_axis : np.ndarray, window_length : float)->np.ndarray:
     """

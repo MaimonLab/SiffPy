@@ -1,1 +1,1 @@
-from siffpy.core.utils.im_params.im_params import ImParams
+from siffpy.core.utils.im_params.im_params import ImParams  # noqa: F401

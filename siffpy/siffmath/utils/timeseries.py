@@ -89,7 +89,8 @@ class Timeseries(np.ndarray):
         """
         Finalize the array
         """
-        if obj is None: return
+        if obj is None:
+            return
         self.units = getattr(obj, 'units', None)
         #self.time_zero = getattr(obj, 'time_zero', None)
 

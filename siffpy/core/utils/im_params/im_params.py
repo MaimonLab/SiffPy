@@ -2,7 +2,7 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union, List, Dict, Tuple, TYPE_CHECKING, Optional
+from typing import Any, Union, List, Dict, Tuple, Optional
 from functools import wraps
 
 import numpy as np
@@ -96,7 +96,7 @@ class ImParams():
         """
         self.si_modules : Dict[str, ScanImageModule]= {}
 
-        if not num_frames is None:
+        if num_frames is not None:
             self._num_frames_from_siffio = num_frames
 
         if not param_dict:
@@ -112,7 +112,7 @@ class ImParams():
         """ Adds ROI data to the ImParams object """
         self.roi_groups = {}
         for roi_group_name, roi_group_data in roi_data['RoiGroups'].items():
-            if not roi_group_data is None:
+            if roi_group_data is not None:
                 self.roi_groups[roi_group_name] = ROIGroup(roi_group_data)
 
     def _repr_pretty_(self, p, cycle):
@@ -541,7 +541,7 @@ class ImParams():
                 ) == reference_z)
             ]
 
-        if ~(color_channel is None):
+        if color_channel is not None:
             framelist = framelist[color_channel::self.num_colors]
             
         return framelist
@@ -699,7 +699,7 @@ class ImParams():
                 module_name = split_key[1]
                 if re.match(r"h[A-Z].*", module_name):
                     module_name = module_name[1:]
-            if not module_name in params.si_modules:
+            if module_name not in params.si_modules:
                 params.si_modules[module_name] = ScanImageModule(module_name)
             if len(split_key) == 2:
                 params.si_modules[module_name].add_param(split_key[1], val)

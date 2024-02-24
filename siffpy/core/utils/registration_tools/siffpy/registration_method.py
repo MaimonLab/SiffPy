@@ -8,7 +8,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 from siffreadermodule import SiffIO
-from siffpy.core.utils.circle_fcns import circ_d, re_circ, roll_d
+from siffpy.core.utils.circle_fcns import circ_d, re_circ
 from siffpy.core.utils.registration_tools.siffpy.alignment import (
     align_to_reference
 )
@@ -68,7 +68,7 @@ def register_frames(
         registration=registration_dict
     ).astype(np.float32)
     
-    use_tqdm = not (pbar is None)
+    #use_tqdm = not (pbar is None)
     
     #if use_tqdm:
     #    pbar.set_description(f"\nRef image (1): {time.time() - t} seconds")

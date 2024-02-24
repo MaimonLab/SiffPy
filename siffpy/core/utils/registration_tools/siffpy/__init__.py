@@ -1,4 +1,3 @@
-import builtins
 import logging
 from typing import TYPE_CHECKING, Tuple
 
@@ -85,9 +84,9 @@ class SiffpyRegistrationInfo(RegistrationInfo):
             self.im_params.single_channel_volume,
         ).squeeze()
 
-        pbar = None if not "tqdm" in kwargs else kwargs["tqdm"]
+        pbar = None if "tqdm" not in kwargs else kwargs["tqdm"]
 
-        if not pbar is None:
+        if pbar is not None:
             pbar : tqdm
             pbar.reset(total=len(framelists))
         for z_idx, z_plane_frames in enumerate(framelists):

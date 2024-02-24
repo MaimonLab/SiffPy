@@ -1,11 +1,15 @@
 from typing import List
-import inspect, textwrap
+import inspect
+import textwrap
 
-from siffpy.siffmath.phase import phase_alignment_functions
-from siffpy.siffmath.phase.phase_estimates import estimate_phase
-from siffpy.siffmath.flim import FlimTrace
-from siffpy.siffmath.fluorescence import *
-from siffpy.siffmath.utils import Timeseries
+from siffpy.siffmath.phase import phase_alignment_functions # noqa: F401
+from siffpy.siffmath.phase.phase_estimates import estimate_phase # noqa: F401
+from siffpy.siffmath.flim import FlimTrace # noqa: F401
+from siffpy.siffmath.fluorescence import (
+    FluorescenceTrace, dFoF, photon_counts, # noqa: F401
+)
+from siffpy.siffmath.utils import Timeseries # noqa: F401
+import siffpy.siffmath.fluorescence as fluorescence
 
 def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
     """
@@ -14,7 +18,6 @@ def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
     the __all__ but this way I can also print the
     docstrings.
     """
-    from .fluorescence import FluorescenceTrace
     fcns = inspect.getmembers(
         fluorescence,
         lambda x: inspect.isfunction(x) and issubclass(inspect.signature(x).return_annotation, FluorescenceTrace)

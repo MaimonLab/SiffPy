@@ -1,5 +1,4 @@
 # Functions for circularizing floats and ints
-from itertools import tee
 from typing import Any, Tuple
 
 import numpy as np
