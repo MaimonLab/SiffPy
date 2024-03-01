@@ -658,7 +658,7 @@ class SiffReader(object):
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[Union[int,List[int]]] = None,
-        color_channel : int = 0,
+        color_channel : int = 1,
         registration_dict : Optional[dict] = None,
         )->FlimTrace:
         """
@@ -694,11 +694,8 @@ class SiffReader(object):
             The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
             defaults to the final timepoint of the .siff file.
 
-        color_list : List[int] (optional) (default is None)
-            If the FLIMParams objects do not have a color_channel attribute, then this
-            argument is REQUIRED. Explains which channel's frames should used to compute
-            the empirical lifetime. Must be of the same length as the params argument. Will
-            be superceded by the corresponding FLIMParams color_channel if both are required.
+        color_channel : int
+            Color channel to sum over. Default is 1, which means the FIRST color channel.
 
         registration_dict : dict
             Registration dictionary for frames.

@@ -4,8 +4,7 @@ the variable of interest.
 
 """
 from dataclasses import dataclass
-from typing import List
-from functools import partial
+from typing import List, Dict
 
 def hill_equation(
     x : float,
@@ -80,16 +79,36 @@ class FluorophoreHillFit:
         Invert the hill equation to convert
         lifetime to concentration
         """
-        return inverse_hill_equation(lifetime, self.n, self.k50, self.zero_point, self.max_point)
+        return inverse_hill_equation(
+            lifetime,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
 
     def to_concentration(self, input : float) -> float:
         """
         Hill equation to convert
         concentration to lifetime
         """
-        return hill_equation(input, self.n, self.k50, self.zero_point, self.max_point)
+        return hill_equation(
+            input,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
 
 class DangerousFit(FluorophoreHillFit):
+    """
+    A `FluorophoreHillFit` with at least one
+    parameter not known from the literature.
+
+    To be used with caution.
+
+
+    """
     undefined_parameters : List[str]
 
     def __init__(self, *args, undefined_parameters : List[str] = [], **kwargs):
@@ -119,6 +138,141 @@ class DangerousFit(FluorophoreHillFit):
         print(warnstr) 
         return super().to_concentration(*args, **kwargs)
 
+class TemperatureSensitiveFit(FluorophoreHillFit):
+    """
+    A `FluorophoreHillFit` when the temperature-dependent
+    changes in parameters are known.
+
+    Initialized by a dict of temperatures whose values
+    are the parameters for the fit at that temperature.
+
+    If the temperature is out of the range of fits, uses
+    the closest... or interpolates if it's between two
+    known temperatures.
+
+    e.g.
+
+    ```
+    temperature_dependent_params = {
+        37 : dict(
+            n = 1.63,
+            k50 = 265,
+            zero_point = 1.4,
+            max_point = 2.78
+        ),
+        25 : dict(
+            n = 1.33,
+            k50 = 245,
+            zero_point = 1.2,
+            max_point = 2.5
+        )
+        ...
+    }
+    ```
+    """
+
+    def __init__(
+            self,
+            temperature_dependent_params : Dict[float, Dict[str, float]],
+            *args,
+            **kwargs
+        ):
+        # kwargs = {
+        #     **kwargs,
+        #     next(temperature_dependent_params.values()),
+        # }
+        self.temperature_dependent_params = temperature_dependent_params
+        super().__init__(
+            *args,
+            n=next(iter(temperature_dependent_params.values()))['n'],
+            k50=next(iter(temperature_dependent_params.values()))['k50'],
+            zero_point=next(iter(temperature_dependent_params.values()))['zero_point'],
+            max_point=next(iter(temperature_dependent_params.values()))['max_point'],
+            **kwargs
+        )
+
+    def remap_by_temperature(self, temperature : float):
+        """
+        Remap the parameters according to the temperature.
+
+        Written with CoPilot... haven't fact checked but it looks right.
+        """
+
+        if temperature in self.temperature_dependent_params:
+            self.n = self.temperature_dependent_params[temperature]['n']
+            self.k50 = self.temperature_dependent_params[temperature]['k50']
+            self.zero_point = self.temperature_dependent_params[temperature]['zero_point']
+            self.max_point = self.temperature_dependent_params[temperature]['max_point']
+        else:
+            # Interpolate
+            temps = list(self.temperature_dependent_params.keys())
+            temps.sort()
+
+            if temperature < temps[0]:
+                self.n = self.temperature_dependent_params[temps[0]]['n']
+                self.k50 = self.temperature_dependent_params[temps[0]]['k50']
+                self.zero_point = self.temperature_dependent_params[temps[0]]['zero_point']
+                self.max_point = self.temperature_dependent_params[temps[0]]['max_point']
+
+            elif temperature > temps[-1]:
+                self.n = self.temperature_dependent_params[temps[-1]]['n']
+                self.k50 = self.temperature_dependent_params[temps[-1]]['k50']
+                self.zero_point = self.temperature_dependent_params[temps[-1]]['zero_point']
+                self.max_point = self.temperature_dependent_params[temps[-1]]['max_point']
+
+            else:
+                for i in range(len(temps) - 1):
+                    if temperature > temps[i] and temperature < temps[i + 1]:
+                        break
+
+                # Interpolate
+                t1 = temps[i]
+                t2 = temps[i + 1]
+
+                n1 = self.temperature_dependent_params[t1]['n']
+                k501 = self.temperature_dependent_params[t1]['k50']
+                zero_point1 = self.temperature_dependent_params[t1]['zero_point']
+                max_point1 = self.temperature_dependent_params[t1]['max_point']
+
+                n2 = self.temperature_dependent_params[t2]['n']
+                k502 = self.temperature_dependent_params[t2]['k50']
+                zero_point2 = self.temperature_dependent_params[t2]['zero_point']
+                max_point2 = self.temperature_dependent_params[t2]['max_point']
+
+                self.n = n1 + (n2 - n1) * (temperature - t1) / (t2 - t1)
+                self.k50 = k501 + (k502 - k501) * (temperature - t1) / (t2 - t1)
+                self.zero_point = zero_point1 + (zero_point2 - zero_point1) * (temperature - t1) / (t2 - t1)
+                self.max_point = max_point1 + (max_point2 - max_point1) * (temperature - t1) / (t2 - t1)
+
+
+    def __call__(self, temperature : float, lifetime : float,):
+        """
+        Invert the hill equation to convert
+        lifetime to concentration
+        """
+        self.remap_by_temperature(temperature)
+
+        return inverse_hill_equation(
+            lifetime,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+
+    def to_concentration(self, temperature : float, input : float):
+        """
+        Hill equation to convert
+        concentration to lifetime
+        """
+        self.remap_by_temperature(temperature)
+        return hill_equation(
+            input,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
 
 TqCaFLITS = FluorophoreHillFit(
     n = 1.63,
@@ -128,6 +282,23 @@ TqCaFLITS = FluorophoreHillFit(
     units_in = r'[Ca$2^+$] (nM)',
     units_out = 'nanoseconds',
     name = 'TqCaFLITS',
+)
+
+GCaFLITS = TemperatureSensitiveFit(
+    temperature_dependent_params= {
+        37 : dict(
+            n = 1.53,
+            k50 = 220,
+            zero_point = 2.9,
+            max_point = 1.93
+        ),
+        23 : dict(
+            n = 1.67,
+            k50 = 356,
+            zero_point = 3.52,
+            max_point = 2.03
+        )
+    }
 )
 
 jRCaMP1b = DangerousFit(
