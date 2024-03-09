@@ -12,10 +12,14 @@ import numpy as np
 from scipy.special import i0, i1
 
 from siffpy.core.utils.types import ComplexArray, FloatArray
-from siffpy.siffmath.phase.traces import *
+from siffpy.siffmath.phase.traces import (
+    PhaseTrace,
+)
 from siffpy.siffmath.fluorescence import FluorescenceTrace
 from siffpy.siffmath.flim import FlimTrace
-from siffpy.siffmath.phase.phase_analyses import *
+from siffpy.siffmath.phase.phase_analyses import (
+    estimate_phase, fit_offset, sliding_correlation, multiscale_circ_corr # noqa: F401
+)
 
 __all__ = [
     'pva'

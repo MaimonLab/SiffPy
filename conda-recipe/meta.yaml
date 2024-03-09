@@ -16,7 +16,7 @@ build:
 requirements:
   build:
     - git
-    - python>=3.8
+    - python
     - pip
     - numpy
     - wheel
@@ -26,13 +26,13 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
   host:
-    - python>=3.8
+    - python
     - numpy
     - scipy
     - h5py
     - importlib_resources
   run:
-    - python>=3.8
+    - python
     - numpy
     - scipy
     - h5py

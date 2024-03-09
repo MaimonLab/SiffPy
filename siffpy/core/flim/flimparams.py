@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, TYPE_CHECKING, Optional, List, Dict
+from typing import Any, Callable, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
 from pathlib import Path
 
 import numpy as np
@@ -7,12 +7,47 @@ from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
 from scipy.stats import exponnorm
 
 from siffpy.core.utils.types import PathLike
-from siffpy.core.flim.flimunits import FlimUnitsLike
-from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits
-from siffpy.core.flim.exponentials import param_tuple_to_pdf
+from siffpy.core.flim.flimunits import FlimUnitsLike, FlimUnits, convert_flimunits
 from siffpy.core.flim.loss_functions import ChiSquared
+from siffpy.core.flim.typing import PDF_Function
 if TYPE_CHECKING:
     from siffpy.core.flim.loss_functions import LossFunction
+
+
+def multi_exponential_pdf_from_params(
+    x_range : np.ndarray,
+    params : np.ndarray,
+):
+    """
+    Returns the probability distribution of observing a photon at each
+    time in x_range given the exponential parameters and the IRF parameters.
+    """
+
+    pdist = np.zeros(x_range.shape)
+    irf_mean, irf_sigma = params[-2], params[-1]
+    
+    # No more loop, do it all vectorized
+    params.reshape(-1, 2)
+    pdist = np.sum(
+        params[1:-2:2] * exponnorm.pdf(
+            x_range[:, np.newaxis],
+            params[:-2:2]/irf_sigma,
+            loc=irf_mean,
+            scale=irf_sigma
+        ),
+        axis=1
+    )
+
+    pdist += np.sum(
+        params[1:-2:2] * exponnorm.pdf(
+            x_range[:, np.newaxis] + x_range[-1],
+            params[:-2:2]/irf_sigma,
+            loc=irf_mean,
+            scale=irf_sigma
+        ),
+        axis=1
+    )
+    return pdist/pdist.sum()
 
 class FLIMParams():
     """
@@ -24,14 +59,47 @@ class FLIMParams():
     """
     
     def __init__(self,
-        *args,
+        *args: Union[List['FLIMParameter'], Tuple[float]],
         color_channel : Optional[int] = None,
         noise : float = 0.0,
         name : Optional[str] = None,
         ):
+        """
+        initialized with a list of Exp objects and an Irf object
+        in the `args` parameter. Alternatively, a tuple of parameters
+        can be passed and interpreted as follows:
+            (tau, frac, tau, frac, ... , irf_mean, irf_sigma)
+
+        These will be stored in the `exps` and `irf` attributes.
+        """
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
         self.irf = next((x for x in args if isinstance(x, Irf)), None)
+        if len(self.exps) == 0:
+            if any((isinstance(arg, tuple) for arg in args)):
+                putative_param_tuple = next((x for x in args if isinstance(x, tuple)), None)
+                self.exps = [
+                    Exp(
+                        tau=tau,
+                        frac=frac,
+                    )
+                    for tau, frac in zip(
+                        putative_param_tuple[:-2:2],
+                        putative_param_tuple[1:-2:2]
+                    )
+                ]
+                self.irf = Irf(
+                    tau_offset = putative_param_tuple[-2],
+                    tau_g = putative_param_tuple[-1],
+                )
+            else:
+                raise ValueError(
+                    "At least one exponential and an IRF is required."
+                    + " May be specified as a tuple or as a list of `Exp` and `IRF` objects."
+                )
+
+        if np.sum([exp.frac for exp in self.exps]) != 1:
+            raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
         self.allow_noise = noise>0
         self.noise = noise
@@ -55,7 +123,7 @@ class FLIMParams():
         return retlist
 
     @property
-    def param_tuple(self)->tuple:
+    def param_tuple(self)->Tuple:
         """
         Returns a tuple for all of the parameters together so they can be
         passed into numerical solvers.
@@ -112,7 +180,7 @@ class FLIMParams():
     def fit_params_to_data(
             self,
             data            : np.ndarray,
-            initial_guess   : tuple     = None,
+            initial_guess   : np.ndarray     = None,
             loss_function   : 'LossFunction'  = ChiSquared,
             solver          : Callable  = None,
             **kwargs
@@ -133,10 +201,6 @@ class FLIMParams():
 
             A numpy array of the arrival time histogram. Data[n] = number
             of photons arriving in bin n
-
-        num_exps : int
-
-            Number of differently distributed monoexponential states.
 
         initial_guess : tuple
 
@@ -172,20 +236,28 @@ class FLIMParams():
         """
         start_units = FlimUnits(self.units) # force eval
         self.convert_units(FlimUnits.COUNTBINS)
-        objective : Callable[[tuple], float] = loss_function.from_data(data)
+        objective : Callable[[np.ndarray], float] = loss_function.from_data(
+            data, 
+            multi_exponential_pdf_from_params,
+        )
 
         if initial_guess is None:
-            initial_guess = self.param_tuple
+            initial_guess = np.array(self.param_tuple)
+        initial_guess = np.array(initial_guess)
         
         if solver is None:
-            solver = lambda loss_func, initial_guess: minimize(
-                loss_func,
-                loss_function.params_transform(initial_guess),
-                method = 'trust-constr',
-                bounds = self.bounds,
-                constraints = self.constraints,
-            )
+            def minimize_loss(loss_func, initial_guess):
+                return minimize(
+                    loss_func,
+                    loss_function.params_transform(initial_guess),
+                    method = 'trust-constr',
+                    bounds = self.bounds,
+                    constraints = self.constraints,
+                )
 
+            solver = minimize_loss
+
+        print("Initial guess: ", loss_function.params_transform(initial_guess))
         fit_obj = solver(objective, initial_guess)
 
         fit_tuple = fit_obj.x
@@ -195,10 +267,19 @@ class FLIMParams():
         return fit_obj
 
     @classmethod
-    def from_tuple(cls, param_tuple : tuple, units : FlimUnits = FlimUnits.COUNTBINS):
-        """ Instantiate a FLIMParams from the parameter tuple """
-        num_components = len(param_tuple) - 2
+    def from_tuple(
+            cls,
+            param_tuple : tuple,
+            units : 'FlimUnitsLike' = FlimUnits.COUNTBINS,
+            noise : float = 0.0,
+        ):
+        """ 
+        Instantiate a FLIMParams from the parameter tuple. Order is:
 
+        (tau, frac, tau, frac, ... , mean, sigma)
+        
+        """
+        units = FlimUnits(units)
         args = []
         args += [
             Exp(
@@ -219,9 +300,30 @@ class FLIMParams():
                 units = units,
             )
         ]
-        return cls(*args)
+        return cls(*args, noise = noise)
 
-    def probability_dist(self, x_range : np.ndarray, **kwargs):
+    def pdf(self, x_range : np.ndarray)->np.ndarray:
+        """
+        Return the fit value's probability distribution. To plot against a
+        data set, rescale this by the total number of photons in the data set.
+        Assumes x_range is in the same units as the FLIMParams.
+
+        INPUTS
+        ------
+        x_range : np.ndarray (1-dimensional)
+
+            The x values you want the output probabilities of. Usually this will be something like
+            np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
+
+        RETURN VALUES
+        ------------
+        p_out : np.ndarray(1-dimensional)
+            
+            The probability of observing a photon in each corresponding bin of x_range.
+        """
+        return self.probability_dist(x_range)
+
+    def probability_dist(self, x_range : np.ndarray)->np.ndarray:
         """
         Return the fit value's probability distribution. To plot against a
         data set, rescale this by the total number of photons in the data set.
@@ -242,12 +344,13 @@ class FLIMParams():
         """
         if not len(self.exps):
             raise AttributeError("FLIMParams does not have at least one defined component.")
-        if not (x_range.dtype is float):
+        if x_range.dtype is not float:
             x_range = x_range.astype(float)
-        return param_tuple_to_pdf(
-            x_axis = x_range,
-            param_tuple = self.param_tuple,
-        )
+
+        return (1-self.noise)*multi_exponential_pdf_from_params(
+            x_range,
+            np.array(self.param_tuple)
+        ) + self.noise/len(x_range)
 
     def __repr__(self):
         retstr = "FLIMParams object: \n\n"
@@ -257,37 +360,16 @@ class FLIMParams():
         retstr += "\t\t"+self.irf.__repr__() + "\n"
         return retstr
 
-    def __getattr__(self, attr : str):
+    @property
+    def T_O(self)->float:
         """ Back-compatibility """
-        if attr == 'T_O':
-            return self.tau_offset
-        else:
-            return super().__getattribute__(attr)
+        return self.tau_offset
 
-    def __eq__(self, other)->bool:
-        equal = False
-        if isinstance(other, FLIMParams):
-            if not ((self.color_channel is None) and other.color_channel is None):
-                equal *= self.color_channel == other.color_channel
-            equal *= len(self.exps) == len(other.exps)
-            equal *= all( # every exp has at least one match in the other FLIMParams
-                (
-                    any(
-                        (
-                            exp == otherexp
-                            for otherexp in other.exps
-                        )
-                    )
-                    for exp in self.exps
-                )
-            )
-            equal *= self.irf == other.irf
-        return equal
-    
     @param_tuple.setter
     def param_tuple(self, new_params : tuple):
         """ :param new_params: a list of the new parameters for the model
-        (Tau, frac, tau, frac, ... , mean, sigma) 
+        (Tau, frac, tau, frac, ... , mean, sigma).
+        Does NOT change current units! Be careful!
         """
 
         if len(new_params) != 2*self.n_exp + 2:
@@ -412,6 +494,29 @@ class FLIMParams():
 
         return cls.from_dict(flim_p_dict)
     
+    def __eq__(self, other)->bool:
+        """
+        Two FLIMParams objects are equal if they have the same parameters
+        and the same color channel, regardless of ordering of those parameters
+        """
+        equal = False
+        if isinstance(other, FLIMParams):
+            if not ((self.color_channel is None) and other.color_channel is None):
+                equal *= self.color_channel == other.color_channel
+            equal *= len(self.exps) == len(other.exps)
+            equal *= all( # every exp has at least one match in the other FLIMParams
+                (
+                    any(
+                        (
+                            exp == otherexp
+                            for otherexp in other.exps
+                        )
+                    )
+                    for exp in self.exps
+                )
+            )
+            equal *= self.irf == other.irf
+        return equal
 class FLIMParameter():
     """
     Base class for the various types of parameters.
@@ -498,11 +603,13 @@ class FLIMParameter():
         return retstr
 
     def __eq__(self, other)->bool:
-        equal = False
-        if type(self) is type(other):
-            for par in self.__class__.class_params:
-                equal *= getattr(self,par) == getattr(other,par)
-        return equal
+        return (
+            (type(self) is type(other))
+            and all(
+                getattr(self, par) == getattr(other, par)
+                for par in self.__class__.class_params
+            )
+        )
 
 
 class Exp(FLIMParameter):
@@ -513,6 +620,10 @@ class Exp(FLIMParameter):
         """ Exp(tau : float, frac : float, units : FlimUnits) """
         super().__init__(**params)
 
+    @property
+    def fraction(self):
+        return self.frac
+
 
 class Irf(FLIMParameter):
     """ Instrument response function """
@@ -522,3 +633,11 @@ class Irf(FLIMParameter):
     def __init__(self, **params):
         """ Irf(tau_offset : float, tau_g : float, units : FlimUnits)"""
         super().__init__(**params)
+
+    @property
+    def sigma(self):
+        return self.tau_g
+    
+    @property
+    def mu(self):
+        return self.tau_offset

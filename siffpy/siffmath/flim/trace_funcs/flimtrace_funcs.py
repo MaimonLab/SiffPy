@@ -104,7 +104,6 @@ def concatenate_flimtrace(concats, *args, out = None, **kwargs):
     
     flim_concat = np.concatenate([x.__array__() for x in concats], **kwargs)
     intensity_concat = np.concatenate([x.intensity for x in concats], **kwargs)
-    confidence_concat = None
 
     if out is None:
         params = None

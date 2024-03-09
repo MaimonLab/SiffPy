@@ -23,7 +23,6 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     """
 
     import shutil
-    import tifffile
     from pathlib import Path
 
     # Create a temporary directory, install
@@ -43,12 +42,6 @@ def load_test_files(tmp_path_factory, request)->List[str]:
         (test_dir / COMPRESSED_FILE_NAME).with_suffix('.siff'),
         (tmp_dir / COMPRESSED_FILE_NAME).with_suffix('.siff')
     )
-
-
-    # shutil.copy(
-    #     test_dir / "seed_mus.npy",
-    #     tmp_dir / "seed_mus.npy"
-    # )
 
     return tmp_dir
 

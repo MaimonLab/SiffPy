@@ -65,7 +65,8 @@ class PhaseTrace(np.ndarray):
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
+        if obj is None:
+            return
         self.method = getattr(obj, 'method', None)
         self.error_array = getattr(obj, 'error_array', None)
         self.time = getattr(obj, 'time', None)

@@ -199,7 +199,11 @@ class ImParams():
         for x in self.volume[:-2]:
             fr *= x
         return fr
-            
+
+    @property
+    def arrival_time_bins(self)->np.ndarray[Any, np.dtype[np.float_]]:
+        """ The time bins of the arrival time histogram """
+        return np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin
     
     @property
     def num_true_frames(self)->int:

@@ -2,12 +2,11 @@
 Analyses on extracted phase information
 """
 
-from typing import Union, Iterable, List, TYPE_CHECKING
+from typing import Iterable, List, TYPE_CHECKING
 import random
 
 import numpy as np
 from scipy.stats import circmean
-from numpy.lib.stride_tricks import sliding_window_view
 
 from siffpy.core.utils import circle_fcns
 from siffpy.siffmath.phase.traces import PhaseTrace
@@ -68,7 +67,7 @@ def fit_offset(
     # Arg parsing for a little while..
 
     if isinstance(phase_trace, PhaseTrace):
-        if not phase_trace.time is None:
+        if phase_trace.time is not None:
             phase_time = phase_trace.time
         phase_trace = np.asarray(phase_trace)
     

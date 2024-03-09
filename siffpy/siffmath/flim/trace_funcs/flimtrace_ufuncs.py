@@ -60,7 +60,7 @@ def add_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
     retval = flimtrace_ufunc_call_pattern(np.add, x1, x2, out=out, **ufunc_kwargs, **kwargs)
     
-    if not (retval is NotImplemented):
+    if retval is not NotImplemented:
         return retval
 
     # Both are FlimTraces, now we can do something actually interesting!
@@ -110,7 +110,7 @@ def subtract_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
     retval = flimtrace_ufunc_call_pattern(np.subtract, x1, x2, out=out, **ufunc_kwargs, **kwargs)
     
-    if not (retval is NotImplemented):
+    if retval is not NotImplemented:
         return retval
 
     # Both are FlimTraces, now we can do something actually interesting!
@@ -158,7 +158,7 @@ def matmul_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_k
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
     retval = flimtrace_ufunc_call_pattern(np.multiply, x1, x2, out=out, **ufunc_kwargs, **kwargs)
     
-    if not (retval is NotImplemented):
+    if retval is not NotImplemented:
         return retval
 
     # Both are FlimTraces! Now we can perform the matrix multiplication, which is an array of sums,

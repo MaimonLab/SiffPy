@@ -1,6 +1,6 @@
 """ Methods for computing F0 """
 
-from typing import Optional, Any
+from typing import Optional
 from logging import warning
 
 import numpy as np

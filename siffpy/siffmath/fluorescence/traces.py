@@ -82,7 +82,8 @@ class FluorescenceTrace(np.ndarray):
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
+        if obj is None:
+            return
         self.method = getattr(obj, 'method', None)
         self.normalized = getattr(obj, 'normalized', False)
         self.F = getattr(obj,'F', np.full_like(self.__array__(), np.nan))
@@ -135,7 +136,7 @@ class FluorescenceTrace(np.ndarray):
                     prop_args.append(input_)
             try:
                 prop_results[prop] = np.ndarray.__array_ufunc__(ufunc, method, *prop_args, **kwargs)
-            except:
+            except Exception:
                 continue
 
         # list results can be shared if they're consonant across all args
@@ -159,7 +160,7 @@ class FluorescenceTrace(np.ndarray):
         if ufunc.nout == 1:
             results = np.asarray(results).view(FluorescenceTrace)
             for key, val in prop_results.items():
-                if not (val is NotImplemented):
+                if val is not NotImplemented:
                     setattr(results, key, np.asarray(val))
 
             for key,val in list_results.items():
@@ -177,7 +178,7 @@ class FluorescenceTrace(np.ndarray):
             for idx, res in enumerate(results):    
                 resultlist.append(np.asarray(res).view(FluorescenceTrace))
                 for prop,val in prop_results.items():
-                    if not (val[idx] is NotImplemented):
+                    if val[idx] is not NotImplemented:
                         setattr(resultlist[idx], prop, np.asarray(val[idx]))
                 # TODO: what should I do with list attributes in this case?
                 # TODO: should they just propagate?
@@ -301,7 +302,7 @@ class FluorescenceVector(FluorescenceTrace):
                     prop_args.append(input_)
             try:
                 prop_results[prop] = getattr(ufunc,method)(*prop_args, **kwargs) # uses numpy array's ufunc, not FluorescenceTrace's
-            except:
+            except Exception:
                 continue
         
         # list results can be shared if they're consonant across all args
@@ -316,7 +317,7 @@ class FluorescenceVector(FluorescenceTrace):
         if ufunc.nout == 1:
             results = np.asarray(results).view(FluorescenceVector)
             for key, val in prop_results.items():
-                if not (val is NotImplemented):
+                if val is not NotImplemented:
                     setattr(results, key, np.asarray(val))
 
             for key,val in list_results.items():
@@ -329,7 +330,7 @@ class FluorescenceVector(FluorescenceTrace):
             for idx, res in enumerate(results):    
                 resultlist.append(np.asarray(res).view(FluorescenceVector))
                 for prop,val in prop_results.items():
-                    if not (val[idx] is NotImplemented):
+                    if val[idx] is not NotImplemented:
                         setattr(resultlist[idx], prop, np.asarray(val[idx]))
             
             results = tuple(resultlist)
@@ -338,7 +339,8 @@ class FluorescenceVector(FluorescenceTrace):
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
+        if obj is None:
+            return
         curr_array = self.__array__()
         try:
             n_trace = curr_array.shape[0]

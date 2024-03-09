@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from siffpy.core.flim.flimunits import FlimUnitsLike
     from siffpy.core.utils.types import PathLike
     from siffpy.siffmath.utils.types import (
-        FlimArrayLike, FluorescenceArrayLike, FlimVectorLike
+        FlimArrayLike, FluorescenceArrayLike
     )
 
 
@@ -91,7 +91,7 @@ class FlimTrace(np.ndarray):
             obj.intensity = obj.intensity.astype(float)
         
         obj.confidence = confidence
-        if not (obj.confidence is None):
+        if obj.confidence is not None:
             raise ValueError("Confidence parameter in FlimTrace not yet implemented.")
 
         if not (obj.intensity.shape == obj.__array__().shape):
@@ -164,7 +164,8 @@ class FlimTrace(np.ndarray):
         return super().__array_wrap__(out_arr, context=context)
 
     def __array_finalize__(self, obj):
-        if obj is None: return
+        if obj is None:
+            return
         self.intensity = getattr(obj, 'intensity', np.full_like(self.__array__(), np.nan))
         self.confidence = getattr(obj, 'confidence', None)
         self.FLIMParams = getattr(obj, 'FLIMParams', None)
@@ -312,7 +313,7 @@ class FlimTrace(np.ndarray):
     def implements_ufunc(cls, np_ufunction, method):
         """Register an __array_ufunction__ implementation for FlimTrace objects."""
         def decorator(func):
-            if not np_ufunction in FlimTrace.HANDLED_UFUNCS:
+            if np_ufunction not in FlimTrace.HANDLED_UFUNCS:
                 FlimTrace.HANDLED_UFUNCS[np_ufunction] = {}
             FlimTrace.HANDLED_UFUNCS[np_ufunction][method] = func
             return func
@@ -321,7 +322,7 @@ class FlimTrace(np.ndarray):
     @classmethod
     def excludes_ufunc(cls, np_ufunction, method):
         """ Excludes a ufunction from being used on a FlimTrace object """
-        if not np_ufunction in FlimTrace.EXCEPTED_UFUNCS:
+        if np_ufunction not in FlimTrace.EXCEPTED_UFUNCS:
             FlimTrace.EXCEPTED_UFUNCS[np_ufunction] = []
         FlimTrace.EXCEPTED_UFUNCS[np_ufunction].append(method)
 
@@ -336,7 +337,7 @@ class FlimTrace(np.ndarray):
             f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
             f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
-        if not (self.FLIMParams is None):
+        if self.FLIMParams is not None:
             self.FLIMParams.save(path.with_suffix('.flim_params'))
 
     @classmethod
