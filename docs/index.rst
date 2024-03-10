@@ -28,6 +28,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
 
    basic_use_notebook
    trace_notebook
+   flim_analysis
    siff_to_tiff
 
 .. toctree::
@@ -36,6 +37,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
 
    siffreader_api
    im_params_api
+   flim_params
    trace_analysis_api
    siffreadermodule_api
    registration_info

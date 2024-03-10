@@ -1,5 +1,4 @@
 from abc import abstractmethod, ABC
-from typing import Callable
 
 import numpy as np
 
@@ -95,7 +94,7 @@ class ChiSquared(LossFunction):
             params: np.ndarray,
             data: np.ndarray,
             pdf : PDF_Function,
-            exclude_wraparound: bool = False
+            exclude_wraparound: bool = True
         ) -> float:
         """ Returns the chi-squared value of the model prediction vs the data """
         predicted = np.sum(data)*pdf(np.arange(data.size)+0.5, params)
@@ -112,7 +111,7 @@ class MSE(LossFunction):
             params: np.ndarray,
             data: np.ndarray,
             pdf : PDF_Function,
-            exclude_wraparound: bool = False
+            exclude_wraparound: bool = True
         ) -> float:
         """ Returns the mean squared error value of the model prediction vs the data """
         predicted = np.sum(data)*pdf(np.arange(data.size)+0.5,params)

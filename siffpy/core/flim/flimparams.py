@@ -1,6 +1,7 @@
 import json
 from typing import Any, Callable, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
 from pathlib import Path
+from contextlib import contextmanager
 
 import numpy as np
 from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
@@ -56,6 +57,9 @@ class FLIMParams():
     lifetime or photon arrival data.
 
     Currently only implements combinations of exponentials.
+
+    The FLIMParams object uses units, specifically the `FlimUnits`
+    enum, to keep track of the units of the parameters.
     """
     
     def __init__(self,
@@ -234,36 +238,32 @@ class FLIMParams():
 
             The OptimizeResult object for diagnostics on the fit.
         """
-        start_units = FlimUnits(self.units) # force eval
-        self.convert_units(FlimUnits.COUNTBINS)
-        objective : Callable[[np.ndarray], float] = loss_function.from_data(
-            data, 
-            multi_exponential_pdf_from_params,
-        )
+        with self.as_units(FlimUnits.COUNTBINS):
+            objective : Callable[[np.ndarray], float] = loss_function.from_data(
+                data, 
+                multi_exponential_pdf_from_params,
+            )
 
-        if initial_guess is None:
-            initial_guess = np.array(self.param_tuple)
-        initial_guess = np.array(initial_guess)
-        
-        if solver is None:
-            def minimize_loss(loss_func, initial_guess):
-                return minimize(
-                    loss_func,
-                    loss_function.params_transform(initial_guess),
-                    method = 'trust-constr',
-                    bounds = self.bounds,
-                    constraints = self.constraints,
-                )
+            initial_guess = np.array(self.param_tuple) if initial_guess is None else np.array(initial_guess)
+            
+            if solver is None:
+                def minimize_loss(loss_func, initial_guess):
+                    return minimize(
+                        loss_func,
+                        loss_function.params_transform(initial_guess),
+                        method = 'trust-constr',
+                        bounds = self.bounds,
+                        constraints = self.constraints,
+                    )
 
-            solver = minimize_loss
+                solver = minimize_loss
 
-        print("Initial guess: ", loss_function.params_transform(initial_guess))
-        fit_obj = solver(objective, initial_guess)
+            print("Initial guess: ", loss_function.params_transform(initial_guess))
+            fit_obj = solver(objective, initial_guess)
 
-        fit_tuple = fit_obj.x
+            fit_tuple = fit_obj.x
 
-        self.param_tuple = loss_function.params_untransform(fit_tuple)
-        self.convert_units(start_units)
+            self.param_tuple = loss_function.params_untransform(fit_tuple)
         return fit_obj
 
     @classmethod
@@ -359,6 +359,18 @@ class FLIMParams():
             retstr += "\t\t"+exp.__repr__() + "\n"
         retstr += "\t\t"+self.irf.__repr__() + "\n"
         return retstr
+    
+    @contextmanager
+    def as_units(self, to_units : FlimUnitsLike):
+        """
+        Context manager that temporarily converts the units of this FLIMParams
+        object to the units of the first parameter, and then converts them back
+        to the original units when the context is exited.
+        """
+        start_units = self.units
+        self.convert_units(to_units)
+        yield
+        self.convert_units(start_units)
 
     @property
     def T_O(self)->float:
@@ -613,7 +625,13 @@ class FLIMParameter():
 
 
 class Exp(FLIMParameter):
-    """ Monoexponential parameter fits """
+    """
+    Monoexponential parameter fits.
+
+    Tracks the fraction of photons belonging
+    to this exponential and the corresponding
+    timeconstant.
+    """
     class_params = ['tau', 'frac']
     unitful_params = ['tau']
     def __init__(self, **params):
@@ -626,7 +644,13 @@ class Exp(FLIMParameter):
 
 
 class Irf(FLIMParameter):
-    """ Instrument response function """
+    """
+    Instrument response function.
+    Tracks the mean offset and its variance
+    (presumes a Gaussian IRF, which is convolved
+    with the exponentials to produce the estimated
+    arrival time distribution).
+    """
     class_params = ['tau_offset', 'tau_g']
     unitful_params = ['tau_offset', 'tau_g']
     
