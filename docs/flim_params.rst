@@ -1,5 +1,5 @@
 FLIMParams classes
-==================
+================================================
 
 The ``FLIMParams`` class, and their variants,
 stores parameters for fitting FLIM data.
@@ -7,10 +7,10 @@ stores parameters for fitting FLIM data.
 Initialization of the ``FLIMParams`` class
 -------------------------------------------
 
-The :ref:`flim_params<``FLIMParams``>` class can be initialized
+The :ref:`flim params<``FLIMParams``>` class can be initialized
 either using the ``from_tuple`` class method or by
-passing a list of :ref:`flim_parameter<``FLIMParameter``>` instances.
-The :ref:`flim_parameter<``FLIMParameter``>` classes are UNITFUL --
+passing a list of :ref:`flim parameter<``FLIMParameter``>` instances.
+The :ref:`flim parameter<``FLIMParameter``>` classes are UNITFUL --
 for some purposes it's easiest to work with indices of the arrival
 time bins and sometimes it's easiest to work with real SI units.
 
@@ -41,15 +41,15 @@ time bins and sometimes it's easiest to work with real SI units.
 ``FlimUnits`` and the ``as_units`` context manager
 --------------------------------------------------
 
-The :ref:`flim_params<``FLIMParams``>` class provides a context
+The :ref:`flim params<``FLIMParams``>` class provides a context
 manager for its units internally so that most
 methods (other than ``convert_units``) do not
 cryptically change the units (and thus the numerical
 values used for the various parameters). To use the
 context manager, use ``with fp.as_units('unit'):``
-where ``fp`` is a :ref:`flim_params<``FLIMParams``>` instance and
+where ``fp`` is a :ref:`flim params<``FLIMParams``>` instance and
 ``unit`` is the desired unit. ``unit`` may be a 
-string or a :ref:`flimunit<``FlimUnits``>` unit.
+string or a :ref:`flim units<``FlimUnits``>` unit.
 
 .. code-block:: python
 
@@ -59,15 +59,18 @@ string or a :ref:`flimunit<``FlimUnits``>` unit.
 
     )
 
-.. _flim_units:
+.. _flim units:
+
 .. autoclass:: siffpy.core.flim.flimunits.FlimUnits
     :members:
 
-.. _flim_params:
+.. _flim params:
+
 .. autoclass:: siffpy.core.flim.flimparams.FLIMParams
     :members:
 
-.. _flim_parameter:
+.. _flim parameter:
+
 .. autoclass:: siffpy.core.flim.flimparams.FLIMParameter
     :members:
 

@@ -85,12 +85,14 @@ to work directly with a file anymore and partly to make it easy for others to us
 objects without learning to use this specific framework if they want...
 
 .. _registration_type:
+
 .. autoclass:: siffpy.core.utils.registration_tools.registration_info.RegistrationType
    :members:
    :undoc-members:
    :show-inheritance:
 
 .. _registration_info_abc:
+
 .. autoclass:: siffpy.core.utils.registration_tools.registration_info.RegistrationInfo
    :members:
    :undoc-members:
