@@ -5,7 +5,7 @@ The ``FLIMParams`` class, and their variants,
 stores parameters for fitting FLIM data.
 
 Initialization of the ``FLIMParams`` class
-==========================================
+-------------------------------------------
 
 The :ref:`flim_params<``FLIMParams``>` class can be initialized
 either using the ``from_tuple`` class method or by
@@ -35,11 +35,11 @@ time bins and sometimes it's easiest to work with real SI units.
         Exp(0.5, 0.3, units = 'nanoseconds'),
         Exp(2.2, 0.5, units = 'nanoseconds'),
         Exp(6.2, 0.2, units = 'nanoseconds'), 
-        Irf(4.1, 0.03, units = 'nanoseconds')
+        Irf(4.1, 0.03, units = 'nanoseconds'),
     )
 
 ``FlimUnits`` and the ``as_units`` context manager
-==================================================
+--------------------------------------------------
 
 The :ref:`flim_params<``FLIMParams``>` class provides a context
 manager for its units internally so that most
