@@ -308,6 +308,8 @@ class FLIMParams():
         data set, rescale this by the total number of photons in the data set.
         Assumes x_range is in the same units as the FLIMParams.
 
+        Alias for `probability_dist`
+
         INPUTS
         ------
         x_range : np.ndarray (1-dimensional)

@@ -87,13 +87,13 @@ class FluorophoreHillFit:
             self.max_point
         )
 
-    def to_concentration(self, input : float) -> float:
+    def to_lifetime(self, concentration : float) -> float:
         """
         Hill equation to convert
         concentration to lifetime
         """
         return hill_equation(
-            input,
+            concentration,
             self.n,
             self.k50,
             self.zero_point,

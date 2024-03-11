@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 try:
     from siffpy.core._version import __version__, __version_tuple__
@@ -12,9 +12,15 @@ from siffpy.core import ImParams # noqa: F401
 from siffpy.core import FLIMParams # noqa: F401
 from siffpy.siffmath import FlimTrace # noqa: F401
 
+if TYPE_CHECKING:
+    from pathlib import Path
+    from os import PathLike
+    from typing import Union
+    StrLike = Union[str, bytes, Path, PathLike]
+
 def siff_to_tiff(
-        source_file : str,
-        target_file : Optional[str] = None,
+        source_file : 'StrLike',
+        target_file : Optional['StrLike'] = None,
         mode : str = 'scanimage'
     )->None:
     """
@@ -25,13 +31,14 @@ def siff_to_tiff(
     Arguments
     ------
 
-    source_file : str
-        Path to a .siff file
+    source_file : str or str-like
+        Path to a .siff file. Will immediately be converted to str
 
-    target_file : Optional[str]
+    target_file : Optional[str-like]
         Path to where the .tiff should be saved. If `None`, saves
         to the same directory as the source file, with the same name
-        but with the extension changed to .tiff
+        but with the extension changed to .tiff. Otherwise immediately
+        converted to str
 
     mode : str
         Can be `scanimage` or (in progress) `ome`. `scanimage` is the default.
@@ -40,7 +47,9 @@ def siff_to_tiff(
         be readable by most bio image viewers.
     """
     import siffreadermodule
-    siffreadermodule.siff_to_tiff(source_file, savepath=target_file, mode=mode)
+    if target_file is not None:
+        target_file = str(target_file)
+    siffreadermodule.siff_to_tiff(str(source_file), savepath=target_file, mode=mode)
 
 def siff_to_tiff_command_line(argv):
     """ Function used as an entry point from the command line """
