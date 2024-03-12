@@ -48,7 +48,7 @@ inline void readCompressed(
 
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         data_ptr[
-            PIXEL_SHIFT(px, y_shift, x_shift, dims[1], dims[0])
+            PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
         ] += frameReads[px];
     }
     delete[] frameReads;
@@ -101,8 +101,8 @@ inline void readRaw(
                 frameReads[photon],
                 y_shift, 
                 x_shift,
-                dims[1],
-                dims[0]
+                dims[0],
+                dims[1]
             )
         ]++;
     }
@@ -175,7 +175,7 @@ void loadArrayWithData(
 
         for(uint64_t px = 0; px < samplesThisFrame; px++) {
             data_ptr[
-                PIXEL_SHIFT(px, y_shift, x_shift, dims[1], dims[0])
+                PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
              ] += frameReads[px];
         }
 

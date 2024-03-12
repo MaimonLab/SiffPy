@@ -42,8 +42,8 @@ void readCompressedForArrivals(
             px,
             y_shift,
             x_shift,
-            dims[1],
-            dims[0]
+            dims[0],
+            dims[1]
         );
         intensity_ptr[shifted_px] += photonsThisPx;
 
@@ -86,8 +86,8 @@ void readRawForArrivals(
                 frameReads[photon],
                 y_shift,
                 x_shift,
-                dims[1],
-                dims[0]
+                dims[0],
+                dims[1]
             )
         ] += U64TOTAU(frameReads[photon]);
 
@@ -97,8 +97,8 @@ void readRawForArrivals(
                 frameReads[photon],
                 y_shift,
                 x_shift,
-                dims[1],
-                dims[0]
+                dims[0],
+                dims[1]
             )
         ]++;
     }

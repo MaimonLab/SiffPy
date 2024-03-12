@@ -31,7 +31,7 @@ constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
     ( \
         ( \ 
             (((uint64_t)(px / (dim_x)) + (y_shift)) % (dim_y)) * (dim_x)) \
-    + (((px) % (dim_y) + (x_shift)) % (dim_x)) \
+    + (((px) % (dim_x) + (x_shift)) % (dim_x)) \
     )
 
 #endif
