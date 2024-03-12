@@ -48,7 +48,7 @@ inline void readCompressed(
 
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         data_ptr[
-            PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
+            PIXEL_SHIFT(px, y_shift, x_shift, dims[1], dims[0])
         ] += frameReads[px];
     }
     delete[] frameReads;
@@ -101,8 +101,8 @@ inline void readRaw(
                 frameReads[photon],
                 y_shift, 
                 x_shift,
-                dims[0],
-                dims[1]
+                dims[1],
+                dims[0]
             )
         ]++;
     }
@@ -175,9 +175,10 @@ void loadArrayWithData(
 
         for(uint64_t px = 0; px < samplesThisFrame; px++) {
             data_ptr[
-                PIXEL_SHIFT(px, y_shift, x_shift, dims[0], dims[1])
+                PIXEL_SHIFT(px, y_shift, x_shift, dims[1], dims[0])
              ] += frameReads[px];
         }
+
         delete[] frameReads;
     }
 };
@@ -231,7 +232,7 @@ PyArrayObject* SiffReader::retrieveFramesAsArray(
     // with length equal to the number of frames
     // and dtype uint64_t
 
-    const int ND = 3;
+    constexpr const int ND = 3;
     // TEMP
 
     npy_intp retdims[ND];

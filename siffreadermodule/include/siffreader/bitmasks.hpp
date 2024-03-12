@@ -28,7 +28,10 @@ constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
 // Shifts the pixel location px by shift_y, shift_x in an
 // image of dimensions dim_y, dim_x
 #define PIXEL_SHIFT(px, y_shift, x_shift, dim_y, dim_x) \
-    ((((uint64_t)(px / dim_y) + y_shift) % dim_y) * dim_x \
-    + (((px % dim_y) + x_shift) % dim_x))
+    ( \
+        ( \ 
+            (((uint64_t)(px / (dim_x)) + (y_shift)) % (dim_y)) * (dim_x)) \
+    + (((px) % (dim_y) + (x_shift)) % (dim_x)) \
+    )
 
 #endif
