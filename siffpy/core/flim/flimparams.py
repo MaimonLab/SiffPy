@@ -1,19 +1,22 @@
 import json
-from typing import Any, Callable, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
+from typing import (
+    Any, Callable, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
+)
 from pathlib import Path
 from contextlib import contextmanager
+from functools import partial
 
 import numpy as np
-from scipy.optimize import minimize, Bounds, LinearConstraint, OptimizeResult
+from scipy.optimize import (
+    minimize, Bounds, LinearConstraint, OptimizeResult
+)
 from scipy.stats import exponnorm
 
 from siffpy.core.utils.types import PathLike
 from siffpy.core.flim.flimunits import FlimUnitsLike, FlimUnits, convert_flimunits
-from siffpy.core.flim.loss_functions import ChiSquared
-from siffpy.core.flim.typing import PDF_Function
+from siffpy.core.flim.loss_functions import MSE
 if TYPE_CHECKING:
     from siffpy.core.flim.loss_functions import LossFunction
-
 
 def multi_exponential_pdf_from_params(
     x_range : np.ndarray,
@@ -69,16 +72,14 @@ class FLIMParams():
         name : Optional[str] = None,
         ):
         """
-        initialized with a list of Exp objects and an Irf object
-        in the `args` parameter. Alternatively, a tuple of parameters
-        can be passed and interpreted as follows:
-            (tau, frac, tau, frac, ... , irf_mean, irf_sigma)
+        Initialized with a list of Exp objects and an Irf object
+        in the `args` parameter.
 
         These will be stored in the `exps` and `irf` attributes.
         """
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
-        self.irf = next((x for x in args if isinstance(x, Irf)), None)
+        self.irf = next((x for x in args if isinstance(x, Irf)))
         if len(self.exps) == 0:
             if any((isinstance(arg, tuple) for arg in args)):
                 putative_param_tuple = next((x for x in args if isinstance(x, tuple)), None)
@@ -105,19 +106,25 @@ class FLIMParams():
         if np.sum([exp.frac for exp in self.exps]) != 1:
             raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
-        self.allow_noise = noise>0
-        self.noise = noise
+        self._noise = noise
         self.name = name
 
-    @property
-    def tau_g(self)->float:
-        if hasattr(self, 'irf'):
-            return self.irf.tau_g
+    tau_g = property(
+        lambda self: self.irf.tau_g,
+        lambda self, val: setattr(self.irf, 'tau_g', val)
+    )
+
+    tau_offset = property(
+        lambda self: self.irf.tau_offset,
+        lambda self, val: setattr(self.irf, 'tau_offset', val)
+    )
 
     @property
-    def tau_offset(self)->float:
-        if hasattr(self, 'irf'):
-            return self.irf.tau_offset
+    def ncomponents(self)->int:
+        """ Number of exponentials in this FLIMParams """
+        if hasattr(self, 'exps'):
+            return len(self.exps)
+        return 0
 
     @property
     def params(self)->List['FLIMParameter']:
@@ -144,8 +151,15 @@ class FLIMParams():
             return FlimUnits.UNKNOWN
         else:
             return self.params[0].units
-
-
+        
+    @units.setter
+    def units(self, new_units : FlimUnitsLike):
+        """
+        Sets the units of all the parameters in this FLIMParams,
+        aliases `convert_units`
+        """
+        self.convert_units(new_units)
+                
     def convert_units(self, to_units : FlimUnitsLike, flim_info = None):
         """
         Converts the units of all the parameters of this FLIMParams to
@@ -173,135 +187,65 @@ class FLIMParams():
         """
         for param in self.params:
             param.convert_units(to_units)
+  
+    @contextmanager
+    def as_units(self, to_units : FlimUnitsLike):
+        """
+        Context manager that temporarily converts the units of this FLIMParams
+        object to the units of the first parameter, and then converts them back
+        to the original units when the context is exited.
+        """
+        start_units = self.units
+        self.convert_units(to_units)
+        yield
+        self.convert_units(start_units)
 
     @property
-    def ncomponents(self)->int:
+    def T_O(self)->float:
+        """ Back-compatibility """
+        return self.tau_offset
+    
+    @property
+    def noise(self)->float:
+        """ The noise parameter """
+        return self._noise
+    
+    @noise.setter
+    def noise(self, new_noise : float):
+        """ Sets the noise parameter """
+        self._noise = new_noise
+
+    @property
+    def allow_noise(self)->bool:
+        """ Whether or not the noise parameter is allowed """
+        return self._noise > 0.0
+
+    @param_tuple.setter
+    def param_tuple(self, new_params : tuple):
+        """ :param new_params: a list of the new parameters for the model
+        (Tau, frac, tau, frac, ... , mean, sigma).
+        Does NOT change current units! Be careful!
+        """
+
+        if len(new_params) != 2*self.n_exp + 2:
+            raise ValueError(f"Incorrect number of parameters (should be {self.n_exp*2 + 2})")
+        # Update the parameters
+        self.exps = [
+            Exp(tau=tau, frac=frac)
+            for tau, frac in zip(
+                new_params[:-2:2],
+                new_params[1:-2:2]
+            )
+        ]
+        self.irf = Irf(tau_offset = new_params[-2], tau_g = new_params[-1])
+    
+    @property
+    def n_exp(self)->int:
         """ Number of exponentials in this FLIMParams """
-        if hasattr(self, 'exps'):
-            return len(self.exps)
-        return 0
-
-    def fit_params_to_data(
-            self,
-            data            : np.ndarray,
-            initial_guess   : np.ndarray     = None,
-            loss_function   : 'LossFunction'  = ChiSquared,
-            solver          : Callable  = None,
-            **kwargs
-        )->OptimizeResult:
-        """
-        Takes in the data and adjusts the internal
-        parameters of this FLIMParams object to
-        minimize the metric input. Default is CHI-SQUARED.
-
-        Stores new parameter values IN PLACE, but will return
-        the scipy OptimizeResult object.
-
-        TODO: KEEP THIS UNITFUL
-
-        Inputs
-        ------
-        data : np.ndarray
-
-            A numpy array of the arrival time histogram. Data[n] = number
-            of photons arriving in bin n
-
-        initial_guess : tuple
-
-            Guess for initial params in FLIMParams.param_tuple format.
-        
-        loss_function : LossFunction
-
-            Defines the cost function for curve fitting. Defaults to chi-squared
-
-            Argument 1: DATA (1d-ndarray) as above
-
-            Argument 2: PARAMS (tuple)
-
-            All other arguments must be KWARGS.
-
-        solver : Callable
-
-            A function that takes the metric and an initial guess and returns
-            some object that has an attribute called 'x' that is a tuple with
-            the same format as the FIT result of the param_tuple. This is the
-            format of the default scipy.optimize.minimize functions.
-
-        **kwargs
-
-            Passed to the metric function.
-
-        Returns
-        -------
-
-        fit : scipy.optimize.OptimizeResult
-
-            The OptimizeResult object for diagnostics on the fit.
-        """
-        with self.as_units(FlimUnits.COUNTBINS):
-            objective : Callable[[np.ndarray], float] = loss_function.from_data(
-                data, 
-                multi_exponential_pdf_from_params,
-            )
-
-            initial_guess = np.array(self.param_tuple) if initial_guess is None else np.array(initial_guess)
-            
-            if solver is None:
-                def minimize_loss(loss_func, initial_guess):
-                    return minimize(
-                        loss_func,
-                        loss_function.params_transform(initial_guess),
-                        method = 'trust-constr',
-                        bounds = self.bounds,
-                        constraints = self.constraints,
-                    )
-
-                solver = minimize_loss
-
-            print("Initial guess: ", loss_function.params_transform(initial_guess))
-            fit_obj = solver(objective, initial_guess)
-
-            fit_tuple = fit_obj.x
-
-            self.param_tuple = loss_function.params_untransform(fit_tuple)
-        return fit_obj
-
-    @classmethod
-    def from_tuple(
-            cls,
-            param_tuple : tuple,
-            units : 'FlimUnitsLike' = FlimUnits.COUNTBINS,
-            noise : float = 0.0,
-        ):
-        """ 
-        Instantiate a FLIMParams from the parameter tuple. Order is:
-
-        (tau, frac, tau, frac, ... , mean, sigma)
-        
-        """
-        units = FlimUnits(units)
-        args = []
-        args += [
-            Exp(
-                tau=tau,
-                frac =frac,
-                units = units,
-            )
-            for tau,frac in zip(
-                param_tuple[:-2:2],
-                param_tuple[1:-2:2]
-            )
-        ]
-
-        args += [
-            Irf(
-                tau_offset = param_tuple[-2],
-                tau_g = param_tuple[-1],
-                units = units,
-            )
-        ]
-        return cls(*args, noise = noise)
-
+        return len(self.exps)
+    
+###### PDF ########
+    
     def pdf(self, x_range : np.ndarray)->np.ndarray:
         """
         Return the fit value's probability distribution. To plot against a
@@ -354,69 +298,25 @@ class FLIMParams():
             np.array(self.param_tuple)
         ) + self.noise/len(x_range)
 
-    def __repr__(self):
-        retstr = "FLIMParams object: \n\n"
-        retstr += "\tParameters:\n"
-        for exp in self.exps:
-            retstr += "\t\t"+exp.__repr__() + "\n"
-        retstr += "\t\t"+self.irf.__repr__() + "\n"
-        return retstr
-    
-    @contextmanager
-    def as_units(self, to_units : FlimUnitsLike):
-        """
-        Context manager that temporarily converts the units of this FLIMParams
-        object to the units of the first parameter, and then converts them back
-        to the original units when the context is exited.
-        """
-        start_units = self.units
-        self.convert_units(to_units)
-        yield
-        self.convert_units(start_units)
+##### FITTING #####
 
-    @property
-    def T_O(self)->float:
-        """ Back-compatibility """
-        return self.tau_offset
-
-    @param_tuple.setter
-    def param_tuple(self, new_params : tuple):
-        """ :param new_params: a list of the new parameters for the model
-        (Tau, frac, tau, frac, ... , mean, sigma).
-        Does NOT change current units! Be careful!
-        """
-
-        if len(new_params) != 2*self.n_exp + 2:
-            raise ValueError(f"Incorrect number of parameters (should be {self.n_exp*2 + 2})")
-        # Update the parameters
-        self.exps = [
-            Exp(tau=tau, frac=frac)
-            for tau, frac in zip(
-                new_params[:-2:2],
-                new_params[1:-2:2]
-            )
-        ]
-        self.irf = Irf(tau_offset = new_params[-2], tau_g = new_params[-1])
-    
-    @property
-    def n_exp(self)->int:
-        """ Number of exponentials in this FLIMParams """
-        return len(self.exps)
-    
     @property
     def bounds(self)->Bounds:
         """
         Returns a bounds object from the scipy optimization library
         that can be used to constrain the parameters of this FLIMParams
         """
-
-        # Switch the type of bounds depending on the # of exponential
-        return Bounds(
-            # lower bounds
-            [0, 0]*(self.n_exp + 1),
-            # upper bounds
-            [np.inf, 1]*self.n_exp + [100, 10],
-        )
+        lb = [0]*(2*self.n_exp + 2) # all taus and fracs are non-negative
+        # fracs are between 0 and 1, everything else
+        # is non-negative
+        ub = [np.inf, 1]*self.n_exp + [np.inf, np.inf]
+        if self.n_exp == 1:
+            lb[1] = 1
+        if self.allow_noise:
+            # noise is between 0 and 1
+            lb.append(0)
+            ub.append(1)
+        return Bounds(lb, ub)
     
     @property
     def fraction_bounds(self)->Bounds:
@@ -429,25 +329,39 @@ class FLIMParams():
     @property
     def constraints(self)->List[LinearConstraint]:
         """ Exponential fractions sum to one, taus in increasing order """
+        if self.n_exp == 1:
+            return []
+        A_exps_sum = [0.0,1]*self.n_exp + [0.0,0.0]
+        if self.allow_noise:
+            A_exps_sum += [0.0]
+
         sum_exps_constraint = [
-                LinearConstraint(
-                A=np.array([0.0,1]*self.n_exp + [0.0,0.0]),
+            LinearConstraint(
+                A=np.array(A_exps_sum),
                 lb=1,
                 ub=1,
             )
         ]
 
+        A_inc_tau = [
+            [0,0]*(exp_num-1) + # preceding exponentials
+            [-1,0] + [1,0] + # current exponential
+            [0,0]*(self.n_exp-exp_num-1) + # tailing exponentials
+            [0,0] #IRF
+            for exp_num in range(1, self.n_exp)
+        ]
+
+        if self.allow_noise:
+            for tau_const in A_inc_tau:
+                tau_const += [0] # add the noise param
+
         increasing_taus_constraint = [
             LinearConstraint(
-                A=np.array(
-                [0,0]*(exp_num-1) + # preceding exponentials
-                [1,0] + [-1,0] +
-                [0,0]*(self.n_exp-exp_num-1) + # tailing exponentials
-                [0,0] #IRF
-                ),
-                ub = 0,
+                A=np.array(tau_const),
+                lb = 0,
+                ub = np.inf,
             )
-            for exp_num in range(1, self.n_exp)
+            for tau_const in A_inc_tau
         ]
         return sum_exps_constraint + increasing_taus_constraint
 
@@ -459,6 +373,147 @@ class FLIMParams():
             lb=1,
             ub=1,
         )]
+    
+    def fit_params_to_data(
+            self,
+            data            : np.ndarray,
+            initial_guess   : np.ndarray     = None,
+            loss_function   : 'LossFunction'  = MSE,
+            solver          : Callable  = None,
+            x_range         : np.ndarray = None,
+            optimization_units : FlimUnitsLike = FlimUnits.NANOSECONDS,
+            **kwargs
+        )->OptimizeResult:
+        """
+        Takes in the data and adjusts the internal
+        parameters of this FLIMParams object to
+        minimize the metric input. Default is CHI-SQUARED.
+
+        Stores new parameter values IN PLACE, but will return
+        the scipy OptimizeResult object.
+
+        Inputs
+        ------
+        data : np.ndarray
+
+            A numpy array of the arrival time histogram. Data[n] = number
+            of photons arriving in bin n
+
+        initial_guess : tuple
+
+            Guess for initial params in FLIMParams.param_tuple format.
+            Presumed to be in the same units as the FLIMParams
+            when the function is called (if not None).
+        
+        loss_function : LossFunction
+
+            Defines the cost function for curve fitting. Defaults to chi-squared
+
+            Argument 1: DATA (1d-ndarray) as above
+
+            Argument 2: PARAMS (tuple)
+
+            All other arguments must be KWARGS.
+
+        solver : Callable
+
+            A function that takes the metric and an initial guess and returns
+            some object that has an attribute called 'x' that is a tuple with
+            the same format as the FIT result of the param_tuple. This is the
+            format of the default scipy.optimize.minimize functions.
+
+        x_range : np.ndarray
+
+            The range of the x-axis in the same units as the FLIMParams.
+            If not provided, assumes the data is in countbins and uses
+            np.arange(len(data)) as the x_range.
+
+        **kwargs
+
+            Passed to the metric function.
+
+        Returns
+        -------
+
+        fit : scipy.optimize.OptimizeResult
+
+            The OptimizeResult object for diagnostics on the fit.
+        """
+        optimization_units = FlimUnits(optimization_units)
+        # Presumes initial guess is in the same units
+        # as the FLIMParams were initialized with
+        if initial_guess is not None:
+            initial_guess = FlimUnits.convert_flimunits(
+                initial_guess,
+                self.units,
+                optimization_units
+            )
+
+        if (
+                optimization_units is FlimUnits.COUNTBINS
+                and x_range is None
+            ):
+                x_range = np.arange(len(data))
+
+        if x_range is None:
+            raise ValueError(
+                "Must provide x_range for solutions in real time units"
+            )
+
+        # Convert units and run the solver
+        with self.as_units(optimization_units):
+            if initial_guess is None:
+                initial_guess = self.param_tuple
+            initial_guess = np.array(initial_guess)
+
+            pdf = multi_exponential_pdf_from_params
+            
+            if self.allow_noise:
+                # # If noise, last parameter is the noise
+                def noisy_pdf(x_range, params):
+                    return (
+                        (
+                            (1-params[-1])
+                            * multi_exponential_pdf_from_params(
+                                x_range,
+                                params[:-1]
+                            )
+                        )
+                        + np.ones_like(x_range)*params[-1]/len(x_range)
+                    )
+                pdf = noisy_pdf
+                if initial_guess.size == len(self.param_tuple):
+                    initial_guess = np.append(initial_guess, self.noise)
+
+            objective = loss_function.compute_loss
+
+            data /= np.sum(data)
+            if solver is None:
+                solver = partial(
+                    minimize,
+                    args = (data, pdf, x_range),
+                    method = 'trust-constr',
+                    bounds = self.bounds,
+                    constraints = self.constraints,
+                )
+
+            fit_obj = solver(objective, initial_guess)
+
+            fit_tuple = fit_obj.x
+            if self.allow_noise:
+                self.param_tuple = loss_function.params_untransform(fit_tuple[:-1])
+                self.noise = loss_function.noise_untransform(fit_tuple[-1])
+            else:
+                self.param_tuple = loss_function.params_untransform(fit_tuple)
+
+        fit_obj.x = FlimUnits.convert_flimunits(
+            fit_obj.x,
+            optimization_units,
+            self.units
+        )
+        return fit_obj
+    
+###### STORING ######
     
     def to_dict(self)->Dict[str, Any]:
         """ Converts the FLIMParams to a JSON-compatible dictionary """
@@ -473,12 +528,31 @@ class FLIMParams():
 
     @classmethod
     def from_dict(cls, data_dict : Dict[str, Any])->'FLIMParams':
-        """ Converts a JSON-compatible dictionary to a FLIMParams """
+        """
+        Converts a JSON-compatible dictionary to a FLIMParams
+
+        Example code:
+        -------------
+
+        ```
+        flim_params = FLIMParams.from_dict(
+            dict(
+                exps = [
+                    dict(tau=2, frac=0.5, units="NANOSECONDS"),
+                    dict(tau=3, frac=0.5, units="NANOSECONDS"),
+                ],
+                irf = dict(tau_offset=1, tau_g=2),
+                color_channel = 0,
+                noise = 0.1,
+                name = "Test FLIMParams",
+            )
+        
+        """
         exps = [Exp.from_dict(exp_dict) for exp_dict in data_dict['exps']]
         irf = Irf.from_dict(data_dict['irf'])
-        color_channel = data_dict['color_channel']
-        noise = data_dict['noise']
-        name = data_dict['name']
+        color_channel = data_dict['color_channel'] if 'color_channel' in data_dict else None
+        noise = data_dict['noise'] if 'noise' in data_dict else 0.0
+        name = data_dict['name'] if 'name' in data_dict else None
         return cls(
             *exps,
             irf,
@@ -486,6 +560,53 @@ class FLIMParams():
             noise = noise,
             name = name,
         )
+    
+    @classmethod
+    def from_tuple(
+            cls,
+            param_tuple : tuple,
+            units : 'FlimUnitsLike' = FlimUnits.COUNTBINS,
+            noise : float = 0.0,
+        ):
+        """ 
+        Instantiate a FLIMParams from the parameter tuple. Order is:
+
+        (tau, frac, tau, frac, ... , mean, sigma).
+
+        Example code:
+        -------------
+
+        ```
+        flim_params = FLIMParams.from_tuple(
+            (2, 0.5, 3, 0.5, 5, 1, 2),
+            units = FlimUnits.PICOSECONDS,
+        )
+        ```
+
+        
+        """
+        units = FlimUnits(units)
+        args = []
+        args += [
+            Exp(
+                tau=tau,
+                frac =frac,
+                units = units,
+            )
+            for tau,frac in zip(
+                param_tuple[:-2:2],
+                param_tuple[1:-2:2]
+            )
+        ]
+
+        args += [
+            Irf(
+                tau_offset = param_tuple[-2],
+                tau_g = param_tuple[-1],
+                units = units,
+            )
+        ]
+        return cls(*args, noise = noise)
 
     def save(self, path : PathLike):
         """ Save to a json file with different extension """
@@ -531,18 +652,65 @@ class FLIMParams():
             )
             equal *= self.irf == other.irf
         return equal
+    
+    def __repr__(self):
+        retstr = "FLIMParams object: \n\n"
+        retstr += "\tParameters:\n"
+        for exp in self.exps:
+            retstr += "\t\t"+exp.__repr__() + "\n"
+        retstr += "\t\t"+self.irf.__repr__() + "\n"
+        retstr += "\t\tNoise: " + str(self.noise) + "\n"
+        retstr += "\t\tColor channel: " + str(self.color_channel) + "\n"
+        return retstr
+
+    
 class FLIMParameter():
     """
     Base class for the various types of parameters.
 
     Doesn't do anything special, just a useful organizer
     for shared behavior.
+
+    FLIMParameters can be converted between units, and
+    can be serialized to and from JSON.
+
+    The `units` attribute is used to keep track of the units
+    of the parameters. The `unitful_params` attribute is used
+    to keep track of which parameters are unitful and need to
+    be converted when the units are changed.
+
+    The `aliases` attribute is used to keep track of aliases
+    for the parameters, so that they can be accessed with
+    different names (each of which is more intuitive to 
+    certain users)
     """
     class_params = []
     unitful_params = []
 
+    # aliases for the parameters
+    # format is {true_param_name : [alias1, alias2, ...]}
+    aliases : Dict[str, List[str]] = {}
+
     def __init__(self, units : FlimUnits = FlimUnits.COUNTBINS, **params):
         self.units = units
+
+        # Use the aliases to build properties with getters and setters
+        # for all the parameters allowing access with any aliases
+
+        for true_param, aliases in self.aliases.items():
+            for alias in aliases:
+                setattr(
+                    self.__class__,
+                    alias,
+                    property(
+                        lambda self: getattr(self, true_param),
+                        lambda self, val: setattr(self, true_param, val)
+                    )
+                )
+                if alias in params:
+                    params[true_param] = params[alias]
+                    del params[alias]
+        
         for key, val in params.items():
             if key in self.__class__.class_params:
                 setattr(self, key, val)
@@ -571,13 +739,7 @@ class FLIMParameter():
     @classmethod
     def from_dict(cls, data_dict : dict)->'FLIMParameter':
         """ Converts a JSON-compatible dictionary to a FLIMParameter """
-        return cls(
-            **{
-                param : data_dict[param]
-                for param in cls.class_params
-            },
-            units = FlimUnits(data_dict['units'])
-        )
+        return cls(**data_dict)
 
     def convert_units(self, to_units : FlimUnitsLike)->None:
         """ Converts unitful params """
@@ -633,17 +795,26 @@ class Exp(FLIMParameter):
     Tracks the fraction of photons belonging
     to this exponential and the corresponding
     timeconstant.
+
+    Params:
+    -------
+    tau : float
+        Time constant of the exponential
+    
+    frac : float
+        Fraction of photons in this exponential
+
+    Aliases:
+    --------
+    tau : ['lifetime']
+    frac : ['fraction']
     """
     class_params = ['tau', 'frac']
     unitful_params = ['tau']
-    def __init__(self, **params):
-        """ Exp(tau : float, frac : float, units : FlimUnits) """
-        super().__init__(**params)
-
-    @property
-    def fraction(self):
-        return self.frac
-
+    aliases = {
+        'frac' : ['fraction'],
+        'tau' : ['lifetime'],
+    }
 
 class Irf(FLIMParameter):
     """
@@ -652,18 +823,23 @@ class Irf(FLIMParameter):
     (presumes a Gaussian IRF, which is convolved
     with the exponentials to produce the estimated
     arrival time distribution).
+
+    Params:
+    -------
+    tau_offset : float
+        Mean offset of the IRF
+    tau_g : float
+        Width of the IRF
+
+    Aliases:
+    -------
+    tau_offset : ['mu', 'mean', 'offset']
+    tau_g : ['sigma', 'width']
     """
     class_params = ['tau_offset', 'tau_g']
     unitful_params = ['tau_offset', 'tau_g']
-    
-    def __init__(self, **params):
-        """ Irf(tau_offset : float, tau_g : float, units : FlimUnits)"""
-        super().__init__(**params)
 
-    @property
-    def sigma(self):
-        return self.tau_g
-    
-    @property
-    def mu(self):
-        return self.tau_offset
+    aliases = {
+        'tau_offset' : ['mu', 'mean', 'offset'],
+        'tau_g' : ['sigma', 'width']
+    }

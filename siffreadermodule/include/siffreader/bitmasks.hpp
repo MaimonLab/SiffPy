@@ -30,7 +30,7 @@ constexpr uint64_t TAUMASK = (((uint64_t) 1<<32) - 1);
 #define PIXEL_SHIFT(px, y_shift, x_shift, dim_y, dim_x) \
     ( \
         ( \
-            (((uint64_t)(px / (dim_x)) + (y_shift)) % (dim_y)) * (dim_x)) \
+            (((uint64_t)((px) / (dim_x)) + (y_shift)) % (dim_y)) * (dim_x)) \
     + (((px) % (dim_x) + (x_shift)) % (dim_x)) \
     )
 

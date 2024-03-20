@@ -1,13 +1,15 @@
 from setuptools import setup, Extension
-
+import platform
+import sys
+import subprocess
+      
 try:
    import numpy
-except ImportError as error:
+except ImportError:
    raise Exception("Numpy is not yet installed on this distribution. Install numpy with pip or conda")
 
-import platform, sys
-
 from setuptools.command.install import install
+      
 #from setuptools.command.install import clean
 
 define_macros = None
@@ -20,38 +22,52 @@ libraries = None
 # TODO: debug as a command line option
 DEBUG = False
 
-# Undoing this one for now.... seems like options in pip are being deprecated
+class MSVCInstallCommand(install):             
+   """
+   To try to install MSVC build tools on Windows
+   """
+   def has_msvc_build_tools(self)->bool:
+      # Check if cl.exe is available in PATH
+      try:
+         subprocess.check_call(
+            ['cl'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+         )
+         return True
+      except Exception:
+         return False
+      return False
 
-# class CleanInstallCommand(install):             
-#    """ Provides the '--config-settings=debug' option to setup.py install """
-#    user_options = install.user_options + [
-#       ('debug', None, 'Installs in debug mode (logs operations)'),
-#    ]                                      
+   def install_msvc_build_tools(self):
+      try:
+         subprocess.check_call(
+            [
+               'choco',
+               'install',
+               'visualstudio2019buildtools',
+               '-y',
+            ]
+         )
+      except Exception:
+         print(
+            "Could not install MSVC Build Tools with Chocolatey."
+            + " Please install them manually with"
+            + "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+         )
 
-#    def initialize_options(self):          
-#       self.debug = None
-#       super().initialize_options()   
+   def run(self):
+      if not self.has_msvc_build_tools():
+         print("MSVC Build Tools not found." 
+               + " Attempting to install with Chocolatey..."
+         )
+         self.install_msvc_build_tools()
+      super().run()
 
-#    def finalize_options(self):
-#       if self.debug:
-#          self.debug = True
-#          assert False
-#       else:
-#          self.debug = False
-#       super().finalize_options()            
-
-#    def run(self):
-#       global DEBUG
-#       DEBUG = self.debug
-#       print("DEBUG MODE: ", DEBUG) 
-#       super().run()  
-#       c = clean(self.distribution)
-#       c.all = True
-#       c.finalize_options()
-#       c.run()     
 
 installclass = install
-#installclass = CleanInstallCommand
+if platform.system() == 'Windows':
+   installclass = MSVCInstallCommand
 
 if DEBUG:
    define_macros = [('__DEBUG', 1)]
@@ -112,13 +128,14 @@ siffmodule = Extension(
 # multiple times I don't have to remember to re-write
 # and update bits
 
-setupcall = lambda: setup (
-   packages = ['siffpy'],
-   ext_modules = [siffmodule],
-   cmdclass={
-      'install': installclass,
-   }
-)
+def setupcall():
+   setup (
+      packages = ['siffpy'],
+      ext_modules = [siffmodule],
+      cmdclass={
+         'install': installclass,
+      }
+   )
 
 try:
    setupcall()

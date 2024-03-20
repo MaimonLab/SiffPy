@@ -48,6 +48,29 @@ class FlimUnits(Enum):
                 return BASE_RESOLUTION_PICOSECONDS/1000.0
         raise ValueError("Unable to convert from {} to {}".format(self, other))
 
+    @staticmethod
+    def convert_flimunits(
+        in_array : Union[np.ndarray,float],
+        from_units : 'FlimUnitsLike',
+        to_units : 'FlimUnitsLike'
+    )->Union[np.ndarray, float]:
+        """
+        Converts an array or float `in_array` from one type of FLIMUnit to another.
+
+        UNITLESS is a special case, where the input is returned unchanged.
+        """
+        from_units = FlimUnits(from_units)
+        to_units = FlimUnits(to_units)
+        if from_units == to_units:
+            return in_array
+
+        if from_units is FlimUnits.UNITLESS:
+            return in_array
+
+        conversion_factor = from_units.conversion_factor(to_units)
+        return in_array * conversion_factor
+        
+
 FlimUnitsStr = Literal["picoseconds", "nanoseconds", "countbins", "unknown", "unitless"]
 FlimUnitsLike = Union['FlimUnits', FlimUnitsStr]
 
