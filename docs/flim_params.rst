@@ -111,6 +111,9 @@ a path to file.
 .. autoclass:: siffpy.core.flim.flimparams.FLIMParams
     :members:
 
+.. autoclass:: siffpy.core.flim.multi_pulse.MultiPulseFLIMParams
+    :members:
+
 .. _flim parameter:
 
 .. autoclass:: siffpy.core.flim.flimparams.FLIMParameter
@@ -120,4 +123,10 @@ a path to file.
     :members:
 
 .. autoclass:: siffpy.core.flim.flimparams.Irf:
+    :members:
+
+.. autoclass:: siffpy.core.flim.multi_pulse:FractionalIrf:
+    :members:
+
+.. autoclass:: siffpy.core.flim.multi_pulse:MultiIrf:
     :members:
