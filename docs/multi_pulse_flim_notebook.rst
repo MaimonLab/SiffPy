@@ -161,7 +161,7 @@ mixture
 
 
 Add background noise
-====================
+--------------------
 
 Typically our data comes with some background noise that is independent
 of the laser pulse, e.g. background illumination, visual stimuli. We can
@@ -229,7 +229,7 @@ actually noise!). This is not a problem.
 
 
 Pushing it to the limit
-=======================
+----------------------------
 
 This has got to be much harder: 70% of the signal is noise, and there
 are now THREE exponentials producing the data, each approximately to the
@@ -359,7 +359,7 @@ Reducing the noise a little gives us a much faster-converging estimate
 
 
 Multiple pulses
-===============
+---------------
 
 Let’s make things a little harder yet again. Now we’re going to model a
 system in which there are multiple fluorophores with different emission
