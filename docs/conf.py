@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
 project = 'SiffPy'
-copyright = '2023, Stephen Thornquist'
+copyright = '2023-2024, Stephen Thornquist'
 author = 'Stephen Thornquist'
 
 # The full version, including alpha/beta/rc tags
@@ -38,7 +38,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autosummary',
     'sphinx_rtd_theme',
-    #myst-nb,
+    'myst_nb',
 ]
 
 source_suffix = [".rst", ".md"]

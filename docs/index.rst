@@ -28,6 +28,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
 
    basic_use_notebook
    trace_notebook
+   multi_pulse_flim_notebook
    flim_analysis
    siff_to_tiff
 

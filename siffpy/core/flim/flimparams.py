@@ -4,7 +4,6 @@ from typing import (
 )
 from pathlib import Path
 from contextlib import contextmanager
-from functools import partial
 
 import numpy as np
 from scipy.optimize import (
@@ -53,6 +52,38 @@ def multi_exponential_pdf_from_params(
     )
     return pdist/pdist.sum()
 
+def noiseless_objective(params, tau_axis, data):
+    """
+    Minimize the sum of squared errors
+    with no noise term 
+    """
+    return np.sum(
+        (
+            (
+                multi_exponential_pdf_from_params(tau_axis, params)[1:]
+                - data[1:]
+            )**2
+            / data[1:]
+        )
+    )
+
+
+def noisy_objective(params, tau_axis, data):
+    """
+    Minimize the sum of squared errors
+    with a noise term
+    """
+    return np.sum(
+        (
+            (
+                np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
+                + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
+                - data[1:]
+            )**2
+            / data[1:]
+        )
+    ) 
+
 class FLIMParams():
     """
     A class for storing parameters related
@@ -76,10 +107,27 @@ class FLIMParams():
         in the `args` parameter.
 
         These will be stored in the `exps` and `irf` attributes.
+
+        See also:
+        ---------
+        `FlimParams.from_tuple`
+
+        `FlimParams.from_dict`
+
+        Example use
+        ------------
+
+        ```
+        flim_params = FLIMParams(
+            Exp(tau=2, frac=0.5, units = 'nanoseconds'),
+            Exp(tau=3, frac=0.5, units = 'nanoseconds'),
+            Irf(tau_offset=1.2, tau_g=0.02, units = 'nanoseconds'),
+        )
+        ```
         """
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
-        self.irf = next((x for x in args if isinstance(x, Irf)))
+        self.irf = next((x for x in args if isinstance(x, Irf)), None)
         if len(self.exps) == 0:
             if any((isinstance(arg, tuple) for arg in args)):
                 putative_param_tuple = next((x for x in args if isinstance(x, tuple)), None)
@@ -139,11 +187,7 @@ class FLIMParams():
         Returns a tuple for all of the parameters together so they can be
         passed into numerical solvers.
         """
-        retlist = []
-        for exp in self.exps:
-            retlist += exp.param_list
-        retlist += self.irf.param_list
-        return tuple(retlist)    
+        return tuple([x for param in self.params for x in param.param_list])    
 
     @property
     def units(self)->FlimUnits:
@@ -218,10 +262,20 @@ class FLIMParams():
     @property
     def allow_noise(self)->bool:
         """ Whether or not the noise parameter is allowed """
-        return self._noise > 0.0
+        if self.noise > 0:
+            return True
+        if not hasattr(self,'_allow_noise'):
+            return False
+        return self._allow_noise
+        
+    @allow_noise.setter
+    def allow_noise(self, new_allow : bool):
+        if not new_allow:
+            self._noise = 0.0
+        self._allow_noise = new_allow
 
     @param_tuple.setter
-    def param_tuple(self, new_params : tuple):
+    def param_tuple(self, new_params : Tuple):
         """ :param new_params: a list of the new parameters for the model
         (Tau, frac, tau, frac, ... , mean, sigma).
         Does NOT change current units! Be careful!
@@ -231,13 +285,17 @@ class FLIMParams():
             raise ValueError(f"Incorrect number of parameters (should be {self.n_exp*2 + 2})")
         # Update the parameters
         self.exps = [
-            Exp(tau=tau, frac=frac)
+            Exp(tau=tau, frac=frac, units = self.units)
             for tau, frac in zip(
                 new_params[:-2:2],
                 new_params[1:-2:2]
             )
         ]
-        self.irf = Irf(tau_offset = new_params[-2], tau_g = new_params[-1])
+        self.irf = Irf(
+            tau_offset = new_params[-2],
+            tau_g = new_params[-1],
+            units = self.units
+        )
     
     @property
     def n_exp(self)->int:
@@ -377,10 +435,10 @@ class FLIMParams():
     def fit_params_to_data(
             self,
             data            : np.ndarray,
-            initial_guess   : np.ndarray     = None,
+            initial_guess   : Optional[np.ndarray]     = None,
             loss_function   : 'LossFunction'  = MSE,
-            solver          : Callable  = None,
-            x_range         : np.ndarray = None,
+            solver          : Optional[Callable]  = None,
+            x_range         : Optional[np.ndarray] = None,
             optimization_units : FlimUnitsLike = FlimUnits.NANOSECONDS,
             **kwargs
         )->OptimizeResult:
@@ -392,6 +450,10 @@ class FLIMParams():
         Stores new parameter values IN PLACE, but will return
         the scipy OptimizeResult object.
 
+        ACTUALLY NO LONGER USING LOSS_FUNCTION AND SOLVER ---
+        FUNCTION CALL OVERHEAD WAS MAKING IT VERY SLOW. TO DO:
+        FIGURE OUT A WAY TO PRESERVE THAT FLEXIBILITY!!
+
         Inputs
         ------
         data : np.ndarray
@@ -402,8 +464,8 @@ class FLIMParams():
         initial_guess : tuple
 
             Guess for initial params in FLIMParams.param_tuple format.
-            Presumed to be in the same units as the FLIMParams
-            when the function is called (if not None).
+            Presumed to be in the same units as the 
+            `optimization_units` (if not None).
         
         loss_function : LossFunction
 
@@ -440,20 +502,12 @@ class FLIMParams():
             The OptimizeResult object for diagnostics on the fit.
         """
         optimization_units = FlimUnits(optimization_units)
-        # Presumes initial guess is in the same units
-        # as the FLIMParams were initialized with
-        if initial_guess is not None:
-            initial_guess = FlimUnits.convert_flimunits(
-                initial_guess,
-                self.units,
-                optimization_units
-            )
-
+        
         if (
-                optimization_units is FlimUnits.COUNTBINS
-                and x_range is None
-            ):
-                x_range = np.arange(len(data))
+            optimization_units is FlimUnits.COUNTBINS
+            and x_range is None
+        ):
+            x_range = np.arange(len(data))
 
         if x_range is None:
             raise ValueError(
@@ -465,46 +519,28 @@ class FLIMParams():
             if initial_guess is None:
                 initial_guess = self.param_tuple
             initial_guess = np.array(initial_guess)
-
-            pdf = multi_exponential_pdf_from_params
             
             if self.allow_noise:
-                # # If noise, last parameter is the noise
-                def noisy_pdf(x_range, params):
-                    return (
-                        (
-                            (1-params[-1])
-                            * multi_exponential_pdf_from_params(
-                                x_range,
-                                params[:-1]
-                            )
-                        )
-                        + np.ones_like(x_range)*params[-1]/len(x_range)
-                    )
-                pdf = noisy_pdf
                 if initial_guess.size == len(self.param_tuple):
                     initial_guess = np.append(initial_guess, self.noise)
 
-            objective = loss_function.compute_loss
-
             data /= np.sum(data)
-            if solver is None:
-                solver = partial(
-                    minimize,
-                    args = (data, pdf, x_range),
-                    method = 'trust-constr',
-                    bounds = self.bounds,
-                    constraints = self.constraints,
-                )
 
-            fit_obj = solver(objective, initial_guess)
+            fit_obj = minimize(
+                noisy_objective if self.allow_noise else noiseless_objective,
+                initial_guess,
+                args = (x_range, data),
+                method = 'trust-constr',
+                bounds = self.bounds,
+                constraints = self.constraints,
+            )
 
             fit_tuple = fit_obj.x
             if self.allow_noise:
-                self.param_tuple = loss_function.params_untransform(fit_tuple[:-1])
-                self.noise = loss_function.noise_untransform(fit_tuple[-1])
+                self.param_tuple = fit_tuple[:-1]
+                self.noise = fit_tuple[-1]
             else:
-                self.param_tuple = loss_function.params_untransform(fit_tuple)
+                self.param_tuple = fit_tuple
 
         fit_obj.x = FlimUnits.convert_flimunits(
             fit_obj.x,
@@ -524,6 +560,7 @@ class FLIMParams():
             'noise' : self.noise,
             'name' : self.name,
             'units' : self.units.value,
+            'class' : self.__class__.__name__,
         }
 
     @classmethod
@@ -534,7 +571,7 @@ class FLIMParams():
         Example code:
         -------------
 
-        ```
+        ```python
         flim_params = FLIMParams.from_dict(
             dict(
                 exps = [
@@ -564,7 +601,7 @@ class FLIMParams():
     @classmethod
     def from_tuple(
             cls,
-            param_tuple : tuple,
+            param_tuple : Tuple,
             units : 'FlimUnitsLike' = FlimUnits.COUNTBINS,
             noise : float = 0.0,
         ):
@@ -576,7 +613,7 @@ class FLIMParams():
         Example code:
         -------------
 
-        ```
+        ```python
         flim_params = FLIMParams.from_tuple(
             (2, 0.5, 3, 0.5, 5, 1, 2),
             units = FlimUnits.PICOSECONDS,
@@ -626,6 +663,18 @@ class FLIMParams():
         path = path.with_suffix(".flimparams")
         with open(path, 'r') as flim_p_file:
             flim_p_dict = json.load(flim_p_file)
+
+        if 'class' in flim_p_dict:
+            # If the class is specified, use that --
+            # old versions of the FLIMParams class
+            # did not save the class name.
+            if not flim_p_dict['class'] == cls.__name__:
+                raise ValueError(
+                    "Class name in file does not match the "
+                    "class name of the object. Try using the "
+                    f" `load` method of {flim_p_dict['class']}."
+                )
+            del flim_p_dict['class']
 
         return cls.from_dict(flim_p_dict)
     
@@ -692,7 +741,7 @@ class FLIMParameter():
     aliases : Dict[str, List[str]] = {}
 
     def __init__(self, units : FlimUnits = FlimUnits.COUNTBINS, **params):
-        self.units = units
+        self.units = FlimUnits(units)
 
         # Use the aliases to build properties with getters and setters
         # for all the parameters allowing access with any aliases
@@ -719,14 +768,14 @@ class FLIMParameter():
                 setattr(self, param, None)
 
     @property
-    def param_list(self)->list:
+    def param_list(self)->List:
         return [getattr(self, attr) for attr in self.__class__.class_params]
 
     @property
-    def param_tuple(self)->tuple:
+    def param_tuple(self)->Tuple:
         return tuple(self.param_list)
     
-    def to_dict(self)->dict:
+    def to_dict(self)->Dict:
         """ JSON-parsable string """
         return {
             **{
@@ -737,7 +786,7 @@ class FLIMParameter():
         }
     
     @classmethod
-    def from_dict(cls, data_dict : dict)->'FLIMParameter':
+    def from_dict(cls, data_dict : Dict)->'FLIMParameter':
         """ Converts a JSON-compatible dictionary to a FLIMParameter """
         return cls(**data_dict)
 
