@@ -7,7 +7,7 @@ easy-to-use graphical interface for testing many parameters in the
 ``siff-napari`` plugin, but that will not be covered here. Instead, look
 at the ``siff-napari`` documentation at - ADD LINK HERE -.
 
-.. code:: ipython3
+.. code-block:: python
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -24,7 +24,7 @@ at the ``siff-napari`` documentation at - ADD LINK HERE -.
     tau_axis = np.arange(0, 12.5, bin_width)
 
 Fit a single exponential
-========================
+------------------------
 
 In this first example, we generate an arrival time distribution
 corresponding to a single exponential arrival time distribution
@@ -32,18 +32,10 @@ convolved with a Gaussian IRF.
 
 
 
-.. code:: ipython3
+.. code-block:: python
 
     from scipy.optimize import minimize
     from siffpy.core.flim.flimparams import multi_exponential_pdf_from_params
-    
-    def objective(params, tau_axis, data):
-        return np.sum(
-            (
-                (multi_exponential_pdf_from_params(tau_axis, params)[1:] - data[1:])**2
-                / data[1:]
-            )
-        )
     
     # There are many ways to instantiate a FLIMParams object.
     # In this example, we use a dictionary to specify the parameters.
@@ -83,7 +75,7 @@ convolved with a Gaussian IRF.
     
     plt.semilogy(
         tau_axis,
-        multi_exponential_pdf_from_params(tau_axis, res.x),
+        monoexp.pdf(tau_axis),
         label = 'Fit',
         linestyle = '--',
     )
@@ -97,7 +89,6 @@ convolved with a Gaussian IRF.
 
 .. parsed-literal::
 
-    0.0
     90 iterations : [0.6  1.   1.   0.05]
 
 
@@ -111,7 +102,7 @@ Fitting two exponentials
 Now we’ll generate data from a distribution with two exponentials in a
 mixture
 
-.. code:: ipython3
+.. code-block:: python
 
     biexponential = FLIMParams.from_dict(
         dict(
@@ -150,7 +141,7 @@ mixture
     
     plt.semilogy(
         tau_axis,
-        multi_exponential_pdf_from_params(tau_axis, res.x),
+        biexponential.pdf(tau_axis),
         label = 'Fit',
         linestyle = '--',
     )
@@ -179,7 +170,7 @@ also fit keeping that fact in mind.
 In this case, we’ll make the noise very strong (half of our “signal” is
 actually noise!). This is not a problem.
 
-.. code:: ipython3
+.. code-block:: python
 
     biexponential = FLIMParams.from_dict(
         dict(
@@ -195,18 +186,6 @@ actually noise!). This is not a problem.
     data = biexponential.pdf(tau_axis)
     
     init_guess = np.array((0.2, 0.8, 1.6, 0.2, 0.05, 1.25, 0.0)) # tau f1 ... , irf_mean, irf_sigma, noise
-    
-    def noisy_objective(params, tau_axis, data):
-        return np.sum(
-            (
-                (
-                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
-                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
-                    - data[1:]
-                )**2
-                / data[1:]
-            )
-        )
     
     res = biexponential.fit_params_to_data(
         data,
@@ -229,10 +208,7 @@ actually noise!). This is not a problem.
     
     plt.semilogy(
         tau_axis,
-        (
-            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
-            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
-        ),
+        biexponential.pdf(tau_axis),
         label = 'Fit',
         linestyle = '--',
     )
@@ -262,7 +238,7 @@ never have data quite this messy. The curve itself looks pretty okay,
 but if you look at the actual values for tau and the fractions… it could
 be better
 
-.. code:: ipython3
+.. code-block:: python
 
     triexponential = FLIMParams.from_dict(
         dict(
@@ -279,27 +255,6 @@ be better
     data = triexponential.pdf(tau_axis)
     
     init_guess = np.array((0.2, 0.8, 0.4, 0.0, 1.6, 0.2, 0.05, 0.1, 0.4)) # tau f1 ... , irf_mean, irf_sigma, noise
-    
-    def noisy_objective(params, tau_axis, data):
-        return np.sum(
-            (
-                (
-                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
-                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
-                    - data[1:]
-                )**2
-                / data[1:]
-            )
-        )
-    
-    # res = minimize(
-    #     noisy_objective,
-    #     init_guess,
-    #     args = (tau_axis, data),
-    #     bounds = triexponential.bounds,
-    #     constraints = triexponential.constraints,
-    #     method = 'trust-constr',
-    # )
     
     res = triexponential.fit_params_to_data(
         data,
@@ -322,10 +277,7 @@ be better
     
     plt.semilogy(
         tau_axis,
-        (
-            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
-            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
-        ),
+        triexponential.pdf(tau_axis),
         label = 'Fit',
         linestyle = '--',
     )
@@ -347,7 +299,7 @@ be better
 
 Reducing the noise a little gives us a much faster-converging estimate
 
-.. code:: ipython3
+.. code-block:: python
 
     triexponential = FLIMParams.from_dict(
         dict(
@@ -364,27 +316,6 @@ Reducing the noise a little gives us a much faster-converging estimate
     data = triexponential.pdf(tau_axis)
     
     init_guess = np.array((0.2, 0.8, 0.4, 0.0, 1.6, 0.2, 0.05, 0.1, 0.4)) # tau f1 ... , irf_mean, irf_sigma, noise
-    
-    def noisy_objective(params, tau_axis, data):
-        return np.sum(
-            (
-                (
-                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
-                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
-                    - data[1:]
-                )**2
-                / data[1:]
-            )
-        )
-    
-    # res = minimize(
-    #     noisy_objective,
-    #     init_guess,
-    #     args = (tau_axis, data),
-    #     bounds = triexponential.bounds,
-    #     constraints = triexponential.constraints,
-    #     method = 'trust-constr',
-    # )
     
     res = triexponential.fit_params_to_data(
         data,
@@ -407,10 +338,7 @@ Reducing the noise a little gives us a much faster-converging estimate
     
     plt.semilogy(
         tau_axis,
-        (
-            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
-            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
-        ),
+        triexponential.pdf(tau_axis),
         label = 'Fit',
         linestyle = '--',
     )
@@ -449,7 +377,7 @@ in the future…
 
 So our tricky distribution was no problem for the solver
 
-.. code:: ipython3
+.. code-block:: python
 
     green_fluorophore_pulse_one = FLIMParams.from_dict(
         dict(
@@ -482,13 +410,15 @@ So our tricky distribution was no problem for the solver
     )
 
 
-.. code:: ipython3
+.. code-block:: python
 
     from scipy.optimize import Bounds, LinearConstraint, minimize
     
     def noisy_multipulse_objective(params, tau_axis, data):
         """
-        Params are now of length 1x exp + 2xirf parameters plus one frac for each irf plus one noise parameter
+        Params are now of length 1x exp
+        + 2xirf parameters plus one frac for each irf
+        plus one noise parameter
         """
         noise = params[-1]
         return np.sum(
@@ -537,9 +467,6 @@ So our tricky distribution was no problem for the solver
             ub = -0.1,
         ),
     ]
-    
-    print(len(multi_pulse_bounds.lb), len(init_guess))
-    
     
     res = minimize(
         noisy_multipulse_objective,
@@ -607,7 +534,7 @@ pulse. You can actually just pass in regular ``Irf`` objects and they
 will be converted into ``FractionalIrf``\ s with each getting an equal
 fraction.
 
-.. code:: ipython3
+.. code-block:: python
 
     from siffpy.core.flim import Exp
     from siffpy.core.flim.multi_pulse import FractionalIrf, MultiPulseFLIMParams
@@ -619,8 +546,6 @@ fraction.
         FractionalIrf(tau_g = 0.07, mean = 5.5, frac = 0.63, units = "nanoseconds"),
         noise = 0.2
     )
-    
-    print(mpfp.params)
     
     res = mpfp.fit_params_to_data(
         data,
@@ -645,63 +570,14 @@ fraction.
     plt.legend()
 
 
-.. parsed-literal::
-
-    [Exp
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau : 0.1
-    	frac : 0.25
-    , Exp
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau : 1.4
-    	frac : 0.75
-    , MultiIrf([FractionalIrf
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau_offset : 0.4
-    	tau_g : 0.05
-    	frac : 0.37
-    , FractionalIrf
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau_offset : 5.5
-    	tau_g : 0.07
-    	frac : 0.63
-    ])]
-    [0.60004008 0.50005205 2.1002063  0.49994795 1.19999935 0.04999994]
-    [0.60004008 0.50005205 2.1002063  0.49994795 3.39999913 0.0700029 ]
-
-
 
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x1454975b0>
+    <matplotlib.legend.Legend at 0x144a0b7c0>
 
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_17_2.png
-
-
-.. code:: ipython3
-
-    mpfp.irf
-
-
-
-
-.. parsed-literal::
-
-    MultiIrf([FractionalIrf
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau_offset : 1.2115162687563246
-    	tau_g : 1.9691772799030856
-    	frac : 0.05311224606453483
-    , FractionalIrf
-    	UNITS: FlimUnits.NANOSECONDS
-    	tau_offset : 1.211539682199555
-    	tau_g : 0.05636739371183967
-    	frac : 0.9468877539354652
-    ])
-
-
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_17_1.png
 

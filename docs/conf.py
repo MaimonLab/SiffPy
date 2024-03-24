@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import pkg_resources
 sys.path.insert(0, os.path.abspath('.'))
 
 
@@ -22,7 +23,6 @@ copyright = '2023-2024, Stephen Thornquist'
 author = 'Stephen Thornquist'
 
 # The full version, including alpha/beta/rc tags
-import pkg_resources
 release = pkg_resources.get_distribution('siffpy').version
 #release = '0.7.4'
 
