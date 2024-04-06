@@ -102,6 +102,17 @@ void loadArrayWithData(
     PyObject* shift_tuple
 );
 
+static size_t framesPerMask(
+    PyArrayObject* mask
+){
+    const npy_intp* mask_dims = PyArray_DIMS(mask);
+    size_t frames_per_mask = 1;
+    for (size_t dim_idx = 0; dim_idx < ((size_t) PyArray_NDIM(mask) - 2); dim_idx++) {
+        frames_per_mask *= mask_dims[dim_idx];
+    }
+    return frames_per_mask;
+}
+
 
 /*
 The SiffReader is the primary interface for reading and
@@ -161,6 +172,13 @@ class SiffReader
         void singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDictList) const;
         // add this frame's arrival times to the 1-d array numpyArray
         void singleFrameHistogram(const uint64_t& thisIFD, PyArrayObject* numpyArray) const;
+        // add a masked frame arrival time to the 1d array numpyArray
+        void singleFrameHistogram(
+            const uint64_t& thisIFD,
+            PyArrayObject *numpyArray,
+            const bool *data_ptr,
+            const npy_intp *mask_dims
+        ) const;
         
         // when you close one file and open another, wipe the slate clean
         void reset();
@@ -457,8 +475,27 @@ class SiffReader
          * @return A `PyArrayObject*` to a `numpy` array of
          * dimensions: framesN
         */
-        PyArrayObject* getHistogram(const uint64_t frames[] = NULL, const uint64_t framesN = 0);
+        PyArrayObject* getHistogram(const uint64_t frames[],const uint64_t framesN);
 
+        /**
+         * Returns an arrival time vector, independent of pixel location,
+         * provided it is within a mask. The vector is of length framesN
+         * 
+         * @param mask
+             * A `PyArrayObject*` to a `numpy` array of the mask
+             * of `dtype bool`
+         * @param frames
+             * The frames to retrieve
+         * @param framesN
+             * The number of frames to retrieve
+        * @return A `PyArrayObject*` to a `numpy` array of
+         * dimensions: framesN
+        */
+        PyArrayObject* getHistogram(
+            PyArrayObject* mask,
+            const uint64_t frames[],
+            const uint64_t framesN
+        );
 
         /////// Metadata methods /////////
         /**

@@ -27,10 +27,10 @@ def correct_flyback(f):
         Otherwise, passes through
         """
         def shift_by_flyback(
-                framelist,
-                num_frames_per_volume,
-                num_flyback_frames,
-                max_frames
+                framelist : List[int],
+                num_frames_per_volume : int,
+                num_flyback_frames : int,
+                max_frames : int,
             ):
             """
             Adds the number of flyback frames that should
@@ -220,6 +220,13 @@ class ImParams():
         """ Number of slices per volume """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
+                if self.StackManager.stackZEndPos == self.StackManager.stackZStartPos:
+                    # WARN THE USER THAT THIS IS HAPPENING
+                    logging.warning(
+                        "Number of slices is 1, but stack is enabled. This is likely something "
+                        "set incorrectly during acquisition. Warning just in case."
+                    )
+                    return 1
                 return self.StackManager.actualNumSlices
         return 1
     
@@ -353,7 +360,10 @@ class ImParams():
         if not (self.frames_per_slice == 1):
             ret_list.append(1.0/(self.frames_per_volume)) 
         if self.num_slices > 1: # otherwise irrelevant
-            ret_list.append(self.step_size)
+            step_size = self.step_size
+            if self.step_size == 0: # single plane but usings stacks
+                step_size = 1e-6 # arbitrary value
+            ret_list.append(step_size)
         if not len(self.imaging_fov) == 4:
             raise ArithmeticError("Scale for mROI im_params not yet implemented")
         fov = self.imaging_fov
@@ -363,27 +373,43 @@ class ImParams():
         ret_list.append(yrange/self.ysize)
         ret_list.append(xrange/self.xsize)
         return ret_list
-    
+    @property
+    def scale_force_z(self)->List[float]:
+        """
+        Returns the scale, but forces a z axis to be present,
+        even if there is only one slice.
+        """
+        scale = self.scale
+        if self.num_slices == 1:
+            scale.insert(2, 1.0)
+        return scale
+
     @property
     def scale_no_color_no_fps(self)->List[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
         [time , z , y , x]
         """
-        ret_list = [1.0] # time axis!
-        if not (self.frames_per_slice == 1):
-            ret_list.append(1.0/(self.frames_per_volume)) 
-        if not len(self.imaging_fov) == 4:
-            raise ArithmeticError("Scale for mROI im_params not yet implemented")
-        if self.num_slices > 1:
-            ret_list.append(self.step_size)
+        scale = self.scale
+        if self.frames_per_slice != 1:
+            scale.pop(1)
+        # color
+        scale.pop(1)
+        return scale
+        # ret_list = [1.0] # time axis!
+        # if not (self.frames_per_slice == 1):
+        #     ret_list.append(1.0/(self.frames_per_volume)) 
+        # if not len(self.imaging_fov) == 4:
+        #     raise ArithmeticError("Scale for mROI im_params not yet implemented")
+        # if self.num_slices > 1:
+        #     ret_list.append(self.step_size)
         
-        fov = self.imaging_fov
-        xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
-        yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
-        ret_list.append(yrange/self.ysize)
-        ret_list.append(xrange/self.xsize)
-        return ret_list
+        # fov = self.imaging_fov
+        # xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
+        # yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
+        # ret_list.append(yrange/self.ysize)
+        # ret_list.append(xrange/self.xsize)
+        # return ret_list
 
     @property
     def axis_labels(self) -> List[str]:

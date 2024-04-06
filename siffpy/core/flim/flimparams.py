@@ -703,6 +703,7 @@ class FLIMParams():
         return equal
     
     def __repr__(self):
+        """ TODO: Pretty-print the equations in the repr """
         retstr = "FLIMParams object: \n\n"
         retstr += "\tParameters:\n"
         for exp in self.exps:

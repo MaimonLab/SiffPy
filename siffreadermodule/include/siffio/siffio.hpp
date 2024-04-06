@@ -711,50 +711,6 @@ static PyObject * siffio_pool_frames(SiffIO* self, PyObject *args, PyObject* kw)
     PyErr_SetString(PyExc_NotImplementedError, "Pooling is not yet implemented. Some bug...");
     if(need_to_decref_regdict) Py_DECREF(registrationDict);
     return NULL;
-/*
-    // Check that listOfFramesListed is a list of lists, and that the elements of that are ints.
-    for (Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(listOfFramesListed); idx++) {
-        PyObject* item = PyList_GET_ITEM(listOfFramesListed, idx);
-        if(!PyList_Check(item)) {
-            if (need_to_decref_regdict) Py_DECREF(registrationDict);
-            PyErr_SetString(PyExc_TypeError, "All elements of pool_list must be lists themselves");
-            return NULL;
-        }
-        
-        // Have been surprised by encountering int overflow here, 65k photons per pixel requires either massive data
-        // rates or loooots of pooling. I should do smarter checking but this is a short term solution.
-        if (PyList_Size(item) > 10000) {
-            PyErr_WarnEx(PyExc_RuntimeWarning, "Pooling a large number of frames! May cause uint16 overflow.",Py_ssize_t(1));
-        }
-
-        check_framelist(item, NULL, 0, self->siffreader->numFrames());
-
-        // Now typecheck the registration dict item
-        // If it's not a tuple of PyLongs, replace it
-        // with a tuple of PyLongs made by attemping to cast
-        // the elements to one and replacing the tuple.
-        
-        check_registration(registrationDict, item);
-    }
-
-    try{
-        PyObject* pool(
-            (PyObject*) self->siffreader->poolFrames(
-                listOfFramesListed,
-                flim,
-                registrationDict
-            )
-        );
-        if (need_to_decref_regdict) Py_DECREF(registrationDict);
-        return pool;
-    }
-
-    catch(...) {
-        if (need_to_decref_regdict) Py_DECREF(registrationDict);
-        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
-        return NULL;
-    }
-*/
 };
 
 /*******
@@ -976,7 +932,6 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
     // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
-
         PyErr_SetString(PyExc_TypeError, 
             strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
                 FLIMParams->ob_type->tp_name
@@ -1116,19 +1071,32 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
  static PyArrayObject* siffio_get_histogram(SiffIO* self, PyObject *args, PyObject* kw) {
 
-    static const char* GET_HISTOGRAM_KEYWORDS[] = {"frames", NULL};
+    static const char* GET_HISTOGRAM_KEYWORDS[] = {"frames", "mask", NULL};
 
     PyObject* frames = NULL;
+    PyArrayObject* mask = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!:get_histogram", 
-        KWARG_CAST(GET_HISTOGRAM_KEYWORDS), &PyList_Type, &frames)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!:get_histogram",
+        KWARG_CAST(GET_HISTOGRAM_KEYWORDS), &PyList_Type, &frames, &PyArray_Type, &mask)) {
         return NULL;
     }
 
     try{
+        if (mask) {
+            if (PyArray_TYPE(mask) != NPY_BOOL) {
+                PyErr_SetString(PyExc_TypeError, "Mask must be of type bool");
+                return NULL;
+            }
+
+            PyErr_SetString(
+                PyExc_NotImplementedError,
+                "Masked histograms are not yet implemented."
+            );
+            return NULL;
+        }
         if(!frames) {
-            return self->siffreader->getHistogram();
+            return self->siffreader->getHistogram(NULL, 0);
         }
     }
     catch(...) {
@@ -1141,7 +1109,13 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         check_framelist(frames, framesArray, PyList_Size(frames), self->siffreader->numFrames());
 
         uint64_t framesN = PyList_Size(frames);
-        PyArrayObject* histo = self->siffreader->getHistogram(framesArray, framesN);
+        PyArrayObject* histo;
+        if (mask) {
+            histo = self->siffreader->getHistogram(mask, framesArray, framesN);
+        }
+        else{
+            histo = self->siffreader->getHistogram(framesArray, framesN);
+        }
         delete[] framesArray;
         return histo;
     }

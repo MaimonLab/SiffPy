@@ -543,22 +543,27 @@ PyArrayObject* SiffReader::sumMask(
         uint64_t* data_ptr = (uint64_t *) PyArray_DATA(summedArray);
 
         // Get the mask formatting right
-        if (PyArray_TYPE(mask) != NPY_BOOL) throw std::runtime_error("Mask is not of dtype 'bool'");
+        if (PyArray_TYPE(mask) != NPY_BOOL) {
+            throw std::runtime_error("Mask is not of dtype 'bool'");
+        }
 
         const bool* mask_data_ptr = (bool*) PyArray_DATA(mask);
-        const npy_intp* mask_dims = PyArray_DIMS(mask);
-        const npy_intp* mask_frame_dims = &mask_dims[PyArray_NDIM(mask) - 2];
-        size_t frames_per_mask = 1;
-        for (size_t dim_idx = 0; dim_idx < ((size_t) PyArray_NDIM(mask) - 2); dim_idx++) {
-            frames_per_mask *= mask_dims[dim_idx];
-        }
+        const npy_intp* mask_frame_dims = &PyArray_DIMS(mask)[PyArray_NDIM(mask) - 2];        
+        size_t frames_per_mask = framesPerMask(mask);
         const size_t pxPerMask = mask_frame_dims[0] * mask_frame_dims[1];
 
         for(size_t frame_idx = 0; frame_idx < framesN; frame_idx++){
 
-            const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
+            const FrameData frameData = getTagData(
+                params.allIFDs[frames[frame_idx]],
+                params,
+                siff
+            );
 
-            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
+            PyObject* shift_tuple = PyDict_GetItem(
+                registrationDict, 
+                PyLong_FromUnsignedLongLong(frames[frame_idx])
+            );
             
             data_ptr[frame_idx] += sumFrameMask(
                 frameData,

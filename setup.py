@@ -9,7 +9,7 @@ except ImportError:
    raise Exception("Numpy is not yet installed on this distribution. Install numpy with pip or conda")
 
 from setuptools.command.install import install
-      
+
 #from setuptools.command.install import clean
 
 define_macros = None
@@ -134,7 +134,8 @@ def setupcall():
       ext_modules = [siffmodule],
       cmdclass={
          'install': installclass,
-      }
+      },
+      python_requires='>=3.9.0',
    )
 
 try:

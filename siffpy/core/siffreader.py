@@ -536,7 +536,7 @@ class SiffReader(object):
         raise NotImplementedError("Haven't re-implemented pool_frames yet")
 
 ### FLIM METHODS
-    def get_histogram(self, frames: Optional[List[int]] = None) -> np.ndarray:
+    def get_histogram(self, frames: Optional[List[int]] = None, mask : Optional[np.ndarray] = None) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
 
@@ -548,11 +548,16 @@ class SiffReader(object):
         frames (optional, list of ints):
             Frames to get arrival times of. If NONE, collects from all frames.
 
+        mask (optional, np.ndarray):
+            z,y,x mask to apply to the data. If None, no mask is applied.
+
         Returns
         -------------
         histogram (np.ndarray):
             1 dimensional histogram of arrival times
         """
+        if mask is not None:
+            raise NotImplementedError("Masking not yet implemented in get_histogram!")
         if frames is None:
             return self.siffio.get_histogram(frames=self.im_params.all_frames)
         return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]

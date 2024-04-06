@@ -7,7 +7,7 @@ easy-to-use graphical interface for testing many parameters in the
 ``siff-napari`` plugin, but that will not be covered here. Instead, look
 at the ``siff-napari`` documentation at - ADD LINK HERE -.
 
-.. code-block:: python
+.. code:: ipython3
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -24,18 +24,36 @@ at the ``siff-napari`` documentation at - ADD LINK HERE -.
     tau_axis = np.arange(0, 12.5, bin_width)
 
 Fit a single exponential
-------------------------
+========================
 
 In this first example, we generate an arrival time distribution
 corresponding to a single exponential arrival time distribution
-convolved with a Gaussian IRF.
+convolved with a Gaussian IRF. This is as simple as
 
+.. math::
 
+   F(t; \tau, \mu, \sigma) = \text{exp}\left(\frac{(t-\mu)^2}{\sigma^2}\right) * \text{exp}(-t/\tau) \\
+   F(t; \tau, \mu, \sigma) = \sqrt{\frac{\pi\sigma^2}{2\tau^2}}\exp\left(\frac{\sigma^2}{2\tau^2}\right)\text{erfc}
+   \left(\frac{1}{\sqrt{2}}\left(\frac{\sigma}{\tau} - \frac{x-\mu}{\sigma}\right) \right)
+   \exp\left(-\frac{x-\mu}{\tau}\right)
 
-.. code-block:: python
+Here :math:`\tau` is the decay of the exponential, :math:`\mu` is the
+mean delay of the laser pulse + travel of the photon to the detector,
+and :math:`\sigma` is a measure of the ballistic spread in arrival
+times. :math:`*` denotes the convolutional operator, not multiplication.
+
+.. code:: ipython3
 
     from scipy.optimize import minimize
     from siffpy.core.flim.flimparams import multi_exponential_pdf_from_params
+    
+    def objective(params, tau_axis, data):
+        return np.sum(
+            (
+                (multi_exponential_pdf_from_params(tau_axis, params)[1:] - data[1:])**2
+                / data[1:]
+            )
+        )
     
     # There are many ways to instantiate a FLIMParams object.
     # In this example, we use a dictionary to specify the parameters.
@@ -47,6 +65,8 @@ convolved with a Gaussian IRF.
             irf = dict(tau_g = 0.05, mean = 1.0, units = "nanoseconds")
         )
     )
+    
+    print(monoexp.noise)
     
     data = monoexp.pdf(tau_axis)
     
@@ -75,7 +95,7 @@ convolved with a Gaussian IRF.
     
     plt.semilogy(
         tau_axis,
-        monoexp.pdf(tau_axis),
+        multi_exponential_pdf_from_params(tau_axis, res.x),
         label = 'Fit',
         linestyle = '--',
     )
@@ -89,29 +109,34 @@ convolved with a Gaussian IRF.
 
 .. parsed-literal::
 
+    0.0
     90 iterations : [0.6  1.   1.   0.05]
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_4_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_3_1.png
 
 
 Fitting two exponentials
 ========================
 
 Now we’ll generate data from a distribution with two exponentials in a
-mixture
+mixture. This is as before, but now there are two exponentials, each
+contributing to some fraction of the signal:
 
-.. code-block:: python
+.. math::  F(t) = f_1 F(t; \tau_1, \sigma, \mu) + f_2 F(t; \tau_2, \sigma, \mu) 
 
-    biexponential = FLIMParams.from_dict(
-        dict(
-            exps = [
-                dict(tau = 0.6, fraction = 0.3, units = 'nanoseconds'),
-                dict(tau = 4.2, fraction = 0.7, units = 'nanoseconds'),
-            ],
-            irf = dict(tau_g = 0.05, mean = 1.2, units = "nanoseconds")
-        )
+with :math:`f_1 + f_2 = 1`. We’ll also, just for the sake of
+documentation, show how to initialize a ``FLIMParams`` from the
+``siffpy`` classes of ``FLIMParameters``
+
+.. code:: ipython3
+
+    from siffpy.core.flim import Exp, Irf
+    biexponential = FLIMParams(
+        Exp(tau = 0.6, fraction = 0.3, units = 'nanoseconds'),
+        Exp(tau = 4.2, fraction = 0.7, units = 'nanoseconds'),
+        Irf(tau_g = 0.05, mean = 1.2, units = "nanoseconds")
     )
     
     data = biexponential.pdf(tau_axis)
@@ -141,7 +166,7 @@ mixture
     
     plt.semilogy(
         tau_axis,
-        biexponential.pdf(tau_axis),
+        multi_exponential_pdf_from_params(tau_axis, res.x),
         label = 'Fit',
         linestyle = '--',
     )
@@ -157,35 +182,48 @@ mixture
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_6_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_5_1.png
 
 
 Add background noise
---------------------
+====================
 
 Typically our data comes with some background noise that is independent
 of the laser pulse, e.g. background illumination, visual stimuli. We can
 also fit keeping that fact in mind.
 
 In this case, we’ll make the noise very strong (half of our “signal” is
-actually noise!). This is not a problem.
+actually noise!). This is not a problem. This corresponds to the model
 
-.. code-block:: python
+.. math::  F(t) = f_1 F(t; \tau_1, \mu, \sigma) + f_2 F(t; \tau_2, \mu, \sigma) + \epsilon 
 
-    biexponential = FLIMParams.from_dict(
-        dict(
-            exps = [
-                dict(tau = 0.6, fraction = 0.3, units = 'nanoseconds'),
-                dict(tau = 4.2, fraction = 0.7, units = 'nanoseconds'),
-            ],
-            irf = dict(tau_g = 0.05, mean = 1.2, units = "nanoseconds"),
-            noise = 0.5,
-        )
+where $ f_1 + f2 + :raw-latex:`\epsilon `= 1$ (keeping this a
+probability distribution)
+
+.. code:: ipython3
+
+    biexponential = FLIMParams(
+        Exp(tau = 0.6, fraction = 0.3, units = 'nanoseconds'),
+        Exp(tau = 4.2, fraction = 0.7, units = 'nanoseconds'),
+        Irf(tau_g = 0.05, mean = 1.2, units = "nanoseconds"),
+        noise = 0.5,
     )
     
     data = biexponential.pdf(tau_axis)
     
     init_guess = np.array((0.2, 0.8, 1.6, 0.2, 0.05, 1.25, 0.0)) # tau f1 ... , irf_mean, irf_sigma, noise
+    
+    def noisy_objective(params, tau_axis, data):
+        return np.sum(
+            (
+                (
+                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
+                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
+                    - data[1:]
+                )**2
+                / data[1:]
+            )
+        )
     
     res = biexponential.fit_params_to_data(
         data,
@@ -208,7 +246,10 @@ actually noise!). This is not a problem.
     
     plt.semilogy(
         tau_axis,
-        biexponential.pdf(tau_axis),
+        (
+            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
+            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
+        ),
         label = 'Fit',
         linestyle = '--',
     )
@@ -225,20 +266,32 @@ actually noise!). This is not a problem.
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_8_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_7_1.png
 
 
 Pushing it to the limit
-----------------------------
+=======================
 
 This has got to be much harder: 70% of the signal is noise, and there
 are now THREE exponentials producing the data, each approximately to the
 same extent! Okay… so this one doesn’t do quite as well. Hopefully you
 never have data quite this messy. The curve itself looks pretty okay,
 but if you look at the actual values for tau and the fractions… it could
-be better
+be better.
 
-.. code-block:: python
+In general, ``FLIMParams`` objects will fit the model
+
+.. math::  F(t) = \epsilon + \displaystyle\sum_{i=1}^{N}f_i F(t; \tau_i, \mu, \sigma) 
+
+with the constraints
+
+.. math::
+
+
+   \tau_i < \tau_j \hspace{6mm} \forall i<j \\
+   \sum_{i=1}^{n}f_i = 1
+
+.. code:: ipython3
 
     triexponential = FLIMParams.from_dict(
         dict(
@@ -256,11 +309,31 @@ be better
     
     init_guess = np.array((0.2, 0.8, 0.4, 0.0, 1.6, 0.2, 0.05, 0.1, 0.4)) # tau f1 ... , irf_mean, irf_sigma, noise
     
-    res = triexponential.fit_params_to_data(
-        data,
+    def noisy_objective(params, tau_axis, data):
+        return np.sum(
+            (
+                (
+                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
+                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
+                    - data[1:]
+                )**2
+            ) / data[1:]
+        )
+    
+    res = minimize(
+        noisy_objective,
         init_guess,
-        x_range = tau_axis,
+        args = (tau_axis, data),
+        bounds = triexponential.bounds,
+        constraints = triexponential.constraints,
+        method = 'trust-constr',
     )
+    
+    # res = triexponential.fit_params_to_data(
+    #     data,
+    #     init_guess,
+    #     x_range = tau_axis,
+    # )
     
     plt.semilogy(
         tau_axis,
@@ -277,7 +350,10 @@ be better
     
     plt.semilogy(
         tau_axis,
-        triexponential.pdf(tau_axis),
+        (
+            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
+            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
+        ),
         label = 'Fit',
         linestyle = '--',
     )
@@ -294,12 +370,12 @@ be better
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_10_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_9_1.png
 
 
 Reducing the noise a little gives us a much faster-converging estimate
 
-.. code-block:: python
+.. code:: ipython3
 
     triexponential = FLIMParams.from_dict(
         dict(
@@ -317,6 +393,27 @@ Reducing the noise a little gives us a much faster-converging estimate
     
     init_guess = np.array((0.2, 0.8, 0.4, 0.0, 1.6, 0.2, 0.05, 0.1, 0.4)) # tau f1 ... , irf_mean, irf_sigma, noise
     
+    def noisy_objective(params, tau_axis, data):
+        return np.sum(
+            (
+                (
+                    np.ones_like(tau_axis[1:])*params[-1]/len(tau_axis) # noise
+                    + (1-params[-1])*multi_exponential_pdf_from_params(tau_axis, params[:-1])[1:]
+                    - data[1:]
+                )**2
+                / data[1:]
+            )
+        )
+    
+    # res = minimize(
+    #     noisy_objective,
+    #     init_guess,
+    #     args = (tau_axis, data),
+    #     bounds = triexponential.bounds,
+    #     constraints = triexponential.constraints,
+    #     method = 'trust-constr',
+    # )
+    
     res = triexponential.fit_params_to_data(
         data,
         init_guess,
@@ -338,7 +435,10 @@ Reducing the noise a little gives us a much faster-converging estimate
     
     plt.semilogy(
         tau_axis,
-        triexponential.pdf(tau_axis),
+        (
+            res.x[-1]*np.ones_like(tau_axis)/len(tau_axis) # noise
+            + (1-res.x[-1])*multi_exponential_pdf_from_params(tau_axis, res.x[:-1])
+        ),
         label = 'Fit',
         linestyle = '--',
     )
@@ -355,17 +455,34 @@ Reducing the noise a little gives us a much faster-converging estimate
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_12_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_11_1.png
 
 
 Multiple pulses
----------------
+===============
 
 Let’s make things a little harder yet again. Now we’re going to model a
 system in which there are multiple fluorophores with different emission
 spectra, and excited by TWO laser sources. Both laser sources excite
 both fluorophores (with different efficacy), and our job will be to
 wrest the true signal out of this mess.
+
+This signal corresponds to the equations
+
+.. math::
+
+
+   F(t) = \epsilon + \displaystyle\sum_{l=1}^{N_l}\displaystyle\sum_{i=1}^{N_s}f_i\varphi_l F(t; \tau_i, \mu_{l}, \sigma_{l}) \\
+
+with the constraints $$
+
+:raw-latex:`\sum`\_{l} :raw-latex:`\varphi`\ *l = 1 \\
+:raw-latex:`\sum`*\ {i} f_i = 1 \\ :raw-latex:`\tau`\_i <
+:raw-latex:`\tau`\_j :raw-latex:`\hspace{6mm}` :raw-latex:`\forall `i<j
+\\ $$
+
+where now :math:`l` is indexing over the laser pulses and :math:`i` is
+indexing over fluorophore states.
 
 We have a separate class for this specific instance: the
 ``MultiPulseFLIMParam``. This section of the code will first solve the
@@ -375,9 +492,9 @@ section is structured this way is that I’m building the
 ``MultiPulseFLIMParam`` class while I write it! So this may be revised
 in the future…
 
-So our tricky distribution was no problem for the solver
+So our tricky distribution was no problem for the solver.
 
-.. code-block:: python
+.. code:: ipython3
 
     green_fluorophore_pulse_one = FLIMParams.from_dict(
         dict(
@@ -410,15 +527,13 @@ So our tricky distribution was no problem for the solver
     )
 
 
-.. code-block:: python
+.. code:: ipython3
 
     from scipy.optimize import Bounds, LinearConstraint, minimize
     
     def noisy_multipulse_objective(params, tau_axis, data):
         """
-        Params are now of length 1x exp
-        + 2xirf parameters plus one frac for each irf
-        plus one noise parameter
+        Params are now of length 1x exp + 2xirf parameters plus one frac for each irf plus one noise parameter
         """
         noise = params[-1]
         return np.sum(
@@ -430,8 +545,7 @@ So our tricky distribution was no problem for the solver
                 )
                 - data[1:]
             )**2
-            / data[1:]
-        )
+        )/np.sum(data[1:])
     
     
     init_guess = np.array((0.2, 0.8, 0.7, 0.2, 0.4, 0.1, 0.5, 5.0, 0.5, 0.5, 0.2)) # tau f1 ... , irf_mean, irf_sigma, frac_irf_1, irf_mean_2, irf_sigma_2, frac_irf_2, noise
@@ -439,7 +553,7 @@ So our tricky distribution was no problem for the solver
     data = (
         frac_pulse_one*green_fluorophore_pulse_one.pdf(tau_axis)
         + frac_pulse_two*green_fluorophore_pulse_two.pdf(tau_axis)
-    )
+    ) + 1e-4*np.random.randn(len(tau_axis))
     multi_pulse_bounds = Bounds(
             lb = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             ub = [np.inf, 1, np.inf, 1, np.inf, np.inf, 1, np.inf, np.inf, 1, 1],
@@ -467,6 +581,9 @@ So our tricky distribution was no problem for the solver
             ub = -0.1,
         ),
     ]
+    
+    print(len(multi_pulse_bounds.lb), len(init_guess))
+    
     
     res = minimize(
         noisy_multipulse_objective,
@@ -517,12 +634,12 @@ So our tricky distribution was no problem for the solver
 .. parsed-literal::
 
     11 11
-    460 iterations. [0.60000365 0.50000455 2.10001736 0.49999545 1.19999991 0.04999997
-     0.69999983 3.39999985 0.07000004 0.30000017 0.1999994 ]
+    452 iterations. [0.59441365 0.48866273 1.90361903 0.51133727 1.19906974 0.05014742
+     0.69620238 3.40056867 0.06931414 0.30379762 0.21359188]
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_15_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_14_1.png
 
 
 Now we can try it with the ``MultiPulseFLIMParams``
@@ -534,7 +651,7 @@ pulse. You can actually just pass in regular ``Irf`` objects and they
 will be converted into ``FractionalIrf``\ s with each getting an equal
 fraction.
 
-.. code-block:: python
+.. code:: ipython3
 
     from siffpy.core.flim import Exp
     from siffpy.core.flim.multi_pulse import FractionalIrf, MultiPulseFLIMParams
@@ -546,6 +663,13 @@ fraction.
         FractionalIrf(tau_g = 0.07, mean = 5.5, frac = 0.63, units = "nanoseconds"),
         noise = 0.2
     )
+    
+    print(mpfp.params)
+    
+    data = (
+        frac_pulse_one*green_fluorophore_pulse_one.pdf(tau_axis)
+        + frac_pulse_two*green_fluorophore_pulse_two.pdf(tau_axis)
+    ) + (1e-1/len(tau_axis))*np.random.randn(len(tau_axis))
     
     res = mpfp.fit_params_to_data(
         data,
@@ -570,14 +694,82 @@ fraction.
     plt.legend()
 
 
+.. parsed-literal::
+
+    [Exp
+    	UNITS: FlimUnits.NANOSECONDS
+    	tau : 0.1
+    	frac : 0.25
+    , Exp
+    	UNITS: FlimUnits.NANOSECONDS
+    	tau : 1.4
+    	frac : 0.75
+    , MultiIrf([FractionalIrf
+    	UNITS: FlimUnits.NANOSECONDS
+    	tau_offset : 0.4
+    	tau_g : 0.05
+    	frac : 0.37
+    , FractionalIrf
+    	UNITS: FlimUnits.NANOSECONDS
+    	tau_offset : 5.5
+    	tau_g : 0.07
+    	frac : 0.63
+    ])]
+
+
 
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x144a0b7c0>
+    <matplotlib.legend.Legend at 0x177b7f190>
 
 
 
 
-.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_17_1.png
+.. image:: multi_pulse_flim_notebook_files/multi_pulse_flim_notebook_16_2.png
+
+
+.. code:: ipython3
+
+    from IPython.display import display, Latex
+    param_dict = triexponential.to_dict()
+    irfstr = f"\\text{{exp}}\\left(\\frac{{(t - {param_dict['irf']['tau_offset']})^2}}{{{param_dict['irf']['tau_g']}^2}}\\right)"
+    display(Latex(f"$${irfstr}$$"))
+
+
+
+.. math::
+
+    \text{exp}\left(\frac{(t - 1.1999965897342781)^2}{0.04999870276961093^2}\right)
+
+
+Multiple fluorophores and multiple pulses
+-----------------------------------------
+
+Now it gets *even crazier* – often we’re using two laser pulses because
+we have multiple fluorophores, each differentially excitable by
+different lasers. Similarly, we can image with multiple fluorophores in
+the same channel even with only one pulse. For this, we have a more
+complex set of contingencies; some parameters are shared across
+channels, and we need a ``MultiFluorophoreFLIMParams``, which gets even
+more complicated, because it combines several ``MultiFLIMParams``. The
+channel itself will be composed of many fluorophores sharing
+``MultiIrf``\ s, a common noise term, and a summed fraction of
+fluorophores, each having their own fractions. Here goes nothing…
+
+
+The final boss: multiple channels, multiple fluorophores, multiple pulses
+-------------------------------------------------------------------------
+
+Typically you might want to fit your FLIM channels separately – often we
+have one channel for one fluorophore, and another channel for the other
+fluorophore. But unfortunately, sometimes there’s bleedthrough, and our
+signal gets contaminated by the other fluorophore. Our job is to sort
+these out, aided by the parameters that are shared across channels. Each
+fluorophore’s :math:`\tau` and :math:`f` parameters should be shared
+across channels and each IRF should be shared across channels – it’s
+just that each fluorophore’s state needs a weight for each channel
+(meaning that there is :math:`n_{\text{channels}}-1` free parameters per
+fluorophore state introduced by the presence of multiple channels, I
+think – maybe not quite right).
 
