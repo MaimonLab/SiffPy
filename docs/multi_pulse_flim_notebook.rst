@@ -24,7 +24,7 @@ at the ``siff-napari`` documentation at - ADD LINK HERE -.
     tau_axis = np.arange(0, 12.5, bin_width)
 
 Fit a single exponential
-========================
+------------------------
 
 In this first example, we generate an arrival time distribution
 corresponding to a single exponential arrival time distribution
@@ -118,7 +118,7 @@ times. :math:`*` denotes the convolutional operator, not multiplication.
 
 
 Fitting two exponentials
-========================
+------------------------
 
 Now we’ll generate data from a distribution with two exponentials in a
 mixture. This is as before, but now there are two exponentials, each
@@ -186,7 +186,7 @@ documentation, show how to initialize a ``FLIMParams`` from the
 
 
 Add background noise
-====================
+--------------------
 
 Typically our data comes with some background noise that is independent
 of the laser pulse, e.g. background illumination, visual stimuli. We can
@@ -270,7 +270,7 @@ probability distribution)
 
 
 Pushing it to the limit
-=======================
+-----------------------
 
 This has got to be much harder: 70% of the signal is noise, and there
 are now THREE exponentials producing the data, each approximately to the
@@ -459,7 +459,7 @@ Reducing the noise a little gives us a much faster-converging estimate
 
 
 Multiple pulses
-===============
+---------------
 
 Let’s make things a little harder yet again. Now we’re going to model a
 system in which there are multiple fluorophores with different emission
