@@ -67,7 +67,6 @@ def noiseless_objective(params, tau_axis, data):
         )
     )
 
-
 def noisy_objective(params, tau_axis, data):
     """
     Minimize the sum of squared errors
@@ -456,18 +455,18 @@ class FLIMParams():
 
         Inputs
         ------
-        data : np.ndarray
+        - `data : np.ndarray`
 
             A numpy array of the arrival time histogram. Data[n] = number
             of photons arriving in bin n
 
-        initial_guess : tuple
+        - `initial_guess : tuple`
 
             Guess for initial params in FLIMParams.param_tuple format.
             Presumed to be in the same units as the 
             `optimization_units` (if not None).
         
-        loss_function : LossFunction
+        - `loss_function : LossFunction`
 
             Defines the cost function for curve fitting. Defaults to chi-squared
 
@@ -477,27 +476,27 @@ class FLIMParams():
 
             All other arguments must be KWARGS.
 
-        solver : Callable
+        - `solver : Callable`
 
             A function that takes the metric and an initial guess and returns
             some object that has an attribute called 'x' that is a tuple with
             the same format as the FIT result of the param_tuple. This is the
-            format of the default scipy.optimize.minimize functions.
+            format of the default `scipy.optimize.minimize` functions.
 
-        x_range : np.ndarray
+        - `x_range : np.ndarray`
 
             The range of the x-axis in the same units as the FLIMParams.
             If not provided, assumes the data is in countbins and uses
             np.arange(len(data)) as the x_range.
 
-        **kwargs
+        - `**kwargs`
 
-            Passed to the metric function.
+            Passed to the `scipy.optimize.minimize` `opts` kwarg.
 
         Returns
         -------
 
-        fit : scipy.optimize.OptimizeResult
+        - `fit : scipy.optimize.OptimizeResult`
 
             The OptimizeResult object for diagnostics on the fit.
         """
@@ -533,6 +532,10 @@ class FLIMParams():
                 method = 'trust-constr',
                 bounds = self.bounds,
                 constraints = self.constraints,
+                opts = dict(
+                    maxiter = 2000,
+                    **kwargs
+                )
             )
 
             fit_tuple = fit_obj.x
