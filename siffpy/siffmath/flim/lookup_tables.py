@@ -245,7 +245,7 @@ class TemperatureSensitiveFit(FluorophoreHillFit):
                 self.max_point = max_point1 + (max_point2 - max_point1) * (temperature - t1) / (t2 - t1)
 
 
-    def __call__(self, temperature : float, lifetime : float,):
+    def __call__(self, lifetime : float, temperature : float = 23.0):
         """
         Invert the hill equation to convert
         lifetime to concentration
@@ -260,13 +260,27 @@ class TemperatureSensitiveFit(FluorophoreHillFit):
             self.max_point
         )
 
-    def to_concentration(self, temperature : float, input : float):
+    def to_lifetime(self, input : float, temperature : float = 23.0):
         """
         Hill equation to convert
         concentration to lifetime
         """
         self.remap_by_temperature(temperature)
         return hill_equation(
+            input,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+
+    def to_concentration(self, input : float, temperature : float = 23.0):
+        """
+        Hill equation to convert
+        concentration to lifetime
+        """
+        self.remap_by_temperature(temperature)
+        return inverse_hill_equation(
             input,
             self.n,
             self.k50,
