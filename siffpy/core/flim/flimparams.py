@@ -328,48 +328,47 @@ class FLIMParams():
             print(flim_params)
 
         print(flim_params)
-        
         >>> FLIMParams object: 
 
             Parameters:
-                Exp
-            UNITS: FlimUnits.PICOSECONDS
-            tau : 500.0
-            frac : 0.2
+                    Exp
+                UNITS: FlimUnits.PICOSECONDS
+                tau : 500.0
+                frac : 0.2
 
-                Exp
-            UNITS: FlimUnits.PICOSECONDS
-            tau : 3000.0
-            frac : 0.8
+                    Exp
+                UNITS: FlimUnits.PICOSECONDS
+                tau : 3000.0
+                frac : 0.8
 
-                Irf
-            UNITS: FlimUnits.PICOSECONDS
-            tau_offset : 3000.0
-            tau_g : 100.0
+                    Irf
+                UNITS: FlimUnits.PICOSECONDS
+                tau_offset : 3000.0
+                tau_g : 100.0
 
-                Noise: 0.0
-                Color channel: None
+                    Noise: 0.0
+                    Color channel: None
 
-        FLIMParams object: 
+            FLIMParams object: 
 
-            Parameters:
-                Exp
-            UNITS: FlimUnits.NANOSECONDS
-            tau : 0.5
-            frac : 0.2
+                Parameters:
+                    Exp
+                UNITS: FlimUnits.NANOSECONDS
+                tau : 0.5
+                frac : 0.2
 
-                Exp
-            UNITS: FlimUnits.NANOSECONDS
-            tau : 3.0
-            frac : 0.8
+                    Exp
+                UNITS: FlimUnits.NANOSECONDS
+                tau : 3.0
+                frac : 0.8
 
-                Irf
-            UNITS: FlimUnits.NANOSECONDS
-            tau_offset : 3.0
-            tau_g : 0.1
+                    Irf
+                UNITS: FlimUnits.NANOSECONDS
+                tau_offset : 3.0
+                tau_g : 0.1
 
-                Noise: 0.0
-                Color channel: None
+                    Noise: 0.0
+                    Color channel: None
         ```
         """
         start_units = self.units
@@ -1012,7 +1011,8 @@ class FLIMParams():
         """
         equal = False
         if isinstance(other, FLIMParams):
-            if not ((self.color_channel is None) and other.color_channel is None):
+            equal = True
+            if (self.color_channel is not None) and (other.color_channel is not None):
                 equal *= self.color_channel == other.color_channel
             equal *= len(self.exps) == len(other.exps)
             equal *= all( # every exp has at least one match in the other FLIMParams

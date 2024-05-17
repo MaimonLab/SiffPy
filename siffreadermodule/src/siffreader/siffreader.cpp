@@ -128,7 +128,7 @@ int SiffReader::openFile(const char* _filename) {
             params.bytesPerTag = 12;
             params.bytesPerNumTags = 2;
         }
-    
+
         // Now do the ScanImage-specific checks!
         uint32_t magic;
         siff.read((char*)&magic, sizeof(uint32_t));
