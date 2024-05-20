@@ -350,6 +350,43 @@ class SiffReader(object):
         if hasattr(self.im_params, 'RoiManager'):
             return self.im_params.RoiManager.scanFramePeriod
         return np.diff(self.get_time(reference = 'experiment')).mean()
+    
+    def sec_to_frames(self, seconds : float, base : str = 'volume')->int:
+        """
+        Converts a time in seconds to the number of frames that time represents.
+
+        Can be based on the volume or individual frames.
+
+        Arguments
+        ------
+        seconds : float
+            Time in seconds to convert
+
+        base : str
+            Base to convert to. Can be 'volume' or 'frame'. Defaults to 'volume'.
+
+        Returns
+        -------
+        frames : int
+            Number of frames that time represents.
+
+        Example
+        -------
+        ```python
+        >>> from siffpy import SiffReader
+        >>> siffreader = SiffReader('example.siff')
+        >>> siffreader.dt_volume
+        0.1
+        >>> siffreader.sec_to_frames(1.0, base = 'volume')
+        10
+        ```
+        """
+
+        if base == 'volume':
+            return int(seconds/self.dt_volume)
+        if base == 'frame':
+            return int(seconds/self.dt_frame)
+        raise ValueError("Base must be 'volume' or 'frame'")
 
 ### METADATA METHODS
     def get_frames_metadata(self, frames : Optional[List[int]] = None) -> List[io.FrameMetaData]:

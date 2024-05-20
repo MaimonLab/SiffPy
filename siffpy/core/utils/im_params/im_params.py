@@ -201,7 +201,7 @@ class ImParams():
         return fr
 
     @property
-    def arrival_time_bins(self)->np.ndarray[Any, np.dtype[np.float_]]:
+    def arrival_time_bins(self)->np.ndarray[Any, np.float_]:
         """ The time bins of the arrival time histogram """
         return np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin
     
@@ -755,7 +755,7 @@ class ImParams():
         else:
             slice_idx = int(slice_idx)
             return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
-
+        
     @staticmethod
     def from_dict(header_dict: Dict, num_frames : Optional[int] = None)->'ImParams':
         """
