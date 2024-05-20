@@ -10,6 +10,8 @@ custom modified ScanImage (currently reachable as a bunch of distributed repos b
 code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
+-   `corrosiff` Rust implementation
+-   `sum_mask_...` methods with multiple masks in one call for speed
 -   `Libsiffreader`: make a shared library
 that does most of the basic (i.e. non-Python)
 functionality. Then let `SiffPy` and 
