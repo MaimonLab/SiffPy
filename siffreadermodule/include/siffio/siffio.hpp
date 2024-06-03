@@ -61,6 +61,8 @@ typedef struct _SiffIO {
 
     //PyObject* frameDataList;
     SiffReader* siffreader; // each SiffIO has a C++ siffreader
+    // status string causes segfault when initialized to something small??
+    // getting allocated on stack?? But why would that be a problem????
     std::string status;
     std::iostream debug_log; // only defined when debug called. TODO
 } SiffIO;
@@ -89,14 +91,14 @@ static PyObject* siffio_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
     if (self != NULL) {
         self->siffreader = new SiffReader();
         //self->frameDataList = PyList_New(0);
-        self->status = std::string("");
+        //self->status = std::string("");
     }
     return (PyObject *) self;
 };
 
 // Can init with a filename to open that way.
 static int siffio_init(SiffIO* self, PyObject* args){
-
+    
     const char* filename = NULL;
 
     if(!PyArg_ParseTuple(args, "|s:SiffIO", &filename)){
