@@ -100,16 +100,18 @@ def circ_corr(
     Implemented with complex numbers instead of cos and sine as in the original
     paper because it runs faster and is far more elegant.
 
-    ARGUMENTS
+    Arguments
     ---------
 
     x : np.ndarray
 
-        One of the two arrays of circular variables to correlate
+        One of the two arrays of circular variables to correlate (in radians
+        doesn't matter if it starts at 0 or -pi)
 
     y : np.ndarray
 
-        The other of the two arrays of circular variables to correlate
+        The other of the two arrays of circular variables to correlate (in radians
+        doesn't matter if it starts at 0 or -pi)
 
     axis : int = 0
 
@@ -121,6 +123,62 @@ def circ_corr(
         The method to use to compute the correlation. Options are "Fisher" and
         "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
         Defaults to "Fisher".
+
+    Returns
+    -------
+
+    rho : float
+
+        The circular correlation between x and y
+
+    Examples
+    --------
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import circ_corr
+
+    x = np.linspace(0,2*np.pi,1000)
+    y = np.linspace(1,1+2*np.pi,1000)
+
+    circ_corr(x,y)
+    >>> 1.0000000000000004
+    ```
+
+    Let's try random noise
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import circ_corr
+
+    np.random.seed(0)
+    x = np.random.rand(1000)*2*np.pi
+    y = np.random.rand(1000)*2*np.pi
+
+    circ_corr(x,y)
+    >>> -0.0005595881845383295
+    ```
+
+    And noise on top of a signal
+
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import circ_corr
+
+    np.random.seed(0)
+
+    # Random steps
+    dx = np.random.rand(1000)*0.01
+
+    # accumulate
+    x = np.cumsum(dx)
+
+    # Add noise
+    y = x + np.random.rand(1000)
+
+    circ_corr(x,y)
+    >>> 0.9131513426682732
+    ```
     """
     expd_1 = np.exp(1j*x)
     expd_2 = np.exp(1j*y)
@@ -327,6 +385,112 @@ def circ_corr_complex_fisher(
     
     return np.real(numerator/denominator)
 
+def running_circ_corr(
+        x : np.ndarray,
+        y : np.ndarray,
+        window_width : int,
+        axis : int = 0,
+        method : str = "Fisher"
+        )->np.ndarray:
+    """
+    Takes two arrays of circular numbers and computes the circular correlation
+    between them in a sliding window fashion. The returned array is window_width elements
+    shorter than the input array. The correlation is _centered_, meaning it will start on
+    the window_width//2-th element and end on the len - window_width//2-th element.
+
+    Arguments
+    ---------
+    x : np.ndarray
+        
+        Values of -pi to +pi (or 0 to 2 pi, just has to be radians)
+
+    y: np.ndarray
+
+        Values of -pi to +pi (or 0 to 2 pi, just has to be radians)
+
+    window_width : int
+
+        The width of the sliding window in numbers of entries
+
+    axis : int = 0
+
+        The axis along which to take the correlation (i.e. the direction being summed).
+        Defaults to 0.
+
+    method : str = "Fisher"
+
+        The method to use to compute the correlation. Options are "Fisher" and
+        "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
+        Defaults to "Fisher".
+
+    Returns
+    -------
+    circ_corrs : np.ndarray
+
+        Note that the shape will be `len(x) - window_width` along the axis
+        that the window is being taken.
+
+    Examples
+    --------
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import running_circ_corr
+
+    corr = running_circ_corr(x,y,10)
+
+    print(
+        corr.shape,
+        np.all(np.abs(corr - 1) < 0.01)
+    )
+
+    >>> ((990,), True)
+    ```
+
+    Let's try random noise
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import running_circ_corr
+
+    np.random.seed(0)
+    x = np.random.rand(1000)*2*np.pi
+    y = np.random.rand(1000)*2*np.pi
+
+    corr = running_circ_corr(x,y,100)
+
+    print(
+        corr.shape,
+        np.all(np.abs(corr - 0) < 0.1)
+    )
+    >>> ((900,), True)
+    ```
+
+    Notably, if the window is very short, even random noise will 
+    show a pretty strong correlation!
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import running_circ_corr
+
+    np.random.seed(0)
+    x = np.random.rand(50)*2*np.pi
+    y = np.random.rand(50)*2*np.pi
+
+    corr = running_circ_corr(x,y,10)
+
+    print(
+        corr.shape,
+        np.all(np.abs(corr - 0) < 0.1)
+    )
+
+    >>> ((40,), False)
+    ```
+    """
+    x = np.exp(1j*x)
+    y = np.exp(1j*y)
+    return running_circ_corr_complex(x,y,window_width,axis,method)
+
 def running_circ_corr_complex(
         x : 'np.ndarray[Any, np.dtype[np.complex128]]',
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
@@ -364,6 +528,25 @@ def running_circ_corr_complex(
     Returns
     -------
     circ_corrs : np.ndarray
+
+    Examples
+    --------
+
+    ```python
+    import numpy as np
+    from siffpy.core.utils.circle_fcns import running_circ_corr_complex
+
+    x = np.linspace(0,2*np.pi,1000)
+    y = np.linspace(1,1+2*np.pi,1000)
+
+    corr = running_circ_corr_complex(np.exp(1j*x),np.exp(1j*y),10)
+
+    print(
+        corr.shape,
+        np.all(np.abs(corr - 1) < 0.01)
+    )
+
+    >>> ((990,), True)
     """ 
 
     if method in ("Fisher", 'fisher'):

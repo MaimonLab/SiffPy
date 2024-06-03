@@ -75,20 +75,122 @@ class PhaseTrace(np.ndarray):
 
     @property
     def angle(self)->NDArray[Any]:
-        return np.angle(self, deg = self.units == PhaseUnits('degrees'))
+        return np.angle(self, deg = self.deg)
+    
+    @property
+    def deg(self)->bool:
+        return self.units == PhaseUnits('degrees')
 
     def convert_units(self, to_units : 'PhaseUnitsLike'):
+        """
+        Converts the phase trace to the specified units in place
+
+        Example
+        -------
+        ```python
+        import numpy as np
+        from siffpy.siffmath.phase.traces import PhaseTrace, PhaseUnits
+
+        theta = np.linspace(0, 2*np.pi, 1000)
+        phase_trace = PhaseTrace(np.exp(1j*theta))
+        assert all(phase_trace.angle < 10)
+        phase_trace.convert_units(PhaseUnits('degrees'))
+        assert any(phase_trace.angle > 10)
+        phase_trace.convert_units('radians')
+        assert all(phase_trace.angle < 10)
+        ```
+        """
+
         to_units = PhaseUnits(to_units)
 
         if self.units is to_units:
             return
         if self.units == PhaseUnits('radians') and to_units == PhaseUnits('degrees'):
-            self[...] *= 180/np.pi
-            self.error_array[...] *= 180/np.pi
+            if self.error_array is not None:
+                self.error_array[...] *= 180/np.pi
             self.units = PhaseUnits('degrees')
             return
         if self.units == PhaseUnits('degrees') and to_units == PhaseUnits('radians'):
-            self[...] *= np.pi/180
-            self.error_array[...] *= np.pi/180
+            if self.error_array is not None:
+                self.error_array[...] *= np.pi/180
             self.units = PhaseUnits('radians')
             return
+
+    def diff(self)->np.ndarray:
+        """
+        Returns the angular difference between adjacent
+        elements of the phase trace.
+
+        Example
+        -------
+        ```python
+        import numpy as np
+        from siffpy.siffmath.phase import PhaseTrace
+
+        theta = np.linspace(0, 2*np.pi, 1000)
+        phase_trace = PhaseTrace(np.exp(1j*theta))
+        assert np.allclose(np.diff(theta), phase_trace.diff())
+        ```
+        """
+        return np.angle(self[1:]/self[:-1], deg = self.deg)
+    
+    def abs(self)->np.ndarray:
+        """
+        Returns the magnitude of the phase trace
+
+        Example
+        -------
+        ```python
+        import numpy as np
+        from siffpy.siffmath.phase import PhaseTrace
+
+        theta = np.linspace(0, 2*np.pi, 1000)
+        phase_trace = PhaseTrace(np.exp(1j*theta))
+        assert np.allclose(1, phase_trace.abs())
+        ```
+        """
+        return np.abs(self)
+
+    def invert(self):
+        """
+        Reverses the direction of the phase in place -- 
+        equivalent to `1.0/self`.
+
+        Example
+        -------
+        ```python
+
+        import numpy as np
+        from siffpy.siffmath.phase import PhaseTrace
+
+        theta = np.linspace(0, 2*np.pi, 1000)
+        phase_trace = PhaseTrace(np.exp(1j*theta))
+        assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() > 0
+        phase_trace.invert() # now goes from 2pi to 0 clockwise
+        assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() < 0
+        ```
+        """
+        self[...] = 1.0/self
+
+    def inverted(self)->np.ndarray:
+        """
+        Returns a _new_ PhaseTrace object with the phase inverted without
+        modifying the existing trace.
+
+        Example
+        -------
+        ```python
+
+        import numpy as np
+        from siffpy.siffmath.phase import PhaseTrace
+
+        theta = np.linspace(0, 2*np.pi, 1000)
+        phase_trace = PhaseTrace(np.exp(1j*theta))
+        assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() > 0
+        inverted_phase_trace = phase_trace.inverted() # now goes from 2pi to 0 clockwise
+
+        assert (inverted_phase_trace[1:]/inverted_phase_trace[:-1]).angle.mean() < 0
+        assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() > 0
+        ```
+        """
+        return 1.0/self

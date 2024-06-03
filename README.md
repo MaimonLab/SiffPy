@@ -10,6 +10,12 @@ custom modified ScanImage (currently reachable as a bunch of distributed repos b
 code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
+-   `corrosiff` Rust implementation
+-   `sum_mask_...` methods with multiple masks in one call for speed
+-   `Libsiffreader`: make a shared library
+that does most of the basic (i.e. non-Python)
+functionality. Then let `SiffPy` and 
+`siffreadermodule` code call the lib.
 -   Read the MultiHarp base resolution from the siff file and convert `FlimUnits` appropriately.
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
 -   Add measurements of noise to `FLIMParams` fitting.

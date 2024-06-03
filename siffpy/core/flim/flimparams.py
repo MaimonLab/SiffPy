@@ -17,6 +17,8 @@ from siffpy.core.flim.loss_functions import MSE
 if TYPE_CHECKING:
     from siffpy.core.flim.loss_functions import LossFunction
 
+## TODO : clean up the fitting procedure to make it faster
+# and more customizable
 def multi_exponential_pdf_from_params(
     x_range : np.ndarray,
     params : np.ndarray,
@@ -113,16 +115,46 @@ class FLIMParams():
 
         `FlimParams.from_dict`
 
-        Example use
+        Examples
         ------------
 
-        ```
+        ### Using a list of `siffpy`'s `FLIMParameter` objects
+        ```python
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
         flim_params = FLIMParams(
-            Exp(tau=2, frac=0.5, units = 'nanoseconds'),
+            Exp(tau=0.5, frac=0.5, units = 'nanoseconds'),
             Exp(tau=3, frac=0.5, units = 'nanoseconds'),
             Irf(tau_offset=1.2, tau_g=0.02, units = 'nanoseconds'),
         )
         ```
+
+        ### Using a tuple of parameters
+        ```python
+        from siffpy import FLIMParams
+
+        flim_params = FLIMParams.from_tuple(
+            (2, 0.5, 3, 0.5, 1, 0.1),
+            units = 'nanoseconds'
+        )
+        ```
+
+        ### Using a dictionary
+        ```python
+        from siffpy import FLIMParams
+
+        flim_params = FLIMParams.from_dict(
+            dict(
+                exps = [
+                    dict(tau=2, frac=0.5, units="NANOSECONDS"),
+                    dict(tau=3, frac=0.5, units="NANOSECONDS"),
+                ],
+                irf = dict(tau_offset=1, tau_g=2),
+                color_channel = 0,
+                noise = 0.1,
+                name = "Test FLIMParams",
+            )
+        )
         """
         
         self.exps = [arg for arg in args if isinstance(arg, Exp)]
@@ -150,7 +182,7 @@ class FLIMParams():
                     + " May be specified as a tuple or as a list of `Exp` and `IRF` objects."
                 )
 
-        if np.sum([exp.frac for exp in self.exps]) != 1:
+        if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
             raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
         self._noise = noise
@@ -227,6 +259,44 @@ class FLIMParams():
         Returns
         -------
         None
+
+        Example
+        -------
+
+        ```python
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=0.5, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        flim_params.convert_units('picoseconds')
+        flim_params
+
+        >>> FLIMParams object: 
+
+            Parameters:
+                Exp
+            UNITS: FlimUnits.PICOSECONDS
+            tau : 500.0
+            frac : 0.5
+
+                Exp
+            UNITS: FlimUnits.PICOSECONDS
+            tau : 3000.0
+            frac : 0.5
+
+                Irf
+            UNITS: FlimUnits.PICOSECONDS
+            tau_offset : 1000.0
+            tau_g : 100.0
+
+                Noise: 0.0
+                Color channel: None
+        ```
         """
         for param in self.params:
             param.convert_units(to_units)
@@ -237,6 +307,68 @@ class FLIMParams():
         Context manager that temporarily converts the units of this FLIMParams
         object to the units of the first parameter, and then converts them back
         to the original units when the context is exited.
+
+        Example
+        -------
+
+        ```python
+
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=0.5, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        with flim_params.as_units('picoseconds'):
+            # do some stuff while this is in picoseconds
+            print(flim_params)
+
+        print(flim_params)
+        >>> FLIMParams object: 
+
+            Parameters:
+                    Exp
+                UNITS: FlimUnits.PICOSECONDS
+                tau : 500.0
+                frac : 0.2
+
+                    Exp
+                UNITS: FlimUnits.PICOSECONDS
+                tau : 3000.0
+                frac : 0.8
+
+                    Irf
+                UNITS: FlimUnits.PICOSECONDS
+                tau_offset : 3000.0
+                tau_g : 100.0
+
+                    Noise: 0.0
+                    Color channel: None
+
+            FLIMParams object: 
+
+                Parameters:
+                    Exp
+                UNITS: FlimUnits.NANOSECONDS
+                tau : 0.5
+                frac : 0.2
+
+                    Exp
+                UNITS: FlimUnits.NANOSECONDS
+                tau : 3.0
+                frac : 0.8
+
+                    Irf
+                UNITS: FlimUnits.NANOSECONDS
+                tau_offset : 3.0
+                tau_g : 0.1
+
+                    Noise: 0.0
+                    Color channel: None
+        ```
         """
         start_units = self.units
         self.convert_units(to_units)
@@ -323,6 +455,27 @@ class FLIMParams():
         p_out : np.ndarray(1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
+
+        Example
+        -------
+        Create a `FLIMParams` object and get the probability distribution of a photon
+        arriving in any of the time bins provided
+
+        ```python
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=2, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        flim_params.pdf(np.arange(0,12.5, 0.01))
+        
+        >>> array([4.42152784e-05, 4.40548485e-05, 4.38950189e-05, ...,
+        4.51206365e-05, 4.49570342e-05, 4.47940435e-05])
+        ```
         """
         return self.probability_dist(x_range)
 
@@ -344,6 +497,27 @@ class FLIMParams():
         p_out : np.ndarray(1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
+
+        Example
+        -------
+        Create a `FLIMParams` object and get the probability distribution of a photon
+        arriving in any of the time bins provided
+
+        ```python
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=2, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        flim_params.pdf(np.arange(0,12.5, 0.01))
+        
+        >>> array([4.42152784e-05, 4.40548485e-05, 4.38950189e-05, ...,
+        4.51206365e-05, 4.49570342e-05, 4.47940435e-05])
+        ```
         """
         if not len(self.exps):
             raise AttributeError("FLIMParams does not have at least one defined component.")
@@ -499,6 +673,63 @@ class FLIMParams():
         - `fit : scipy.optimize.OptimizeResult`
 
             The OptimizeResult object for diagnostics on the fit.
+
+        Examples
+        ---------
+        
+        ### Create a `FLIMParams` object that generates the data,
+        ### sample from it, then fit a new `FLIMParams` object to
+        ### those data.
+
+
+        ```python
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+        import numpy as np
+
+        flim_params = FLIMParams(
+            Exp(tau=0.4, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.05, units='nanoseconds')
+        )
+
+        # 12.5 nanoseconds in 10 ps increments
+        arrival_time_axis = np.arange(0.01,12.5, 0.01)
+        # Sample from the distribution, using a seed to make sure your result matches the example
+        data = flim_params.sample(arrival_time_axis, 1000000, seed = 120, as_histogram = True)
+
+        # A particularly bad guess
+        fit_params = FLIMParams(
+            Exp(tau=0.1, frac=0.5, units='nanoseconds'),
+            Exp(tau=0.2, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=5, tau_g=0.1, units='nanoseconds')
+        )
+
+        fit_params.fit_params_to_data(data.astype(float), x_range = arrival_time_axis[1:])
+
+        # A not-so-bad result
+        fit_params
+
+
+        >>> FLIMParams object: 
+
+            Parameters:
+                Exp
+            UNITS: FlimUnits.NANOSECONDS
+            tau : 0.39989360953557634
+            frac : 0.5006910298045519
+
+                Exp
+            UNITS: FlimUnits.NANOSECONDS
+            tau : 2.9891959985672134
+            frac : 0.49930897019544795
+
+                Irf
+            UNITS: FlimUnits.NANOSECONDS
+            tau_offset : 1.0102523399410983
+            tau_g : 0.05007446535532903
+
+            Noise: 0.0
+            Color channel: None
         """
         optimization_units = FlimUnits(optimization_units)
         
@@ -508,10 +739,7 @@ class FLIMParams():
         ):
             x_range = np.arange(len(data))
 
-        if x_range is None:
-            raise ValueError(
-                "Must provide x_range for solutions in real time units"
-            )
+        assert x_range is not None, "Must provide x_range for solutions in real time units"
 
         # Convert units and run the solver
         with self.as_units(optimization_units):
@@ -681,6 +909,104 @@ class FLIMParams():
 
         return cls.from_dict(flim_p_dict)
     
+    def sample(
+            self,
+            x_range : np.ndarray,
+            n : int = 10000,
+            seed : Optional[int] = None,
+            as_histogram : bool = True,
+        )->np.ndarray:
+        """
+        Sample the arrival time distribution of this FLIMParams
+
+        Arguments
+        ---------
+        x_range : np.ndarray
+
+            The range of the x-axis in the same units as the FLIMParams.
+            If using `as_histogram`, this will return a histogram of the
+            samples binned as in `x_range` (so the returned array
+            will have shape (len(x_range)-1,) if `as_histogram` is True).
+
+        n : int
+
+            The number of samples to take.
+
+        seed : int
+
+            The seed for the `numpy` random number generator.
+
+        as_histogram : bool
+
+            If True, returns a histogram of the samples, binned as in
+            `x_range`. If False, returns the samples themselves.
+
+        Returns
+        -------
+        samples : np.ndarray
+
+            An array of n samples from the arrival time distribution if
+            `as_histogram` is False. If `as_histogram` is True, returns
+            a histogram of the samples binned as in `x_range` of length
+            `len(x_range) - 1`.
+
+        Example
+        -------
+
+        ### Return a sample of 3 arrival times from the FLIMParams object.
+
+        ```python
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=2, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        flim_params.sample(np.arange(0,12.5,1000), 3, seed = 15, as_histogram = False)
+
+        >>> array([5.73, 6.9 , 3.95])
+
+        samps = flim_params.sample(np.arange(0,12.5,1), 100000, seed = 15, as_histogram = True)
+
+        print(samps.shape, np.arange(0,12.5,1).shape)
+
+        >>> (12,) (13,)
+        ```
+
+        ### Return a histogram of 100000 samples from the FLIMParams object,
+        ### binned into 1 nanosecond bins
+
+        ```python
+        import numpy as np
+        from siffpy.core.flim import FLIMParams, Exp, Irf
+
+        flim_params = FLIMParams(
+            Exp(tau=0.5, frac=0.5, units='nanoseconds'),
+            Exp(tau=3, frac=0.5, units='nanoseconds'),
+            Irf(tau_offset=1, tau_g=0.1, units='nanoseconds')
+        )
+
+        flim_params.sample(np.arange(0,12.5,1), 100000, seed = 15, as_histogram = True)
+
+        >>> array([  367, 46941, 23666,  9627,  5890,  4053,  2939,  2114,  1536,
+        1098,   789,   980])
+        ```
+        """
+        rng = np.random.default_rng(seed) if seed is not None else np.random.default_rng()
+
+        samples = rng.choice(
+            x_range,
+            size = n,
+            p = self.pdf(x_range)
+        )
+        if not as_histogram:
+            return samples
+
+        return np.histogram(samples, bins = x_range)[0]
+    
     def __eq__(self, other)->bool:
         """
         Two FLIMParams objects are equal if they have the same parameters
@@ -688,7 +1014,8 @@ class FLIMParams():
         """
         equal = False
         if isinstance(other, FLIMParams):
-            if not ((self.color_channel is None) and other.color_channel is None):
+            equal = True
+            if (self.color_channel is not None) and (other.color_channel is not None):
                 equal *= self.color_channel == other.color_channel
             equal *= len(self.exps) == len(other.exps)
             equal *= all( # every exp has at least one match in the other FLIMParams

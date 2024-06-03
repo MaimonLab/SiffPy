@@ -12,7 +12,7 @@ from siffpy.core.flim import FlimUnits
 
 ### CALL_UFUNC #####
 
-def flimtrace_ufunc_call_pattern(numpy_ufunc : np.ufunc, *args, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
+def flimtrace_ufunc_call_pattern(numpy_ufunc : np.ufunc, *args, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, warn = True, **kwargs):
     """
     A pattern for calling ufuncs on FlimTrace data that do not perform addition-like phenomena
     
@@ -28,10 +28,11 @@ def flimtrace_ufunc_call_pattern(numpy_ufunc : np.ufunc, *args, out = None, wher
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
 
     if all(isinstance(x,FlimTrace) for x in args):
-        logging.warning(
-            f"numpy ufunc {numpy_ufunc.__name__} not implemented for multiple FlimTraces. "
-            "If you need this operation, view as a np.ndarray with .view() method."
-        )
+        if warn:
+            logging.warning(
+                f"numpy ufunc {numpy_ufunc.__name__} not implemented for multiple FlimTraces. "
+                "If you need this operation, view as a np.ndarray with .view() method."
+            )
         return NotImplemented
 
     flimtrace = next((x for x in args if isinstance(x, FlimTrace)))
@@ -58,7 +59,7 @@ def add_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind
     """ Adds directly to the intensity if a non-FlimTrace is provided """
     
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
-    retval = flimtrace_ufunc_call_pattern(np.add, x1, x2, out=out, **ufunc_kwargs, **kwargs)
+    retval = flimtrace_ufunc_call_pattern(np.add, x1, x2, out=out, warn = False, **ufunc_kwargs, **kwargs)
     
     if retval is not NotImplemented:
         return retval
@@ -106,9 +107,12 @@ def add_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind
 
 @FlimTrace.implements_ufunc(np.subtract, "__call__")
 def subtract_call_flimtrace(x1, x2, /, out = None, where = True, casting = 'same_kind', order = 'K', dtype = None, **kwargs):
-    """ Haven't decided if this implementation actually makes sense! """
+    """
+    Subtract presumes that the x2 trace is `noise` data, i.e. its photons are 
+    producing a lifetime value that is not meaningful
+    """
     ufunc_kwargs = {'where' : where, 'casting' : casting, 'order' : order, 'dtype' : dtype}
-    retval = flimtrace_ufunc_call_pattern(np.subtract, x1, x2, out=out, **ufunc_kwargs, **kwargs)
+    retval = flimtrace_ufunc_call_pattern(np.subtract, x1, x2, out=out, warn = False, **ufunc_kwargs, **kwargs)
     
     if retval is not NotImplemented:
         return retval

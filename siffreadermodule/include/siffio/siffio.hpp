@@ -878,7 +878,12 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
 
     // Okay enough argument checking, we can call the siffreader function
     try{
-        PyArrayObject* returnedMask = self->siffreader->sumMask(framesArray, framesN, (PyArrayObject*) mask, registrationDict);
+        PyArrayObject* returnedMask = self->siffreader->sumMask(
+            framesArray,
+            framesN,
+            (PyArrayObject*) mask,
+            registrationDict
+        );
         if (need_to_decref_dict) Py_DECREF(registrationDict);
         delete[] framesArray;
         return returnedMask;
@@ -956,85 +961,16 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
     // Check that all elements of the frame list and registration dictionary are valid.
     uint64_t* framesArray = new uint64_t[PyList_Size(frames_list)];
-    for(Py_ssize_t idx = Py_ssize_t(0); idx < PyList_Size(frames_list); idx++) {
-        PyObject* item = PyList_GET_ITEM(frames_list, idx);
-        if(!PyLong_Check(item)) {
-            if (need_to_decref_dict) Py_DECREF(registrationDict);
-            PyErr_SetString(PyExc_TypeError, "All elements of frame list must be ints");
-            delete[] framesArray;
-            return NULL;
-        }
-        uint64_t frameNum  = PyLong_AsUnsignedLongLong(item);
-        if (frameNum >= self->siffreader->numFrames()) {
-            if (need_to_decref_dict) Py_DECREF(registrationDict);
-            PyErr_SetString(PyExc_ValueError, "Frame number provided is greater than indices of frames.\nRemember they are zero indexed!");
-            delete[] framesArray;
-            return NULL;
-        }
-        framesArray[idx] = (uint64_t) PyLong_AsUnsignedLongLong(item);
-
-        // if this isn't in the registration dict, shift by (0,0)
-        if (!PyDict_Contains(registrationDict, item)) {
-            PyDict_SetItem(registrationDict, item, // steals the reference to the value
-                PyTuple_Pack(Py_ssize_t(2), // steals references, makes life easier
-                    PyLong_FromLong(0),
-                    PyLong_FromLong(0)
-                )
-            );
-        }
-        
-        // Now typecheck the registration dict item
-        // If it's not a tuple of PyLongs, replace it
-        // with a tuple of PyLongs made by attemping to cast
-        // the elements to one and replacing the tuple.
-        
-        try {
-            PyObject* shiftTuple = PyDict_GetItem(registrationDict, item);
-            if (!PyTuple_Check(shiftTuple)) {
-                if (need_to_decref_dict) Py_DECREF(registrationDict);
-                PyErr_SetString(
-                    PyExc_TypeError,
-                    (
-                        std::string("Registration dictionary element for frame ") + 
-                        std::to_string(PyLong_AsLongLong(item)) +
-                        std::string(" is not a tuple.")
-                    ).c_str()
-                );
-                delete[] framesArray;
-                return NULL;
-            }
-            Py_ssize_t tupLen = PyTuple_Size(shiftTuple);
-            for(Py_ssize_t tupIdx = 0; tupIdx < tupLen; tupIdx++) {
-                PyObject* shiftValue = PyTuple_GetItem(shiftTuple, tupIdx);
-                if(!PyLong_Check(shiftValue)) { // if it's not okay, try to cast it
-                    PyObject* result = PyObject_CallMethod(shiftValue, "__int__", NULL);
-                    if (result == NULL) {
-                        if (need_to_decref_dict) Py_DECREF(registrationDict);
-                        PyErr_SetString(
-                            PyExc_TypeError,
-                            (
-                                std::string("Registration dictionary element for frame ") + 
-                                std::to_string(PyLong_AsLongLong(item)) +
-                                std::string(" cannot be cast to type int.")
-                            ).c_str()
-                        );
-                        delete[] framesArray;
-                        return NULL;
-                    }
-                    PyTuple_SetItem(shiftTuple, tupIdx, result);
-                }
-            }
-        }
-        catch (...) {
-            if (need_to_decref_dict) Py_DECREF(registrationDict);
-            PyErr_SetString(PyExc_RuntimeError,
-                (std::string("Failure to access registration dictionary element for frame ") +
-                std::to_string(PyLong_AsLongLong(item))).c_str()
-            );
-            delete[] framesArray;
-            return NULL;
-        }
+    if(check_framelist(frames_list, framesArray, PyList_Size(frames_list), self->siffreader->numFrames()) < 0){
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
     }
+    if (check_registration(registrationDict, frames_list) < 0) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
+    }   
     uint64_t framesN = PyList_Size(frames_list);
 
     // Okay enough argument checking, we can call the siffreader function

@@ -6,6 +6,7 @@ TODO:
 - `PyCapsule` for sharing `static` across extensions
 - Finish implementation of `PyFrameData`
 - Use `mmap` instead of `ifstream`. I suspect this will be big.
+- Multiple `mask`s in one `mask` method call.
 
 ## SiffIO object
 

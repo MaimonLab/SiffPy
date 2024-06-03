@@ -44,7 +44,7 @@ int SiffReader::openFile(const char* _filename) {
         if (!siff.good()) {siff.clear();}
         siff.open(_filename, std::ios::binary | std::ios::in);
         if (!siff.good()) {siff.clear();}
-        if (!(siff.is_open())) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
+        if (!siff.is_open()) throw std::runtime_error("Could not open putative .siff file. Check that path exists.\nAttempted path: "+std::string(_filename));
         
         DEBUG(
             // Find the position of the last dot in the filename
@@ -77,8 +77,10 @@ int SiffReader::openFile(const char* _filename) {
         // Now check that it's a siff file.
 
         // Gotta know the endian
-        char *endian = new char[2];
-        siff.read(endian, sizeof(char)*2);   
+        {
+        char endian[3] = {0};
+        siff.read(endian, sizeof(char)*2);
+        endian[2] = '\0';  
 
         // strcmp == 0 if they match.
         if ((strcmp(endian,BIGENDIAN) != 0) && (strcmp(endian,LITTLEENDIAN) != 0)){
@@ -89,14 +91,16 @@ int SiffReader::openFile(const char* _filename) {
             );
         }
         params.little = (strcmp(endian,LITTLEENDIAN) == 0); // true if little, false if big.
-
-        delete[] endian;
+        }
 
         // temporary solution: if endian isn't little, give up.
         uint16_t i = 1; // the uint16_t 1 is 0x01 in big endian, 0x10 in little endian
         char* c = (char*)&i;
         // dereferencing c will be 1 if the least significant byte is first. 0 if not.
-        if( (bool)*c != params.little ) throw std::runtime_error("ENDIANS DON'T MATCH AND I HAVEN'T FIXED THAT YET.");
+        if( (bool)*c != params.little ) throw std::runtime_error(
+            "MACHINE AND FILE ENDIANS DON'T MATCH AND I HAVEN'T FIXED THAT YET. "
+            "Didn't know there are people using big endian architectures for this type of stuff!"
+        );
         
         // Check the magic numbers
         uint16_t tiffid;
@@ -128,7 +132,7 @@ int SiffReader::openFile(const char* _filename) {
             params.bytesPerTag = 12;
             params.bytesPerNumTags = 2;
         }
-    
+
         // Now do the ScanImage-specific checks!
         uint32_t magic;
         siff.read((char*)&magic, sizeof(uint32_t));

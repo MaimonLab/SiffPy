@@ -201,7 +201,7 @@ class ImParams():
         return fr
 
     @property
-    def arrival_time_bins(self)->np.ndarray[Any, np.dtype[np.float_]]:
+    def arrival_time_bins(self)->np.ndarray[Any, np.float_]:
         """ The time bins of the arrival time histogram """
         return np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin
     
@@ -540,6 +540,43 @@ class ImParams():
         If color_channel (0-indexed) is None, returns all colors. But since
         timestamps for each color channel are the same, typically you expect
         NOT to use this.
+
+        Examples
+        -------
+        \b
+
+        ### A single plane with 5 z slices and 1 flyback, and 1 color channel
+        ```python
+
+        from siffpy import SiffReader
+        reader : SiffReader
+
+        reader.im_params.flatten_by_timepoints(
+            timepoint_start = 0,
+            timepoint_end = 10,
+            reference_z = 0,
+            color_channel = 0
+        )
+        ```
+        `[0, 6, 12, 18, 24, 30, 36, 42, 48, 54]`
+        
+        \b
+
+        ### All planes. Note that 5 and 11 are skipped (flyback)!
+        ```python
+
+        from siffpy import SiffReader
+        reader : SiffReader
+
+        reader.im_params.flatten_by_timepoints(
+            timepoint_start = 0,
+            timepoint_end = 10,
+            reference_z = None,
+            color_channel = 0
+        )
+        ```
+        `[0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16]`
+        
         """
 
         timestep_size = self.frames_per_volume # how many frames constitute a timepoint
@@ -651,7 +688,10 @@ class ImParams():
         lower_bound_timepoint : int = 0,
         upper_bound_timepoint : Optional[int] = None
         )->List:
-        "List of all frames that share a color, regardless of slice. Color channel is * 0-indexed * !"
+        """
+        List of all frames that share a color, regardless of slice.
+        Color channel is * 0-indexed * !
+        """
 
         if color_channel >= self.num_colors:
             raise ValueError("Color channel specified larger than number of colors acquired. Color channel is indexed from 0!")
@@ -683,6 +723,10 @@ class ImParams():
         Returns all frames corresponding to a specific slice
 
         color_channel is * 0-indexed *.
+
+        Examples
+        ---------
+        TODO
         """
         n_frames = self.num_true_frames
         n_slices = self.num_slices
@@ -711,12 +755,26 @@ class ImParams():
         else:
             slice_idx = int(slice_idx)
             return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
-
-    @classmethod
-    def from_dict(cls, header_dict: Dict, num_frames : Optional[int] = None)->'ImParams':
+        
+    @staticmethod
+    def from_dict(header_dict: Dict, num_frames : Optional[int] = None)->'ImParams':
         """
         Builds an `ImParams` object from a dict of header data,
         which is easier to generate with C++ than the correct Python object
+        --- though I probably will do that at some point.
+
+        Example
+        --------
+        ```python
+        from siffreadermodule import SiffIO
+        from siffpy import ImParams
+        from typing import Dict
+
+        sio = SiffIO()
+        sio.open('my_file.siff')
+        header : 'Dict' = sio.get_file_header()
+        im_pars : 'ImParams' = ImParams.from_dict(header)
+        ```
         """
         params = ImParams(num_frames=num_frames)
 

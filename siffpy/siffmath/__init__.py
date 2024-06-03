@@ -1,6 +1,9 @@
-from typing import List
+from typing import List, Tuple
 import inspect
 import textwrap
+
+from scipy.signal import correlate, correlation_lags
+import numpy as np
 
 from siffpy.siffmath.phase import phase_alignment_functions # noqa: F401
 from siffpy.siffmath.phase.phase_estimates import estimate_phase # noqa: F401
@@ -37,3 +40,51 @@ def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
         print(print_string)
     else:
         return fcns
+    
+def correlate_series(
+        x : np.ndarray,
+        y : np.ndarray,
+        dt : float = 1.0
+    )->Tuple[np.ndarray, np.ndarray]:
+    """
+    Correlate two time-series and return the time-delayed
+    Pearson correlation
+    coefficients and lags (in units of samples if `dt` is
+    not specified). Performed by z-scoring the two timeseries
+    and running `scipy.correlate` on that.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        The first time series to correlate
+
+    y : np.ndarray
+        The second time series to correlate
+
+    dt : float
+        The time step between samples. Default is 1.0
+
+    Returns
+    -------
+    (lags, corr) : Tuple[np.ndarray, np.ndarray]
+        The lags and correlation coefficients. Dimensions
+        of `corr` will be `len(x) + len(y) - 1`
+
+    Example
+    -------
+    ```python 
+    import numpy as np
+    from siffpy.siffmath import correlate_series
+
+    x = np.random.randn(100)
+    y = np.random.randn(100)
+    dt = 0.01
+    lags, corr = corr_series(x, y, dt = dt)
+    ```
+    """
+    x = x - np.mean(x)
+    y = y - np.mean(y)
+
+    corrd = correlate(x, y, mode = 'full') / (np.std(x) * np.std(y) * len(x))
+    lags = correlation_lags(len(x), len(y), mode = 'full') * dt
+    return lags, corrd

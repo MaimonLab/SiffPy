@@ -20,6 +20,9 @@ void readCompressedForArrivals(
     uint64_t pixelsInImage = frameData.imageLength * frameData.imageWidth;
     siff.seekg(frameData.dataStripAddress - pixelsInImage*sizeof(uint16_t));
     
+    // BAD: do not `malloc` on every call!! Very wasteful!
+    // TODO: Rewrite to pass a pointer to the array to be filled.
+
     // first read the unshifted intensity data
     uint16_t* photonCounts = new uint16_t[frameData.imageLength * frameData.imageWidth];
     siff.read((char*)photonCounts, pixelsInImage * sizeof(uint16_t));
@@ -59,6 +62,7 @@ void readCompressedForArrivals(
     delete [] photonCounts;
     delete [] arrivalsThisFrame;
 }
+//
 
 void readRawForArrivals(
     const uint64_t samplesThisFrame,
@@ -111,6 +115,7 @@ void readRawForArrivals(
 
     delete[] frameReads;
 }
+//
 
 // Stores the empirical lifetime in lifetime_data_ptr --
 // be aware when combining!
@@ -137,6 +142,7 @@ void loadArrayWithMeanArrivalTimes(
             "Image files of type .tiff do not contain arrival time data."
         );
     }
+
     frameData.siffCompress ?
         readCompressedForArrivals(
             samplesThisFrame,
@@ -459,7 +465,10 @@ PyArrayObject* SiffReader::sumFLIMMask(
 
             const FrameData frameData = getTagData(params.allIFDs[frames[frame_idx]], params, siff);
 
-            PyObject* shift_tuple = PyDict_GetItem(registrationDict, PyLong_FromUnsignedLongLong(frames[frame_idx]));
+            PyObject* shift_tuple = PyDict_GetItem(
+                registrationDict,
+                PyLong_FromUnsignedLongLong(frames[frame_idx])
+            );
             
             data_ptr[frame_idx] = sumFrameFLIMMask(
                 frameData,
