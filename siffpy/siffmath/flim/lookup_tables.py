@@ -288,6 +288,38 @@ class TemperatureSensitiveFit(FluorophoreHillFit):
             self.max_point
         )
 
+class IntensityHillFit(FluorophoreHillFit):
+    """
+    A non-FLIM-compatible Hill equation --
+    for dF/F values
+    """
+
+    def __call__(self, lifetime : float) -> float:
+        """
+        Invert the hill equation to convert
+        lifetime to concentration
+        """
+        return inverse_hill_equation(
+            lifetime,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+
+    def to_relative_intensity(self, concentration : float) -> float:
+        """
+        Hill equation to convert
+        concentration to lifetime
+        """
+        return hill_equation(
+            concentration,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+    
 TqCaFLITS = FluorophoreHillFit(
     n = 1.63,
     k50 = 265,
@@ -297,6 +329,26 @@ TqCaFLITS = FluorophoreHillFit(
     units_out = 'nanoseconds',
     name = 'TqCaFLITS',
 )
+
+# TqCaFLITS = TemperatureSensitiveFit(
+#     temperature_dependent_params= {
+#         23: dict(
+#             n = 1.63,
+#             k50 = 265,
+#             zero_point = 1.4,
+#             max_point = 2.78,
+#         ),
+#         37: dict(
+#             n = 1.63,
+#             k50 = 265,
+#             zero_point = 1.72,
+#             max_point = 2.86,
+#         ) # I SHOULD CHECK ABOUT THIS ONE
+#     },
+#     units_in = r'[Ca$2^+$] (nM)',
+#     units_out = 'nanoseconds',
+#     name = 'TqCaFLITS',
+# )
 
 GCaFLITS = TemperatureSensitiveFit(
     temperature_dependent_params= {
@@ -327,3 +379,47 @@ jRCaMP1b = DangerousFit(
     )
 
 # WARNING FOR UNDEFINED JRCAMP1B
+
+# GCaMP6s = IntensityHillFit(
+
+# )
+
+jGCaMP7f = IntensityHillFit(
+    n = 3.10,
+    k50 = 150,
+    zero_point = 0.0,
+    max_point = 31.0 ,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'jGCaMP7f',
+)
+
+jGCaMP8s = IntensityHillFit(
+    n = 2.20,
+    k50 = 46,
+    zero_point = 0.0,
+    max_point = 49.5,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'jGCaMP8s',
+)
+
+jGCaMP8m = IntensityHillFit(
+    n = 1.92,
+    k50 = 108,
+    zero_point = 0.0,
+    max_point = 47.5,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'jGCaMP8m',
+)
+
+jGCaMP8f = IntensityHillFit(
+    n = 2.08,
+    k50 = 334,
+    zero_point = 0.0,
+    max_point = 78.8,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'jGCaMP8f',
+)
