@@ -46,8 +46,9 @@ PyArrayObject* SiffReader::getExperimentTimestamps(
             frameDatas[frames[0]].dataStripAddress - frameDatas[frames[0]].endOfIFD
     ;
 
-    char* metaString = new char[initial_description_length];
+    char* metaString = new char[initial_description_length+1];
     size_t descrLength = initial_description_length;
+    metaString[descrLength] = '\0';
     
     // std::cmatch matches;
     
@@ -63,8 +64,10 @@ PyArrayObject* SiffReader::getExperimentTimestamps(
         // need more space!
         if (new_description_length > descrLength) {
             delete[] metaString;
-            metaString = new char[new_description_length];
+            metaString = new char[new_description_length+1];
+            metaString[new_description_length] = '\0';
             descrLength = new_description_length;
+
         }
         siff.seekg(frameDatas[frames[i]].endOfIFD, siff.beg);
         siff.read(metaString, descrLength);

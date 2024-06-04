@@ -143,9 +143,10 @@ void SiffReader::writeFrameAsTiff(std::ofstream& outfile, const uint64_t frame) 
     // Now write the actual metadata and frame data
     // First read from the siff
 
-    char* descriptionBuffer = new char[lengthOfDescription];
+    char* descriptionBuffer = new char[lengthOfDescription+1];
     siff.seekg(frameData.endOfIFD, std::ios::beg);
     siff.read(descriptionBuffer, lengthOfDescription);
+    descriptionBuffer[lengthOfDescription] = '\0';
     outfile.write(descriptionBuffer, lengthOfDescription);
     delete[] descriptionBuffer;
 

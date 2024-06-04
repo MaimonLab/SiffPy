@@ -84,7 +84,6 @@ int SiffReader::openFile(const char* _filename) {
         // Now check that it's a siff file.
 
         // Gotta know the endian
-        {
         char endian[3] = {0};
         siff.read(endian, sizeof(char)*2);
         endian[2] = '\0';  
@@ -98,7 +97,6 @@ int SiffReader::openFile(const char* _filename) {
             );
         }
         params.little = (strcmp(endian,LITTLEENDIAN) == 0); // true if little, false if big.
-        }
 
         // temporary solution: if endian isn't little, give up.
         uint16_t i = 1; // the uint16_t 1 is 0x01 in big endian, 0x10 in little endian
@@ -154,13 +152,15 @@ int SiffReader::openFile(const char* _filename) {
         siff.read((char*)&(params.ROI_string_length), sizeof(uint32_t));
 
         
-        char* headerstring = new char[params.NVFD_length];
+        char* headerstring = new char[params.NVFD_length+1];
         siff.read(headerstring, params.NVFD_length);
+        headerstring[params.NVFD_length] = '\0';
         params.headerstring = std::string(headerstring);
         delete[] headerstring;
 
-        char* roistring = new char[params.ROI_string_length];
+        char* roistring = new char[params.ROI_string_length+1];
         siff.read(roistring, params.ROI_string_length);
+        headerstring[params.ROI_string_length] = '\0';
         params.ROI_string = std::string(roistring);
         delete[] roistring;
               
@@ -450,8 +450,9 @@ void SiffReader::singleFrameMetaData(const uint64_t& thisIFD, PyObject* metaDict
 
     frameData.stringlength = description_length;
     siff.seekg(frameData.endOfIFD, siff.beg);
-    char* metaString = new char[description_length];
+    char* metaString = new char[description_length+1];
     siff.read(metaString, description_length);
+    metaString[description_length] = '\0';
     frameData.frameMetaData = std::string(metaString);
     delete[] metaString;
 
