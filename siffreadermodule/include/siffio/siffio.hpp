@@ -925,12 +925,6 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     }
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
-    // if (frames_list == NULL){
-    //     frames_list = PyList_New(self->siffreader->numFrames());
-    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
-    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
-    //     }
-    // }
     
     bool need_to_decref_dict = false;
     if(registrationDict == NULL) {

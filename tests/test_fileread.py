@@ -5,6 +5,7 @@ TODO: Write me!
 """
 
 from typing import TYPE_CHECKING, List, Callable, Any
+import numpy as np
 
 if TYPE_CHECKING:
     from siffpy import SiffReader
@@ -163,6 +164,13 @@ def test_read_time(test_file_in : List['SiffReader']):
     """
 
     def test_reader(sr : 'SiffReader'):
+        """
+        For now, this just checks that these
+        methods run without killing the kernel.
+
+        TODO: Add some tests to make sure the numbers
+        are right!
+        """
         sr.siffio.get_epoch_timestamps_laser(frames=list(range(100)))
         sr.siffio.get_epoch_timestamps_system(frames=list(range(100)))
         sr.siffio.get_experiment_timestamps(frames=list(range(100)))
@@ -183,6 +191,7 @@ def test_get_frames(test_file_in : List['SiffReader']):
     Tests that the frame methods work properly
     """
     def test_reader(sr: 'SiffReader'):
+        """ Tests frame reading methods """
         sr.get_frames(sr.im_params.flatten_by_timepoints())
 
     apply_test_to_all(test_file_in, test_reader)
@@ -191,7 +200,13 @@ def test_mask_methods(test_file_in : List['SiffReader']):
     """
     Tests that the mask methods work properly
     """
-    pass
+    def test_reader(sr : 'SiffReader'):
+        assert sr.sum_mask(
+            np.ones(sr.im_params.shape).astype(bool),
+        ).ndim == 1
+
+
+    apply_test_to_all(test_file_in, test_reader)
 
 def test_flim_methods(test_file_in : List['SiffReader']):
     """
