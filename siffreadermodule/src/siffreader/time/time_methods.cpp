@@ -90,6 +90,12 @@ PyArrayObject* SiffReader::getEpochTimestampsLaser(
     if (!siff.is_open()) throw std::runtime_error("No file open.");
     siff.clear();
 
+    DEBUG(
+        logstream << "Getting epoch laser timestamps for " 
+            << framesN << " frames." << std::endl;
+        tick = debug_clock.now();
+    )
+
     // 1 dimensional
     npy_intp dims[1] = { (int) framesN};
 
@@ -150,6 +156,13 @@ PyArrayObject* SiffReader::getEpochTimestampsLaser(
 
     delete[] metaString;
 
+    DEBUG(
+        tock = debug_clock.now();
+        logstream << "Getting laser epoch timestamps took " 
+            << std::chrono::duration_cast<std::chrono::milliseconds>(tock - tick).count() 
+            << "ms." << std::endl;
+    )
+
     return timestamps;
 };
 
@@ -163,6 +176,12 @@ PyArrayObject* SiffReader::getEpochTimestampsSystem(
     // the number of laser pulses since the start of the experiment.
     if (!siff.is_open()) throw std::runtime_error("No file open.");
     siff.clear();
+
+    DEBUG (
+        logstream << "Getting epoch system timestamps for " << framesN
+            << " frames." << std::endl;
+        tick = debug_clock.now();
+    )
 
     // 1 dimensional
     npy_intp dims[1] = { (int) framesN};
@@ -215,11 +234,16 @@ PyArrayObject* SiffReader::getEpochTimestampsSystem(
         //     timestampsPtr[i] = std::stoull(epochString);
         // }
     }
-
     delete[] metaString;
 
-    return timestamps;
+    DEBUG (
+        tock = debug_clock.now();
+        logstream << "Getting system epoch timestamps took " 
+            << std::chrono::duration_cast<std::chrono::milliseconds>(tock - tick).count() 
+            << "ms." << std::endl;
+    )
 
+    return timestamps;
 };
 
 PyArrayObject* SiffReader::getEpochTimestampsBoth(
@@ -229,6 +253,11 @@ PyArrayObject* SiffReader::getEpochTimestampsBoth(
     // the system clock AND the ones from the laser clock.
     if (!siff.is_open()) throw std::runtime_error("No file open.");
     siff.clear();
+
+    DEBUG(
+        logstream << "Getting both epoch timestamps for " << framesN << " frames." << std::endl;
+        tick = debug_clock.now();
+    )
 
     // 2 dimensional
     npy_intp dims[2] = {2, (int) framesN};
@@ -292,6 +321,13 @@ PyArrayObject* SiffReader::getEpochTimestampsBoth(
     }
 
     delete[] metaString;
+
+    DEBUG(
+        tock = debug_clock.now();
+        logstream << "Getting both epoch timestamps took " 
+            << std::chrono::duration_cast<std::chrono::milliseconds>(tock - tick).count() 
+            << "ms." << std::endl;
+    )
 
     return timestamps;
 };

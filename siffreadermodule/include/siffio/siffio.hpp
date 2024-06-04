@@ -76,6 +76,18 @@ static PyMemberDef siffio_members[] = {
 
 #define KWARG_CAST(x) const_cast<char **>(x) // so fucking dumb
 
+/**
+ * I repeat this so often that I realized I should just make an inlined func.
+*/
+inline void populate_frame_list_if_null(PyObject** frames_list, SiffReader *siffreader){
+    if (*frames_list != NULL) return;
+    *frames_list = PyList_New(siffreader->numFrames());
+    for (uint64_t frame_idx = 0; frame_idx < siffreader->numFrames(); frame_idx++) {
+        PyList_SET_ITEM(*frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    }
+}
+
+
 /*
  * Called on creation of an instance of a siffio.
 
@@ -392,10 +404,14 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         return NULL;
     }
 
-    if(frames_list==NULL) {
-        PyErr_SetString(PyExc_TypeError, "Must provide a list of frames");
-        return NULL;
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    if (frames_list == NULL){
+        frames_list = PyList_New(self->siffreader->numFrames());
+        for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+            PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+        }
     }
+    
 
     if(as_array != NULL){
         make_array = true;
@@ -462,6 +478,14 @@ static PyArrayObject* siffio_get_experiment_timestamps(SiffIO* self, PyObject *a
         return NULL;
     }
 
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
+
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
     if(
@@ -501,8 +525,22 @@ static PyArrayObject* siffio_get_epoch_laser(SiffIO *self, PyObject *args, PyObj
         return NULL;
     }
 
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
+
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
+
+    DEBUG(
+        self->siffreader->toDebugLog("In get_epoch_laser");
+        self->siffreader->toDebugLog("About to check framelist");
+    )
+
     if(
         check_framelist(
             frames_list, framesArray, framesN, self->siffreader->numFrames()
@@ -539,6 +577,14 @@ static PyArrayObject* siffio_get_epoch_system(SiffIO *self, PyObject *args, PyOb
         PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
+
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
 
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
@@ -579,8 +625,22 @@ static PyArrayObject* siffio_epoch_both(SiffIO* self, PyObject *args, PyObject* 
         return NULL;
     }
 
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
+
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
+
+    DEBUG(
+        self->siffreader->toDebugLog("In get_epoch_both");
+        self->siffreader->toDebugLog("About to check framelist");
+    )
+
     if(
         check_framelist(
             frames_list, framesArray, framesN, self->siffreader->numFrames()
@@ -618,9 +678,17 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
         return NULL;
     }
 
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
+
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
-    DEBUG(self->siffreader->toDebugLog("About to check framelist");)
+    DEBUG(self->siffreader->toDebugLog("In `get_frame_metadata`, about to check framelist");)
     if(
         check_framelist(
             frames_list, framesArray, framesN, self->siffreader->numFrames()
@@ -655,6 +723,14 @@ static PyObject* siffio_get_appended_text(SiffIO *self, PyObject *args, PyObject
         PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
+
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
 
     const uint64_t framesN = PyList_Size(frames_list);
     uint64_t* framesArray = new uint64_t[framesN];
@@ -848,14 +924,13 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
             return NULL;
     }
 
-    if(!frames_list) { // populate with all frames. BAD to do if there are flyback frames
-        // TODO have c++ know about flyback?   
-        Py_ssize_t nFrames = self->siffreader->numFrames();
-        frames_list = PyList_New(nFrames);
-        for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
-            PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
-        }
-    }
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
     
     bool need_to_decref_dict = false;
     if(registrationDict == NULL) {
@@ -948,13 +1023,13 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
         return NULL;
     }
 
-    if(!frames_list) { // populate with all frames.
-        Py_ssize_t nFrames = self->siffreader->numFrames();
-        frames_list = PyList_New(nFrames);
-        for (Py_ssize_t frame_idx = Py_ssize_t(0); frame_idx < nFrames ; frame_idx++){
-            PyList_SET_ITEM(frames_list,frame_idx,PyLong_FromSsize_t(frame_idx));
-        }
-    }
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    // if (frames_list == NULL){
+    //     frames_list = PyList_New(self->siffreader->numFrames());
+    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
+    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
+    //     }
+    // }
     
     bool need_to_decref_dict = false;
     if(registrationDict==NULL) {

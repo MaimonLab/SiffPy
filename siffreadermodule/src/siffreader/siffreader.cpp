@@ -57,14 +57,20 @@ int SiffReader::openFile(const char* _filename) {
                 // Calculate the length of the substring before the last dot
                 std::size_t length = static_cast<std::size_t>(lastDot - _filename);
 
+
                 // Append "_debug.txt" to the filename without extension
-                logFileName = std::string(_filename, length) + "_debug.log";
+                logFileName = std::string(_filename, length);
 
             } else {
                 // If there's no dot in the filename, simply append "_debug.txt"
-                logFileName += std::string(_filename) + "_debug.log";
+                logFileName += std::string(_filename);
 
             }
+
+            // Add the epoch time
+            logFileName += std::to_string(debug_clock.now().time_since_epoch().count());
+            logFileName += "_debug.log";
+
             logstream.open(logFileName, std::ios::out | std::ios_base::app);
             if (!logstream.is_open()) throw std::runtime_error("Could not open log file.");
             logstream << "Opening file " << _filename << std::endl;
@@ -250,7 +256,6 @@ bool SiffReader::dimensionsConsistent(const uint64_t frames[], const uint64_t fr
     }
     return true;
 }
- 
 
 void SiffReader::closeFile(){
     if (siff.is_open()) siff.close();
@@ -396,9 +401,12 @@ DEBUG(
     }
 
     void SiffReader::toDebugLog(const std::string& message) const {
-        logstream << message << std::endl;
+        logstream << 
+            std::to_string(debug_clock.now().time_since_epoch().count()) 
+            + " " + message 
+            << std::endl;
     }
-)
+)//
 
 //////////////////////////////////
 //////// INTERNAL FUNCTIONS //////
