@@ -17,7 +17,8 @@ SiffReader::SiffReader() :
         suppress_errors(false),
         suppress_warnings(false),
         _numFrames(-1),
-        debug(false)
+        DEBUG_IGNORE(debug(false))
+        DEBUG(debug(true))
     {
         
     DEBUG(

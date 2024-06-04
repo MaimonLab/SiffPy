@@ -760,7 +760,7 @@ class FLIMParams():
                 method = 'trust-constr',
                 bounds = self.bounds,
                 constraints = self.constraints,
-                opts = dict(
+                options = dict(
                     maxiter = 2000,
                     **kwargs
                 )
