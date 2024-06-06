@@ -221,11 +221,13 @@ class ImParams():
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
                 if self.StackManager.stackZEndPos == self.StackManager.stackZStartPos:
-                    # WARN THE USER THAT THIS IS HAPPENING
-                    logging.warning(
-                        "Number of slices is 1, but stack is enabled. This is likely something "
-                        "set incorrectly during acquisition. Warning just in case."
-                    )
+                    # WARN THE USER THAT THIS IS HAPPENING -- actually, don't?
+                    # This happens often enough intentionally that the warnings
+                    # are extremely annoying.
+                    # logging.warning(
+                    #     "Number of slices is 1, but stack is enabled. This is likely something "
+                    #     "set incorrectly during acquisition. Warning just in case."
+                    # )
                     return 1
                 return self.StackManager.actualNumSlices
         return 1

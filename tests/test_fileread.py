@@ -39,17 +39,16 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     directory for use in other tests
     """
 
-    import shutil
+    #import shutil
     from pathlib import Path
 
     # Create a temporary directory, install
     # a file from the server to it.
-    tmp_dir = tmp_path_factory.mktemp("test_siff_files")
+    #tmp_dir = tmp_path_factory.mktemp("test_siff_files")
 
     #filename = request.module.__file__
     #test_dir = Path(filename).with_suffix("")
     test_dir = Path(TEST_FILE_DIR)
-    TEST_FILE_NAME = '2024_06_03_9.tiff'
 
     # shutil.copy(
     #     test_dir / TEST_FILE_NAME,
@@ -201,9 +200,21 @@ def test_mask_methods(test_file_in : List['SiffReader']):
     Tests that the mask methods work properly
     """
     def test_reader(sr : 'SiffReader'):
-        assert sr.sum_mask(
-            np.ones(sr.im_params.shape).astype(bool),
-        ).ndim == 1
+        """ Tests mask methods """
+
+        # Confirm that the list of 2d masks gives the same
+        # as making an array from the returned value of
+        # each passed one at a time.
+        base_mask = np.zeros(sr.im_params.shape).astype(bool)
+
+        # Only true in one quadrant
+        base_mask[:base_mask.shape[0]//2, :base_mask.shape[1]//2] = True
+
+        masks = [np.roll(base_mask, idx*sr.im_params.xsize//10, axis = 0) for idx in range(10)]
+        
+        assert (np.array([
+            sr.sum_mask(mask) for mask in masks
+            ]) == sr.sum_masks(masks)).all()
 
 
     apply_test_to_all(test_file_in, test_reader)

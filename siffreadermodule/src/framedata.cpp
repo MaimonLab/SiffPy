@@ -28,6 +28,7 @@ PyObject* frameDataToDict(FrameData& frameData){
 };
 
 PyObject* frameDataToDict(FrameData& frameData, std::ofstream& logstream){
+    
     PyObject* dataDict = PyDict_New();
     logstream << "new dict" << std::endl;
 

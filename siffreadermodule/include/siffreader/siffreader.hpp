@@ -102,12 +102,31 @@ void loadArrayWithData(
     PyObject* shift_tuple
 );
 
+/**
+ * Used in `siffreader/intensity_methods`.
+ * 
+ * Computes the number of frames corresponding to the mask,
+ * i.e. the product of all dimensions except the last two.
+ * 
+ * @param mask
+ *    A `PyArrayObject*` to a `numpy` array of the mask
+ *   of `dtype bool`
+ * 
+ * @param skipFirst
+ *  Whether or not to skip the first dimension of the mask
+ * (used when the "mask" is a list of masks)
+ * 
+ * @return The number of frames corresponding to the mask
+ *   i.e. the product of all dimensions except the last two.
+*/
 static size_t framesPerMask(
-    PyArrayObject* mask
+    PyArrayObject* mask,
+    bool skipFirst
 ){
     const npy_intp* mask_dims = PyArray_DIMS(mask);
     size_t frames_per_mask = 1;
-    for (size_t dim_idx = 0; dim_idx < ((size_t) PyArray_NDIM(mask) - 2); dim_idx++) {
+    size_t start_idx = skipFirst ? 1 : 0;
+    for (size_t dim_idx = start_idx; dim_idx < ((size_t) PyArray_NDIM(mask) - 2); dim_idx++) {
         frames_per_mask *= mask_dims[dim_idx];
     }
     return frames_per_mask;
@@ -304,6 +323,39 @@ class SiffReader
             PyArrayObject* mask,
             PyObject* registrationDict
         ) const;
+
+        /**
+         * Sums pixels in the area inside the provided masks
+         * -- presumes that the slowest dimension of `mask`
+         * iterates over ROIs. The returned array is of
+         * dimensions `(framesN, masks.shape[0])`.
+         * 
+         * Called by `sumMask` if the mask has more than 2 dimensions.
+         * 
+         * @param frames
+            * the frames to be summed
+             
+         * @param framesN
+            * the number of frames to be summed
+         
+         * @param masks
+            * A `PyArrayObject*` to a `numpy` array of the masks
+            * of `dtype bool`
+            * 
+         * @param registrationDict
+         *   A `PyObject*` to a dictionary of registration
+         *  parameters. The keys are frame numbers and the
+         * values are tuples of the form (`yshift`, `xshift`)
+         * 
+         * @return A `PyArrayObject*` to a `numpy` array of
+         * dimensions: (framesN, masks.shape[0])
+        */
+        PyArrayObject* sumMasks(
+            const uint64_t frames[],
+            const uint64_t framesN,
+            PyArrayObject* masks,
+            PyObject* registrationDict
+        ) const;
     
         /**
          * Sums empirical lifetime inside the provided mask
@@ -321,7 +373,7 @@ class SiffReader
          * parameters. The keys are frame numbers and the
          * values are tuples of the form (`yshift`, `xshift`)
          * @return A `PyArrayObject*` to a `numpy` array of
-         * dimensions: framesN, y, x
+         * dimensions: `(framesN,)`
         */
         PyArrayObject* sumFLIMMask(
             const uint64_t frames[],
@@ -329,8 +381,34 @@ class SiffReader
             PyObject* FLIMParams,
             PyArrayObject* mask,
             PyObject* registrationDict
-        );
-        
+        ) const ;
+
+        /**
+         * @brief The multi-mask version of `sumFLIMMask`.
+         * Sums empirical lifetime inside the provided masks
+         * -- presumes that the slowest dimension of `mask`
+         * iterates over ROIs. The returned array is of
+         * dimensions `(framesN, masks.shape[0])`.
+         * 
+         * @param frames The frames to be summed
+         * @param framesN The number of frames to be summed
+         * @param FLIMParams A `PyObject*` to a `FLIMParams` object
+         * @param masks A `PyArrayObject*` to a `numpy` array of the masks
+         * of `dtype bool`
+         * @param registrationDict A `PyObject*` to a dictionary of registration
+         * parameters. The keys are frame numbers and the
+         * values are tuples of the form (`yshift`, `xshift`)
+         * @return A `PyArrayObject*` to a `numpy` array of
+         * dimensions: (framesN, masks.shape[0]) 
+         */        
+        PyArrayObject* sumFLIMMasks(
+            const uint64_t frames[],
+            const uint64_t framesN,
+            PyObject* FLIMParams,
+            PyArrayObject* masks,
+            PyObject* registrationDict
+        ) const ;
+
         /*
         TODO:
         Returns a 1d numpy array of only the within-mask values.    

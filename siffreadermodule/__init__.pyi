@@ -89,8 +89,24 @@ class SiffIO():
         iterated through sequentially, rather than
         aware of the correspondence between frame
         number and mask dimension. Returns a 1D
-        arrary of the same length as the frames
+        array of the same length as the frames
         provided, regardless of mask shape.
+        """
+
+    def sum_rois(
+        self,
+        masks : BOOL_ARRAY,
+        *,
+        frames : Optional[List[int]] = None,
+        registration : Optional[Dict] = None,
+    )->UINT16_ARRAY:
+        """
+        Masks may have more than 2 dimensions, but
+        if so then be aware that the frames will be
+        iterated through sequentially, rather than
+        aware of the correspondence between frame
+        number and mask dimension. Returns a 2D
+        array of dimensions `(len(masks), len(frames))`.
         """
 
     def sum_roi_flim(

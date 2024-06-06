@@ -90,17 +90,30 @@ be copied into the IMAGEDESCRIPTION tag of the output file.
 */
 const std::string toOMEXML(const FrameData& frameData, const SiffParams& params);
 
-/*
-Converts a `FrameData` struct to a Python dictionary.
-
-@param frameData
-    The `FrameData` struct to be converted to a Python dictionary.
-
-@return A Python dictionary containing the contents of the given `FrameData`.
-All keys are `str`
+/**
+ * Converts a `FrameData` struct to a Python dictionary.
+ *
+ * @param frameData
+ *  The `FrameData` struct to be converted to a Python dictionary.
+ *
+ * @return A Python dictionary containing the contents of the given `FrameData`.
+ * All keys are `str`
 */
 PyObject* frameDataToDict(FrameData& frameData);
 
+/**
+ * Converts a `FrameData` struct to a Python dictionary. Logs
+ * the conversion to a given output stream.
+ * 
+ * @param frameData
+ * The `FrameData` struct to be converted to a Python dictionary.
+ * 
+ * @param logstream
+ * The output stream to which the conversion should be logged.
+ * 
+ * @return A Python dictionary containing the contents of the given `FrameData`.
+ * All keys are `str`
+*/
 PyObject* frameDataToDict(FrameData& frameData, std::ofstream& logstream);
 
 template <class T>

@@ -202,6 +202,27 @@ PyDoc_STRVAR(
 );
 
 PyDoc_STRVAR(
+    siffio_sum_rois_doc,
+    "SiffIO.sum_rois(masks : Union[List[np.ndarray],np.ndarray], frames : list[int] = None, registration : dict = None) -> np.ndarray\n"
+    "--\n"
+    "\n"
+    "Requires a numpy array mask of dtype bool. Sums all the photons within the ROI for each of the frames requested"
+    "in the list frames. If frames is None, sums for all frames. Returns a 2d numpy array of dtype uint64 with dimensions"
+    "`(len(frames), masks.shape[0])`.\n"
+    "Input arguments:\n"
+    "\tmasks : Union[List[np.ndarray],np.ndarray]\n"
+    "\t\tA list of numpy arrays of dtype bool, each corresponding to a different ROI.\n"
+    "\tframes : list[int]\n"
+    "\t\tA list of the integer indices of the frames to sum within the ROI.\n"
+    "\tregistration : dict \n"
+    "\t\tA registration_dict object whose keys are ints and whose values are tuples corresponding"
+    "to a rigid shift in the y and x directions of the image."
+    "Returns:\n"
+    "\tsummed : np.ndarray\n"
+    "\t\t2d numpy array with dimensions `(masks.shape[0], len(frames))`."
+);
+
+PyDoc_STRVAR(
     siffio_sum_roi_flim_doc,
     "SiffIO.sum_roi_flim(mask : np.ndarray, params : `siffpy.core.flim.flimparams.FLIMParams, "
     "frames : list[int] = None, registration : dict = None) -> np.ndarray\n"
@@ -219,6 +240,27 @@ PyDoc_STRVAR(
     "Returns:\n"
     "\tsummed : np.ndarray\n"
     "\t\t1d numpy array with length equal to the number of frames requested. Empirical lifetime measured in units of"
+    " time bins of the arrival time measuring device (e.g. MultiHarp)."
+);
+
+PyDoc_STRVAR(
+    siffio_sum_rois_flim_doc,
+    "SiffIO.sum_rois_flim(masks : Union[List[np.ndarray],np.ndarray], params : `siffpy.core.flim.flimparams.FLIMParams, "
+    "frames : list[int] = None, registration : dict = None) -> np.ndarray\n"
+    "--\n"
+    "\n"
+    "Requires a numpy array mask of dtype bool and a FLIMParams object. Sums all the photons within the"
+    " provided ROI for each frame requested to compute an empirical lifetime for the ROI. If frames is None,"
+    " computes the sum for all frames. Returns a 2d numpy array of dtype float with dimensions"
+    "`(len(frames), masks.shape[0])`. NOTE: the empirical lifetime is in units of TIME BINS.\n"
+    "Arguments:\n\n"
+    "\tmasks: Union[List[np.ndarray],np.ndarray]\n"
+    "\tparams : `siffpy.core.flim.flimparams.FLIMParams`\n"
+    "\tframes : list[int]\n"
+    "\tregistration : dict\n"
+    "Returns:\n"
+    "\tsummed : np.ndarray\n"
+    "\t\t2d numpy array with dimensions `(masks.shape[0], len(frames))`. Empirical lifetime measured in units of"
     " time bins of the arrival time measuring device (e.g. MultiHarp)."
 );
 

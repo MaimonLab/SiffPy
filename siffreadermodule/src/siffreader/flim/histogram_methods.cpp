@@ -176,7 +176,7 @@ PyArrayObject* SiffReader::getHistogram(
         if(!params.issiff) throw std::runtime_error("Not a .siff -- no arrival time data.");
         siff.clear();
         // mask is frame number mod frames_per_mask
-        uint64_t frames_per_mask = framesPerMask(mask);
+        uint64_t frames_per_mask = framesPerMask(mask, false);
         const npy_intp* mask_dims = PyArray_DIMS(mask);
         const int ndims = PyArray_NDIM(mask);
         const size_t pxPerMask = mask_dims[ndims - 2] * mask_dims[ndims - 1];

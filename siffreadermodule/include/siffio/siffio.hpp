@@ -393,25 +393,18 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
     PyObject* as_array = NULL;
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
-    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!O:get_frames", 
+    if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!OO:get_frames", 
         KWARG_CAST(GET_FRAMES_KWARGS),
         &PyList_Type, &frames_list,
-        &PyDict_Type, &registrationDict,
+        &registrationDict,
         &as_array
         )
     ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
-    if (frames_list == NULL){
-        frames_list = PyList_New(self->siffreader->numFrames());
-        for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
-            PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
-        }
-    }
-    
 
     if(as_array != NULL){
         make_array = true;
@@ -427,9 +420,14 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         delete[] framesArray;
         return NULL;
     }
-    bool registrationDictProvided = registrationDict != NULL;
-    if (registrationDict == NULL) {
+
+    bool registrationDictProvided = registrationDict != Py_None;
+    if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
+    }
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
     }
 
     if (check_registration(registrationDict, frames_list) < 0){
@@ -474,7 +472,7 @@ static PyArrayObject* siffio_get_experiment_timestamps(SiffIO* self, PyObject *a
             KWARG_CAST(GET_EXPERIMENT_TIME_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -521,7 +519,7 @@ static PyArrayObject* siffio_get_epoch_laser(SiffIO *self, PyObject *args, PyObj
             KWARG_CAST(GET_EPOCH_LASER_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -574,7 +572,7 @@ static PyArrayObject* siffio_get_epoch_system(SiffIO *self, PyObject *args, PyOb
             KWARG_CAST(GET_EPOCH_LASER_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -621,7 +619,7 @@ static PyArrayObject* siffio_epoch_both(SiffIO* self, PyObject *args, PyObject* 
             KWARG_CAST(GET_EPOCH_BOTH_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -674,7 +672,7 @@ static PyObject* siffio_get_frame_metadata(SiffIO *self, PyObject *args, PyObjec
             KWARG_CAST(GET_FRAMES_METADATA_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -720,7 +718,7 @@ static PyObject* siffio_get_appended_text(SiffIO *self, PyObject *args, PyObject
             KWARG_CAST(GET_APPENDED_TEXT_KEYWORDS), 
             &PyList_Type, &frames_list)
         ) {
-        PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
+        //PyErr_SetString(PyExc_TypeError,"Error in parsing input arguments");
         return NULL;
     }
 
@@ -818,7 +816,7 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
         &FLIMParams,
         &PyList_Type, &listOfFrames,
         &conf_measure, &conf_measure_length,
-        &PyDict_Type, &registrationDict
+        &registrationDict
         )) {
         return NULL;
     }
@@ -826,9 +824,14 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
     if(!conf_measure_length) conf_measure = (char*) "chi_sq";
     // defaults to 0's
     bool need_to_decref_regdict = false;
-    if(!registrationDict) {
-        registrationDict = PyDict_New(); // TODO: DECREF ME!!!!
+    if(registrationDict == Py_None) {
+        registrationDict = PyDict_New();
         need_to_decref_regdict = true;
+    }
+    
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
     }
 
     // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
@@ -890,46 +893,64 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
  * ROI METHODS
  * 
  * */
-/*
 
-ROI methods
-
+/**
+ * @brief Returns the summed photon counts within the provided ROI
+ * for multiple masks. Expects either a list of masks (whether they're 2d or 3d)
+ * or a singular numpy array.
+ * 
+ * @returns A numpy array of the summed photon counts within the ROI,
+ * with shape (`n_masks`, `n_frames`)
 */
+static PyArrayObject* siffio_sum_rois(SiffIO* self, PyObject* args, PyObject*kw){
 
-static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
-    /*
-    Returns the summed photon counts within the provided ROI
+   static const char* SUM_ROIS_KEYWORDS[] = {"masks", "frames", "registration", NULL};
 
-    Args : numpy array ROI mask, dtype 'bool'
-    Kwargs : 
-        frames : list[int]
-            - If none provided, uses all frames.
-        registration : dict
-            - If none provided, uses no shift
-    */
-   static const char* SUM_ROIS_KEYWORDS[] = {"mask", "frames", "registration", NULL};
-
-    PyArrayObject* mask;
+    PyArrayObject* masks;
     PyObject *frames_list = NULL;
     PyObject* registrationDict = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O!:sum_roi",
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O:sum_rois",
         KWARG_CAST(SUM_ROIS_KEYWORDS),
-        &mask,
+        &masks,
         &PyList_Type, &frames_list,
-        &PyDict_Type, &registrationDict
+        &registrationDict
         )
      ) {
-            PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
-            return NULL;
+        return NULL;
+    }
+
+    if (PyList_Check(masks)){
+        PyErr_SetString(
+            PyExc_TypeError,
+            "List of masks provided -- not yet implemented in `SiffIO`."
+            " Please, for now, use the `SiffReader` `Python` class's"
+            " `sum_mask` or `_sum_masks` because it converts the list of"
+            " masks to a numpy array efficiently. TODO: Implement conversion"
+            " from `List` to `numpy.ndarray` in `SiffIO` C++ code too."
+        );
+        return NULL;
+        // Convert to numpy array.
+        // masks = (PyArrayObject*) PyArray_FromAny(
+        //     (PyObject*) masks,
+        //     PyArray_DescrFromType(NPY_BOOL),
+        //     0,
+        //     0,
+        //     NPY_ARRAY_CARRAY,
+        //     NULL
+        // );
     }
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
-    
+
     bool need_to_decref_dict = false;
-    if(registrationDict == NULL) {
+    if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
         need_to_decref_dict = true;
+    }
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
     }
 
     // Check that all elements of the frame list and registration dictionary are valid.
@@ -950,7 +971,106 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
 
     // Okay enough argument checking, we can call the siffreader function
     try{
-        PyArrayObject* returnedMask = self->siffreader->sumMask(
+        PyArrayObject *returnedMask = self->siffreader->sumMasks(
+            framesArray,
+            framesN,
+            (PyArrayObject*) masks,
+            registrationDict
+        );
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return (PyArrayObject*) PyArray_Transpose(returnedMask, NULL);
+        //return returnedMask;
+
+    }
+    catch(...) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        delete[] framesArray;
+        return NULL;
+    }
+}; 
+
+
+/**
+ *  
+ * @brief Returns the summed photon counts within the provided ROI.
+ * Expects a singular ROI mask, whether it's 2d or 3d.
+ * 
+ * @param self : SiffIO object
+ * 
+ * @param args : (`mask`, *)
+ * 
+ * @param kw : `{'frames' : List[int], 'registration' : Dict[int, Tuple[int, int], **}`
+ * 
+ * @return : A numpy array of the summed photon counts within the ROI,
+ * with shape (`n_frames`,)
+*/
+static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
+   static const char* SUM_ROIS_KEYWORDS[] = {"mask", "frames", "registration", NULL};
+
+    PyArrayObject *mask;
+    PyObject *frames_list = NULL;
+    PyObject *registrationDict = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "O|$O!O:sum_roi",
+        KWARG_CAST(SUM_ROIS_KEYWORDS),
+        &mask,
+        &PyList_Type, &frames_list,
+        &registrationDict
+        )
+     ) {
+            return NULL;
+    }
+
+    if (PyList_Check(mask)) {
+        PyErr_WarnEx(
+            PyExc_RuntimeWarning,
+            "Mask provided is a list -- presumed to correspond to multiple masks"
+            " -- will be passed to `sumMasks` instead of `sumMask`.",
+            Py_ssize_t(1)
+        );
+        PyDict_SetItemString(kw, "masks", (PyObject*) mask);
+        PyDict_DelItemString(kw, "mask");
+        return siffio_sum_rois(self, args, kw);
+    }
+
+    if (PyArray_NDIM(mask) != 2 && PyArray_NDIM(mask) != 3) {
+        PyErr_SetString(PyExc_ValueError, "Mask must be 2D or 3D");
+        return NULL;
+    }
+
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+
+    bool need_to_decref_dict = false;
+    if(registrationDict == Py_None) {
+        registrationDict = PyDict_New();
+        need_to_decref_dict = true;
+    }
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
+    }
+
+    // Check that all elements of the frame list and registration dictionary are valid.
+    uint64_t* framesArray = new uint64_t[PyList_Size(frames_list)];
+
+    if(check_framelist(frames_list, framesArray, PyList_Size(frames_list), self->siffreader->numFrames()) < 0){
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
+    }
+    if (check_registration(registrationDict, frames_list) < 0) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
+    }
+
+    uint64_t framesN = PyList_Size(frames_list);
+
+    // Okay enough argument checking, we can call the siffreader function
+    try{
+        PyArrayObject *returnedMask = self->siffreader->sumMask(
             framesArray,
             framesN,
             (PyArrayObject*) mask,
@@ -969,7 +1089,130 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     }
 };
 
-static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject*kw){
+/**
+ * @brief Multi-ROI version of `siffio_sum_roi_flim`.
+ * Expects a list of masks, whether they're 2d or 3d, or a numpy array
+ * for which this code will interpret the slowest dimension as the mask
+ * dimension.
+ * 
+ * @returns A numpy array of the summed photon counts within each ROI,
+ * with shape (`n_masks`, `n_frames`)
+*/
+static PyArrayObject *siffio_sum_rois_flim(SiffIO *self, PyObject *args, PyObject *kw){
+    static const char* SUM_ROI_FLIM_KEYWORDS[] = {"masks", "params", "frames", "registration", NULL};
+
+    PyArrayObject* masks;
+    PyObject* FLIMParams;
+    PyObject *frames_list = NULL;
+    PyObject* registrationDict = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O:sum_rois_flim", 
+        KWARG_CAST(SUM_ROI_FLIM_KEYWORDS),
+        &masks,
+        &FLIMParams,
+        &PyList_Type, &frames_list,
+        &registrationDict
+        )
+     ) {
+            //PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
+            return NULL;
+    }
+
+    if (PyList_Check(masks)){
+        PyErr_SetString(
+            PyExc_TypeError,
+            "List of masks provided -- not yet implemented in `SiffIO`."
+            " Please, for now, use the `SiffReader` `Python` class's"
+            " `sum_mask` or `_sum_masks` because it converts the list of"
+            " masks to a numpy array efficiently. TODO: Implement conversion"
+            " from `List` to `numpy.ndarray` in `SiffIO` C++ code too."
+        );
+        return NULL;
+        // Convert to numpy array.
+        // masks = (PyArrayObject*) PyArray_FromAny(
+        //     (PyObject*) masks,
+        //     PyArray_DescrFromType(NPY_BOOL),
+        //     0,
+        //     0,
+        //     NPY_ARRAY_CARRAY,
+        //     NULL
+        // );
+    }
+
+    if(PyArray_TYPE(masks) != NPY_BOOL) {
+        PyErr_SetString(PyExc_ValueError, "mask array must be of type bool.");
+        return NULL;
+    }
+
+    // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
+    if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
+        PyErr_SetString(PyExc_TypeError, 
+            strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
+                FLIMParams->ob_type->tp_name
+            )
+        );
+        return NULL;
+    }
+
+    populate_frame_list_if_null(&frames_list, self->siffreader);
+    
+    bool need_to_decref_dict = false;
+    if(registrationDict == Py_None) {
+        registrationDict = PyDict_New();
+        need_to_decref_dict = true;
+    }
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
+    }
+
+    DEBUG(
+        self->siffreader->toDebugLog("In `siffio_sum_rois_flim`, about to check framelist");
+    )
+
+    // Check that all elements of the frame list and registration dictionary are valid.
+    uint64_t* framesArray = new uint64_t[PyList_Size(frames_list)];
+    
+    if(check_framelist(frames_list, framesArray, PyList_Size(frames_list), self->siffreader->numFrames()) < 0){
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
+    }
+    if (check_registration(registrationDict, frames_list) < 0) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return NULL;
+    }   
+    uint64_t framesN = PyList_Size(frames_list);
+
+    // Okay enough argument checking, we can call the siffreader function
+
+    try{
+        DEBUG(
+            self->siffreader->toDebugLog("In `siffio_sum_rois_flim`, about to call sumFLIMMasks");
+        )
+        PyArrayObject* FLIMMask(
+            self->siffreader->sumFLIMMasks(
+                framesArray,
+                framesN,
+                FLIMParams,
+                (PyArrayObject*) masks,
+                registrationDict
+            )
+        );
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        delete[] framesArray;
+        return (PyArrayObject*) PyArray_Transpose(FLIMMask, NULL);
+    }
+    catch(...) {
+        if (need_to_decref_dict) Py_DECREF(registrationDict);
+        PyErr_SetString(PyExc_RuntimeError, self->siffreader->getErrString());
+        delete[] framesArray;
+        return NULL;
+    }
+};
+
+static PyArrayObject* siffio_sum_roi_flim(SiffIO *self, PyObject *args, PyObject* kw){
     /*
     Returns the summed photon counts within the provided ROI
 
@@ -990,27 +1233,43 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
     PyObject *frames_list = NULL;
     PyObject* registrationDict = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O!:sum_roi", 
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|$O!O:sum_roi_flim", 
         KWARG_CAST(SUM_ROI_FLIM_KEYWORDS),
         &mask,
         &FLIMParams,
         &PyList_Type, &frames_list,
-        &PyDict_Type, &registrationDict
+        &registrationDict
         )
      ) {
-            PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
             return NULL;
     }
 
+    if (PyList_Check(mask)) {
+        PyErr_WarnEx(
+            PyExc_RuntimeWarning,
+            "Mask provided is a list -- presumed to correspond to multiple masks"
+            " -- will be passed to `sumMasks` instead of `sumMask`.",
+            Py_ssize_t(1)
+        );
+        PyDict_SetItemString(kw, "masks", (PyObject*) mask);
+        PyDict_DelItemString(kw, "mask");
+        return siffio_sum_rois_flim(self, args, kw);
+    }
+
+    if (!PyArray_Check(mask)) {
+        PyErr_SetString(PyExc_TypeError, "`mask` must be a `numpy` array");
+        return NULL;
+    }
+
     if(PyArray_TYPE(mask) != NPY_BOOL) {
-        PyErr_SetString(PyExc_ValueError, "mask array must be of type bool.");
+        PyErr_SetString(PyExc_ValueError, "`mask` array must be of type `bool`.");
         return NULL;
     }
 
     // Check that FLIMParams is of type siffpy.core.flim.flimparams.FLIMParams
     if (strcmp(FLIMParams->ob_type->tp_name,"FLIMParams")){
         PyErr_SetString(PyExc_TypeError, 
-            strcat((char*)"Expected params to be of type FLIMParams. Instead is type: ",
+            strcat((char*)"Expected params to be of type `FLIMParams`. Instead is type: ",
                 FLIMParams->ob_type->tp_name
             )
         );
@@ -1018,17 +1277,15 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
     }
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
-    // if (frames_list == NULL){
-    //     frames_list = PyList_New(self->siffreader->numFrames());
-    //     for (uint64_t frame_idx = 0; frame_idx < self->siffreader->numFrames(); frame_idx++) {
-    //         PyList_SET_ITEM(frames_list, frame_idx, PyLong_FromUnsignedLongLong(frame_idx));
-    //     }
-    // }
     
     bool need_to_decref_dict = false;
-    if(registrationDict==NULL) {
+    if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
         need_to_decref_dict = true;
+    }
+    if (!PyDict_Check(registrationDict)) {
+        PyErr_SetString(PyExc_TypeError, "Registration dictionary must be a dictionary or None");
+        return NULL;
     }
 
     // Check that all elements of the frame list and registration dictionary are valid.
@@ -1086,7 +1343,10 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO* self, PyObject* args, PyObject
 
     // | indicates optional args, $ indicates all following args are keyword ONLY
     if(!PyArg_ParseTupleAndKeywords(args, kw, "|$O!O!:get_histogram",
-        KWARG_CAST(GET_HISTOGRAM_KEYWORDS), &PyList_Type, &frames, &PyArray_Type, &mask)) {
+        KWARG_CAST(GET_HISTOGRAM_KEYWORDS),
+        &PyList_Type, &frames,
+        &PyArray_Type, &mask
+        )) {
         return NULL;
     }
 
@@ -1192,7 +1452,9 @@ static PyMethodDef siffio_methods[] = {
 
     // ROI methods
     {"sum_roi", (PyCFunction) siffio_sum_roi, METH_VARARGS|METH_KEYWORDS, siffio_sum_roi_doc},
+    {"sum_rois", (PyCFunction) siffio_sum_rois, METH_VARARGS|METH_KEYWORDS, siffio_sum_rois_doc},
     {"sum_roi_flim", (PyCFunction) siffio_sum_roi_flim, METH_VARARGS|METH_KEYWORDS, siffio_sum_roi_flim_doc},
+    {"sum_rois_flim", (PyCFunction) siffio_sum_rois_flim, METH_VARARGS|METH_KEYWORDS, siffio_sum_rois_flim_doc},
     
     //Histogram methods
     {"get_histogram", (PyCFunction) siffio_get_histogram, METH_VARARGS|METH_KEYWORDS, siffio_get_histogram_doc},
