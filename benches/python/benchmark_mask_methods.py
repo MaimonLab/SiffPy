@@ -7,25 +7,35 @@ from local_consts import large_path
 
 import numpy as np
 
-def path_to_setup_str(path : str):
-    """ Returns a string that can be used in a
-    timeit setup argument to open a file """
-    #return f"\nfrom siffpy import SiffReader\nsr = SiffReader('{path}')"
-
+COMPARE_TO_APPLYING_MASK_TO_WHOLE_FRAMES = False
 
 def test_2d_sum_masks_iterative(sr : 'SiffReader', masks):
-    masks_out = np.array([sr.sum_mask(mask, framewise = True, registration_dict={}) for mask in masks])
+    """ Iteratively uses `sum_mask` then concatenates into an array"""
+    np.array([sr.sum_mask(mask, framewise = True, registration_dict={}) for mask in masks])
 
 def test_2d_sum_masks_together(sr : 'SiffReader', masks):
-    masks_out = sr.sum_masks(masks, framewise = True, registration_dict={})
+    """ Uses the `siffpy` sum_masks method"""
+    sr.sum_masks(masks, framewise = True, registration_dict={})
+
+def test_apply_mask_to_whole_frames_direct(sr : 'SiffReader', masks):
+    """
+    Reads all frames and then applies the masks individually (then
+    concatenates into an array)
+    """
+    frames = (
+        sr.get_frames(frames = sr.im_params.flatten_by_timepoints())
+        .reshape((-1,*sr.im_params.volume_one_color)).squeeze()
+    )
+    np.array([
+        frames[..., mask].sum()
+        for mask in masks
+    ])
 
 def test_3d_sum_masks_iterate(sr : 'SiffReader', masks):
-    masks_out = np.array([sr.sum_mask(mask) for mask in masks])
-    pass
+    np.array([sr.sum_mask(mask) for mask in masks])
 
 def test_3d_sum_masks_together(sr : 'SiffReader', masks):
-    masks_out = sr.sum_masks(masks)
-    pass
+    sr.sum_masks(masks)
 
 if __name__ == '__main__':
     import timeit
@@ -37,6 +47,19 @@ if __name__ == '__main__':
     three_d_arr = np.array(three_d_masks)
 
     n = 5
+
+    if COMPARE_TO_APPLYING_MASK_TO_WHOLE_FRAMES:
+        print(
+            "Apply one-plane masks after loading all frames:\n",
+            timeit.timeit(
+                "test(sr, masks)",
+                setup=("from __main__ import test_apply_mask_to_whole_frames_direct as test"
+                + "\nfrom __main__ import flat_arr as masks"
+                + "\nfrom __main__ import sr"),
+                number = n,
+            )/n , "sec per iter ({n} iters)"
+        )
+
     print(
         "Sum 10 one-plane masks iteratively, combine to array:\n",
         timeit.timeit(
@@ -46,7 +69,7 @@ if __name__ == '__main__':
             + "\nfrom __main__ import sr"),
             #+ path_to_setup_str(large_path),
             number = n,
-        )/n , "sec per iter"
+        )/n , f"sec per iter ({n} iters)"
     )
 
     print(
@@ -57,7 +80,7 @@ if __name__ == '__main__':
             + "\nfrom __main__ import flat_arr as masks"
             + "\nfrom __main__ import sr"),
             number = n,
-        )/n , "sec per iter"
+        )/n , "sec per iter ({n} iters)"
     )
 
     # print(

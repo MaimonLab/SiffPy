@@ -321,36 +321,38 @@ inline double_t sumMaskFLIMCompressed(
 
     // Tracks photons counted within the mask
     // while you scan the photon stream
-    uint64_t counted_photons = 0;
+    uint64_t counted_photons_in_mask = 0;
     // Tracks how many photons have been read so far
     // regardless of whether they are in the mask
     uint64_t photonsSoFar = 0;
 
     uint16_t *photonStream = new uint16_t[frameData.stripByteCounts/sizeof(uint16_t)];
+    
+    uint64_t shiftedPx;
     siff.read((char*)photonStream, frameData.stripByteCounts);
     for(uint64_t px = 0; px < pixelsInImage; px++) {
-        uint64_t shifted_px = PIXEL_SHIFT(
+
+        uint16_t photonCounts = frameReads[px];
+        shiftedPx = PIXEL_SHIFT(
             px,
-            y_shift, // shifting the mask, not the image
+            y_shift,
             x_shift,
             mask_dims[0],
             mask_dims[1]
         );
 
-        uint16_t photonCounts = frameReads[px];
-
-        counted_photons += photonCounts*mask_data_ptr[shifted_px];
+        counted_photons_in_mask += photonCounts*mask_data_ptr[shiftedPx];
         for (size_t photon_idx = 0; photon_idx < photonCounts; photon_idx++) {
             summed_arrivals += (double_t) photonStream[
                 photonsSoFar + photon_idx
-            ]*mask_data_ptr[shifted_px];
+            ]*mask_data_ptr[shiftedPx];
         }
         photonsSoFar += photonCounts;
     }
     delete[] frameReads;
     delete[] photonStream;
 
-    return summed_arrivals/counted_photons - offset;
+    return summed_arrivals/counted_photons_in_mask - offset;
 };
 
 // Multi-ROI!
@@ -405,8 +407,8 @@ inline void sumMasksFLIMCompressed(
     for(uint64_t px = 0; px < pixelsInImage; px++){
         shifted_px = PIXEL_SHIFT(
             px,
-            y_shift,
-            x_shift,
+            -y_shift,
+            -x_shift,
             mask_frame_dims[0],
             mask_frame_dims[1]
         );

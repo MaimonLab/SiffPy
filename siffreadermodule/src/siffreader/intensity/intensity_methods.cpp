@@ -338,8 +338,8 @@ inline uint64_t sumMaskCompressed(
         photon_count += frameReads[
             PIXEL_SHIFT(
                 px,
-                y_shift,
-                x_shift,
+                -y_shift,
+                -x_shift,
                 mask_dims[0],
                 mask_dims[1]
             )
@@ -386,8 +386,8 @@ inline void sumMasksCompressed(
     for(uint64_t px = 0; px < pixelsInImage; px++) {
         shifted_px = PIXEL_SHIFT(
             px,
-            y_shift,
-            x_shift,
+            -y_shift,
+            -x_shift,
             mask_frame_dims[0],
             mask_frame_dims[1]
         );
@@ -777,7 +777,7 @@ PyArrayObject* SiffReader::sumMasks(
 
         return summedArray;
     }
-    
+
     REPORT_ERR("Error in sum_roi mask method: "); 
 }
 

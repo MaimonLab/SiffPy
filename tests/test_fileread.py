@@ -4,7 +4,7 @@ Tests the file reader on a very minimal siff file.
 TODO: Write me!
 """
 
-from typing import TYPE_CHECKING, List, Callable, Any
+from typing import TYPE_CHECKING, List, Callable, Any, Tuple
 import numpy as np
 
 if TYPE_CHECKING:
@@ -18,18 +18,25 @@ COMPRESSED_FILE_NAME = "compressed_test"
 
 # Short term for debugging.
 
-# Problematic file with one extra frame
-TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging'
-TEST_FILE_NAME = '2024_06_03_9.tiff'
+# Problematic file with one extra frame that wasn't finished
+# saving TODO make sure this gets tested too!!
+#TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging'
+#TEST_FILE_NAME = '2024_06_03_9.tiff'
+
+# Functional file
+TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging/2024-05/2024-05-27/R41H07_greenCamui_alpha/Fly1/'
+TEST_FILE_NAME = 'FB_1.siff'
 
 def apply_test_to_all(
-        test_files : List['SiffReader'],
-        test : Callable[['SiffReader'], Any]
-    ):
+        test : Callable[[Tuple[List['SiffReader'],...]], Any],
+        *filewise_args : Tuple[List['SiffReader'],...],
+    )->None:
     """
-    Applies a test to all the test files.
+    Applies a test to all the test files (and other args
+    if passed along)
     """
-    all(test(sr) for sr in test_files)
+    for args in zip(*filewise_args):
+        test(*args)
 
 
 @pytest.fixture(scope='session')
@@ -183,7 +190,7 @@ def test_read_time(test_file_in : List['SiffReader']):
         sr.t_axis()
         sr.t_axis(reference_time = 'epoch')
 
-    apply_test_to_all(test_file_in, test_reader)
+    apply_test_to_all(test_reader, test_file_in,)
 
 def test_get_frames(test_file_in : List['SiffReader']):
     """
@@ -193,31 +200,76 @@ def test_get_frames(test_file_in : List['SiffReader']):
         """ Tests frame reading methods """
         sr.get_frames(sr.im_params.flatten_by_timepoints())
 
-    apply_test_to_all(test_file_in, test_reader)
+    apply_test_to_all(test_reader, test_file_in,)
 
-def test_mask_methods(test_file_in : List['SiffReader']):
+@pytest.fixture(scope = 'function')
+def masks(test_file_in : List['SiffReader'])->List[Tuple[List[np.ndarray], List[np.ndarray]]]:
     """
-    Tests that the mask methods work properly
+    Returns a list of masks for testing -- one of 2d arrays and one of 3d arrays.
     """
-    def test_reader(sr : 'SiffReader'):
-        """ Tests mask methods """
 
-        # Confirm that the list of 2d masks gives the same
-        # as making an array from the returned value of
-        # each passed one at a time.
+    def produce_masklist_2d(sr : 'SiffReader'):
+        """ Produces a mask for testing """
         base_mask = np.zeros(sr.im_params.shape).astype(bool)
 
         # Only true in one quadrant
         base_mask[:base_mask.shape[0]//2, :base_mask.shape[1]//2] = True
 
         masks = [np.roll(base_mask, idx*sr.im_params.xsize//10, axis = 0) for idx in range(10)]
-        
+        return masks
+
+    def produce_masklist_3d(sr : 'SiffReader'):
+
+        base_mask = np.zeros(sr.im_params.single_channel_volume).astype(bool)
+
+        # Set one stripe to true
+
+        base_mask[..., :base_mask.shape[2]//8] = True
+
+        # True in rolling stripes in the x dimension
+        masks = [
+            np.roll(base_mask, idx*sr.im_params.xsize//10, axis = 0) for idx in range(10)
+        ]
+
+        return masks
+    
+    return [
+        (
+            produce_masklist_2d(sr),
+            produce_masklist_3d(sr)
+        ) for sr in test_file_in
+    ]
+
+def test_mask_intensity_methods(
+        test_file_in : List['SiffReader'],
+        masks : List[Tuple[List[np.ndarray]]]
+    ):
+    """
+    Tests that the mask methods work properly
+    """
+
+    def test_reader(
+        sr : 'SiffReader',
+        corresponding_masks : Tuple[List[np.ndarray]],
+        ):
+        """ Tests mask methods """
+
+        two_d_masks, three_d_masks = corresponding_masks
+
+        # Confirm that the list of 2d masks gives the same
+        # as making an array from the returned value of
+        # each passed one at a time.
+
         assert (np.array([
-            sr.sum_mask(mask) for mask in masks
-            ]) == sr.sum_masks(masks)).all()
+            sr.sum_mask(mask) for mask in two_d_masks
+            ]) == sr.sum_masks(two_d_masks)).all()
+        
+        # Do the same for 3d
+        assert (np.array([
+            sr.sum_mask(mask) for mask in three_d_masks
+            ]) == sr.sum_masks(three_d_masks)).all()
 
-
-    apply_test_to_all(test_file_in, test_reader)
+    apply_test_to_all(test_reader, test_file_in, masks)
 
 def test_flim_methods(test_file_in : List['SiffReader']):
     """

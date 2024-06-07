@@ -13,7 +13,9 @@
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
+#ifndef NPY_NO_DEPRECATED_API
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 
 #include "bitmasks.hpp"
 #include "../siffparams/siffparams.hpp"

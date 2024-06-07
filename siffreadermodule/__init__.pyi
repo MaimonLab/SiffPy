@@ -1,11 +1,6 @@
-from typing import Any, Tuple, List, Dict, Optional, TYPE_CHECKING
+from typing import Any, Tuple, List, Dict, Optional, TYPE_CHECKING, Union
 
 import numpy as np
-
-BOOL_ARRAY = 'np.ndarray[Any, np.dtype[np.bool_]]'
-UINT16_ARRAY = 'np.ndarray[Any, np.dtype[np.uint16]]'
-UINT64_ARRAY = 'np.ndarray[Any, np.dtype[np.uint64]]'
-FLOAT_ARRAY = 'np.ndarray[Any, np.dtype[np.float64]]'
 
 if TYPE_CHECKING:
     from siffpy.core import FLIMParams
@@ -50,7 +45,7 @@ class SiffIO():
         frames : List[int],
         registration : Dict = {},
         as_array : bool = True,
-    )->UINT16_ARRAY:...
+    )->'np.ndarray[Any, np.dtype[np.uint16]]':...
 
     def get_frame_metadata(self, frames : List[int] = [])->List[Dict]:...
 
@@ -59,7 +54,7 @@ class SiffIO():
         frames : List[int],
         flim : bool = False,
         registration : Optional[Dict] = None,
-    )->UINT16_ARRAY:
+    )->'np.ndarray[Any, np.dtype[np.uint16]]':
         """ NOT IMPLEMENTED """
 
     def flim_map(
@@ -68,7 +63,7 @@ class SiffIO():
         frames : List[int],
         confidence_metric : str = 'chi_sq',
         registration : Optional[Dict] = None,
-    )->Tuple[FLOAT_ARRAY, UINT16_ARRAY, FLOAT_ARRAY]:
+    )->Tuple['np.ndarray[Any, np.dtype[np.float64]]', 'np.ndarray[Any, np.dtype[np.uint16]]', 'np.ndarray[Any, np.dtype[np.float64]]']:
         """
         Returns a tuple of (flim_map, intensity_map, confidence_map)
         where flim_map is the empirical lifetime with the offset of
@@ -78,11 +73,11 @@ class SiffIO():
 
     def sum_roi(
         self,
-        mask : BOOL_ARRAY,
+        mask : 'np.ndarray[Any, np.dtype[np.bool_]]',
         *,
         frames : Optional[List[int]] = None,
         registration : Optional[Dict] = None,
-    )->UINT16_ARRAY:
+    )->'np.ndarray[Any, np.dtype[np.uint16]]':
         """
         Mask may have more than 2 dimensions, but
         if so then be aware that the frames will be
@@ -92,14 +87,15 @@ class SiffIO():
         array of the same length as the frames
         provided, regardless of mask shape.
         """
+        ...
 
     def sum_rois(
         self,
-        masks : BOOL_ARRAY,
+        masks : 'np.ndarray[Any, np.dtype[np.bool_]]',
         *,
         frames : Optional[List[int]] = None,
         registration : Optional[Dict] = None,
-    )->UINT16_ARRAY:
+    )->'np.ndarray[Any, np.dtype[np.uint16]]':
         """
         Masks may have more than 2 dimensions, but
         if so then be aware that the frames will be
@@ -108,15 +104,16 @@ class SiffIO():
         number and mask dimension. Returns a 2D
         array of dimensions `(len(masks), len(frames))`.
         """
+        ...
 
     def sum_roi_flim(
         self,
-        mask : BOOL_ARRAY,
+        mask : 'np.ndarray[Any, np.dtype[np.bool_]]',
         params : 'FLIMParams',
         *,
         frames : Optional[List[int]] = None,
         registration : Optional[Dict] = None,
-    )->UINT16_ARRAY:
+    )->'np.ndarray[Any, np.dtype[np.float64]]':
         """
         Mask may have more than 2 dimensions, but
         if so then be aware that the frames will be
@@ -126,15 +123,38 @@ class SiffIO():
         arrary of the same length as the frames
         provided, regardless of mask shape.
         """
+        ...
 
-    def get_histogram(self, *, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+    def sum_rois_flim(
+        self,
+        masks : Union['np.ndarray[Any, np.dtype[np.bool_]]', List['np.ndarray[Any, np.dtype[np.bool_]]']],
+        params : 'FLIMParams',
+        *,
+        frames : Optional[List[int]] = None,
+        registration : Optional[Dict] = None,
+    ) -> 'np.ndarray[Any, np.dtype[np.float64]]':
+        """
+        If `masks` is an array, the slowest dimension
+        is assumed to be the mask dimension.
+
+        Masks may have more than 2 dimensions, but
+        if so then be aware that the frames will be
+        iterated through sequentially, rather than
+        aware of the correspondence between frame
+        number and mask dimension. Returns a 2D
+        array of dimensions `(len(masks), len(frames))`.
+        """
+        ...
+
+    def get_histogram(self, *, frames : Optional[List[int]] = None,)->'np.ndarray[Any, np.dtype[np.uint64]]':
         """
         Returns a histogram of the arrival times of photons in the
         frames provided. If no frames are provided, then the
         histogram is of all the frames in the file.    
         """
+        ...
 
-    def get_experiment_timestamps(self, *, frames : Optional[List[int]] = None,)->FLOAT_ARRAY:
+    def get_experiment_timestamps(self, *, frames : Optional[List[int]] = None,)->'np.ndarray[Any, np.dtype[np.float64]]':
         """
         Returns an array of timestamps of each frame based on
         counting laser pulses since the start of the experiment.
@@ -143,8 +163,9 @@ class SiffIO():
 
         Extremely low jitter, small amounts of drift (maybe 50 milliseconds an hour).
         """
+        ...
 
-    def get_epoch_timestamps_laser(self, *, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+    def get_epoch_timestamps_laser(self, *, frames : Optional[List[int]] = None,)->'np.ndarray[Any, np.dtype[np.uint64]]':
         """
         Returns an array of timestamps of each frame based on
         counting laser pulses since the start of the experiment.
@@ -152,8 +173,9 @@ class SiffIO():
 
         Can be corrected using get_epoch_timestamps_system.
         """
+        ...
 
-    def get_epoch_timestamps_system(self, *, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+    def get_epoch_timestamps_system(self, *, frames : Optional[List[int]] = None,)->'np.ndarray[Any, np.dtype[np.uint64]]':
         """
         Returns an array of timestamps of each frame based on
         the system clock. High jitter, but no drift.
@@ -161,8 +183,9 @@ class SiffIO():
         WARNING if system timestamps do not exist, the function
         will CRASH.
         """
+        ...
 
-    def get_epoch_both(self, *, frames : Optional[List[int]] = None,)->UINT64_ARRAY:
+    def get_epoch_both(self, *, frames : Optional[List[int]] = None,)->'np.ndarray[Any, np.dtype[np.uint64]]':
         """
         Returns an array containing both the laser timestamps
         and the system timestamps.
@@ -173,6 +196,7 @@ class SiffIO():
         WARNING if system timestamps do not exist, the function
         will CRASH.
         """
+        ...
 
     def get_appended_text(self, *, frames : Optional[List[int]] = None,)->List[Tuple[int, str, Optional[float]]]:
         """
@@ -185,6 +209,7 @@ class SiffIO():
         For some versions of `ScanImageFLIM`, there is no timestamp entry,
         so the tuple for those files will be (frame number, text, None).
         """
+        ...
     
 def suppress_warnings()->None:...
 

@@ -21,8 +21,8 @@ libraries = None
 # CHANGE THIS TO TRUE FOR DEBUG MODE
 # or maybe I should make this a setting in the package itself?
 # TODO: debug as a command line option
-DEBUG = True
-#DEBUG = False
+#DEBUG = True
+DEBUG = False
 
 class MSVCInstallCommand(install):             
    """

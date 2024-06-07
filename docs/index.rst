@@ -34,6 +34,12 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
 
 .. toctree::
    :maxdepth: 2
+   :caption: Troubleshooting:
+
+   common_issues
+
+.. toctree::
+   :maxdepth: 2
    :caption: Main classes:
 
    siffreader_api

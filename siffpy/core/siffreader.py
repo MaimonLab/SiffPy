@@ -634,10 +634,10 @@ class SiffReader(object):
         mask : Union['BoolMaskArray', List['BoolMaskArray']],
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
-        z_index : Optional[Union[int,List[int]]] = None,
+        z_index : Optional[int] = None,
         color_channel :  int = 1,
         registration_dict : Optional[Dict] = None,
-        framewise : bool = False,
+        return_framewise : bool = False,
         )->'ImageArray':
         """
         Computes the sum photon counts within a numpy mask over timesteps.
@@ -677,14 +677,14 @@ class SiffReader(object):
         * registration_dict : dict
             Registration dictionary, if there is not a stored one or if you want to use a different one.
 
-        * framewise : bool
+        * return_framewise : bool
             If True, does not sum across timepoints.
             
         # Returns
         
         * np.ndarray
             Summed photon counts as an array of shape `(n_timepoints,)`
-            (unless `framewise` is True, in which case it is `(n_frames,)`).
+            (unless `return_framewise` is True, in which case it is `(n_frames,)`).
 
         # See also
         
@@ -747,14 +747,10 @@ class SiffReader(object):
                 z_index = z_index,
                 color_channel = color_channel,
                 registration_dict = registration_dict,
-                framewise = framewise
+                return_framewise = return_framewise
             )
 
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
-        z_index = list(range(self.im_params.num_slices)) if z_index is None else z_index
-
-        if isinstance(z_index, int):
-            z_index = [z_index]
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
 
@@ -766,15 +762,12 @@ class SiffReader(object):
                     + f"has {self.im_params.num_slices} slices."
                 )
 
-        frames = self.im_params.framelist_by_slices(
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
             color_channel = color_channel-1,
-            slices = z_index,
-            lower_bound=timepoint_start,
-            upper_bound=timepoint_end
         )
-        # frames are in the wrong order for automatic masking though
-        frames = np.array(frames).reshape(len(z_index),-1).T.flatten().tolist()
-
 
         frames_summed = self._sum_mask_frames(
             mask = mask,
@@ -782,7 +775,7 @@ class SiffReader(object):
             registration_dict = registration_dict
         )
         
-        if framewise:
+        if return_framewise:
             return frames_summed
         
         return frames_summed.reshape(
@@ -879,15 +872,16 @@ class SiffReader(object):
         masks : Union['BoolMaskArray', List['BoolMaskArray']],
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
-        z_index : Optional[Union[int,List[int]]] = None,
+        z_index : Optional[int] = None,
         color_channel :  int = 1,
         registration_dict : Optional[dict] = None,
-        framewise : bool = False,
+        return_framewise : bool = False,
         )->'ImageArray':
         """
         Computes the sum photon counts within a sequence of `numpy` masks over timesteps.
         The slowest dimension (i.e. `masks.shape[0]`) corresponds to iterating over
         the masks.
+
         Takes _timepoints_ as arguments, not frames. Returns a 2D array
         of summed photon counts over the entire _timepoint_ over each mask.
         If mask is 2d, applies the same mask to every frame. Otherwise,
@@ -928,7 +922,7 @@ class SiffReader(object):
             Registration dictionary, if there is not a stored one or
             if you want to use a custom one.
 
-        * `framewise : bool`
+        * `return_framewise : bool`
             If True, does not sum across timepoints, and returns a flat array
             by frames.
         
@@ -936,7 +930,7 @@ class SiffReader(object):
 
         * `np.ndarray`
             Summed photon counts as an array of shape `(n_masks, n_timepoints)`
-            (or `(n_masks, n_frames)` if `framewise` is True).
+            (or `(n_masks, n_frames)` if `return_framewise` is True).
 
         # Examples
 
@@ -996,7 +990,7 @@ class SiffReader(object):
         summed = reader.sum_masks(
             masks = masks,
             timepoint_end = 5,
-            framewise = True,
+            return_framewise = True,
         )
 
         print(reader.im_params.single_channel_volume)
@@ -1024,13 +1018,9 @@ class SiffReader(object):
         - `SiffReader.sum_mask` to sum over a single mask
         """
         if isinstance(masks, list):
-            masks = np.array(masks)
+            masks = np.array(masks).squeeze()
 
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
-        z_index = list(range(self.im_params.num_slices)) if z_index is None else z_index
-
-        if isinstance(z_index, int):
-            z_index = [z_index]
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
 
@@ -1042,44 +1032,25 @@ class SiffReader(object):
                      + f" z slices in the image is {self.im_params.num_slices}"
                 )
 
-        frames = self.im_params.framelist_by_slices(
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
             color_channel = color_channel-1,
-            slices = z_index,
-            lower_bound=timepoint_start,
-            upper_bound=timepoint_end
         )
-        # frames are in the wrong order for automatic masking though
-        frames = np.array(frames).reshape(len(z_index),-1).T.flatten().tolist()
 
-        # Dimensions = (n_masks, n_frames)
         frames_summed = self.siffio.sum_rois(
             masks = masks,
             frames = frames,
             registration = registration_dict
         )
 
-        if framewise:
+        if return_framewise:
             return frames_summed
 
         return frames_summed.reshape(
             (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
         ).sum(axis=2)
-
-
-        # frames_summed = self._sum_mask_frames(
-        #     mask = mass,
-        #     frames = frames,
-        #     registration_dict = registration_dict
-        # )
-        
-        # if framewise:
-        #     return frames_summed
-        
-        # return frames_summed.reshape(
-        #     (-1, mask.shape[0] if mask.ndim > 2 else 1)
-        # ).sum(axis=1)
-
-
     
     def pool_frames(self, 
         framelist : List[List[int]], 
@@ -1118,6 +1089,30 @@ class SiffReader(object):
         * histogram (np.ndarray):
             1 dimensional histogram of arrival times
 
+        # Examples
+
+        ```python
+        from siffpy import SiffReader
+        reader = SiffReader('example.siff')
+
+        # Get the histogram of the first 1000 frames
+        hist = reader.get_histogram(frames = list(range(1000)))
+
+        print(hist.shape, hist)
+
+        #629 arrival time bins
+        >> (629,) [   333    359    396    388    382    393    366    319    377    391
+        387    363    357    364    353    330    369    323    323    337
+        329    332    350    317    328    341    354    343    353    334
+        332    320    325    321    296    277    308    329    311    314
+        310    286    291    294    270    307    308    336    301    282
+        298    285    302    271    287    296    304    283    309    306
+        280    278    318    372    496    732   1271   2379   4467   7922
+        13910  22052  32696  43632  56088  66859  77358  86290  93036  98215
+        101721 104092 105528 104871 104957 104276 101273  99992  97437  95649
+        ...
+        ...
+        ]
         
         """
         if mask is not None:
@@ -1139,14 +1134,23 @@ class SiffReader(object):
         of frames (FOR THE COLOR CHANNEL, NOT TOTAL IMAGING FRAMES) with the other keyword argument
         frame_endpoints
 
-        Arguments
-        ----------
-        color_channel : int or list (default None)
+        #Arguments
+
+        * `color_channel` : int or list (default None)
             0 indexed list of color channels you want returned.
             If None is provided, returns for all color channels.
 
-        frame_endpoints : tuple(int,int) (default (None, None))
+        * `frame_endpoints` : tuple(int,int) (default (None, None))
             Start and end bounds on the frames from which to collect the histograms.
+
+        # Returns
+
+        * `np.ndarray`
+            Array of histograms of shape (n_colors, n_bins)
+
+        # Examples
+
+        TODO
         """
         # I'm sure theres a more Pythonic way... I'm ignoring it
         # Accept the tuple, and then mutate it internal
@@ -1223,12 +1227,13 @@ class SiffReader(object):
     def sum_mask_flim(
         self,
         params : FLIMParams,
-        mask : 'BoolMaskArray',
+        mask : Union['BoolMaskArray',List['BoolMaskArray']],
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
-        z_index : Optional[Union[int,List[int]]] = None,
+        z_index : Optional[int] = None,
         color_channel : int = 1,
         registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
         )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -1240,63 +1245,95 @@ class SiffReader(object):
 
         If params is a single FLIMParams object, returns a numpy array.
 
-        Arguments
-        ----------
+        # Arguments
 
-        params : FLIMParams object or list of FLIMParams
+        * `params` : FLIMParams object or list of FLIMParams
             The FLIMParams objects fit to the FLIM data of this .siff file. If
             the FLIMParams objects do not all have a color_channel attribute,
             then the optional argument color_list must be provided and be a list
             of ints corresponding to the * 1-indexed * color channel numbers for
             each FLIMParams, unless there is only one color channel in the data.
 
-        mask : np.ndarray[bool]
+        * `mask` : Union[np.ndarray[bool], List[np.ndarray[bool]]]
             A mask that defines the boundaries of the region being considered.
             May be 2d (in which case it is applied to all z-planes) or higher
             dimensional (in which case it must have the same number of z-planes
-            as the image data frames requested).
+            as the image data frames requested). If a list is provided, the function
+            will call `SiffReader.sum_masks_flim` instead.
 
-        timepoint_start : int (optional) (default is 0)
+        * `timepoint_start` : int (optional) (default is 0)
             The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
 
-        timepoint_end : int (optional) (default is None)
+        * `timepoint_end` : int (optional) (default is None)
             The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
             defaults to the final timepoint of the .siff file.
 
-        color_channel : int
+        * `color_channel` : int
             Color channel to sum over. Default is 1, which means the FIRST color channel.
 
-        registration_dict : dict
+        * `registration_dict` : dict
             Registration dictionary for frames.
 
+        * `return_framewise` : bool
+            If True, does not sum across timepoints, and returns a flat array
+            corresponding to the frames.
+            
+        # Returns
+
+        * FlimTrace
+            FlimTrace object with the summed FLIM data over the ROI. Shape (n_timepoints,)
+            or (n_frames,) if `return_framewise` is True.
+
+        # Examples
+
+        TODO
+
+        # See also
+
+        - `SiffReader.sum_masks_flim` to sum over multiple masks efficiently
+        during one read of the file.
+        
         """
+        if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
+            return self.sum_masks_flim(
+                masks = mask,
+                timepoint_start = timepoint_start,
+                timepoint_end = timepoint_end,
+                z_index = z_index,
+                color_channel = color_channel,
+                registration_dict = registration_dict,
+                return_framewise = return_framewise
+            )
 
         if not isinstance(params, FLIMParams):
             raise ValueError("params argument must be a FLIMParams object")
+        
         params = copy.deepcopy(params) 
         params.convert_units('countbins')
-        timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
-        z_index = list(range(self.im_params.num_slices)) if z_index is None else z_index
+        
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None
+            else timepoint_end
+        )
 
-        if isinstance(z_index, int):
-            z_index = [z_index]
-
-        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
-        registration_dict = {} if registration_dict is None else registration_dict
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None 
+            and hasattr(self, 'registration_dict') 
+            else registration_dict
+        )
         
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
                 raise ValueError("Mask must have same number of z-slices as the image")
 
-        frames = self.im_params.framelist_by_slices(
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
             color_channel = color_channel-1,
-            slices = z_index,
-            lower_bound=timepoint_start,
-            upper_bound=timepoint_end
         )
-        # frames are in the wrong order for automatic masking though
-        frames = np.array(frames).reshape(len(z_index),-1).T.flatten().tolist()
-
         
         summed_intensity_data = self.siffio.sum_roi(
             mask,
@@ -1311,6 +1348,16 @@ class SiffReader(object):
             registration = registration_dict
         )
 
+        if return_framewise:
+            return FlimTrace(
+                summed_flim_data, 
+                intensity = summed_intensity_data,
+                FLIMParams = params,
+                method = 'empirical lifetime',
+                info_string = "ROI",
+                units = FlimUnits.COUNTBINS,
+            )
+
         return FlimTrace(
             summed_flim_data, 
             intensity = summed_intensity_data,
@@ -1321,6 +1368,123 @@ class SiffReader(object):
         ).reshape(
             (-1, mask.shape[0] if mask.ndim > 2 else 1)
         ).sum(axis=1)
+    
+    def sum_masks_flim(
+        self,
+        params : FLIMParams,
+        masks : Union['BoolMaskArray', List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
+        )->FlimTrace:
+        """
+        Computes the empirical lifetime within a set of ROIs over timesteps.
+
+        # Arguments
+
+        * `params` : FLIMParams object for the color channel to get a
+            `tau_offset` parameter.
+
+        * `masks` : Union[np.ndarray[bool], List[np.ndarray[bool]]]
+            A mask that defines the boundaries of the region being considered.        
+
+        * `timepoint_start` : int (optional) (default is 0)
+            The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
+
+        * `timepoint_end` : int (optional) (default is None)
+            The TIMEPOINT (not frame) at which the analysis ends. If the argument is None,
+            defaults to the final timepoint of the .siff file.
+
+        * `z_index` : int or list of ints (optional) (default is None)
+            The z-slice or slices to sum over. If None, sums over all z-slices.
+
+        * `color_channel` : int
+            Color channel to sum over. Default is 1, which means the FIRST color channel.
+
+        * `registration_dict` : dict
+            Registration dictionary for frames. If None, uses the stored registration_dict
+            (if one exists).
+
+        * `return_framewise` : bool
+            If True, returns a flat array of all frames, rather than summing across
+            timepoints.
+
+        """
+        if isinstance(masks, list):
+            masks = np.array(masks).squeeze()
+
+        if not isinstance(params, FLIMParams):
+            raise ValueError("params argument must be a FLIMParams object")
+
+        params = copy.deepcopy(params)
+        params.convert_units('countbins')
+
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None else timepoint_end
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            and hasattr(self, 'registration_dict')
+            else registration_dict
+        )
+
+        if masks.ndim > 3:
+            if masks.shape[-3] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image"
+                    + f" you provided masks with shape {masks.shape} with the z axis"
+                    + f" presumed to be of length {masks.shape[-3]} while the number of"
+                    + f" z slices in the image is {self.im_params.num_slices}"
+                )
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        # Dimensions = (n_masks, n_frames)
+        intensity_summed = self.siffio.sum_rois(
+            masks = masks,
+            frames = frames,
+            registration = registration_dict,
+        )
+
+        flim_summed = self.siffio.sum_rois_flim(
+            masks = masks,
+            params = params,
+            frames = frames,
+            registration = registration_dict,
+        )
+
+        if return_framewise:
+            return FlimTrace(
+                flim_summed,
+                intensity = intensity_summed,
+                FLIMParams = params,
+                method = 'empirical lifetime',
+                info_string = "Multi-ROIs",
+                units = FlimUnits.COUNTBINS,
+            )
+
+        # Reshape AFTER making a `FlimTrace`
+        # or else things won't be added correctly.
+        return FlimTrace(
+            flim_summed,
+            intensity = intensity_summed,
+            FLIMParams = params,
+            method = 'empirical lifetime',
+            info_string = "Multi-ROIs",
+            units = FlimUnits.COUNTBINS,
+        ).reshape(
+            (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
+        ).sum(axis=2)
                 
 ### REGISTRATION METHODS
     def register(

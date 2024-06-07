@@ -12,7 +12,9 @@
 #define NO_IMPORT_ARRARY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
 
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes
+#ifndef NPY_NO_DEPRECATED_API
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 #include <numpy/arrayobject.h>
 
 #define PYFRAMEDATA_OBJECTNAME "FrameData"

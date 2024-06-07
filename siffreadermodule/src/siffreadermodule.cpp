@@ -26,7 +26,9 @@
 // I define NO_IMPORT_ARRAY and define the unique symbol again.
 // for more reading: https://docs.scipy.org/doc/numpy-1.10.1/reference/c-api.array.html#miscellaneous
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // yikes, some compiler thing I don't really understand
+#ifndef NPY_NO_DEPRECATED_API
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 #include <numpy/arrayobject.h>
 
 #include "../include/siffreader/siffreader.hpp"
@@ -39,11 +41,7 @@
 //  I'm going to comment this in a way to remind myself how this process works
 //  so hopefully I can use this as a reference doc for myself
 
-// What you need to do: build this file a la the Python C API guide to make a .so object, then put that .so object in your
-// Python's lib path. If you use setuptools or distutil tools, it will do both automatically.
-// But! Don't forget to put all your .c and .cpp files in the source. Whoops.
-
-// Also important, compile with the headers for your python version. Which means, if you're using
+// Compile with the headers for your python version. Which means, if you're using
 // Anaconda, to pay close attention to your anaconda2/envs directory for include files. You can control
 // this with the "include_dirs" argument in your setup.py but there's likely a smarter way using
 // anaconda interactions directly. I'll update this when I get around to figuring that out.
