@@ -11,7 +11,10 @@ code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
 -   `corrosiff` Rust implementation
--   `sum_mask_...` methods with multiple masks in one call for speed
+-   `sum_mask_flim` methods should do the intensity and FLIM calculations
+in the SAME read pass, rather than requiring a separate method call to
+get the intensity of the mask (this should also be nice in that it provides
+a way to check the data out by comparing with `sum_mask`.)
 -   `Libsiffreader`: make a shared library
 that does most of the basic (i.e. non-Python)
 functionality. Then let `SiffPy` and 

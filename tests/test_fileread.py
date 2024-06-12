@@ -1,5 +1,5 @@
 """
-Tests the file reader on a very minimal siff file.
+Tests the file reader on some very minimal siff files.
 
 TODO: Write me!
 """
@@ -271,11 +271,56 @@ def test_mask_intensity_methods(
 
     apply_test_to_all(test_reader, test_file_in, masks)
 
-def test_flim_methods(test_file_in : List['SiffReader']):
+def test_flim_methods(
+        test_file_in : List['SiffReader'],
+        masks : List[Tuple[List[np.ndarray]]]
+    ):
     """
-    Tests that the flim methods work properly
+    Tests that the flim methods work properly.
+    Doesn't need correct FLIMParams, just to have
+    them at all!
     """
-    pass
+    from siffpy.core.flim import FLIMParams, Exp, Irf
+    from siffpy.siffmath import FlimTrace
+
+    test_params = FLIMParams(
+        Exp(tau = 1.1, frac = 0.3, units = 'nanoseconds'),
+        Exp(tau = 2.5, frac = 0.7, units='nanoseconds'),
+        Irf(mean = 1.3, sigma = 0.02, units = 'nanoseconds'),
+    )
+
+    def test_reader(
+        sr : 'SiffReader',
+    ):
+        """ Test the unmasked FLIM methods """
+        sr.get_frames_flim(
+            test_params,
+            frames = sr.im_params.flatten_by_timepoints()
+        )
+
+    def test_reader_and_masks(
+        sr : 'SiffReader',
+        corresponding_masks : Tuple[List[np.ndarray]],
+        ):
+        """ Tests flim mask methods agree """
+
+        two_d_masks, three_d_masks = corresponding_masks
+
+        # Confirm that the list of 2d masks gives the same
+        # as making an array from the returned value of
+        # each passed one atlim a time.
+
+        assert (FlimTrace([
+            sr.sum_mask_flim(test_params, mask) for mask in two_d_masks
+            ]) == sr.sum_masks_flim(test_params, two_d_masks)).all()
+        
+        # Do the same for 3d
+        assert (FlimTrace([
+            sr.sum_mask_flim(test_params, mask) for mask in three_d_masks
+            ]) == sr.sum_masks_flim(test_params, three_d_masks)).all()
+        
+    apply_test_to_all(test_reader, test_file_in,)
+    apply_test_to_all(test_reader_and_masks, test_file_in, masks)
 
 def test_siff_to_tiff():
     pass
