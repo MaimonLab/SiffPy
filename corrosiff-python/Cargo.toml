@@ -1,0 +1,13 @@
+[package]
+name = "corrosiff-python"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+corrosiff = { path = '../../corrosiff' }
+numpy = "*"
+pyo3 = { version = "0.21", features = ["extension-module"] }
+
+[lib]
+name = "corrosiffpy"
+crate_type = ["cdylib"]

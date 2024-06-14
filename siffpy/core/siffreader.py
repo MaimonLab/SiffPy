@@ -32,7 +32,12 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : Optional[PathLike] = None, open : bool = True):
+    def __init__(
+            self,
+            filename : Optional[PathLike] = None,
+            open : bool = True,
+            backend : str = 'siffreadermodule'
+        ):
         """
         Opens file `filename` if provided, otherwise creates an inactive SiffReader.
         If open is True, opens the file. If open is False, does not open the file.
@@ -44,6 +49,11 @@ class SiffReader(object):
 
         * open (optional, bool):
             Whether or not to open the file immediately. Default is True.
+
+        * backend (optional, str):
+            Which backend to use. Default is 'siffreadermodule', which is the
+            C++ backend. Will also (eventually) support 'corrosiff' which
+            is the `Rust` backend, and will become the default.
 
         # Returns
 
@@ -74,7 +84,12 @@ class SiffReader(object):
         self.opened = False
         self.debug = False
         self.events = None
-        self.siffio = SiffIO()
+        if backend == 'siffreadermodule':
+            self.siffio = SiffIO()
+        elif backend == 'corrosiff':
+            raise NotImplementedError("Corrosiff backend not yet implemented")
+        else:
+            raise ValueError("Backend must be 'siffreadermodule' or 'corrosiff'")
         if isinstance(filename, Path):
             filename = str(filename)
         if filename is None:

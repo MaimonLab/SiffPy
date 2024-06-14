@@ -23,6 +23,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Rust bins
+corrosiff-python/target/
+
 # Distribution / packaging
 bin/
 build/

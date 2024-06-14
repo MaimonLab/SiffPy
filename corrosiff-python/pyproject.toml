@@ -1,0 +1,30 @@
+[build-system]
+requires = [
+    "maturin",
+    "wheel",
+    "numpy",
+]
+build-backend = "maturin"
+
+[project]
+name = "corrosiffpy"
+version = "0.0.1"
+readme = "README.md"
+description = "A Python wrapper for the `Rust` `corrosiff` library"
+license = {text="GPL-3.0-or-later"}
+authors = [
+    {email = "thornquist@rockefeller.edu"},
+    {name = "Stephen Thornquist"},
+]
+requires-python = ">=3.9.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Rust",
+]
+dependencies = [
+    "numpy >= 1.15",
+]
+
+#[tool.maturin]
+#module_name = "corrosiff"
+#module-name = "corrosiff_python.corrosiff_python"
