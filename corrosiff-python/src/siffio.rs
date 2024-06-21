@@ -1,13 +1,64 @@
 //! The `SiffIO` Python class is used to call
 //! the corrosiff library from Rust.
 
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyArray3};
+use numpy::{IntoPyArray, PyArray1, PyArray2, PyArray3, PyArray4,
+    PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
-use pyo3::conversion::ToPyObject;
-use corrosiff::{metadata, SiffReader, CorrosiffError};
+use pyo3::PyTypeCheck;
+use corrosiff::{CorrosiffError, SiffReader, FramesError};
 
 use std::collections::HashMap;
+
+/// Almost all of the errors that can be thrown by the `corrosiff` library
+/// have standard explanations that should be converted to informative
+/// `Python` exceptions.
+fn _to_py_error(e : CorrosiffError) -> PyErr {
+    match e {
+        CorrosiffError::FramesError(frames_error) => {
+            match frames_error {
+                FramesError::RegistrationFramesMissing => {
+                   return PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "Some requested frames do not have a \
+                        corresponding registration value".to_string()
+                    );
+                },
+                FramesError::DimensionsError(dim_error) => {
+                    return PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        format!("Inconsistent dimensions : {:?}", dim_error)
+                    );
+                },
+                FramesError::IOError(io_error) => {
+                    return PyErr::new::<pyo3::exceptions::PyIOError, _>(
+                        format!("{:?}", io_error)
+                    );
+                },
+                FramesError::FormatError(e)=> {
+                   return PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        format!("{:?}", e)
+                    )
+                },
+            }
+        },
+        CorrosiffError::DimensionsError(dim_error) => {
+            return PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                format!("{:?}", dim_error)
+            )
+        },
+        CorrosiffError::NoSystemTimestamps => {
+            return PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "No system timestamps found in file".to_string()
+            );
+        },
+        CorrosiffError::NotImplementedError => {
+            return PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "This method is not yet implemented".to_string()
+            );
+        },
+        _ => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{:?}", e))
+    }
+}
 
 /// The SiffIO class wraps a `SiffReader` object
 /// in rust and provides methods to read from the
@@ -45,6 +96,20 @@ impl SiffIO {
         Ok(self.reader.filename())
     }
 
+    /// Returns the number of frames in the file
+    /// include flyback (basically the number of
+    /// IFDs).
+    #[getter]
+    pub fn num_frames(&self) -> u64 {
+        self.reader.num_frames() as u64
+    }
+
+    /// Back-compatibility with `siffreadermodule`...
+    #[pyo3(name = "num_frames")]
+    pub fn get_num_frames(&self) -> u64 {
+        self.num_frames()
+    }
+
     /// Returns the metadata of the file
     #[pyo3(name = "get_file_header")]
     pub fn get_file_header_py<'py>(&self, py : Python<'py>) -> PyResult<Bound<'py, PyDict>> {
@@ -59,13 +124,6 @@ impl SiffIO {
         ret_dict.set_item("ROI string", self.reader.roi_string())?;
         
         Ok(ret_dict)
-    }
-
-    /// Returns the number of frames in the file
-    /// include flyback (basically the number of
-    /// IFDs).
-    pub fn get_num_frames(&self) -> u64 {
-        self.reader.num_frames() as u64
     }
 
     pub fn __repr__(&self) -> String {
@@ -86,6 +144,25 @@ impl SiffIO {
         self.__repr__() 
     }
 
+    #[pyo3(name = "frame_shape")]
+    pub fn frame_shape<'py>(&self, py : Python<'py>)-> PyResult<Bound<'py, PyTuple>> {
+        self.reader.image_dims().map(
+            |x| {
+                PyTuple::new_bound(py, vec![x.to_tuple().0, x.to_tuple().1])
+            }).map_or(
+                Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "File frames do not have a consistent shape"
+                )),
+                |x| Ok(x)
+            )
+    }
+
+
+    /**
+     * The following methods are used to read metadata (timestamps,
+     * text annotations, etc.) from the file.
+     */
+
     /// Returns a list of dictionaries, each containing the metadata
     /// corresponding to the frames requested (in the same order as 
     /// `frames`).
@@ -95,11 +172,7 @@ impl SiffIO {
         
         let frames = frames_default!(frames, self);
         let metadatas = self.reader.get_frame_metadata(&frames)
-            .map_err(|e| 
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                    format!("{:?}", e)
-                )
-            )?;
+            .map_err(_to_py_error)?;
         
         let ret_list = PyList::empty_bound(py);
 
@@ -137,7 +210,7 @@ impl SiffIO {
         Ok(
             self.reader
             .get_experiment_timestamps(&frames)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .map_err(_to_py_error)?
             .into_pyarray_bound(py)
         )
     }
@@ -150,7 +223,7 @@ impl SiffIO {
         Ok(
             self.reader
             .get_epoch_timestamps_laser(&frames)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .map_err(_to_py_error)?
             .into_pyarray_bound(py)
         )
     }
@@ -176,7 +249,7 @@ impl SiffIO {
         Ok(
             self.reader
             .get_epoch_timestamps_both(&frames)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .map_err(_to_py_error)?
             .into_pyarray_bound(py)
         )
     }
@@ -212,6 +285,14 @@ impl SiffIO {
         Ok(ret_list)
     }
 
+/************************************************************
+     * FULL-FRAME DATA
+     * 
+     * These methods return data that is formatted as an _image_,
+     * i.e. a series of 2d arrays corresponding to true pixels
+     * with consistent spacing.
+*/
+
     /// Returns an array of the frame data
     #[pyo3(signature = (frames=None, registration= None))]
     pub fn get_frames<'py>(
@@ -226,24 +307,214 @@ impl SiffIO {
         Ok(
             self.reader
             .get_frames_intensity(&frames, registration.as_ref())
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .map_err(_to_py_error)?
             .into_pyarray_bound(py)
         )
     }
 
-    /// Returns a 2d histogram of the arrival time data.
-    /// The first dimension is the frame number and the second
-    /// dimension is the arrival time.
+    #[pyo3(name = "flim_map", signature = (params, frames = None, confidence_metric = "chi_sq", registration = None))]
+    pub fn flim_map_py<'py>(
+        &self,
+        py : Python<'py>,
+        params : &PyAny,
+        frames : Option<Vec<u64>>,
+        confidence_metric : Option<&str>,
+        registration : Option<HashMap<u64, (i32, i32)>>,
+    ) -> PyResult<Bound<'py, PyTuple>>{
+        let frames = frames_default!(frames, self);
+        
+        let old_units = params.getattr("units")?;
+
+        params.call_method1("convert_units", ("countbins",))?;
+        let offset : f64 = params.getattr("tau_offset")?.extract()?;
+
+        let (lifetime, intensity) = self.reader.get_frames_flim(&frames, registration.as_ref())
+            .map_err(_to_py_error)?;
+
+        let lifetime = lifetime - offset;
+
+        let ret_tuple : Py<PyTuple> = (
+                lifetime.into_pyarray_bound(py),
+                intensity.into_pyarray_bound(py),
+                None::<PyArray3<f64>>,
+            ).into_py(py);
+
+        params.call_method1("convert_units", (old_units,))?;
+
+        Ok(ret_tuple.into_bound(py))
+    }
+
+    /*******************************************************
+     * 
+     * 
+     * MASKED OR COMPRESSED DATA
+     * 
+     * Methods in this section return data that is compressed
+     * along some axis, e.g. a frame-wide summary (as in histogramming)
+     * or an ROI-specific sum (masked operations).
+     * 
+     */
+    
+    /// Returns a 1d histogram of the arrival time data, with
+    /// all of the frames compressed onto one axis
     #[pyo3(signature = (frames=None))]
     pub fn get_histogram<'py>(&self, py : Python<'py>, frames : Option<Vec<u64>>)
-    -> PyResult<Bound<'py, PyArray2<u64>>> {
+    -> PyResult<Bound<'py, PyAny>> {
+        let frames = frames_default!(frames, self);
+
+        let kwarg_dict = PyDict::new_bound(py);
+        kwarg_dict.set_item("axis", 0)?;
+        Ok(
+            self.reader
+            .get_histogram(&frames)
+            .map_err(_to_py_error)?
+            .into_pyarray_bound(py)
+            .call_method("sum", (), Some(&kwarg_dict))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{:?}", e)))?
+            //.into_pyarray_bound(py)
+        )
+    }
+
+    /// Returns a 2d histogram of the arrival time data
+    /// separated by frame. The first axis is the frame
+    /// number, the second axis is the arrival time.
+    #[pyo3(name = "get_histogram_by_frames", signature = (frames=None))]
+    pub fn get_histogram_by_frames<'py>(&self, py : Python<'py>, frames : Option<Vec<u64>>)
+    -> PyResult<Bound<'py, PyArray2<u64>>>
+    {
         let frames = frames_default!(frames, self);
 
         Ok(
             self.reader
             .get_histogram(&frames)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .map_err(_to_py_error)?
             .into_pyarray_bound(py)
         )
     }
+
+    #[pyo3(name = "sum_roi", signature = (mask, frames = None, registration = None))]
+    fn sum_roi_py<'py>(
+        &self,
+        py : Python<'py>,
+        mask : &Bound<'py, PyAny>,
+        frames : Option<Vec<u64>>,
+        registration : Option<HashMap<u64, (i32, i32)>>,
+    ) -> PyResult<Bound<'py, PyAny>>
+    {
+        // Check that mask is a PyArray2 or a PyArray3
+        if !PyArray2::<bool>::type_check(mask)
+        && !PyArray3::<bool>::type_check(&mask) 
+        && !PyArray4::<bool>::type_check(&mask){
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Mask must be a 2d (if the same mask is applied to all frames) 
+                or 3d (if the mask is a volume to be cycled through) numpy array"
+            ));
+        }
+
+        if PyArray4::<bool>::type_check(&mask) {
+            return self.sum_rois_py(py, mask, frames, registration)
+        }
+
+        let frames = frames_default!(frames, self);
+
+        if PyArray2::<bool>::type_check(&mask) {
+            let mask : PyReadonlyArray2<bool> = mask.extract()?;
+            let mask = mask.as_array();
+            return Ok(
+                self.reader.sum_roi_flat(&mask, &frames, registration.as_ref())
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+                .into_pyarray_bound(py).into_any()
+            )
+        }
+
+        let mask : PyReadonlyArray3<bool> = mask.extract()?;
+        let mask = mask.as_array();
+        Ok(
+            self.reader.sum_roi_volume(&mask, &frames, registration.as_ref())
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{:?}", e)))?
+            .into_pyarray_bound(py).into_any()
+        )
+
+    }
+
+    #[pyo3(name = "sum_rois", signature = (masks, frames = None, registration = None))]
+    pub fn sum_rois_py<'py>(
+        &self,
+        py : Python<'py>,
+        masks : &Bound<'py, PyAny>,
+        frames : Option<Vec<u64>>,
+        registration : Option<HashMap<u64, (i32, i32)>>,
+    ) -> PyResult<Bound<'py, PyAny>>
+    {
+        // Check that mask is a PyArray2 or a PyArray3
+        if !PyArray3::<bool>::type_check(masks)
+        && !PyArray4::<bool>::type_check(masks) {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Mask must be a 3d (if the same masks are applied to all frames) 
+                or 4d (if each mask is a volume to be cycled through) numpy array"
+            ));
+        }
+
+        let frames = frames_default!(frames, self);
+        Err(
+            PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "This method is not yet implemented"
+            )
+        )
+    }
+
+    #[pyo3(name = "sum_roi_flim", signature = (mask, params, frames = None, registration = None))]
+    pub fn sum_roi_flim_py<'py>(
+        &self,
+        py : Python<'py>,
+        mask : &Bound<'py, PyAny>,
+        params : &PyAny,
+        frames : Option<Vec<u64>>,
+        registration : Option<HashMap<u64, (i32, i32)>>,
+    ) -> PyResult<Bound<'py, PyArray1<u64>>>
+    {
+        // Check that mask is a PyArray2 or a PyArray3
+        if !PyArray2::<bool>::type_check(mask)
+        && !PyArray3::<bool>::type_check(mask) {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Mask must be a 2d (if the same mask is applied to all frames) 
+                or 3d (if the mask is a volume to be cycled through) numpy array"
+            ));
+        } 
+
+        let frames = frames_default!(frames, self);
+        Err(
+            PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "This method is not yet implemented"
+            )
+        )
+    }
+
+    #[pyo3(name = "sum_rois_flim", signature = (masks, params, frames = None, registration = None))]
+    pub fn sum_rois_flim<'py>(
+        &self,
+        py : Python<'py>,
+        masks : &Bound<'py, PyAny>,
+        params : &PyAny,
+        frames : Option<Vec<u64>>,
+        registration : Option<HashMap<u64, (i32, i32)>>,
+    ) -> PyResult<Bound<'py, PyArray2<u64>>>
+    {
+        // Check that mask is a PyArray2 or a PyArray3
+        if !PyArray3::<bool>::type_check(masks)
+        && !PyArray4::<bool>::type_check(masks) {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Mask must be a 3d (if the same masks are applied to all frames) 
+                or 4d (if each mask is a volume to be cycled through) numpy array"
+            ));
+        }
+
+        let frames = frames_default!(frames, self);
+        Err(
+            PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "This method is not yet implemented"
+            )
+        )
+    }
+
 }

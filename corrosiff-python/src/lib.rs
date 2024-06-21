@@ -7,6 +7,16 @@ use crate::siffio::SiffIO;
 
 #[pymodule]
 #[pyo3(name = "corrosiffpy")]
+/// CorrosiffPy
+/// -----------
+///
+/// `corrosiffpy` is a `Python` wrapper for the `Rust` `corrosiff` package,
+/// used for reading and parsing data from the FLIM-data `.siff` filetype.
+///
+/// Its primary tool is the `SiffIO` class, which wraps `corrosiff`'s
+/// `SiffReader` struct. There are a few minorly questionable design
+/// decisions here made to remain consistent with the `C++`-based
+/// `siffreadermodule` extension module.
 fn corrosiff_python<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>)
     -> PyResult<()> {
 

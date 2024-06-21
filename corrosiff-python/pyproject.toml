@@ -6,6 +6,10 @@ requires = [
 ]
 build-backend = "maturin"
 
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "corrosiffpy"
+
 [project]
 name = "corrosiffpy"
 version = "0.0.1"
@@ -25,6 +29,7 @@ dependencies = [
     "numpy >= 1.15",
 ]
 
-#[tool.maturin]
-#module_name = "corrosiff"
-#module-name = "corrosiff_python.corrosiff_python"
+[project.optional-dependencies]
+test = [
+  "pytest",
+]

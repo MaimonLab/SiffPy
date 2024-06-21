@@ -8,6 +8,7 @@ be getting better at my C++ style by now..
 
 */
 
+
 inline void readCompressed(
     const uint64_t& samplesThisFrame,
     const FrameData& frameData,

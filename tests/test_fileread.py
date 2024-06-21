@@ -198,7 +198,11 @@ def test_get_frames(test_file_in : List['SiffReader']):
     """
     def test_reader(sr: 'SiffReader'):
         """ Tests frame reading methods """
-        sr.get_frames(sr.im_params.flatten_by_timepoints())
+        framelist = sr.im_params.flatten_by_timepoints()
+        sr.get_frames(framelist)
+        sr.get_frames(framelist, registration_dict = {})
+        sr.get_frames(framelist, registration_dict = {0 : (0, 0)})
+        sr.get_frames(framelist, registration_dict = {k : (0, 0) for k in framelist})
 
     apply_test_to_all(test_reader, test_file_in,)
 

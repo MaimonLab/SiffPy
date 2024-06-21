@@ -16,7 +16,7 @@ from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_c
 from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
 from siffpy.siffmath.flim import FlimTrace
 from siffpy.siffmath.utils import Timeseries
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
 
 # TODO:
 # __repr__
@@ -85,11 +85,13 @@ class SiffReader(object):
         self.debug = False
         self.events = None
         if backend == 'siffreadermodule':
+            from siffreadermodule import SiffIO
             self.siffio = SiffIO()
         elif backend == 'corrosiff':
-            raise NotImplementedError("Corrosiff backend not yet implemented")
+            pass
         else:
             raise ValueError("Backend must be 'siffreadermodule' or 'corrosiff'")
+        self.backend = backend
         if isinstance(filename, Path):
             filename = str(filename)
         if filename is None:
@@ -155,10 +157,14 @@ class SiffReader(object):
         filename = Path(filename)            
         if self.opened and not (filename == self.filename):
             self.siffio.close()
-        
-#        print(f"Opening {filename}, collecting metadata...")
 
-        self.siffio.open(str(filename))
+        if self.backend == 'corrosiff':
+            from corrosiffpy import open_file
+            self.siffio = open_file(str(filename))
+
+        if self.backend == 'siffreadermodule':
+            self.siffio.open(str(filename))
+        
         self.filename = filename
 
         header = self.siffio.get_file_header()
@@ -189,7 +195,10 @@ class SiffReader(object):
 
     def close(self) -> None:
         """ Closes opened file """
-        self.siffio.close()
+        if self.backend == 'siffreadermodule':
+            self.siffio.close()
+        if self.backend == 'corrosiff':
+            del self.siffio
         self.opened = False
         self.filename = ''
         if hasattr(self, 'im_params'):
@@ -584,7 +593,6 @@ class SiffReader(object):
         self,
         frames: Optional[List[int]] = None,
         registration_dict : Optional[dict] = None,
-        as_array : bool = True,
         ) -> Union[List['ImageArray'], 'ImageArray']:
         
         """
@@ -599,9 +607,6 @@ class SiffReader(object):
 
         * registration_dict (optional) : `dict`
             Registration dictionary, if used
-
-        * as_array : `bool` (True)
-            Type of returned PyObject. Default is np.ndarray, if False will return list
 
         # Returns
         
@@ -637,10 +642,7 @@ class SiffReader(object):
         registration_dict = self.registration_dict if registration_dict is None else registration_dict
         frames = list(range(self.im_params.num_frames)) if frames is None else frames
         
-        if registration_dict is None:
-            framelist = self.siffio.get_frames(frames = frames, as_array = as_array)
-        else:
-            framelist = self.siffio.get_frames(frames = frames, registration = registration_dict, as_array = as_array)
+        framelist = self.siffio.get_frames(frames = frames, registration = registration_dict)
 
         return framelist
     
