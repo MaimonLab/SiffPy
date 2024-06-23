@@ -1209,6 +1209,28 @@ class SiffReader(object):
         to the frames requested. Units of the FlimTrace
         are 'countbins'.
         """
+        if self.backend == 'siffreadermodule':
+            return self._get_frames_flim_srm(
+                params = params,
+                frames = frames,
+                registration_dict = registration_dict,
+                confidence_metric = confidence_metric
+            )
+        raise NotImplementedError("Not yet implemented using corrosiff backend")
+
+    def _get_frames_flim_srm(
+        self,
+        params : FLIMParams,
+        frames: Optional[List[int]] = None,
+        registration_dict : Optional[Dict] = None,
+        confidence_metric : str = 'chi_sq',
+        ) -> FlimTrace:
+        """
+        Returns a FlimTrace object of dimensions
+        n_frames by y_size by x_size corresponding
+        to the frames requested. Units of the FlimTrace
+        are 'countbins'.
+        """
      
         if frames is None:
             frames = list(range(self.im_params.num_frames))
@@ -1311,6 +1333,90 @@ class SiffReader(object):
         during one read of the file.
         
         """
+        if self.backend == 'siffreadermodule':
+            return self._sum_mask_flim_srm(
+                params = params,
+                mask = mask,
+                timepoint_start = timepoint_start,
+                timepoint_end = timepoint_end,
+                z_index = z_index,
+                color_channel = color_channel,
+                registration_dict = registration_dict,
+                return_framewise = return_framewise
+            )
+        
+        params = copy.deepcopy(params) 
+        params.convert_units('countbins')
+        
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None
+            else timepoint_end
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None 
+            and hasattr(self, 'registration_dict') 
+            else registration_dict
+        )
+        
+        if mask.ndim != 2:
+            if mask.shape[0] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image")
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        summed_flim_data, summed_intensity_data, _ = self.siffio.sum_roi_flim(
+            mask,
+            params,
+            frames = frames,
+            registration = registration_dict
+        )
+
+        if return_framewise:
+            return FlimTrace(
+                summed_flim_data, 
+                intensity = summed_intensity_data,
+                FLIMParams = params,
+                method = 'empirical lifetime',
+                info_string = "ROI",
+                units = FlimUnits.COUNTBINS,
+            )
+
+        return FlimTrace(
+            summed_flim_data, 
+            intensity = summed_intensity_data,
+            FLIMParams = params,
+            method = 'empirical lifetime',
+            info_string = "ROI",
+            units = FlimUnits.COUNTBINS,
+        ).reshape(
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
+        
+    def _sum_mask_flim_srm(
+        self,
+        params : FLIMParams,
+        mask : Union['BoolMaskArray',List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
+        )->FlimTrace:
+        """ The `siffreadermodule` implementation,
+        slow and inefficient (and requires reading the frames
+        twice!), but has to be implemented separately because
+        the flim mask calls only return the lifetime array
+        (without intensity data).
+        """
         if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
             return self.sum_masks_flim(
                 masks = mask,
@@ -1385,7 +1491,7 @@ class SiffReader(object):
         ).reshape(
             (-1, mask.shape[0] if mask.ndim > 2 else 1)
         ).sum(axis=1)
-    
+
     def sum_masks_flim(
         self,
         params : FLIMParams,
@@ -1429,6 +1535,103 @@ class SiffReader(object):
             If True, returns a flat array of all frames, rather than summing across
             timepoints.
 
+        """
+        if self.backend == 'siffreadermodule':
+            return self._sum_masks_flim_srm(
+                params = params,
+                masks = masks,
+                timepoint_start = timepoint_start,
+                timepoint_end = timepoint_end,
+                z_index = z_index,
+                color_channel = color_channel,
+                registration_dict = registration_dict,
+                return_framewise = return_framewise
+            )
+        
+        if isinstance(masks, list):
+            masks = np.array(masks).squeeze()
+
+        if not isinstance(params, FLIMParams):
+            raise ValueError("params argument must be a FLIMParams object")
+
+        params = copy.deepcopy(params)
+        params.convert_units('countbins')
+
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None else timepoint_end
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            and hasattr(self, 'registration_dict')
+            else registration_dict
+        )
+
+        if masks.ndim > 3:
+            if masks.shape[-3] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image"
+                    + f" you provided masks with shape {masks.shape} with the z axis"
+                    + f" presumed to be of length {masks.shape[-3]} while the number of"
+                    + f" z slices in the image is {self.im_params.num_slices}"
+                )
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        flim_summed, intensity_summed, _ = self.siffio.sum_rois_flim(
+            masks = masks,
+            params = params,
+            frames = frames,
+            registration = registration_dict,
+        )
+
+        if return_framewise:
+            return FlimTrace(
+                flim_summed,
+                intensity = intensity_summed,
+                FLIMParams = params,
+                method = 'empirical lifetime',
+                info_string = "Multi-ROIs",
+                units = FlimUnits.COUNTBINS,
+            )
+
+        # Reshape AFTER making a `FlimTrace`
+        # or else things won't be added correctly.
+        return FlimTrace(
+            flim_summed,
+            intensity = intensity_summed,
+            FLIMParams = params,
+            method = 'empirical lifetime',
+            info_string = "Multi-ROIs",
+            units = FlimUnits.COUNTBINS,
+        ).reshape(
+            (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
+        ).sum(axis=2)
+
+        raise NotImplementedError("Not yet implemented using corrosiff backend")
+    
+    def _sum_masks_flim_srm(
+        self,
+        params : FLIMParams,
+        masks : Union['BoolMaskArray', List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
+        ) ->FlimTrace:
+        """ The `siffreadermodule` implementation,
+        slow and inefficient (and requires reading the frames
+        twice!) but has to be implemented separately because
+        the flim mask calls only return the lifetime array
+        (without intensity data).
         """
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
@@ -1502,6 +1705,7 @@ class SiffReader(object):
         ).reshape(
             (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
         ).sum(axis=2)
+            
                 
 ### REGISTRATION METHODS
     def register(

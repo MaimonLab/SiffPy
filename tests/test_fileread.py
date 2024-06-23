@@ -272,6 +272,15 @@ def test_mask_intensity_methods(
         assert (np.array([
             sr.sum_mask(mask) for mask in three_d_masks
             ]) == sr.sum_masks(three_d_masks)).all()
+        
+        assert (np.array([
+            sr.sum_mask(mask, registration_dict = {}) for mask in two_d_masks
+            ]) == sr.sum_masks(two_d_masks, registration_dict = {})).all()
+        
+        # Do the same for 3d
+        assert (np.array([
+            sr.sum_mask(mask, registration_dict = {}) for mask in three_d_masks
+            ]) == sr.sum_masks(three_d_masks, registration_dict= {})).all()
 
     apply_test_to_all(test_reader, test_file_in, masks)
 

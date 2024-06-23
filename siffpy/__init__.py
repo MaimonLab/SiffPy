@@ -28,19 +28,18 @@ def siff_to_tiff(
     data, this should be smaller (because it just discards arrival times). For siff data that's not too big,
     this will likely create a larger file.
 
-    Arguments
-    ------
+    ## Arguments
 
-    source_file : str or str-like
+    * `source_file` : str or str-like
         Path to a .siff file. Will immediately be converted to str
 
-    target_file : Optional[str-like]
+    * `target_file` : Optional[str-like]
         Path to where the .tiff should be saved. If `None`, saves
         to the same directory as the source file, with the same name
         but with the extension changed to .tiff. Otherwise immediately
         converted to str
 
-    mode : str
+    * `mode` : str
         Can be `scanimage` or (in progress) `ome`. `scanimage` is the default.
         This is not OME-compliant, so ImageJ/Fiji (for example) will just parse
         it as a flattened image series. When `ome` is implemented, that mode will
