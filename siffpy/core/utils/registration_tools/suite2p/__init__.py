@@ -5,14 +5,6 @@ inside siffpy
 from inspect import Parameter
 from typing import Tuple, Dict
 
-try:
-    from suite2p import default_ops
-    from suite2p.registration import register
-except ImportError:
-    raise ImportError(
-        "Suite2p is not installed. Please install suite2p to use this module."
-    )
-
 import numpy as np
 
 from siffreadermodule import SiffIO
@@ -45,24 +37,34 @@ class Suite2pRegistrationInfo(RegistrationInfo):
     multithreading_compatible = False
     backend : RegistrationType = RegistrationType.Suite2p
 
-    registration_params : Dict[str, Parameter] = {
-        **{
-            str(key) : Parameter(
-                str(key),
-                Parameter.KEYWORD_ONLY,
-                default=val,
-                annotation= type(val)
+    @property
+    def registration_params(self):
+        try:
+            from suite2p import default_ops
+            from suite2p.registration import register
+        except ImportError:
+            raise ImportError(
+                "Suite2p is not installed. Please install suite2p to use this module."
             )
-            for key, val in sct_defaults(default_ops()).items()
-            if key in SUITE2P_OPS
-        },
-        'align_by_chan2' : Parameter(
-            'align_by_chan2',
-            Parameter.KEYWORD_ONLY,
-            default=False,
-            annotation=bool
-        )
-    }
+
+        return {
+            **{
+                str(key) : Parameter(
+                    str(key),
+                    Parameter.KEYWORD_ONLY,
+                    default=val,
+                    annotation= type(val)
+                )
+                for key, val in sct_defaults(default_ops()).items()
+                if key in SUITE2P_OPS
+            },
+            'align_by_chan2' : Parameter(
+                'align_by_chan2',
+                Parameter.KEYWORD_ONLY,
+                default=False,
+                annotation=bool
+            )
+        }
 
     def __init__(self, siffio : 'SiffIO', im_params : 'ImParams'):
         super().__init__(siffio, im_params)
@@ -79,6 +81,15 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         If a kwarg called `ops` is provided, that's passed to suite2p's
         registration_wrapper function. Otherwise, the default_ops are used.
         """
+
+        try:
+            from suite2p import default_ops
+            from suite2p.registration import register
+        except ImportError:
+            raise ImportError(
+                "Suite2p is not installed. Please install suite2p to use this module."
+            )
+
 
         frames = siffio.get_frames(
             frames = self.im_params.flatten_by_timepoints(color_channel=alignment_color_channel),

@@ -201,7 +201,7 @@ class ImParams():
         return fr
 
     @property
-    def arrival_time_bins(self)->np.ndarray[Any, np.float_]:
+    def arrival_time_bins(self)->np.ndarray[Any, np.float64]:
         """ The time bins of the arrival time histogram """
         return np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin
     

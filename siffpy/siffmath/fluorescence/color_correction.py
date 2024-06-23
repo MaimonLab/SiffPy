@@ -8,7 +8,7 @@ import numpy as np
 
 from ..utils.types import ImageArray
 
-def linear_fit(*image_channels : Tuple[ImageArray])->np.ndarray[Any, np.float_]:
+def linear_fit(*image_channels : Tuple[ImageArray])->np.ndarray[Any, np.float64]:
     """
     Estimates a linear fit from each channel to the others.
 

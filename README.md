@@ -10,7 +10,6 @@ custom modified ScanImage (currently reachable as a bunch of distributed repos b
 code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
--   Switch over to the `corrosiff` Rust implementation when it's finished.
 -   Document the `corrosiffpy` wrapper on the `docs`.
 -   Return the intensity and flim arrival time together in one call rather than
     needing to get the intensity and arrival time data separately.
