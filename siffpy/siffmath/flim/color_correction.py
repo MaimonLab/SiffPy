@@ -10,5 +10,5 @@ import numpy as np
 
 from .traces import FlimTrace
 
-def linear_fit(*image_channels : Tuple[FlimTrace])->np.ndarray[Any, np.float_]:
+def linear_fit(*image_channels : Tuple[FlimTrace])->np.ndarray[Any, np.float64]:
     raise NotImplementedError()
