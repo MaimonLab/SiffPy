@@ -13,6 +13,13 @@ from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType, populate_dict_across_colors
 )
 
+suite2p_loaded = False
+try:
+    from suite2p import default_ops
+    suite2p_loaded = True
+except ImportError:
+    pass
+
 SUITE2P_OPS = [
     'batch_size', 'do_bidiphase', 'smooth_sigma',
     'maxregshift', 'smooth_sigma_time', 'norm_frames',
@@ -37,17 +44,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
     multithreading_compatible = False
     backend : RegistrationType = RegistrationType.Suite2p
 
-    @property
-    def registration_params(self):
-        try:
-            from suite2p import default_ops
-            from suite2p.registration import register
-        except ImportError:
-            raise ImportError(
-                "Suite2p is not installed. Please install suite2p to use this module."
-            )
-
-        return {
+    if suite2p_loaded:
+        registration_params = {
             **{
                 str(key) : Parameter(
                     str(key),

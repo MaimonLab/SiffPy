@@ -36,7 +36,7 @@ class SiffReader(object):
             self,
             filename : Optional[PathLike] = None,
             open : bool = True,
-            backend : str = 'siffreadermodule'
+            backend : str = 'corrosiff'
         ):
         """
         Opens file `filename` if provided, otherwise creates an inactive SiffReader.
@@ -51,9 +51,10 @@ class SiffReader(object):
             Whether or not to open the file immediately. Default is True.
 
         * backend (optional, str):
-            Which backend to use. Default is 'siffreadermodule', which is the
-            C++ backend. Will also (eventually) support 'corrosiff' which
-            is the `Rust` backend, and will become the default.
+            Which backend to use. Default is 'corrosiff', which is the
+            Rust backend. You can also use the (hopefully-soon-to-be-deprecated)
+            'siffreadermodule' backend which is written in C++ and whose source is in 
+            the `siffreadermodule` directory.
 
         # Returns
 
