@@ -23,6 +23,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Testing
+.tox/
+
 # Rust bins
 corrosiff-python/target/
 

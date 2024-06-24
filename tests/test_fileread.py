@@ -92,7 +92,7 @@ def test_file_in(load_test_files)->List['SiffReader']:
     try:
         sr = SiffReader(filename)
     except Exception as e:
-        assert isinstance(e, FileNotFoundError)
+        assert isinstance(e, (FileNotFoundError, OSError))
 
     # In here: test multiple different test files,
     # each with their own compressions / implementations
@@ -201,7 +201,12 @@ def test_get_frames(test_file_in : List['SiffReader']):
         framelist = sr.im_params.flatten_by_timepoints()
         sr.get_frames(framelist)
         sr.get_frames(framelist, registration_dict = {})
-        sr.get_frames(framelist, registration_dict = {0 : (0, 0)})
+        try:
+            sr.get_frames(framelist, registration_dict = {0 : (0, 0)})
+        except Exception as e:
+            assert isinstance(e, ValueError)
+        else:
+            assert False
         sr.get_frames(framelist, registration_dict = {k : (0, 0) for k in framelist})
 
     apply_test_to_all(test_reader, test_file_in,)

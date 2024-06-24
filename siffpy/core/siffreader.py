@@ -198,7 +198,7 @@ class SiffReader(object):
         """ Closes opened file """
         if self.backend == 'siffreadermodule':
             self.siffio.close()
-        if self.backend == 'corrosiff':
+        if self.backend == 'corrosiff' and hasattr(self, 'siffio'):
             del self.siffio
         self.opened = False
         self.filename = ''

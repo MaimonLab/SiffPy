@@ -4,6 +4,7 @@ inside siffpy
 """
 from inspect import Parameter
 from typing import Tuple, Dict
+import warnings
 
 import numpy as np
 
@@ -18,6 +19,17 @@ try:
     from suite2p import default_ops
     suite2p_loaded = True
 except ImportError:
+    warnings.warn(
+        "Suite2p is not installed. Please install suite2p if you "
+        + "intend to use the `suite2p` registration method."
+    )
+except ValueError:
+    warnings.warn(
+        "Suite2p is NOT compatible with Python >=3.11 due to bad "
+        + "type annotations. Please use Python 3.10 or lower if you "
+        + "want to call registration methods."
+    )
+
     pass
 
 SUITE2P_OPS = [
