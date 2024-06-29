@@ -141,4 +141,12 @@ except Exception:
       )
 
       siffmodule.extra_compile_args.append("-stdlib=libc++")
-      setupcall()
+      try:
+         setupcall()
+      except Exception:
+         warnings.warn(
+            """ Failed to build `siffreadermodule`, the
+            old file I/O backend. Attempts to use `SiffPy` with
+            `siffreadermodule` will fail.
+            """
+         )
