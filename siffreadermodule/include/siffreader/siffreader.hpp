@@ -27,7 +27,6 @@
 #include "../framedata/pyFrameData.hpp"
 #include "../debug.hpp"
 #include <numpy/arrayobject.h>
-#define PY_SSIZE_T_CLEAN
 
 // Appends the error to errstring and rethrows()
 #define REPORT_ERR(x) \

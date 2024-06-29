@@ -1,7 +1,10 @@
 // IMPORT_ARRAY() CALLED IN MODULE INIT
+#ifndef PY_SSIZE_T_CLEAN
+#define PY_SSIZE_T_CLEAN
+#endif
+
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
-#define PY_SSIZE_T_CLEAN
 #include "../../include/siffreader/siffreader.hpp"
 
 #include "../../include/framedata/sifdefin.hpp"
