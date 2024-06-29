@@ -45,10 +45,11 @@ def siff_to_tiff(
         it as a flattened image series. When `ome` is implemented, that mode will
         be readable by most bio image viewers.
     """
-    import siffreadermodule
+    #import siffreadermodule
+    import corrosiffpy
     if target_file is not None:
         target_file = str(target_file)
-    siffreadermodule.siff_to_tiff(str(source_file), savepath=target_file, mode=mode)
+    corrosiffpy.siff_to_tiff(str(source_file), savepath=target_file, mode=mode)
 
 def siff_to_tiff_command_line(argv):
     """ Function used as an entry point from the command line """

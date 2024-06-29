@@ -6,6 +6,7 @@ TODO: Write me!
 
 from typing import TYPE_CHECKING, List, Callable, Any, Tuple
 import numpy as np
+from pathlib import Path
 
 if TYPE_CHECKING:
     from siffpy import SiffReader
@@ -13,8 +14,30 @@ if TYPE_CHECKING:
 
 import pytest
 
-RAW_FILE_NAME = "raw_test"
-COMPRESSED_FILE_NAME = "compressed_test"
+def download_files_from_dropbox(local_path : Path):
+    """
+    Accesses the .siff files from the shared link
+    on Dropbox. Short-to-medium term filesharing
+    solution
+    """
+    import os
+    from dropbox import Dropbox
+    import dropbox
+
+    DROPBOX_SECRET_TOKEN = os.environ['DROPBOX_SECRET']
+    DROPBOX_APP_KEY = os.environ['DROPBOX_APP_KEY']
+    REFRESH_TOKEN = os.environ['DROPBOX_REFRESH_TOKEN']
+    SHARED_LINK = os.environ['DROPBOX_SHARED_LINK']
+
+    dbx = Dropbox(app_key= DROPBOX_APP_KEY, app_secret=DROPBOX_SECRET_TOKEN, oauth2_refresh_token=REFRESH_TOKEN)
+
+    dbx.check_and_refresh_access_token()
+    link = dropbox.files.SharedLink(url=SHARED_LINK)
+
+    for x in dbx.files_list_folder('', shared_link=link).entries:
+        meta, response = dbx.sharing_get_shared_link_file(link.url, path = f'/{x.name}')
+        with open(local_path / meta.name, 'wb') as f:
+            f.write(response.content)
 
 # Short term for debugging.
 
@@ -25,7 +48,8 @@ COMPRESSED_FILE_NAME = "compressed_test"
 
 # Functional file
 TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging/2024-05/2024-05-27/R41H07_greenCamui_alpha/Fly1/'
-TEST_FILE_NAME = 'FB_1.siff'
+#TEST_FILE_NAME = 'FB_1.siff'
+TEST_FILE_NAME = 'BarOnAtTen_1.siff'
 
 def apply_test_to_all(
         test : Callable[[Tuple[List['SiffReader'],...]], Any],
@@ -45,17 +69,15 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     Loads test files from the specified url into a temp
     directory for use in other tests
     """
-
-    #import shutil
-    from pathlib import Path
-
     # Create a temporary directory, install
     # a file from the server to it.
-    #tmp_dir = tmp_path_factory.mktemp("test_siff_files")
+    tmp_dir = tmp_path_factory.mktemp("test_siff_files")
 
     #filename = request.module.__file__
     #test_dir = Path(filename).with_suffix("")
-    test_dir = Path(TEST_FILE_DIR)
+    #test_dir = Path(TEST_FILE_DIR)
+
+    download_files_from_dropbox(tmp_dir)
 
     # shutil.copy(
     #     test_dir / TEST_FILE_NAME,
@@ -74,11 +96,11 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     # )
 
     #return tmp_dir
-    return test_dir
+    return tmp_dir
 
 
 @pytest.fixture(scope = 'function')
-def test_file_in(load_test_files)->List['SiffReader']:
+def test_file_in(load_test_files : Path)->List['SiffReader']:
     """
     Tests that the test file is read in properly.
     """
@@ -106,6 +128,13 @@ def test_file_in(load_test_files)->List['SiffReader']:
     assert sr_raw.opened
 
     return [sr_raw]
+
+    readers_and_meta = []
+    for file in load_test_files.glob('*'):
+        if file.suffix == '.siff':
+            sr = SiffReader(file)
+            assert sr.opened
+        
 
     # filename = (load_test_files / COMPRESSED_FILE_NAME).with_suffix('.siff')
     # sr_compressed = SiffReader(filename)

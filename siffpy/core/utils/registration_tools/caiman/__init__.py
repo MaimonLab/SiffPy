@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType
 )
@@ -15,7 +15,8 @@ from siffpy.core.utils.registration_tools.registration_info import (
 
 if TYPE_CHECKING:
     from siffpy.core.utils import ImParams
-    from siffreadermodule import SiffIO
+    from corrosiffpy import SiffIO
+    #from siffreadermodule import SiffIO
 
 class CaimanRegistrationInfo(RegistrationInfo):
 

@@ -1,14 +1,18 @@
 from enum import Enum
-from typing import Optional, Callable, Tuple, Dict
+from typing import Optional, Callable, Tuple, Dict, TYPE_CHECKING
 from pathlib import Path
 from abc import ABC, abstractmethod
 
 from h5py import File as h5File
 import numpy as np
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
+#from corrosiffpy import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.types import PathLike
+
+if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
 
 def populate_dict_across_colors(
     im_params : ImParams,
@@ -42,7 +46,7 @@ class RegistrationInfo(ABC):
 
     def __init__(
             self,
-            siffio : SiffIO,
+            siffio : 'SiffIO',
             im_params : ImParams,
         ):
         self.filename = siffio.filename if siffio is not None else None
@@ -61,7 +65,7 @@ class RegistrationInfo(ABC):
     @abstractmethod
     def register(
         self,
-        siffio : SiffIO,
+        siffio : 'SiffIO',
         *args,
         alignment_color_channel : int = 0,
         **kwargs
@@ -111,7 +115,7 @@ class RegistrationInfo(ABC):
                 dtype = np.float32,   
             )
     
-    def assign_siffio(self, siffio : SiffIO):
+    def assign_siffio(self, siffio : 'SiffIO'):
         """
         Required to call if you load a `RegistrationInfo`
         from a file and want to use new frames.
@@ -168,7 +172,7 @@ class CustomRegistrationInfo(RegistrationInfo):
 
     def __init__(
             self,
-            siffio : SiffIO,
+            siffio : 'SiffIO',
             register_func : Callable,
             alignment_func : Callable,
             name : str = 'Unspecified'

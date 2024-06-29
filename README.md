@@ -11,10 +11,6 @@ code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
 -   Document the `corrosiffpy` wrapper on the `docs`.
--   Return the intensity and flim arrival time together in one call rather than
-    needing to get the intensity and arrival time data separately.
--   `sum_mask_...` methods with multiple masks in one call for speed
--   Read the MultiHarp base resolution from the siff file and convert `FlimUnits` appropriately.
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
 -   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`?

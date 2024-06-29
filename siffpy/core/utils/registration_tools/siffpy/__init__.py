@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
+#from corrosiffpy import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType, populate_dict_across_colors
@@ -16,6 +17,7 @@ from siffpy.core.utils.registration_tools.siffpy.registration_method import (
 )
 
 if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
     try:
         from tqdm import tqdm
     except ImportError:
@@ -33,7 +35,7 @@ class SiffpyRegistrationInfo(RegistrationInfo):
     multithreading_compatible = True
     backend = RegistrationType.Siffpy
 
-    def __init__(self, siffio : SiffIO, im_params : ImParams):
+    def __init__(self, siffio : 'SiffIO', im_params : ImParams):
         super().__init__(siffio, im_params)
 
     def register(

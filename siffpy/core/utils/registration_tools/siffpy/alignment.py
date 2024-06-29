@@ -1,15 +1,18 @@
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
 
 import numpy as np
 import numpy.random as random
 from numpy import fft
 import scipy.ndimage
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
+#from corrosiffpy import SiffIO
+if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
 
 def build_reference_image(
-        siffio : SiffIO,
+        siffio : 'SiffIO',
         frames : List[int],
         ref_method : str = 'suite2p',
         **kwargs
@@ -50,7 +53,7 @@ def build_reference_image(
     raise TypeError("Method passed for constructing average not valid")
 
 def suite2p_reference(
-        siffio : SiffIO, 
+        siffio : 'SiffIO', 
         frames : List[int],
         yx_shifts : dict = {},
         **kwargs

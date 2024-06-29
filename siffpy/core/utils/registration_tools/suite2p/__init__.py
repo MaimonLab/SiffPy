@@ -3,16 +3,20 @@ Wrapper code to facilitate running suite2p from
 inside siffpy
 """
 from inspect import Parameter
-from typing import Tuple, Dict
+from typing import Tuple, Dict, TYPE_CHECKING
 import warnings
 
 import numpy as np
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
+#from corrosiffpy import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationInfo, RegistrationType, populate_dict_across_colors
 )
+
+if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
 
 suite2p_loaded = False
 try:
@@ -80,7 +84,7 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         super().__init__(siffio, im_params)
 
     def register(self,
-        siffio : SiffIO,
+        siffio : 'SiffIO',
         *args,
         alignment_color_channel : int = 0,
         **kwargs
