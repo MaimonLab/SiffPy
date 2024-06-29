@@ -597,6 +597,7 @@ class SiffReader(object):
         self,
         frames: Optional[List[int]] = None,
         registration_dict : Optional[dict] = None,
+        full : bool = False,
         ) -> Union[List['ImageArray'], 'ImageArray']:
         
         """
@@ -612,10 +613,16 @@ class SiffReader(object):
         * registration_dict (optional) : `dict`
             Registration dictionary, if used
 
+        * full (optional) : `bool`
+            If True, includes an arrival time axis.
+            Be aware, this will multiply the size of the array
+            by ~600x!
+
         # Returns
         
-        * `np.ndarray` or `List[np.ndarray]`
-            Either a n_frames by y by x array or a list of numpy arrays.
+        * `np.ndarray`
+            Size of array is either `(n_frames, y, x)` if `full` is False,
+            or `(n_frames, y, x, tau)` if `full` is True.
 
         # Examples
 
@@ -645,10 +652,13 @@ class SiffReader(object):
         """
         registration_dict = self.registration_dict if registration_dict is None else registration_dict
         frames = list(range(self.im_params.num_frames)) if frames is None else frames
-        
-        framelist = self.siffio.get_frames(frames = frames, registration = registration_dict)
 
-        return framelist
+        if full:
+            return self.siffio.get_frames_full(
+                frames = frames, registration=registration_dict
+            )
+        return self.siffio.get_frames(frames = frames, registration = registration_dict)
+
     
     def sum_mask(
         self,
