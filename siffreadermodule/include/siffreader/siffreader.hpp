@@ -9,6 +9,10 @@
 //#include <sys/mman.h>
 #include <chrono>
 
+#ifndef PY_SSIZE_T_CLEAN
+    #define PY_SSIZE_T_CLEAN
+#endif
+
 // IMPORT_ARRAY() CALLED IN MODULE INIT
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
