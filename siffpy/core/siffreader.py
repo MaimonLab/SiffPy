@@ -208,6 +208,14 @@ class SiffReader(object):
         if hasattr(self, 'im_params'):
             delattr(self, 'im_params')
 
+    def load_registration_info(self, path : PathLike)->None:
+        """
+        Loads the registration information from a file and sets it as the registration info for the SiffReader.
+        """
+        self.registration_info = to_reg_info_class(
+            io.load_registration_info(path)
+        )
+
     @property
     def flim_params(self)->Tuple[FLIMParams]:
         """ Returns the FLIMParams object if it exists """
@@ -596,7 +604,7 @@ class SiffReader(object):
     def get_frames(
         self,
         frames: Optional[List[int]] = None,
-        registration_dict : Optional[dict] = None,
+        registration_dict : Optional[Dict] = None,
         full : bool = False,
         ) -> Union[List['ImageArray'], 'ImageArray']:
         
@@ -650,7 +658,14 @@ class SiffReader(object):
         >> (500, 256, 128)
         ```
         """
-        registration_dict = self.registration_dict if registration_dict is None else registration_dict
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            else registration_dict
+        )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
+        
         frames = list(range(self.im_params.num_frames)) if frames is None else frames
 
         if full:
@@ -784,6 +799,7 @@ class SiffReader(object):
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
@@ -891,6 +907,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict')
             else registration_dict
         )
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         return self.siffio.sum_roi(
             mask = mask,
@@ -1054,6 +1072,7 @@ class SiffReader(object):
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if masks.ndim > 3:
             if masks.shape[-3] != self.im_params.num_slices:
@@ -1210,6 +1229,7 @@ class SiffReader(object):
         """
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if mask.ndim != 2:
             raise NotImplementedError("3D masks not yet implemented")
@@ -1303,6 +1323,8 @@ class SiffReader(object):
                 registration_dict is None
                 and hasattr(self, 'registration_dict') 
             ) else registration_dict
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         lifetime, intensity, confidence = self.siffio.flim_map(
             params,
@@ -1349,6 +1371,8 @@ class SiffReader(object):
                 registration_dict is None
                 and hasattr(self, 'registration_dict') 
             ) else registration_dict
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
         
         if registration_dict is None:
             flim_arrays = self.siffio.flim_map(
@@ -1467,6 +1491,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict') 
             else registration_dict
         )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
         
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
@@ -1555,6 +1581,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict') 
             else registration_dict
         )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
         
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
@@ -1672,6 +1700,8 @@ class SiffReader(object):
             else registration_dict
         )
 
+        registration_dict = _rinfo_safe_convert(registration_dict)
+
         if masks.ndim > 3:
             if masks.shape[-3] != self.im_params.num_slices:
                 raise ValueError("Mask must have same number of z-slices as the image"
@@ -1756,6 +1786,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict')
             else registration_dict
         )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if masks.ndim > 3:
             if masks.shape[-3] != self.im_params.num_slices:
@@ -1863,7 +1895,19 @@ class SiffReader(object):
         registration_info.save(save_path = save_path)
 
         return self.registration_dict
+
+    @property
+    def registration_info(self) -> Optional[RegistrationInfo]:
+        if hasattr(self, '_registration_info'):
+            return self._registration_info
+        return None
     
+    @registration_info.setter
+    def registration_info(self, registration_info : RegistrationInfo):
+        if not isinstance(registration_info, RegistrationInfo):
+            raise ValueError("registration_info must be set to a RegistrationInfo object")
+        self._registration_info = registration_info
+
     @property
     def registration_dict(self) -> Optional[Dict]:
         if hasattr(self, 'registration_info'):
@@ -1891,3 +1935,9 @@ class SiffReader(object):
         as flattened frames.
         """
         return (-1, *self.im_params.volume)
+    
+def _rinfo_safe_convert(registration_info : Union[RegistrationInfo, Dict]) -> Dict:
+    if isinstance(registration_info, RegistrationInfo):
+        return registration_info.yx_shifts
+    if isinstance(registration_info, dict) and 'yx_shifts' in registration_info:
+        return registration_info['yx_shifts']

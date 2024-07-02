@@ -39,18 +39,6 @@ def download_files_from_dropbox(local_path : Path):
         with open(local_path / meta.name, 'wb') as f:
             f.write(response.content)
 
-# Short term for debugging.
-
-# Problematic file with one extra frame that wasn't finished
-# saving TODO make sure this gets tested too!!
-#TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging'
-#TEST_FILE_NAME = '2024_06_03_9.tiff'
-
-# Functional file
-TEST_FILE_DIR = '/Users/stephen/Desktop/Data/imaging/2024-05/2024-05-27/R41H07_greenCamui_alpha/Fly1/'
-#TEST_FILE_NAME = 'FB_1.siff'
-TEST_FILE_NAME = 'BarOnAtTen_1.siff'
-
 def apply_test_to_all(
         test : Callable[[Tuple[List['SiffReader'],...]], Any],
         *filewise_args : Tuple[List['SiffReader'],...],
@@ -72,30 +60,8 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     # Create a temporary directory, install
     # a file from the server to it.
     tmp_dir = tmp_path_factory.mktemp("test_siff_files")
-
-    #filename = request.module.__file__
-    #test_dir = Path(filename).with_suffix("")
-    #test_dir = Path(TEST_FILE_DIR)
-
     download_files_from_dropbox(tmp_dir)
 
-    # shutil.copy(
-    #     test_dir / TEST_FILE_NAME,
-    #     tmp_dir / TEST_FILE_NAME
-    # )
-
-    # TODO copy the data over correctly, and from an online source!!!
-    # shutil.copy(
-    #     (test_dir / RAW_FILE_NAME).with_suffix('.siff'),
-    #     (tmp_dir / RAW_FILE_NAME).with_suffix('.siff')
-    # )
-
-    # shutil.copy(
-    #     (test_dir / COMPRESSED_FILE_NAME).with_suffix('.siff'),
-    #     (tmp_dir / COMPRESSED_FILE_NAME).with_suffix('.siff')
-    # )
-
-    #return tmp_dir
     return tmp_dir
 
 
@@ -119,21 +85,21 @@ def test_file_in(load_test_files : Path)->List['SiffReader']:
     # In here: test multiple different test files,
     # each with their own compressions / implementations
     # of the various forms.
-
-    filename = load_test_files / TEST_FILE_NAME
-
     #filename = (load_test_files / RAW_FILE_NAME).with_suffix('.siff')
 
-    sr_raw = SiffReader(filename)
-    assert sr_raw.opened
+    # sr_raw = SiffReader(filename)
+    # assert sr_raw.opened
 
-    return [sr_raw]
+    # return [sr_raw]
 
     readers_and_meta = []
     for file in load_test_files.glob('*'):
         if file.suffix == '.siff':
             sr = SiffReader(file)
             assert sr.opened
+            readers_and_meta.append(sr)
+
+    return readers_and_meta
         
 
     # filename = (load_test_files / COMPRESSED_FILE_NAME).with_suffix('.siff')
