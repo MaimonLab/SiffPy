@@ -108,26 +108,26 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         frames = siffio.get_frames(
             frames = self.im_params.flatten_by_timepoints(color_channel=alignment_color_channel),
             registration = {}, # guarantee the raw frames
-        ).astype(np.float32).reshape(-1, *self.im_params.volume_one_color)
+        ).reshape(-1, *self.im_params.volume_one_color)
 
         registered_frames = np.zeros_like(frames)
 
         # Each list element is a tuple:
         # reference image, _, _, _, offsets (y, x), _, _
-        reg_rets = [ # hee hee
-            register.registration_wrapper(
-                registered_frames[: , k, :, :].squeeze(),
-                # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
-                # this keeps the values from being truncated to 0
-                f_raw = 100*frames[:, k, :, :].squeeze(),
-                ops = {
-                    **default_ops(),
-                    **kwargs,
-                }
-            )
-            for k in range(self.im_params.num_slices)
-        ]
-
+        reg_rets=[]
+        for k in range(self.im_params.num_slices):
+            reg_res=register.registration_wrapper(
+                    np.zeros(frames[:, k, :, :].squeeze().shape,dtype=np.float32),
+                    # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
+                    # this keeps the values from being truncated to 0
+                    f_raw = 100*frames[:, k, :, :].squeeze().astype(np.float32),
+                    ops = {
+                        **default_ops(),
+                        **kwargs,
+                    }
+                )
+            reg_rets.append(reg_res)
+       
         self.reference_frames = np.array(
             [reg_ret[0] for reg_ret in reg_rets]
         ).astype(np.float32)/100
