@@ -60,6 +60,10 @@ class Suite2pRegistrationInfo(RegistrationInfo):
     multithreading_compatible = False
     backend : RegistrationType = RegistrationType.Suite2p
 
+    saved_attrs = [
+        '_ops',
+    ]
+
     if suite2p_loaded:
         registration_params = {
             **{
@@ -112,6 +116,11 @@ class Suite2pRegistrationInfo(RegistrationInfo):
 
         registered_frames = np.zeros_like(frames)
 
+        ops = {
+            **default_ops(),    
+            **kwargs,
+        }
+
         # Each list element is a tuple:
         # reference image, _, _, _, offsets (y, x), _, _
         reg_rets = [ # hee hee
@@ -120,10 +129,7 @@ class Suite2pRegistrationInfo(RegistrationInfo):
                 # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
                 # this keeps the values from being truncated to 0
                 f_raw = 100*frames[:, k, :, :].squeeze(),
-                ops = {
-                    **default_ops(),
-                    **kwargs,
-                }
+                ops = ops
             )
             for k in range(self.im_params.num_slices)
         ]
@@ -150,6 +156,7 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         )
 
         self.registration_color_channel = alignment_color_channel
+        self._ops = ops
 
     def align_to_reference(
         self,

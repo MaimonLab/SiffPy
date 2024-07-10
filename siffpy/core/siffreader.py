@@ -1897,10 +1897,11 @@ class SiffReader(object):
         return self.registration_dict
 
     @property
-    def registration_info(self) -> Optional[RegistrationInfo]:
+    def registration_info(self) -> RegistrationInfo:
         if hasattr(self, '_registration_info'):
             return self._registration_info
-        return None
+        raise AttributeError("No registration info loaded"\
+                             " Try `load_registration_info` first")
     
     @registration_info.setter
     def registration_info(self, registration_info : RegistrationInfo):
@@ -1925,7 +1926,9 @@ class SiffReader(object):
 ### IMPARAMS SHORTHAND
     @property
     def all_frames(self) -> Sequence[int]:
-        return self.im_params.flatten_by_timepoints()
+        if not hasattr(self, '_all_frames'):
+            self._all_frames = self.im_params.flatten_by_timepoints()
+        return self._all_frames
     
     @property
     def series_shape(self)->Sequence[int]:

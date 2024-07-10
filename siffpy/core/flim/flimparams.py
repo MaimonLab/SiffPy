@@ -182,8 +182,8 @@ class FLIMParams():
                     + " May be specified as a tuple or as a list of `Exp` and `IRF` objects."
                 )
 
-        if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
-            raise ValueError("Fractions of exponentials must sum to 1.")
+        # if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
+        #     raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
         self._noise = noise
         self.name = name

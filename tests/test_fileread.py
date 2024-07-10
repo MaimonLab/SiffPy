@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 import pytest
 
-def download_files_from_dropbox(local_path : Path):
+def download_files_from_dropbox(local_path : Path, request):
     """
     Accesses the .siff files from the shared link
     on Dropbox. Short-to-medium term filesharing
@@ -23,6 +23,19 @@ def download_files_from_dropbox(local_path : Path):
     import os
     from dropbox import Dropbox
     import dropbox
+    import json
+
+    # If this is running on my local machine, import these
+    # keys from the untracked file.
+
+    filename = request.module.__file__
+    test_dir, _ = os.path.splitext(filename)
+
+    if os.path.exists(f'{test_dir}/local_keys.json'):
+        with open(f'{test_dir}/local_keys.json', 'r') as f:
+            keys = json.load(f)
+            for k, v in keys.items():
+                os.environ[k] = v
 
     DROPBOX_SECRET_TOKEN = os.environ['DROPBOX_SECRET']
     DROPBOX_APP_KEY = os.environ['DROPBOX_APP_KEY']
@@ -51,7 +64,7 @@ def apply_test_to_all(
         test(*args)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def load_test_files(tmp_path_factory, request)->List[str]:
     """
     Loads test files from the specified url into a temp
@@ -60,7 +73,7 @@ def load_test_files(tmp_path_factory, request)->List[str]:
     # Create a temporary directory, install
     # a file from the server to it.
     tmp_dir = tmp_path_factory.mktemp("test_siff_files")
-    download_files_from_dropbox(tmp_dir)
+    download_files_from_dropbox(tmp_dir, request)
 
     return tmp_dir
 
@@ -284,11 +297,54 @@ def test_mask_intensity_methods(
 
     apply_test_to_all(test_reader, test_file_in, masks)
 
-def test_flim_methods(test_file_in : List['SiffReader']):
+def test_flim_methods(test_file_in : List['SiffReader'],
+                      masks : List[Tuple[List[np.ndarray]]]):
     """
     Tests that the flim methods work properly
     """
-    pass
 
-def test_siff_to_tiff():
-    pass
+    def test_reader(
+        sr : 'SiffReader',
+        corresponding_masks : Tuple[List[np.ndarray]],
+        ):
+        """ Tests mask methods """
+
+        two_d_masks, three_d_masks = corresponding_masks
+
+        # Confirm that the list of 2d masks gives the same
+        # as making an array from the returned value of
+        # each passed one at a time.
+
+        assert (np.array([
+            sr.sum_mask_flim(mask) for mask in two_d_masks
+            ]) == sr.sum_masks_flim(two_d_masks)).all()
+        
+        # Do the same for 3d
+        assert (np.array([
+            sr.sum_mask_flim(mask) for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks)).all()
+        
+        assert (np.array([
+            sr.sum_mask_flim(mask, registration_dict = {}) for mask in two_d_masks
+            ]) == sr.sum_masks_flim(two_d_masks, registration_dict = {})).all()
+        
+        # Do the same for 3d
+        assert (np.array([
+            sr.sum_mask_flim(mask, registration_dict = {}) for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks, registration_dict= {})).all()
+
+    apply_test_to_all(test_reader, test_file_in, masks)
+
+def test_siff_to_tiff(test_file_in : List['SiffReader']):
+
+    from siffpy import siff_to_tiff, SiffReader
+    def test_reader(sr : 'SiffReader'):
+        """ Tests the tiff conversion methods """
+        fn = sr.filename
+        astiff = fn.with_suffix('.tiff')
+        siff_to_tiff(sr.filename, target_file = astiff, mode = 'ScanImage')
+        tiffreader = SiffReader(astiff)
+
+        assert (sr.get_frames() == tiffreader.get_frames()).all()
+
+    apply_test_to_all(test_reader, test_file_in)

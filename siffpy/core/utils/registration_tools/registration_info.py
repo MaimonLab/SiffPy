@@ -108,6 +108,13 @@ class RegistrationInfo(ABC):
                 dtype = np.int64,
             )
 
+            if hasattr(self, 'saved_attrs'):
+                for attr_name in self.saved_attrs:
+                    try:
+                        f.attrs[attr_name] = getattr(self, attr_name)
+                    except Exception as e:
+                        print(f"Failed to save attribute {attr_name} with error: {e}")
+
             # Store reference frames
             f.create_dataset(
                 "reference_frames",

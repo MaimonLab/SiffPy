@@ -25,9 +25,7 @@ __pycache__/
 
 # Testing
 .tox/
-
-# Rust bins
-corrosiff-python/target/
+tests/test_fileread
 
 # Distribution / packaging
 bin/

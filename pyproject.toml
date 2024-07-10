@@ -42,7 +42,7 @@ dependencies = [
 [project.optional-dependencies]
 # development dependency groups
 test = ['pytest', 'dropbox']
-suite2p = ['suite2p']
+suite2p = ['suite2p @ git+https://github.com/StephenThornquist/suite2p.git']
 all = ['siffpy[suite2p, test]']
 
 # pyproject.toml

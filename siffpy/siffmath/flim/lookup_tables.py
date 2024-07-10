@@ -320,11 +320,21 @@ class IntensityHillFit(FluorophoreHillFit):
             self.max_point
         )
     
+# TqCaFLITS = FluorophoreHillFit(
+#     n = 1.63,
+#     k50 = 265,
+#     zero_point = 1.4,
+#     max_point = 2.78,
+#     units_in = r'[Ca$2^+$] (nM)',
+#     units_out = 'nanoseconds',
+#     name = 'TqCaFLITS',
+# )
+
 TqCaFLITS = FluorophoreHillFit(
     n = 1.63,
     k50 = 265,
-    zero_point = 1.4,
-    max_point = 2.78,
+    zero_point = 1.72,
+    max_point = 2.86,
     units_in = r'[Ca$2^+$] (nM)',
     units_out = 'nanoseconds',
     name = 'TqCaFLITS',
@@ -332,13 +342,13 @@ TqCaFLITS = FluorophoreHillFit(
 
 # TqCaFLITS = TemperatureSensitiveFit(
 #     temperature_dependent_params= {
-#         23: dict(
+#         37: dict(
 #             n = 1.63,
 #             k50 = 265,
 #             zero_point = 1.4,
 #             max_point = 2.78,
 #         ),
-#         37: dict(
+#         23: dict(
 #             n = 1.63,
 #             k50 = 265,
 #             zero_point = 1.72,
