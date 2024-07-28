@@ -10,6 +10,9 @@ custom modified ScanImage (currently reachable as a bunch of distributed repos b
 code being in `PicoQuantScanImageTools`).
 
 ### TODOS:
+-   In-place operations should be performed correctly in `FlimTrace`, e.g.
+`my_trace -= 2` or `my_trace -= another_trace`. Currently `NotImplemented` which
+is very very bad behavior!!
 -   Document the `corrosiffpy` wrapper on the `docs`.
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses

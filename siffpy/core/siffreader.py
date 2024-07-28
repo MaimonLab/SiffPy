@@ -217,8 +217,12 @@ class SiffReader(object):
         )
 
     @property
-    def flim_params(self)->Tuple[FLIMParams]:
-        """ Returns the FLIMParams object if it exists """
+    def flim_params(self)->Optional[Tuple[FLIMParams]]:
+        """
+        Returns the FLIMParams object if it exists,
+        
+        Returns `None` if no `FLIMParams` objects have been loaded
+        """
         if hasattr(self, '_flim_params'):
             return self._flim_params
         return (None,)
@@ -1231,8 +1235,8 @@ class SiffReader(object):
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
         registration_dict = _rinfo_safe_convert(registration_dict)
 
-        if mask.ndim != 2:
-            raise NotImplementedError("3D masks not yet implemented")
+        # if mask.ndim != 2:
+        #     raise NotImplementedError("3D masks not yet implemented")
 
         return self.siffio.get_histogram_masked(
             mask = mask,

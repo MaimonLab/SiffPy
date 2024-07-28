@@ -54,7 +54,7 @@ def dFoF(
         #inspect.signature(Fo).
     else:
         try:
-            np.array(Fo).astype(float)
+            F0 = np.array(Fo).astype(float)
         except TypeError:
             raise TypeError(
                 "Keyword argument Fo is not of type float, a numpy array, "

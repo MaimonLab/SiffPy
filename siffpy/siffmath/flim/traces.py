@@ -1,6 +1,7 @@
 import numpy as np
 from typing import TYPE_CHECKING, Optional
 from pathlib import Path
+import copy
 
 import h5py
 
@@ -125,6 +126,58 @@ class FlimTrace(np.ndarray):
     def fluorescence(self)->FluorescenceTrace:
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
         return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
+    
+    def subtract_noise(self, max_arrival_time : float, units : Optional['FlimUnitsLike'] = None):
+        """
+        If the current `FLIMParams` attribute has a `noise` parameter that may be
+        influencing the lifetime value, this subtracts out the estimated noise from
+        each array entry by presuming the `noise` value corresponds to that fraction
+        of photons originated from a source of uniformly distributed arrival times.
+
+        If self.`FLIMParams` is `None`, this function does nothing. Otherwise, it
+        modifies the `intensity` and `lifetime` attributes in place then
+        adjusts the `noise` value of the current `FLIMParams` attribute to 0.
+        Because this _mutates_ the `FLIMParams` object, this makes a copy so that
+        it does not affect other arrays pointing to the same object.
+
+        The subtraction does the following:
+
+        - `intensity` : Multiplies by (1-`noise`)
+
+        - `lifetime` : Subtracts `max_arrival_time/2 * noise`
+
+        ## Arguments
+
+        - `max_arrival_time` : float
+
+            In the same units as the current lifetime if `units` is `None`
+        
+        - `units` : `FlimUnitsLike | None`
+
+            Specifies the units of `max_arrival_time`. If `None`, they are
+            presumed to be the same as the `FlimTrace`.
+        """
+        if self.FLIMParams is None:
+            return
+        if self.FLIMParams.noise == 0:
+            return
+        if units is not None:
+            if self.units is None:
+                raise ValueError(
+                    "If `max_arrival_time` units are specified in `subtract_noise`," \
+                    + " the FlimTrace itself must have units to convert it into."
+                )
+            max_arrival_time = convert_flimunits(
+                max_arrival_time,
+                from_units = FlimUnits(units),
+                to_units = self.units
+            )
+        max_arrival_time = float(max_arrival_time)
+        self[...] -= (self.FLIMParams.noise)*max_arrival_time/2
+        self[...] /= 1-self.FLIMParams.noise
+        self.intensity *= (1-self.FLIMParams.noise)
+        self.FLIMParams : FLIMParams = copy.deepcopy(self.FLIMParams)
+        self.FLIMParams.noise = 0.0
 
     def set_units(self, units : 'FlimUnitsLike'):
         """

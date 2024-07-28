@@ -105,9 +105,13 @@ class FLIMParams():
         ):
         """
         Initialized with a list of Exp objects and an Irf object
-        in the `args` parameter.
+        in the `args` parameter. A `Noise` may also be provided
+        as a member of the argument list, or the `noise` keyword
+        argument may be provided.
 
         These will be stored in the `exps` and `irf` attributes.
+        If there is noise in the model, `self._allow_noise` will
+        be > 0
 
         See also:
         ---------
@@ -185,7 +189,11 @@ class FLIMParams():
         # if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
         #     raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
-        self._noise = noise
+        noise_arg : Noise = next((x for x in args if isinstance(x, Noise)), None)
+        if noise_arg is None:
+            self._noise = noise
+        else:
+            self._noise = noise_arg.frac
         self.name = name
 
     tau_g = property(
@@ -382,12 +390,17 @@ class FLIMParams():
     
     @property
     def noise(self)->float:
-        """ The noise parameter """
+        """
+        The noise parameter -- fraction of photons presumed
+        to arise from uniformly distributed arrival times.
+        """
         return self._noise
     
     @noise.setter
     def noise(self, new_noise : float):
         """ Sets the noise parameter """
+        if new_noise < 0: 
+            raise ValueError("Noise value must be >= 0.")
         self._noise = new_noise
 
     @property
@@ -1192,8 +1205,8 @@ class Exp(FLIMParameter):
     class_params = ['tau', 'frac']
     unitful_params = ['tau']
     aliases = {
-        'frac' : ['fraction'],
-        'tau' : ['lifetime'],
+        'frac' : ['fraction', 'f'],
+        'tau' : ['lifetime', 'exp', 'average', 'mean', 'empirical_lifetime'],
     }
 
 class Irf(FLIMParameter):
@@ -1204,17 +1217,16 @@ class Irf(FLIMParameter):
     with the exponentials to produce the estimated
     arrival time distribution).
 
-    Params:
-    -------
+    ## Params:
     tau_offset : float
         Mean offset of the IRF
     tau_g : float
         Width of the IRF
 
-    Aliases:
-    -------
-    tau_offset : ['mu', 'mean', 'offset']
-    tau_g : ['sigma', 'width']
+    ## Aliases:
+    
+    `tau_offset` : `['mu', 'mean', 'offset']`
+    `tau_g` : `['sigma', 'width']`
     """
     class_params = ['tau_offset', 'tau_g']
     unitful_params = ['tau_offset', 'tau_g']
@@ -1222,4 +1234,26 @@ class Irf(FLIMParameter):
     aliases = {
         'tau_offset' : ['mu', 'mean', 'offset'],
         'tau_g' : ['sigma', 'width']
+    }
+
+class Noise(FLIMParameter): 
+    """
+    Background noise signal, assumes a
+    uniform photon arrival time.
+
+    Unitless
+
+    ## Params:
+
+    `frac : float`
+
+    ## Aliases:
+
+    `frac : 'fraction'`
+    """
+    class_params = ['frac']
+    unitful_params = []
+
+    aliases = {
+        'frac' : ['fraction']
     }
