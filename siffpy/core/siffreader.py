@@ -1916,6 +1916,8 @@ class SiffReader(object):
     @property
     def registration_dict(self) -> Optional[Dict]:
         if hasattr(self, 'registration_info'):
+            if self.registration_info is None:
+                return None
             return self.registration_info.yx_shifts
         return None
 
