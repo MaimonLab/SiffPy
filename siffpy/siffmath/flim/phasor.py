@@ -30,16 +30,18 @@ def tau_to_phasor(tau : Union[np.ndarray,float], rep_period: float) -> Union[np.
     ## Example
 
     ```python
-    from siffpy.siffmath.flim.phasor import tau_to_phasor
 
-    tau = 2.5
-    rep_period = 10
+        from siffpy.siffmath.flim.phasor import tau_to_phasor
 
-    phasor = tau_to_phasor(tau, rep_period)
+        tau = 2.5
+        rep_period = 10
 
-    print(phasor)
+        phasor = tau_to_phasor(tau, rep_period)
 
-    >>> (0.288400439142001+0.4530183504502902j)
+        print(phasor)
+
+        >>> (0.288400439142001+0.4530183504502902j)
+    ```
     """
     g = (1/(1 + (2*np.pi*tau/rep_period)**2))
     s = (2*np.pi*tau/rep_period)/(1 + (2*np.pi*tau/rep_period)**2)
@@ -158,29 +160,29 @@ def histogram_to_phasor(hist : np.ndarray[Any, np.float64]) -> np.ndarray[Any, n
 
     ```python
 
-    import numpy as np
+        import numpy as np
 
-    from siffpy.siffmath.flim.phasor import histogram_to_phasor
+        from siffpy.siffmath.flim.phasor import histogram_to_phasor
 
-    # A series of histograms with 600 bins each,
-    # drawn from a mixture of two states that change
-    # linearly from 0 to 1 and 1 to 0 over the course
-    # of the series.
-    
-    hist_state_one = np.exp(-np.linspace(0,600,600)/60)/60
-    hist_state_two = np.exp(-np.linspace(0,600,600)/240)/240
+        # A series of histograms with 600 bins each,
+        # drawn from a mixture of two states that change
+        # linearly from 0 to 1 and 1 to 0 over the course
+        # of the series.
+        
+        hist_state_one = np.exp(-np.linspace(0,600,600)/60)/60
+        hist_state_two = np.exp(-np.linspace(0,600,600)/240)/240
 
-    frac = np.linspace(0,1,1000)
+        frac = np.linspace(0,1,1000)
 
-    hist = np.array([hist_state_one*(1-f) + hist_state_two*f for f in frac])
+        hist = np.array([hist_state_one*(1-f) + hist_state_two*f for f in frac])
 
-    phasor = histogram_to_phasor(hist)
-    
-    print(phasor)
-    
-    >>> [0.71969262+0.44610343j 0.71965027+0.44609588j 0.71960792+0.44608832j ...
- 0.13930534+0.34254633j 0.13922574+0.34253213j 0.13914614+0.34251793j]
-    
+        phasor = histogram_to_phasor(hist)
+        
+        print(phasor)
+        
+        >>> [0.71969262+0.44610343j 0.71965027+0.44609588j 0.71960792+0.44608832j ...
+    0.13930534+0.34254633j 0.13922574+0.34253213j 0.13914614+0.34251793j]
+        
     ```
 
 
@@ -229,6 +231,39 @@ def correct_phasor(
 
     `np.ndarray[Any, np.complex128]`
         The corrected phasor values.
+
+    ## Example
+
+    ```python
+
+        import numpy as np
+
+        from siffpy.siffmath.flim.phasor import correct_phasor, tau_to_phasor
+
+        from siffpy import default_flimparams
+
+        fp = default_flimparams(2)
+        fp.exps[0].tau = 0.5
+        fp.exps[1].tau = 2.5
+
+        # Contaminated by noise dragging the phasor towards (0,0) and
+        # an IRF offset rotating the phasor by (fp.tau_offset / 12.5) radians
+        
+        phasor = 0.4*tau_to_phasor(2.5, 12.5)+ 0.4*tau_to_phasor(0.5, 12.5)
+        phasor *= np.exp(1j*2*np.pi*fp.tau_offset/12.5)
+
+        # Far off the universal circle
+        print(phasor)
+        
+        >>> (0.18917697142640005+0.574717967152077j)
+
+        corrected_phasor = correct_phasor(phasor, fp, 629, subtract_noise = True)
+
+        # Now it lives on the line connecting 0.5 and 2.5 nanoseconds on the
+        # universal circle
+        print(corrected_phasor)
+        >>> [0.660594+0.36399072j]
+    ```
     """
     with params.as_units('countbins'):
         offset = params.tau_offset
