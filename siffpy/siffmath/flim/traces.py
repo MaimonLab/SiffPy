@@ -1,7 +1,8 @@
 import numpy as np
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from pathlib import Path
 import copy
+from enum import Enum
 
 import h5py
 
@@ -16,6 +17,17 @@ if TYPE_CHECKING:
     from siffpy.siffmath.utils.types import (
         FlimArrayLike, FluorescenceArrayLike
     )
+
+class FlimMethod(Enum):
+    """
+    Options for the method attribute of a FlimTrace.
+
+    Determines which operations can be performed and,
+    in some cases, what the nature of that transformation
+    is. Will grow as more methods are implemented.
+    """
+    EMPIRICAL = "empirical lifetime"
+    PHASOR = "phasor"
 
 
 class FlimTrace(np.ndarray):
@@ -100,7 +112,7 @@ class FlimTrace(np.ndarray):
 
         # add the new attributes to the created instance
         obj.FLIMParams = FLIMParams
-        obj.method = method
+        obj.method = FlimMethod(method) if method is not None else None
         obj.angle = angle
         if units is None:
             units = FlimUnits.UNKNOWN
@@ -127,14 +139,27 @@ class FlimTrace(np.ndarray):
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
         return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
     
-    def subtract_noise(self, max_arrival_time : float, units : Optional['FlimUnitsLike'] = None):
+    def subtract_noise(
+            self,
+            max_arrival_time : float,
+            units : Optional['FlimUnitsLike'] = None,
+            n_photons : Union[Optional[int], Optional[np.ndarray]] = None,
+        ):
         """
+        Either subtracts the noise from the `FLIMParams` fit or
+        subtracts an external value of photons from the intensity
+        and lifetime data (determined by the `n_photons` parameter).
+
+        Mode 1: `n_photons` is `None`:
+        ------------------------------
+
         If the current `FLIMParams` attribute has a `noise` parameter that may be
         influencing the lifetime value, this subtracts out the estimated noise from
         each array entry by presuming the `noise` value corresponds to that fraction
         of photons originated from a source of uniformly distributed arrival times.
 
-        If self.`FLIMParams` is `None`, this function does nothing. Otherwise, it
+        If self.`FLIMParams` is `None` and `n_photons` is `None, this
+        function does nothing. Otherwise, it
         modifies the `intensity` and `lifetime` attributes in place then
         adjusts the `noise` value of the current `FLIMParams` attribute to 0.
         Because this _mutates_ the `FLIMParams` object, this makes a copy so that
@@ -142,9 +167,18 @@ class FlimTrace(np.ndarray):
 
         The subtraction does the following:
 
-        - `intensity` : Multiplies by (1-`noise`)
+        - `intensity` : Multiplies by (1-`noise`) if `n_photons` is `None`.
 
         - `lifetime` : Subtracts `max_arrival_time/2 * noise`
+
+        Mode 2: `n_photons` is not `None`:
+        ----------------------------------
+
+        Subtracts a fixed number of photons from the intensity and lifetime data
+        (this can either be an array of the same shape as the current array, or
+        a single integer for all time points). This is useful for subtracting
+        a time-varying background signal (e.g. projector noise that turns on
+        mid-experiment) from the data.
 
         ## Arguments
 
@@ -157,6 +191,25 @@ class FlimTrace(np.ndarray):
             Specifies the units of `max_arrival_time`. If `None`, they are
             presumed to be the same as the `FlimTrace`.
         """
+        if n_photons is not None:
+            if (
+                isinstance(n_photons, np.ndarray) 
+                and n_photons.shape != self.intensity.shape
+            ):
+                raise ValueError("n_photons must be either an integer \
+                                 or an array of the same shape as the intensity array."
+                )
+
+            if self.method == FlimMethod.EMPIRICAL:
+                self[...] -= max_arrival_time*n_photons/(2*(n_photons + self.intensity))
+            elif self.method == FlimMethod.PHASOR:
+                raise NotImplementedError("Subtracting noise from phasor methods is not yet implemented.")
+            else:
+                raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
+                            +  "is not yet implemented.")
+            self.intensity -= n_photons
+            return
+
         if self.FLIMParams is None:
             return
         if self.FLIMParams.noise == 0:
@@ -387,7 +440,7 @@ class FlimTrace(np.ndarray):
             f.create_dataset("intensity", data = self.intensity)
             #f['FLIMParams'] = self.FLIMParams can't store arbitrary Python object...
             f.attrs['units'] = h5py.Empty('s') if self.units is None else FlimUnits(self.units).value
-            f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
+            f.attrs['method'] = h5py.Empty('s') if self.method is None else FlimMethod(self.method).value
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
             f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
         if self.FLIMParams is not None:

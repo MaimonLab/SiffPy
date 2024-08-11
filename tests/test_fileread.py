@@ -98,12 +98,6 @@ def test_file_in(load_test_files : Path)->List['SiffReader']:
     # In here: test multiple different test files,
     # each with their own compressions / implementations
     # of the various forms.
-    #filename = (load_test_files / RAW_FILE_NAME).with_suffix('.siff')
-
-    # sr_raw = SiffReader(filename)
-    # assert sr_raw.opened
-
-    # return [sr_raw]
 
     readers_and_meta = []
     for file in load_test_files.glob('*'):
@@ -113,14 +107,6 @@ def test_file_in(load_test_files : Path)->List['SiffReader']:
             readers_and_meta.append(sr)
 
     return readers_and_meta
-        
-
-    # filename = (load_test_files / COMPRESSED_FILE_NAME).with_suffix('.siff')
-    # sr_compressed = SiffReader(filename)
-
-    # assert sr_compressed.opened
-
-    # return [sr_raw, sr_compressed]
 
 def test_imparams(test_file_in : List['SiffReader']):
     """

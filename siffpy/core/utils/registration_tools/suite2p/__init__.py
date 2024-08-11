@@ -46,7 +46,7 @@ def sct_defaults(suite2p_default_ops : Dict)->Dict:
     """ TODO: Make this settable! Read from a file?? """
     suite2p_default_ops['do_bidiphase'] = True
     suite2p_default_ops['nonrigid'] = False
-    #suite2p_default_ops['maxregshift'] = 0.2
+    suite2p_default_ops['maxregshift'] = 0.4
     suite2p_default_ops['two_step_registration'] = True
     suite2p_default_ops['smooth_sigma'] = 2.0
     #suite2p_default_ops['batch_size'] = 300

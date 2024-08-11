@@ -5,6 +5,7 @@ from siffpy.core._version import __version__, __version_tuple__ # noqa: F401
 from siffpy.core import SiffReader as SiffReader
 from siffpy.core import ImParams as ImParams
 from siffpy.core import FLIMParams as FLIMParams
+from siffpy.core.flim import default_flimparams as default_flimparams # noqa: F401
 from siffpy.siffmath import FlimTrace as FlimTrace
 
 

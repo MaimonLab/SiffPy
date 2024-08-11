@@ -456,21 +456,21 @@ class FLIMParams():
 
         Alias for `probability_dist`
 
-        INPUTS
-        ------
-        x_range : np.ndarray (1-dimensional)
+        ## Arguments
+        
+        - `x_range : np.ndarray` (1-dimensional)
 
             The x values you want the output probabilities of. Usually this will be something like
             np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
 
-        RETURN VALUES
-        ------------
-        p_out : np.ndarray(1-dimensional)
+        ## Returns
+
+        - `p_out : np.ndarray` (1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
 
-        Example
-        -------
+        ## Example
+        
         Create a `FLIMParams` object and get the probability distribution of a photon
         arriving in any of the time bins provided
 
@@ -498,21 +498,21 @@ class FLIMParams():
         data set, rescale this by the total number of photons in the data set.
         Assumes x_range is in the same units as the FLIMParams.
 
-        INPUTS
-        ------
-        x_range : np.ndarray (1-dimensional)
+        ## Arguments
+        
+        - `x_range : np.ndarray` (1-dimensional)
 
             The x values you want the output probabilities of. Usually this will be something like
             np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
 
-        RETURN VALUES
-        ------------
-        p_out : np.ndarray(1-dimensional)
+        ## Returns
+
+        - `p_out : np.ndarray` (1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
 
-        Example
-        -------
+        ## Example
+        
         Create a `FLIMParams` object and get the probability distribution of a photon
         arriving in any of the time bins provided
 
@@ -812,10 +812,10 @@ class FLIMParams():
         """
         Converts a JSON-compatible dictionary to a FLIMParams
 
-        Example code:
-        -------------
+        ## Example code:
 
         ```python
+
         flim_params = FLIMParams.from_dict(
             dict(
                 exps = [
@@ -827,6 +827,8 @@ class FLIMParams():
                 noise = 0.1,
                 name = "Test FLIMParams",
             )
+        )
+        ```
         
         """
         exps = [Exp.from_dict(exp_dict) for exp_dict in data_dict['exps']]

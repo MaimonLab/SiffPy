@@ -610,7 +610,7 @@ class SiffReader(object):
         frames: Optional[List[int]] = None,
         registration_dict : Optional[Dict] = None,
         full : bool = False,
-        ) -> Union[List['ImageArray'], 'ImageArray']:
+        ) -> 'ImageArray':
         
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -1946,6 +1946,10 @@ class SiffReader(object):
         return (-1, *self.im_params.volume)
     
 def _rinfo_safe_convert(registration_info : Union[RegistrationInfo, Dict]) -> Dict:
+    """
+    Converts a `RegistrationInfo` into a dictionary so that it can be used
+    as a registration dictionary argument to the `Siffio` class functions.
+    """
     if isinstance(registration_info, RegistrationInfo):
         return registration_info.yx_shifts
     if isinstance(registration_info, dict) and 'yx_shifts' in registration_info:
