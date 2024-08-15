@@ -14,7 +14,7 @@ from siffpy.core.utils.event_stamp import EventStamp
 #from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_class
 from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
-from siffpy.siffmath.flim import FlimTrace
+from siffpy.siffmath.flim import FlimTrace, FlimMethod
 from siffpy.siffmath.utils import Timeseries
 #from siffreadermodule import SiffIO
 
@@ -1308,6 +1308,7 @@ class SiffReader(object):
         frames: Optional[List[int]] = None,
         registration_dict : Optional[Dict] = None,
         confidence_metric : str = 'chi_sq',
+        method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
@@ -1323,6 +1324,13 @@ class SiffReader(object):
                 confidence_metric = confidence_metric
             )
         
+        method = FlimMethod(method)
+
+        if method != FlimMethod.EMPIRICAL:
+            raise NotImplementedError(
+                "Only empirical lifetime method is implemented in `siffio` backend so far"
+            )
+
         registration_dict = self.registration_dict if (
                 registration_dict is None
                 and hasattr(self, 'registration_dict') 
@@ -1334,6 +1342,7 @@ class SiffReader(object):
             params,
             frames = frames,
             registration = registration_dict,
+            flim_method = method.value,
             confidence_metric=confidence_metric
         )    
 
@@ -1342,7 +1351,7 @@ class SiffReader(object):
             intensity = intensity,
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
-            method = 'empirical lifetime',
+            method = method.value,
             units = 'countbins',
         )
         
@@ -1354,6 +1363,7 @@ class SiffReader(object):
         frames: Optional[List[int]] = None,
         registration_dict : Optional[Dict] = None,
         confidence_metric : str = 'chi_sq',
+        method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
@@ -1370,6 +1380,12 @@ class SiffReader(object):
      
         if frames is None:
             frames = list(range(self.im_params.num_frames))
+
+        method = FlimMethod(method)
+        if method != FlimMethod.EMPIRICAL:
+            raise NotImplementedError(
+                "Only empirical lifetime method is implemented in `SiffIO` backend so far"
+            )
 
         registration_dict = self.registration_dict if (
                 registration_dict is None
@@ -1411,6 +1427,7 @@ class SiffReader(object):
         color_channel : int = 1,
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
+        flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -1483,6 +1500,12 @@ class SiffReader(object):
                 return_framewise = return_framewise
             )
         
+        flim_method = FlimMethod(flim_method)
+        if flim_method != FlimMethod.EMPIRICAL:
+            raise NotImplementedError(
+                "Only empirical lifetime method is implemented in `siffio` backend so far"
+            )
+
         timepoint_end = (
             self.im_params.num_timepoints
             if timepoint_end is None
@@ -1513,6 +1536,7 @@ class SiffReader(object):
             mask,
             params,
             frames = frames,
+            flim_method = flim_method.value,
             registration = registration_dict
         )
 
@@ -1643,6 +1667,7 @@ class SiffReader(object):
         color_channel : int = 1,
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
+        flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         )->FlimTrace:
         """
         Computes the empirical lifetime within a set of ROIs over timesteps.
@@ -1689,6 +1714,12 @@ class SiffReader(object):
                 return_framewise = return_framewise
             )
         
+        flim_method = FlimMethod(flim_method)
+        if flim_method != FlimMethod.EMPIRICAL:
+            raise NotImplementedError(
+                "Only empirical lifetime method is implemented in `siffio` backend so far"
+            )
+
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
         
@@ -1725,6 +1756,7 @@ class SiffReader(object):
             masks = masks,
             params = params,
             frames = frames,
+            flim_method = flim_method.value,
             registration = registration_dict,
         )
 
