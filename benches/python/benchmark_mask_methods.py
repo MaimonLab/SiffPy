@@ -83,22 +83,24 @@ if __name__ == '__main__':
         )/n , "sec per iter ({n} iters)"
     )
 
-    # print(
-    #     "Sum 10 multi-plane masks iteratively, combine to array:\n",
-    #     timeit.timeit(
-    #         "test(sr, masks)",
-    #         setup="from __main__ import test_3d_sum_masks_iterate as test"
-    #         + path_to_setup_str(large_path),
-    #         number = 10,
-    #     )/10 , "sec per iter"
-    # )
+    print(
+        "Sum 10 multi-plane masks iteratively, combine to array:\n",
+        timeit.timeit(
+            "test(sr, masks)",
+            setup="from __main__ import test_3d_sum_masks_iterate as test"
+            + "\nfrom __main__ import three_d_masks as masks"
+            + "\nfrom __main__ import sr",
+            number = 10,
+        )/10 , "sec per iter"
+    )
 
-    # print(
-    #     "Sum 10 multi-plane masks together:\n",
-    #     timeit.timeit(
-    #         "test(sr, masks)",
-    #         setup="from __main__ import test_3d_sum_masks_together as test"
-    #         + path_to_setup_str(large_path),
-    #         number = 10,
-    #     )/10 , "sec per iter"
-    # )
+    print(
+        "Sum 10 multi-plane masks together:\n",
+        timeit.timeit(
+            "test(sr, masks)",
+            setup="from __main__ import test_3d_sum_masks_together as test"
+            + "\nfrom __main__ import three_d_arr as masks"
+            + "\nfrom __main__ import sr",
+            number = 10,
+        )/10 , "sec per iter"
+    )

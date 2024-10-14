@@ -423,6 +423,9 @@ static PyObject* siffio_get_frames(SiffIO *self, PyObject *args, PyObject* kw) {
         return NULL;
     }
 
+    if (registrationDict == NULL) {
+        registrationDict = Py_None;
+    }
     bool registrationDictProvided = registrationDict != Py_None;
     if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
@@ -895,6 +898,10 @@ static PyArrayObject* siffio_sum_rois(SiffIO* self, PyObject* args, PyObject*kw)
         return NULL;
     }
 
+    if (!registrationDict) {
+        registrationDict = Py_None;
+    }
+
     if (PyList_Check(masks)){
         PyErr_SetString(
             PyExc_TypeError,
@@ -1000,6 +1007,10 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
             return NULL;
     }
 
+    if (!registrationDict) {
+        registrationDict = Py_None;
+    }
+
     if (PyList_Check(mask)) {
         PyErr_WarnEx(
             PyExc_RuntimeWarning,
@@ -1095,6 +1106,10 @@ static PyArrayObject *siffio_sum_rois_flim(SiffIO *self, PyObject *args, PyObjec
      ) {
             //PyErr_SetString(PyExc_ValueError, "Error parsing input arguments.");
             return NULL;
+    }
+
+    if (!registrationDict) {
+        registrationDict = Py_None;
     }
 
     if (PyList_Check(masks)){
@@ -1223,6 +1238,10 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO *self, PyObject *args, PyObject
         )
      ) {
             return NULL;
+    }
+
+    if (!registrationDict) {
+        registrationDict = Py_None;
     }
 
     if (PyList_Check(mask)) {
