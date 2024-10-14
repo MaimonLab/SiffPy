@@ -286,7 +286,8 @@ def test_mask_intensity_methods(
 def test_flim_methods(test_file_in : List['SiffReader'],
                       masks : List[Tuple[List[np.ndarray]]]):
     """
-    Tests that the flim methods work properly
+    Tests that the flim methods agree together across
+    all mask methods
     """
 
     def test_reader(
@@ -305,19 +306,68 @@ def test_flim_methods(test_file_in : List['SiffReader'],
             sr.sum_mask_flim(mask) for mask in two_d_masks
             ]) == sr.sum_masks_flim(two_d_masks)).all()
         
+        assert (np.array([
+            sr.sum_mask_flim(mask, flim_method = 'phasor') for mask in two_d_masks
+            ]) == sr.sum_masks_flim(two_d_masks, flim_method='phasor')).all()
+        
         # Do the same for 3d
         assert (np.array([
             sr.sum_mask_flim(mask) for mask in three_d_masks
             ]) == sr.sum_masks_flim(three_d_masks)).all()
         
         assert (np.array([
+            sr.sum_mask_flim(mask, flim_method = 'phasor') for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks, flim_method='phasor')).all()
+        
+        assert (np.array([
             sr.sum_mask_flim(mask, registration_dict = {}) for mask in two_d_masks
             ]) == sr.sum_masks_flim(two_d_masks, registration_dict = {})).all()
+        
+        assert (np.array([
+            sr.sum_mask_flim(mask, registration_dict = {}, flim_method = 'phasor') for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks, registration_dict= {}, flim_method = 'phasor')).all()
         
         # Do the same for 3d
         assert (np.array([
             sr.sum_mask_flim(mask, registration_dict = {}) for mask in three_d_masks
             ]) == sr.sum_masks_flim(three_d_masks, registration_dict= {})).all()
+        
+        assert (np.array([
+            sr.sum_mask_flim(mask, registration_dict = {}, flim_method = 'phasor') for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks, registration_dict= {}, flim_method = 'phasor')).all()
+        
+
+    apply_test_to_all(test_reader, test_file_in, masks)
+
+def test_phasor_methods(test_file_in : List['SiffReader'],
+                        masks : List[Tuple[List[np.ndarray]]]):
+    """
+    Tests that the phasor methods work properly -- i.e. they
+    produce the same results as applying siffmath phasor methods
+    to histograms.
+    """
+    from siffpy.siffmath.flim.phasor import histogram_to_phasor
+
+    def test_reader(
+        sr : 'SiffReader',
+        corresponding_masks : Tuple[List[np.ndarray]],
+    ):
+        """ Tests mask methods """
+
+        two_d_masks, three_d_masks = corresponding_masks
+        for mask in two_d_masks:
+            assert (
+                sr.sum_mask_flim(mask, flim_method = 'phasor')
+                ==
+                histogram_to_phasor(sr.get_histogram_masked(mask))
+            ).all()
+
+        for mask in three_d_masks:
+            assert (
+                sr.sum_mask_flim(mask, flim_method = 'phasor')
+                ==
+                histogram_to_phasor(sr.get_histogram_masked(mask))
+            ).all()
 
     apply_test_to_all(test_reader, test_file_in, masks)
 

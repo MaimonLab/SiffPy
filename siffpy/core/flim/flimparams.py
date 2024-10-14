@@ -1022,6 +1022,36 @@ class FLIMParams():
 
         return np.histogram(samples, bins = x_range)[0]
     
+    def fraction_to_empirical(self, fractions : np.ndarray) -> np.ndarray:
+        """
+        Converts the `fractions` argument into the equivalent empirical lifetime
+        using the exponential parameter fits.
+
+        ## Arguments
+
+        - `fractions : np.ndarray`
+
+            An array of fractions of the total photons in each bin. Should be
+            dimensions (..., self.n_exps - 1), with the presumption that the final
+            bin adds up to 1 (i.e. fractions.sum(axis=-1) <= 1)
+
+        ## Returns
+
+        - `empirical : np.ndarray`
+
+            An array of the empirical lifetimes corresponding to the fractions
+            in the input array.
+        """
+        if self.n_exp == 2:
+            fractions = np.expand_dims(fractions, axis=-1)
+
+        return (
+            fractions @ np.array([exp.tau for exp in self.exps[:-1]]) 
+            + ((1-fractions.sum(axis=-1)) * self.exps[-1].tau)
+        )
+
+
+    
     def __eq__(self, other)->bool:
         """
         Two FLIMParams objects are equal if they have the same parameters

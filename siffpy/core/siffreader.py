@@ -192,10 +192,12 @@ class SiffReader(object):
             self._time_axis_epoch = None
 
         #self.events = io.find_events(self.im_params, self.get_frames_metadata())
-        flim_params = io.load_flim_params(filename)
-        if any(flim_params):
-            self._flim_params = flim_params
-        #print("Finished opening and reading file")
+        try:
+            flim_params = io.load_flim_params(filename)
+            if any(flim_params):
+                self._flim_params = flim_params
+        except Exception as e:
+            print(f"Failed to load FLIM parameters with error: {e}")
 
     def close(self) -> None:
         """ Closes opened file """
@@ -518,16 +520,16 @@ class SiffReader(object):
 
         # Arguments
 
-        * seconds : float
-            Time in seconds to convert
+        * `seconds` : *float*
+            * Time in seconds to convert
 
-        * base : str
-            Base to convert to. Can be 'volume' or 'frame'. Defaults to 'volume'.
+        * `base` : *str*
+            * Base to convert to. Can be 'volume' or 'frame'. Defaults to 'volume'.
 
         # Returns
         
-        * frames : int
-            Number of frames that time represents.
+        * `frames` : *int*
+            * Number of frames that time represents.
 
         # Example
 
@@ -544,7 +546,7 @@ class SiffReader(object):
         >> 10
         ```
         """
-
+        base = base.lower()
         if base == 'volume':
             return int(seconds/self.dt_volume)
         if base == 'frame':
@@ -558,6 +560,20 @@ class SiffReader(object):
         return [io.FrameMetaData(meta_dict)
             for meta_dict in io.frame_metadata_to_dict(self.siffio.get_frame_metadata(frames=frames))
         ]
+    
+    def epoch_time_to_volume_index(self, epoch_time : int) -> int:
+        """
+        Returns the index of the volume containing the epoch time provided.
+        """
+        return np.searchsorted(self.t_axis(reference_time = 'epoch'), epoch_time)
+
+    def epoch_time_to_frame_index(self, epoch_time : int, correct_flyback : bool = False) -> int:
+        """
+        Returns the index of the frame containing the epoch time provided. Note:
+        by default frames are numbered by _frame triggers_,
+        meaning they include flyback frames in their indexing!
+        """
+        return np.searchsorted(self.get_time(reference_time = 'epoch'), epoch_time)
 
     def epoch_to_frame_time(self, epoch_time : int) -> float:
         """ Converts epoch time to frame time for this experiment (returned in seconds) """
@@ -1326,11 +1342,6 @@ class SiffReader(object):
         
         method = FlimMethod(method)
 
-        if method != FlimMethod.EMPIRICAL:
-            raise NotImplementedError(
-                "Only empirical lifetime method is implemented in `siffio` backend so far"
-            )
-
         registration_dict = self.registration_dict if (
                 registration_dict is None
                 and hasattr(self, 'registration_dict') 
@@ -1354,8 +1365,6 @@ class SiffReader(object):
             method = method.value,
             units = 'countbins',
         )
-        
-
 
     def _get_frames_flim_srm(
         self,
@@ -1382,10 +1391,6 @@ class SiffReader(object):
             frames = list(range(self.im_params.num_frames))
 
         method = FlimMethod(method)
-        if method != FlimMethod.EMPIRICAL:
-            raise NotImplementedError(
-                "Only empirical lifetime method is implemented in `SiffIO` backend so far"
-            )
 
         registration_dict = self.registration_dict if (
                 registration_dict is None
@@ -1471,6 +1476,10 @@ class SiffReader(object):
         * `return_framewise` : bool
             If True, does not sum across timepoints, and returns a flat array
             corresponding to the frames.
+
+        * `flim_method` : Union[str, FlimMethod]
+            The method to use for the FLIM analysis. Default is 'empirical'.
+            Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
             
         # Returns
 
@@ -1501,10 +1510,6 @@ class SiffReader(object):
             )
         
         flim_method = FlimMethod(flim_method)
-        if flim_method != FlimMethod.EMPIRICAL:
-            raise NotImplementedError(
-                "Only empirical lifetime method is implemented in `siffio` backend so far"
-            )
 
         timepoint_end = (
             self.im_params.num_timepoints
@@ -1545,7 +1550,7 @@ class SiffReader(object):
                 summed_flim_data, 
                 intensity = summed_intensity_data,
                 FLIMParams = params,
-                method = 'empirical lifetime',
+                method = flim_method.value,
                 info_string = "ROI",
                 units = FlimUnits.COUNTBINS,
             )
@@ -1554,7 +1559,7 @@ class SiffReader(object):
             summed_flim_data, 
             intensity = summed_intensity_data,
             FLIMParams = params,
-            method = 'empirical lifetime',
+            method = flim_method.value,
             info_string = "ROI",
             units = FlimUnits.COUNTBINS,
         ).reshape(
@@ -1701,6 +1706,25 @@ class SiffReader(object):
             If True, returns a flat array of all frames, rather than summing across
             timepoints.
 
+        * `flim_method` : Union[str, FlimMethod]
+            The method to use for the FLIM analysis. Default is 'empirical'.
+            Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
+        
+        # Returns
+
+        * FlimTrace
+            TODO :DOCUMENT
+
+        # Example
+
+        TODO
+        ```python
+
+            from siffpy import SiffReader
+            reader = SiffReader('example.siff')
+
+        ```
+
         """
         if self.backend == 'siffreadermodule':
             return self._sum_masks_flim_srm(
@@ -1715,10 +1739,10 @@ class SiffReader(object):
             )
         
         flim_method = FlimMethod(flim_method)
-        if flim_method != FlimMethod.EMPIRICAL:
-            raise NotImplementedError(
-                "Only empirical lifetime method is implemented in `siffio` backend so far"
-            )
+        # if flim_method != FlimMethod.EMPIRICAL:
+        #     raise NotImplementedError(
+        #         "Only empirical lifetime method is implemented in `siffio` backend so far"
+        #     )
 
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
@@ -1765,7 +1789,7 @@ class SiffReader(object):
                 flim_summed,
                 intensity = intensity_summed,
                 FLIMParams = params,
-                method = 'empirical lifetime',
+                method = flim_method.value,
                 info_string = "Multi-ROIs",
                 units = FlimUnits.COUNTBINS,
             )
@@ -1776,7 +1800,7 @@ class SiffReader(object):
             flim_summed,
             intensity = intensity_summed,
             FLIMParams = params,
-            method = 'empirical lifetime',
+            method = flim_method.value,
             info_string = "Multi-ROIs",
             units = FlimUnits.COUNTBINS,
         ).reshape(
@@ -1986,3 +2010,5 @@ def _rinfo_safe_convert(registration_info : Union[RegistrationInfo, Dict]) -> Di
         return registration_info.yx_shifts
     if isinstance(registration_info, dict) and 'yx_shifts' in registration_info:
         return registration_info['yx_shifts']
+    if isinstance(registration_info, dict):
+        return registration_info

@@ -6,6 +6,7 @@ from enum import Enum
 
 import h5py
 
+from siffpy.siffmath.flim.phasor import correct_phasor
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace
 from siffpy.core.flim import FlimUnits, convert_flimunits
 from siffpy.core.flim import FLIMParams
@@ -65,7 +66,7 @@ class FlimTrace(np.ndarray):
             intensity : Optional['FluorescenceArrayLike'] = None,
             confidence : Optional[np.ndarray] = None,
             FLIMParams : Optional['FLIMParams'] = None,
-            method : Optional[str] = None,
+            method : Optional[Union[str, FlimMethod]] = None,
             angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             nocast : bool = False,
@@ -191,6 +192,8 @@ class FlimTrace(np.ndarray):
             Specifies the units of `max_arrival_time`. If `None`, they are
             presumed to be the same as the `FlimTrace`.
         """
+
+        # Subtracts a known amount of noise.
         if n_photons is not None:
             if (
                 isinstance(n_photons, np.ndarray) 
@@ -203,34 +206,83 @@ class FlimTrace(np.ndarray):
             if self.method == FlimMethod.EMPIRICAL:
                 self[...] -= max_arrival_time*n_photons/(2*(n_photons + self.intensity))
             elif self.method == FlimMethod.PHASOR:
-                raise NotImplementedError("Subtracting noise from phasor methods is not yet implemented.")
+                # Needs a little nuance still...
+                
+                # self[...] = correct_phasor(
+                #     self.__array__(),
+                #     self.FLIMParams,
+                #     max_arrival_time,
+                #     rotate_by_offset=False,
+                #     subtract_noise = True
+                # )
+
+                raise NotImplementedError("Subtracting noise from phasors"
+                  + " using a fixed photon number is not yet implemented."
+                )
             else:
                 raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
                             +  "is not yet implemented.")
             self.intensity -= n_photons
             return
 
+        # All subsequent methods rely on a trusted
+        # FLIMParams object.
         if self.FLIMParams is None:
             return
-        if self.FLIMParams.noise == 0:
-            return
-        if units is not None:
-            if self.units is None:
-                raise ValueError(
-                    "If `max_arrival_time` units are specified in `subtract_noise`," \
-                    + " the FlimTrace itself must have units to convert it into."
+        # Uses the value of the noise, assumes a uniform distribution,
+        # and subtracts that proportion of photons from the intensity
+        # and lifetime data.
+        if self.method == FlimMethod.EMPIRICAL:
+            if self.FLIMParams.noise == 0:
+                return
+            if units is None:
+                if self.units is None:
+                    raise ValueError(
+                        "If `max_arrival_time` units are specified in `subtract_noise`," \
+                        + " the FlimTrace itself must have units to convert it into."
+                    )
+                max_arrival_time = convert_flimunits(
+                    max_arrival_time,
+                    from_units = FlimUnits(units),
+                    to_units = self.units
                 )
-            max_arrival_time = convert_flimunits(
-                max_arrival_time,
-                from_units = FlimUnits(units),
-                to_units = self.units
-            )
-        max_arrival_time = float(max_arrival_time)
-        self[...] -= (self.FLIMParams.noise)*max_arrival_time/2
-        self[...] /= 1-self.FLIMParams.noise
-        self.intensity *= (1-self.FLIMParams.noise)
-        self.FLIMParams : FLIMParams = copy.deepcopy(self.FLIMParams)
-        self.FLIMParams.noise = 0.0
+            max_arrival_time = float(max_arrival_time)
+            self[...] -= (self.FLIMParams.noise)*max_arrival_time/2
+            self[...] /= 1-self.FLIMParams.noise
+            self.intensity *= (1-self.FLIMParams.noise)
+            self.FLIMParams : FLIMParams = copy.deepcopy(self.FLIMParams)
+            self.FLIMParams.noise = 0.0
+            return
+        # Assumes the noise drags the phasor towards the origin and pulls
+        # it off the simplex connecting the `Exp` states.
+        elif self.method == FlimMethod.PHASOR:
+            if units is None:
+                if self.units is None:
+                    raise ValueError(
+                        "If `max_arrival_time` units are specified in `subtract_noise`," \
+                        + " the FlimTrace itself must have units (and it will be assumed to be " \
+                        + "the same as the `max_arrival_time` units)."
+                    )
+            with self.FLIMParams.as_units('countbins'):
+                max_arrival_time = convert_flimunits(
+                    max_arrival_time,
+                    from_units = FlimUnits(units),
+                    to_units = FlimUnits.COUNTBINS,
+                )
+                new_phasors = correct_phasor(
+                    self.__array__(),
+                    self.FLIMParams,
+                    max_arrival_time,
+                    rotate_by_offset=False,
+                    subtract_noise = True
+                )
+                fraction_noise = np.abs((self[...] - new_phasors)/self[...])
+                self.intensity *= (1-fraction_noise)
+                self[...] = new_phasors
+            return
+        
+        raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
+                            +  "is not yet implemented.")
 
     def set_units(self, units : 'FlimUnitsLike'):
         """
@@ -244,11 +296,38 @@ class FlimTrace(np.ndarray):
 
     def convert_units(self, units : 'FlimUnitsLike'):
         """ Converts units in place """
-        
-        self[...] = convert_flimunits(self.__array__(), self.units, units)
+        if self.method != FlimMethod.PHASOR:
+            self[...] = convert_flimunits(self.__array__(), self.units, units)
         self.units = units
         if self.FLIMParams is not None:
             self.FLIMParams.convert_units(units)
+
+    def convert_method(self, to : FlimMethod, flim_params : Optional[FLIMParams] = None):
+        """
+        Converts between a `phasor` and a `empirical lifetime` trace using
+        the provided `FLIMParams` object. If the `FLIMParams` object is not
+        provided, the `FLIMParams` attribute of the FlimTrace is used.
+
+        If the method is already the same as the method provided, this
+        function does nothing.
+
+        ## Example
+
+        ```python
+        from siffpy import default_flim_params
+        # Convert a phasor trace to an empirical lifetime trace
+        empirical_trace = phasor_trace.convert_method(
+            'empirical lifetime',
+            flim_params = default_flimparams()
+        )
+        ```
+        """
+
+        to = FlimMethod(to)
+        if self.method == to:
+            return
+        raise NotImplementedError("Method conversion not yet implemented.")
+
     
     @property
     def _inheritance_dict(self)->dict:

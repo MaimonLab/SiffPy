@@ -1,12 +1,15 @@
 """
 Generic functions for dealing with phasors.
 """
-from typing import Any, Union
+from typing import Any, Union, Tuple
 import numpy as np
 
 from siffpy.core.flim import FLIMParams
 
-def tau_to_phasor(tau : Union[np.ndarray,float], rep_period: float) -> Union[np.ndarray,complex]:
+def tau_to_phasor(
+        tau : Union[np.ndarray,float],
+        rep_period: float,
+    ) -> Union[np.ndarray,complex]:
     """
     Returns the corresponding phasor value for a single exponential
     with the given lifetime and laser repetition period. Tau
@@ -47,7 +50,10 @@ def tau_to_phasor(tau : Union[np.ndarray,float], rep_period: float) -> Union[np.
     s = (2*np.pi*tau/rep_period)/(1 + (2*np.pi*tau/rep_period)**2)
     return g + 1j*s
 
-def phasor_to_tau(phasor : Union[np.ndarray,complex], rep_period : float) -> Union[np.ndarray,float]:
+def phasor_to_tau(
+        phasor : Union[np.ndarray,complex],
+        rep_period : float
+    ) -> Union[np.ndarray,float]:
     """
     Converts a phasor to a tau value, assuming it corresponds to a
     single exponential with the given laser repetition period.
@@ -69,6 +75,43 @@ def phasor_to_tau(phasor : Union[np.ndarray,complex], rep_period : float) -> Uni
     g = phasor.real
     s = phasor.imag
     return rep_period*s/(g*2*np.pi)
+
+def phasor_to_lifetimes(
+        phasor : Union[np.ndarray, complex],
+        rep_period : float,
+    ) -> Tuple[Union[np.ndarray,float], Union[np.ndarray,float]]:
+    """
+    Returns the modulation and phase lifetime values for a given
+    phasor using the relations:
+    - tau_m = sqrt[(1/M)^2 - 1]/(2*pi*f)
+    - tau_phi = tan(phi)/(2*pi*f)
+
+    where M = np.abs(phasor) and phi = np.angle(phasor) and f
+    is the frequency of laser pulses, with the phasor
+    value defined as
+
+    phasor = M * exp( 1j * phi )
+
+    # Arguments
+
+    - `phasor : Union[np.ndarray, complex]`
+        The phasors to transform (as an array or a single value)
+
+    - `rep_period : float`
+        The repetition rate of the laser pulses (in Hz)
+
+    # Returns
+
+    - `lifetimes : (tau_m : float, tau_phi : float)`
+        A tuple of the modulation and phase lifetimes in seconds.
+
+    """
+    m = np.abs(phasor)
+    phi = np.angle(phasor)
+    return (
+        np.sqrt(m**(-2) - 1)*rep_period/(2*np.pi),
+        np.tan(phi)*rep_period/(2*np.pi)
+    )
 
 def phasor_to_fraction(
         phasor : Union[np.ndarray[Any, np.complex128], complex],
@@ -101,7 +144,7 @@ def phasor_to_fraction(
 
     `np.ndarray[Any, np.float64]`
         The fraction in each exponential state corresponding to the given phasor.
-        Shape is size(input_phasor) x (params.n_exps - 1), with the last state in
+        Shape is (params.n_exps - 1) x size(input_phasor), with the last state in
         the `FLIMParams` object's `exps` attribute being implicit (1 - sum(fractions)).
     """
 
@@ -116,7 +159,7 @@ def phasor_to_fraction(
     return np.array([
         ((phasor - startpt)/(endpt - startpt)).real
         for endpt, startpt in zip(bounds[:-1], bounds[1:])
-    ]).T.squeeze()
+    ]).T.squeeze().T
     
 def universal_circle() -> np.ndarray[Any, np.complex128]:
     """
@@ -195,6 +238,7 @@ def correct_phasor(
         phasor : np.ndarray[Any, np.complex128],
         params : 'FLIMParams',
         hist_length : int,
+        rotate_by_offset : bool = True,
         subtract_noise : bool = False,
     ) -> np.ndarray[Any, np.complex128]:
     """
@@ -219,6 +263,11 @@ def correct_phasor(
     `hist_length : int`
         The length of the histogram used to compute the phasor -- i.e., the
         number of histogram bins between each laser pulse.
+
+    `rotate_by_offset : bool = True`
+        Whether or not to rotate the phasor by the offset in the `FLIMParams`
+        object. If `False`, the phasor will not be corrected for the instrument
+        response function.
 
     `subtract_noise : bool = False`
         Whether or not to additionally project the phasor onto the line
@@ -265,9 +314,11 @@ def correct_phasor(
         >>> [0.660594+0.36399072j]
     ```
     """
+    rotated_phasor = phasor
     with params.as_units('countbins'):
-        offset = params.tau_offset
-        rotated_phasor = phasor*np.exp(-1j*2*np.pi*offset/hist_length)
+        if rotate_by_offset:
+            offset = params.tau_offset
+            rotated_phasor *= np.exp(-1j*2*np.pi*offset/hist_length)
 
         if subtract_noise:
             if len(params.exps) > 2:
