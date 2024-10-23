@@ -2,6 +2,8 @@ from functools import reduce
 from operator import add
 import re
 
+import warnings
+
 from siffpy.core.utils.im_params.from_matlab import (
     contains_vector, matrix_to_listlist
 )
@@ -134,16 +136,35 @@ class ROIGroup():
         for key, val in roi_dict.items():
             if key == 'rois':
                 if not isinstance(val,dict):
-                    raise NotImplementedError(
+                    warnings.warn(
                         """
                         ROIs is not simply a dictionary,
                         meaning that you're probably using
                         mROI functionality. Yay! Send
                         the code to Stephen so he can
                         implement it.
+
+                        NOTE: you're on the branch that ALLOWS
+                        you to open these -- that means the feature
+                        is in development but not implemented yet.
                         """
                     )
-                self.rois = SIROI(val)
+                    if not isinstance(val, list):
+                        raise NotImplementedError(
+                            """
+                            ROIs is neither a dictionary
+                            nor a list. This may reflect a
+                            new ScanImage feature that this
+                            library has not been developed around.
+                            Please post an issue on the GitHub
+                            """
+                        )
+                    self.rois = [
+                        SIROI(roi)
+                        for roi in val
+                    ]
+                else:
+                    self.rois = SIROI(val)
             else:    
                 setattr(self, key, _unsafe_eval(val))
     

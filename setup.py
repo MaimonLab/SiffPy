@@ -5,7 +5,6 @@ import subprocess
 
 # TODO: Only run setup.py if `[siffreadermodule]` optional
 # dependency set specified
-
       
 try:
    import numpy

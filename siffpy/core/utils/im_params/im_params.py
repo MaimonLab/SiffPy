@@ -4,6 +4,7 @@ import re
 import logging
 from typing import Any, Union, List, Dict, Tuple, Optional
 from functools import wraps
+import warnings
 
 import numpy as np
 
@@ -287,13 +288,34 @@ class ImParams():
         """ Number of pixels in the x dimension """
         if hasattr(self, 'RoiManager'):
             if self.RoiManager.mroiEnable:
-                raise NotImplementedError(
+                warnings.warn(
+                # raise NotImplementedError(
                 """
                 These data use the mROI functionality,
                 which has not yet been implemented in
                 SiffPy. Let Stephen know!
+
+                If you are seeing this as a WARNING,
+                then mROI functionality is in development,
+                though not yet implemented!
                 """
                 )
+
+                # If they're not all the same size, raise an error -- at least for now.
+                first_roi = self.roi_groups['imagingRoiGroup'].rois[0]
+                if not all(
+                    [
+                        roi.scanfields['pixelResolutionXY'][0] 
+                        == first_roi.scanfields['pixelResolutionXY'][0]
+                        for roi in self.roi_groups['imagingRoiGroup'].rois
+                    ]
+                    ):
+                        raise NotImplementedError(
+                            "mROIs do not share an x resolution. \
+                            Support for ROIs of different sizes is not yet implemented."
+                        )
+                return first_roi.scanfields['pixelResolutionXY'][0]
+
             return self.RoiManager.pixelsPerLine
 
     @property
@@ -301,13 +323,32 @@ class ImParams():
         """ Number of pixels in the y dimension """
         if hasattr(self, 'RoiManager'):
             if self.RoiManager.mroiEnable:
-                raise NotImplementedError(
+                warnings.warn(
+                # raise NotImplementedError(
                 """
                 These data use the mROI functionality,
                 which has not yet been implemented in
                 SiffPy. Let Stephen know!
+
+                If you are seeing this as a WARNING,
+                then mROI functionality is in development,
+                though not yet implemented!
                 """
                 )
+
+                # Correct for the inter-scanfield flyback
+                scanfield_lines = int(
+                    self.Scan2D.flytoTimePerScanfield /
+                    (   self.RoiManager.linePeriod
+                        * (1 + int(self.Scan2D.bidirectional)) # divide by 2 if bidi
+                    )
+                ) + 1 # round up
+                return sum([
+                    roi.scanfields['pixelResolutionXY'][1]
+                    + scanfield_lines
+                    for roi in self.roi_groups['imagingRoiGroup'].rois
+                ])
+
             return self.RoiManager.linesPerFrame
 
     @property

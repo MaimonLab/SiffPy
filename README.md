@@ -17,7 +17,9 @@ is very very bad behavior!!
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
 -   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
 -   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`?
--   Add support for multi-ROI imaging.
+-   Add more explicit support for multi-ROI imaging. Currently it stacks the
+ROIs all into one array and it's the user's responsibility to discern which pixels
+are which ROI. 
 -   Use cumulative bin occupancy not point estimates in chi-sq
 -   Example code (for every module and to go through a simple analysis pipeline)
 -   Improved regularization in registration, especially for systematically bad planes

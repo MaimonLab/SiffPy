@@ -1,5 +1,4 @@
 import copy
-import logging
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -14,6 +13,7 @@ from siffpy.core.utils.event_stamp import EventStamp
 #from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_class
 from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
+from siffpy.core.utils import warn_for_mroi
 from siffpy.siffmath.flim import FlimTrace, FlimMethod
 from siffpy.siffmath.utils import Timeseries
 #from siffreadermodule import SiffIO
@@ -678,6 +678,8 @@ class SiffReader(object):
         >> (500, 256, 128)
         ```
         """
+        warn_for_mroi(self)
+
         registration_dict = (
             self.registration_dict
             if registration_dict is None
@@ -805,6 +807,8 @@ class SiffReader(object):
         9727  9909  9827 9941  9867  9997]
         ```
         """
+        warn_for_mroi(self)
+
         if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
             return self.sum_masks(
                 masks = mask,
@@ -1086,6 +1090,8 @@ class SiffReader(object):
 
         - `SiffReader.sum_mask` to sum over a single mask
         """
+        warn_for_mroi(self)
+
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
 
@@ -1247,6 +1253,7 @@ class SiffReader(object):
         >>> (1000, 629) [[  0   0   0 ...   0   0   0]
         ```
         """
+        warn_for_mroi(self)
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
         registration_dict = _rinfo_safe_convert(registration_dict)
@@ -1332,6 +1339,8 @@ class SiffReader(object):
         to the frames requested. Units of the FlimTrace
         are 'countbins'.
         """
+        warn_for_mroi(self)
+
         if self.backend == 'siffreadermodule':
             return self._get_frames_flim_srm(
                 params = params,
@@ -1497,6 +1506,8 @@ class SiffReader(object):
         during one read of the file.
         
         """
+        warn_for_mroi(self)
+
         if self.backend == 'siffreadermodule':
             return self._sum_mask_flim_srm(
                 params = params,
@@ -1726,6 +1737,8 @@ class SiffReader(object):
         ```
 
         """
+        warn_for_mroi(self)
+
         if self.backend == 'siffreadermodule':
             return self._sum_masks_flim_srm(
                 params = params,
@@ -1926,9 +1939,13 @@ class SiffReader(object):
             Whether or not to save the dict. Name will be as TODO
 
         Other kwargs are passed to the registration method!
+        If `nowarn` is included as a `kwarg`, it will suppress
+        the `zplane` alignment warning.
         """
-
-        logging.warn("\n\n \t Don't forget to fix the zplane alignment!!")
+        if 'nowarn' in kwargs:
+            kwargs.pop('nowarn')
+        else:
+            warnings.warn("\n\n \t Don't forget to fix the zplane alignment!!")
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 
