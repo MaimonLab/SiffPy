@@ -193,7 +193,7 @@ class FlimTrace(np.ndarray):
             presumed to be the same as the `FlimTrace`.
         """
 
-        # Subtracts a known amount of noise.
+        # Subtracts the noise if the value is already known.
         if n_photons is not None:
             if (
                 isinstance(n_photons, np.ndarray) 
@@ -229,6 +229,7 @@ class FlimTrace(np.ndarray):
         # FLIMParams object.
         if self.FLIMParams is None:
             return
+        
         # Uses the value of the noise, assumes a uniform distribution,
         # and subtracts that proportion of photons from the intensity
         # and lifetime data.

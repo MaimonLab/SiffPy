@@ -88,7 +88,7 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
         idx = np.angle(np.exp(1j*shift[t]))*n_cols/(2*np.pi)
         whole = idx.astype(int)
         frac = idx - whole
-        shifted[:,t] = np.roll(np.abs(1-frac)*x[:,t], whole)
+        shifted[:,t] = np.roll((1-np.abs(frac))*x[:,t], whole)
         shifted[:,t] += np.roll(np.abs(frac)*x[:,t], int(whole+np.sign(frac)))
 
     return shifted

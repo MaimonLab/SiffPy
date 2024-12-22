@@ -1946,6 +1946,7 @@ class SiffReader(object):
             kwargs.pop('nowarn')
         else:
             warnings.warn("\n\n \t Don't forget to fix the zplane alignment!!")
+
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 

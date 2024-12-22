@@ -5,7 +5,7 @@ All phase-alignment methods take, at the very least,
 an argument vector_timeseries, which is a numpy array,
 and accept a keyword argument error_estimate, which is a boolean
 """
-from typing import Callable, Union, Optional, Tuple
+from typing import Callable, Union, Optional, Tuple, Any
 from enum import Enum
 
 import numpy as np
@@ -22,7 +22,8 @@ from siffpy.siffmath.phase.phase_analyses import (
 )
 
 __all__ = [
-    'pva'
+    'pva',
+    'pva_flim',
 ]
 
 class PhaseErrorFunction(Enum):
@@ -101,6 +102,7 @@ def pva(
         time              : Optional[np.ndarray]              = None,
         error_function    : Optional[Union[Callable,str]]     = 'relative_magnitude',
         filter_fcn        : Optional[Union[Callable,str]]     = None,
+        angle_coords      : Optional[np.ndarray[Any, Any]]              = None,
         **kwargs
     ) -> PhaseTrace:
     """
@@ -136,6 +138,15 @@ def pva(
     filter_fcn : function
 
         A function to apply to the time series before computing the PVA.
+
+    angle_coords : np.ndarray
+
+        The angular coordinates of the first dimension of the vector timeseries,
+        i.e. the angle that each vector component corresponds to. If not provided,
+        will assume that the angle is linearly spaced between -pi and pi. Can
+        provide complex numbers on the unit circle or floats corresponding to an
+        angle in radians.
+    
     """
     
     if normalized:
@@ -144,8 +155,7 @@ def pva(
         max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
         vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
 
-    angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
-    if isinstance(vector_timeseries, FluorescenceTrace):
+    if isinstance(vector_timeseries, FluorescenceTrace) and (angle_coords is None):
         if (
             isinstance(vector_timeseries.angle, np.ndarray) 
             and (vector_timeseries.angle.dtype == np.complex128)
@@ -156,7 +166,12 @@ def pva(
             and all(x is not None for x in vector_timeseries.angle)
         ):
             angle_coords = np.exp(-1j*vector_timeseries.angle)
+    elif angle_coords is None:
+        angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
     
+    if angle_coords.dtype != np.complex128:
+        angle_coords = np.exp(1j*angle_coords)
+
     pva_val = np.asarray(
         np.matmul(
             angle_coords,
