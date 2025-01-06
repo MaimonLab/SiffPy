@@ -3,15 +3,15 @@
 
 #define LITTLEENDIAN "II"
 #define BIGENDIAN "MM"
-constexpr uint16_t TIFFID = 42;
-constexpr uint16_t BIGTIFFID = 43;
-constexpr uint32_t MAGICNUMBER = 117637889; // identifies this as a scanimage file
-constexpr uint32_t SI2019 = 4; // identifies this as 2019 or later
-
 #include <cstdint>
 #include <stdlib.h>
 #include <string>
 #include <vector>
+
+constexpr uint16_t TIFFID = 42;
+constexpr uint16_t BIGTIFFID = 43;
+constexpr uint32_t MAGICNUMBER = 117637889; // identifies this as a scanimage file
+constexpr uint32_t SI2019 = 4; // identifies this as 2019 or later
 
 typedef struct SiffParams{
     std::string filename;
