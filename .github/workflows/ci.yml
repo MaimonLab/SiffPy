@@ -32,7 +32,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_SKIP: "pp*"
+          CIBW_SKIP: pp*
         #     CIBW_TEST_REQUIRES: pytest dropbox
         #     CIBW_TEST_COMMAND: "pytest {project}/tests"
 
