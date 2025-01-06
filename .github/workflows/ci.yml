@@ -16,13 +16,14 @@ jobs:
       matrix:
         # macos-13 is an intel runner, macos-14 is apple silicon
         os: [macos-13, macos-14, ubuntu-latest, windows-latest,]
+    env:
+      CIBW_SKIP: "pp*"
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.19.1
-
         with:
           package-dir: .
           output-dir: wheelhouse
