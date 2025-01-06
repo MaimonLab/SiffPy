@@ -11,7 +11,7 @@ code being in `PicoQuantScanImageTools`).
 
 With the current `corrosiff` backend, this and all future versions (until PyO3 changes)
 will not be compatible with `PyPy` interpreters. This is only because `PyPy` is not
-supported by the `PyO3` tools, and manually bridging the `Rust` library to `Python`
+supported by the `rust-numpy` tools, and manually bridging the `Rust` library to `Python`
 would be a nightmare.
 
 ### TODOS:
