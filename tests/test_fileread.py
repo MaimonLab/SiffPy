@@ -323,13 +323,13 @@ def test_flim_methods(
         # each passed one atlim a time.
 
         assert (FlimTrace([
-            sr.sum_mask_flim(test_params, mask) for mask in two_d_masks
-            ]) == sr.sum_masks_flim(test_params, two_d_masks)).all()
+            sr.sum_mask_flim(mask, test_params) for mask in two_d_masks
+            ]) == sr.sum_masks_flim(two_d_masks, test_params)).all()
         
         # Do the same for 3d
         assert (FlimTrace([
-            sr.sum_mask_flim(test_params, mask) for mask in three_d_masks
-            ]) == sr.sum_masks_flim(test_params, three_d_masks)).all()
+            sr.sum_mask_flim(mask, test_params) for mask in three_d_masks
+            ]) == sr.sum_masks_flim(three_d_masks, test_params)).all()
         
     apply_test_to_all(test_reader, test_file_in,)
     apply_test_to_all(test_reader_and_masks, test_file_in, masks)

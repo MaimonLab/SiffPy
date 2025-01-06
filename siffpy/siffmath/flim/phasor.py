@@ -123,6 +123,11 @@ def phasor_to_fraction(
     corresponding exponential states. The phasor should be corrected for
     the instrument response function and have the noise subtracted.
 
+    Derivation: Let $a$ and $b$ be the phasor values of the endpoints of the
+    line connecting the two states. Our input phasor, $z$, is a linear combination
+    of $a$ and $b$: $z = a + t(b-a)$. Then $t \in \mathbb{B}$, the fraction of the phasor in state $a$,
+    is just $t = (z-a)/(b-a)$.
+
     ## Arguments
 
     `phasor : np.ndarray[Any, np.complex128]`
@@ -171,6 +176,15 @@ def universal_circle() -> np.ndarray[Any, np.complex128]:
     np.ndarray[Any, np.complex128]
         The x and y coordinates of the universal circle as the
         real and imaginary parts, respectively.
+
+    ## Example
+
+    ```python
+
+        from siffpy.siffmath.flim.phasor import universal_circle
+
+        circle : np.ndarray = universal_circle()
+    ```
     """
     theta = np.linspace(0, np.pi, 500)
 
@@ -240,6 +254,7 @@ def correct_phasor(
         hist_length : int,
         rotate_by_offset : bool = True,
         subtract_noise : bool = False,
+        inplace : bool = False
     ) -> np.ndarray[Any, np.complex128]:
     """
     Corrects a phasor for the effects of the instrument response function
@@ -275,6 +290,9 @@ def correct_phasor(
         Used to subtract out the effects of noise, which push the phasor towards
         the center of the universal circle. Currently only implemented for
         two exponentials.
+
+    `inplace : bool = False`
+        Whether or not to modify the input phasor in place.
 
     ## Returns
 
@@ -314,7 +332,10 @@ def correct_phasor(
         >>> [0.660594+0.36399072j]
     ```
     """
-    rotated_phasor = phasor
+    if inplace:
+        rotated_phasor = phasor
+    else:
+        rotated_phasor = phasor.copy()
     with params.as_units('countbins'):
         if rotate_by_offset:
             offset = params.tau_offset
@@ -326,6 +347,11 @@ def correct_phasor(
                     "Projection only implemented for two exponentials! "
                     + "Problem is underdefined if more than two exponentials."
                 )
+            
+            # Special case -- correcting to one state is always the same lifetime!!
+            if len(params.exps) == 1:
+                rotated_phasor[...] = tau_to_phasor(params.exps[0].tau, rep_period = hist_length)
+                return rotated_phasor
             
             states = [tau_to_phasor(exp.tau, rep_period = hist_length) for exp in params.exps]
             diff = np.diff(states)

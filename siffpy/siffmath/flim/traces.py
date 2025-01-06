@@ -70,6 +70,7 @@ class FlimTrace(np.ndarray):
             angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             nocast : bool = False,
+            max_arrival_time : Optional[int] = None,
             info_string : str = "", # new attributes TBD?
         ):
         """ 
@@ -118,6 +119,9 @@ class FlimTrace(np.ndarray):
         if units is None:
             units = FlimUnits.UNKNOWN
         obj.units = FlimUnits(units)
+        if max_arrival_time is not None:
+            obj.max_arrival_time = max_arrival_time
+
         obj.info_string = info_string
         
         # Finally, we must return the newly created object:
@@ -145,6 +149,7 @@ class FlimTrace(np.ndarray):
             max_arrival_time : float,
             units : Optional['FlimUnitsLike'] = None,
             n_photons : Union[Optional[int], Optional[np.ndarray]] = None,
+            rotate_by_offset : bool = False,
         ):
         """
         Either subtracts the noise from the `FLIMParams` fit or
@@ -274,16 +279,17 @@ class FlimTrace(np.ndarray):
                     self.__array__(),
                     self.FLIMParams,
                     max_arrival_time,
-                    rotate_by_offset=False,
+                    rotate_by_offset=rotate_by_offset,
                     subtract_noise = True
                 )
-                fraction_noise = np.abs((self[...] - new_phasors)/self[...])
-                self.intensity *= (1-fraction_noise)
+                # the ratio should be exactly real, but due to fp error it might not be,
+                # so we take the abs
+                self.intensity *= np.abs(self.lifetime/new_phasors)
                 self[...] = new_phasors
             return
         
         raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
-                            +  "is not yet implemented.")
+                            +  "or `phasor` is not yet implemented.")
 
     def set_units(self, units : 'FlimUnitsLike'):
         """
@@ -332,7 +338,7 @@ class FlimTrace(np.ndarray):
     
     @property
     def _inheritance_dict(self)->dict:
-        return {
+        ret = {
             'confidence' : self.confidence,
             'FLIMParams' : self.FLIMParams,
             'method' : self.method,
@@ -341,13 +347,56 @@ class FlimTrace(np.ndarray):
             'units' : self.units,
         }
 
+        if hasattr(self, 'max_arrival_time'):
+            ret['max_arrival_time'] = self.max_arrival_time
+
+        return ret
+    
+    def __copy__(self):
+        """
+        Because the `FlimTrace` contains many pointers to other arrays,
+        and the `FlimTrace` can modify itself and those arrays in-place,
+        a standard `copy` of a `FlimTrace` would likely be expected to behave
+        like a `deepcopy`. This copies the array and the intensity array
+        """
+
+        copywisedict = {
+            k : v.copy() if (hasattr(v, 'copy') and callable(v.copy))
+            else copy.copy(v)
+            for k, v in self._inheritance_dict.items()
+        }
+
+        return FlimTrace(
+            self.__array__().copy(),
+            intensity = self.intensity.copy(),
+            **copywisedict
+        )
+    
+    def __deepcopy__(self, memo):
+        """
+        Deep copy of the internal attrs
+        """
+
+        copywisedict = {
+            k : copy.deepcopy(v, memo) if (hasattr(v, '__deepcopy__') and callable(v.__deepcopy__))
+            else copy.copy(v)
+            for k, v in self._inheritance_dict.items()
+        }
+
+        return FlimTrace(
+            self.__array__().__deepcopy__(memo),
+            intensity = self.intensity.__deepcopy__(memo),
+            **copywisedict
+        )
+
+
     def __repr__(self)->str:
         return f"{self.__class__.__name__} :\n" + \
         f"Units : {self.units}, Info: {self.info_string}, Method : {self.method}\n"+\
         f"Lifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
 
-    def __array_wrap__(self, out_arr, context=None):
-        return super().__array_wrap__(out_arr, context=context)
+    def __array_wrap__(self, out_arr, context=None, **kwargs):
+        return super().__array_wrap__(out_arr, context=context, **kwargs)
 
     def __array_finalize__(self, obj):
         if obj is None:

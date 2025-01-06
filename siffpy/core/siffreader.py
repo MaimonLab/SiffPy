@@ -7,7 +7,7 @@ import numpy as np
 
 ## Should I move some import statements to function definitions
 from siffpy.core import io, timetools
-from siffpy.core.flim import FLIMParams, FlimUnits
+from siffpy.core.flim import FLIMParams, FlimUnits, default_flimparams
 from siffpy.core.utils.event_stamp import EventStamp
 
 #from siffpy.core.utils import ImParams
@@ -195,7 +195,7 @@ class SiffReader(object):
         try:
             flim_params = io.load_flim_params(filename)
             if any(flim_params):
-                self._flim_params = flim_params
+                self.flim_params = flim_params
         except Exception as e:
             print(f"Failed to load FLIM parameters with error: {e}")
 
@@ -221,19 +221,27 @@ class SiffReader(object):
     @property
     def flim_params(self)->Optional[Tuple[FLIMParams]]:
         """
-        Returns the FLIMParams object if it exists,
+        Returns the FLIMParams objects if they exist
         
         Returns `None` if no `FLIMParams` objects have been loaded
         """
         if hasattr(self, '_flim_params'):
             return self._flim_params
-        return (None,)
+        return None
     
     @flim_params.setter
-    def flim_params(self, flim_params : Union[FLIMParams, str])->None:
+    def flim_params(self, flim_params : Union[Tuple, List, FLIMParams, str, Dict])->None:
         """ Sets the FLIMParams object """
         if isinstance(flim_params, str):
-            flim_params = io.load_flim_params(flim_params)
+            flim_params = tuple(io.load_flim_params(flim_params))
+        if isinstance(flim_params, dict):
+            flim_params = tuple(FLIMParams.from_dict(**flim_params))
+        if isinstance(flim_params, List):
+            flim_params = tuple(flim_params)
+        if isinstance(flim_params, FLIMParams):
+            flim_params = (flim_params,)
+        if not isinstance(flim_params, Tuple):
+            raise ValueError("flim_params must be a FLIMParams, a list of FLIMParams, a dict, or a string")
         self._flim_params = flim_params
 
 ### TIME AXIS METHODS
@@ -723,34 +731,34 @@ class SiffReader(object):
 
         # Arguments
 
-        * mask : Union[np.ndarray[bool], List[np.ndarray[bool]]]
+        * `mask : Union[np.ndarray[bool], List[np.ndarray[bool]]]`
             Mask to sum over. Must be either the same shape as individual frames
             (in which case z_index is used) or have a 0th axis with length equal
             to the number of z slices. If a `list` is provided, or if the mask
             has dimension > 3, the function will sum over each mask in the list
             (presuming the slowest dimension is the mask index).
 
-        * timepoint_start : int
+        * `timepoint_start : int`
             Starting timepoint for the sum. Default is 0.
 
-        * timepoint_end : int
+        * `timepoint_end : int`
             Ending timepoint for the sum. Default is None, which means the last timepoint.
 
-        * z_index : List[int]
+        * `z_index : List[int]`
             List of z-slices to sum over. Default is None, which means all z-slices.
 
-        * color_channel : int
+        * `color_channel : int`
             Color channel to sum over. Default is 1, which means the FIRST color channel.
         
-        * registration_dict : dict
+        * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or if you want to use a different one.
 
-        * return_framewise : bool
+        * `return_framewise : bool`
             If True, does not sum across timepoints.
             
         # Returns
         
-        * np.ndarray
+        * `np.ndarray`
             Summed photon counts as an array of shape `(n_timepoints,)`
             (unless `return_framewise` is True, in which case it is `(n_frames,)`).
 
@@ -868,23 +876,23 @@ class SiffReader(object):
 
         # Arguments
 
-        * mask : np.ndarray[bool]
+        * `mask : np.ndarray[bool]`
             Mask to sum over. If 2d, applies the same mask to every frame.
             Otherwise, applies the 3d mask slices to each z slice sequentially
             (assumes the slowest dimension is the z index). There is no
             safety checking done to make sure that the frames cycle through
             the z slices in the order corresponding to the mask!
 
-        * frames : List[int]
+        * `frames : List[int]`
             List of frames to sum over
 
-        * registration_dict : dict
+        * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or
             if you want to use a custom one.
             
         # Returns
 
-        * np.ndarray
+        * `np.ndarray`
 
             (`n_frames`,) framewise ROI sum
 
@@ -1158,16 +1166,16 @@ class SiffReader(object):
         
         # Arguments
         
-        * frames (optional, list of ints):
+        * `frames : Optional[List[int]]`
             Frames to get arrival times of. If NONE, collects from all frames.
 
-        * framewise (optional, bool):
+        * `framewise : bool`
             If True, returns the arrival times for each frame separately
             rather than pooling them all together.
 
         # Returns
 
-        * histogram (np.ndarray):
+        * `histogram : np.ndarray`
             1 dimensional histogram of arrival times unless
             framewise is True, in which case it is a 2d array
             with shape (n_frames, n_bins)
@@ -1196,7 +1204,7 @@ class SiffReader(object):
         ...
         ...
         ]
-        
+        ```
         """
         if framewise:
             if self.backend == 'siffreadermodule':
@@ -1324,6 +1332,120 @@ class SiffReader(object):
         ]
         
         return np.array([self.get_histogram(frames) for frames in true_framelists])
+
+    def fit_flimparams_to_timepoints(
+        self,
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        color_channel : int = 0,
+        mask : Optional['BoolMaskArray'] = None,
+        initial_guess : Optional[FLIMParams] = None,
+    ) -> FLIMParams:
+        """
+        Fits a FLIMParams object to the timepoints requested.
+        If a mask is provided, fits only photons within the
+        masked region. Stores the FLIMParams object in the
+        SiffReader object but also returns a reference to the
+        same object.
+
+        # Arguments
+
+        * `timepoint_start` : int
+            Start of the timepoints to fit to.
+
+        * `timepoint_end` : int
+            End of the timepoints to fit to. None means the
+            last timepoint.
+
+        * `color_channel` : int
+            Color channel to fit to. Default is 0. 0-indexed!
+
+        * `mask` : Optional[np.ndarray[bool]]
+            Mask for the frames acquired. If None, fits to all frames.
+
+        * `initial_guess` : Optional[FLIMParams]
+            Initial guess for the FLIMParams object. If None, uses
+            the default FLIMParams object produced by `default_flimparams()`.
+
+        # Returns
+
+        * `FLIMParams`
+            A reference to the FLIMParams object fit to the data, also
+            stored in `self.flim_params`.
+
+        # Examples
+
+        ```python
+
+        from siffpy import SiffReader
+        reader = SiffReader('example.siff')
+
+        # Fit the FLIMParams object to the first 1000 timepoints
+        # in the first color channel
+
+        fp = reader.fit_flimparams_to_timepoints(
+            timepoint_end = 1000,
+            color_channel = 0,
+        )
+
+        print(reader.flim_params)
+
+        # Do the same with a mask in the upper left quadrant
+
+        mask = np.zeros(reader.im_params.shape).astype(bool)
+        mask[:mask.shape[0]//2, mask.shape[1]//2:] = True
+
+        fp_two = reader.fit_flimparams_to_timepoints(
+            timepoint_end = 1000,
+            color_channel = 0,
+            mask = mask,
+        )
+
+        assert ( fp != fp_two )
+        ```
+        """
+
+        if initial_guess is None:
+            fp = default_flimparams()
+        else:
+            fp = initial_guess
+
+        framelist = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            color_channel=color_channel
+        )
+
+        if mask is None:
+            hist = self.get_histogram(framelist).astype(float)
+        else:
+            hist = self.get_histogram_masked(mask, framelist).astype(float).sum(axis = 0)
+        
+        try:
+            fp.fit_params_to_data(
+                hist,
+                optimization_units='countbins',
+            )
+        except ValueError: # Unstable optimizer I guess?
+            # give it one more try!
+            fp.noise = 0.2
+            fp.fit_params_to_data(
+                hist,
+                optimization_units='countbins',
+            )
+
+        if self.flim_params is None:
+            self.flim_params = fp
+
+        else:
+            fpl = list(self.flim_params)
+            ncols = len(fpl)
+            if color_channel >= ncols:
+                fpl += [None]*(color_channel-ncols+1)
+            fpl[color_channel] = fp
+            self.flim_params = tuple(fpl)
+        
+        return fp
 
     def get_frames_flim(
         self,

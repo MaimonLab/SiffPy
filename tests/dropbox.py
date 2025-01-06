@@ -6,7 +6,6 @@ to run tests on the same files!! but this doesn't even work right now...
 import asyncio
 import aiohttp
 import platform
-import os
 import tqdm
 import re
 from pathlib import Path

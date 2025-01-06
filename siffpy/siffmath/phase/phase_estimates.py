@@ -98,7 +98,7 @@ def pva_flim(
 
 def pva(
         vector_timeseries : Union[np.ndarray, FluorescenceTrace],
-        normalized        : bool                              = True, 
+        normalize        : bool                              = True, 
         time              : Optional[np.ndarray]              = None,
         error_function    : Optional[Union[Callable,str]]     = 'relative_magnitude',
         filter_fcn        : Optional[Union[Callable,str]]     = None,
@@ -115,6 +115,9 @@ def pva(
 
         Standard for phase estimation procedures
         (call siffmath.phase_alignment_functions() for more info).
+
+    normalize : bool
+        Whether to normalize the vector timeseries before computing the PVA.
 
     time : np.ndarray
 
@@ -149,7 +152,7 @@ def pva(
     
     """
     
-    if normalized:
+    if normalize:
         sorted_vals = np.sort(vector_timeseries,axis=1)
         min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
         max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
@@ -186,7 +189,7 @@ def pva(
         pva_val = filter_fcn(pva_val, **kwargs)
         try:
             vector_timeseries = filter_fcn(vector_timeseries, **kwargs)
-        except: # Take care of yourself this time.
+        except Exception: # Take care of yourself this time.
             pass
 
     if not callable(error_function):
@@ -204,7 +207,7 @@ def pva(
 
     return PhaseTrace(
         pva_val,
-        method = 'pva_normalized' if normalized else 'pva',
+        method = 'pva_normalized' if normalize else 'pva',
         error_array = err,
         time = time
     )

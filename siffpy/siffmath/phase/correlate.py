@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Iterable
 
-from siffpy.core.utils.circle_fcns import circ_corr_complex, running_circ_corr_complex
+from siffpy.core.utils.circle_fcns import circ_corr_complex
 from .traces import PhaseTrace
 
 def circular_correlate(x : PhaseTrace, y : PhaseTrace, method : str = 'Fisher', ) -> np.ndarray:
@@ -70,7 +70,7 @@ def correlate(x : PhaseTrace, y : PhaseTrace, dts : Iterable, method : str = 'Fi
     if not mode == 'valid':
         raise NotImplementedError("Only 'valid' mode is currently supported")
     
-    x_angle = np.exp(1j*x.angle)
-    y_angle = np.exp(1j*y.angle)
+    # x_angle = np.exp(1j*x.angle)
+    # y_angle = np.exp(1j*y.angle)
 
     raise NotImplementedError("This function is not yet implemented")

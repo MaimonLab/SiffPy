@@ -1,11 +1,13 @@
 """
 Dedicated code for data that is purely fluorescence analysis
 """
-from typing import Callable, Union, TYPE_CHECKING, Any
+import warnings
+from typing import Callable, Union, TYPE_CHECKING
 import numpy as np
 
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector # noqa: F401
 from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
+from siffpy.siffmath.flim.traces import FlimTrace
 
 if TYPE_CHECKING:
     from siffpy.siffmath.utils.types import FluorescenceArrayLike
@@ -53,6 +55,12 @@ def dFoF(
         the original fluorescence data, the computed F0 value, and some additional
         metadata.
     """
+    if isinstance(fluorescence, FlimTrace):
+        warnings.warn("Passed a `FlimTrace` object to dF/F."
+                      + " Will operate on intensity array.",
+                      category = RuntimeWarning,
+                      )
+        fluorescence = fluorescence.intensity
     if not isinstance(fluorescence,np.ndarray):
         fluorescence = np.array(fluorescence)
     fluorescence = np.atleast_2d(fluorescence)
