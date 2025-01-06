@@ -1,6 +1,7 @@
 #ifndef EXP_MATH_HPP
 #define EXP_MATH_HPP
 
+#include <cstdint>
 #include <math.h>
 #include <Python.h>
 #include <vector>

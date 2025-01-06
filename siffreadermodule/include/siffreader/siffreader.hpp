@@ -1,6 +1,7 @@
 #ifndef SIFFREADER_HPP
 #define SIFFREADER_HPP
 
+#include <cstdint>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>

@@ -1,6 +1,7 @@
 #ifndef BITMASKS_HPP
 #define BITMASKS_HPP
 
+#include <cstdint>
 #include <stdint.h>
 
 // Extract the y value of a photon read (uncompressed)

@@ -7,6 +7,7 @@
 #include <string>
 #include "structmember.h"
 #include <iostream>
+#include <cstdint>
 #include "framedatastruct.hpp"
 
 #define NO_IMPORT_ARRARY

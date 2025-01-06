@@ -27,6 +27,8 @@ jobs:
           config-file: "{package}/pyproject.toml"
         env:
           CIBW_SKIP: pp*
+          # Run the package tests using `pytest`
+          # CIBW_TEST_COMMAND: pytest {package}/tests
     
       - uses: actions/upload-artifact@v4
         with:

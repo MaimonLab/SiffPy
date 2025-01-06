@@ -28,6 +28,7 @@ this with `PyCapsule`s at some point to resolve that.
 #include <string>
 #include "structmember.h"
 #include <iostream>
+#include <cstdint>
 #include "../siffreader/siffreader.hpp"
 #include "siffiodocstring.hpp"
 
