@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup, Extension # type: ignore
 import platform
 import sys
 import subprocess
@@ -11,7 +11,7 @@ try:
 except ImportError:
    raise Exception("Numpy is not yet installed on this distribution. Install numpy with pip or conda")
 
-from setuptools.command.install import install
+from setuptools.command.install import install # type: ignore
 
 #from setuptools.command.install import clean
 

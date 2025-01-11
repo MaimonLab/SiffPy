@@ -20,8 +20,7 @@ would be a nightmare.
 is very very bad behavior!!
 -   Document the `corrosiffpy` wrapper on the `docs`.
 -   IEM for lifetime estimates as an option (seems like it will always be slow though??)
--   1d-numpy array returning methods in `C++` for fast pixelwise within-ROI analyses
--   Convert FLIM fitting to `mystic` or another more robust solver than `trust-constr`?
+-   1d-numpy array returning methods in `C++` or `corrosiff` for fast pixelwise within-ROI analyses
 -   Add more explicit support for multi-ROI imaging. Currently it stacks the
 ROIs all into one array and it's the user's responsibility to discern which pixels
 are which ROI. 
@@ -47,7 +46,7 @@ To really spell it out:
 - Open a terminal and navigate to where you'd like to copy the SiffPy files with `cd` (e.g. `cd ~/Downloads`).
 - Clone the repo a location of your choosing with `git clone https://github.com/maimonlab/SiffPy`
 - Enter the newly created directory with `cd SiffPy`.
-- Make sure you're in the environment you want, e.g. by typing `source activate flim`. You want to use one where the base Python install is Python3. I've been using `>3.9` with `futures` but none of that seems essential.
+- Make sure you're in the environment you want, e.g. by typing `conda activate flim`
 - Type `python3 -m pip install .`.
 
 Once you've downloaded it, please test it by running the testing
