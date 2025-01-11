@@ -26,8 +26,10 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
+          
           CIBW_SKIP: pp*
           # Run the package tests using `pytest`
+          CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: >
             cd {package} &&
             pytest tests
