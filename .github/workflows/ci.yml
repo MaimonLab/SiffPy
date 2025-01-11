@@ -28,7 +28,9 @@ jobs:
         env:
           CIBW_SKIP: pp*
           # Run the package tests using `pytest`
-          CIBW_TEST_COMMAND: pytest {package}/tests
+          CIBW_TEST_COMMAND: >
+            cd {package} &&
+            pytest tests
     
       - uses: actions/upload-artifact@v4
         with:
