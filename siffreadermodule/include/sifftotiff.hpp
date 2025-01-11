@@ -4,6 +4,10 @@
 #include <string>
 #include <map>
 
+#ifndef PY_SSIZE_T_CLEAN
+    #define PY_SSIZE_T_CLEAN
+#endif
+
 #include "siffparams/siffparams.hpp"
 #include "framedata/sifdefin.hpp"
 #include "siffreader/siffreader.hpp"

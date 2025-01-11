@@ -172,7 +172,7 @@ class PhaseTrace(np.ndarray):
         """
         self[...] = 1.0/self
 
-    def inverted(self)->np.ndarray:
+    def inverted(self)->'PhaseTrace':
         """
         Returns a _new_ PhaseTrace object with the phase inverted without
         modifying the existing trace.

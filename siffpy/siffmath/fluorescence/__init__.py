@@ -1,11 +1,13 @@
 """
 Dedicated code for data that is purely fluorescence analysis
 """
+import warnings
 from typing import Callable, Union, TYPE_CHECKING
 import numpy as np
 
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector # noqa: F401
 from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
+from siffpy.siffmath.flim.traces import FlimTrace
 
 if TYPE_CHECKING:
     from siffpy.siffmath.utils.types import FluorescenceArrayLike
@@ -26,24 +28,39 @@ def dFoF(
     Takes a numpy array and returns a dF/F0 trace across the rows -- i.e. each row is normalized independently
     of the others. Returns a version of the function (F - F0)/F0, where F0 is computed as below
 
-    fluorescence : np.ndarray
+    # Arguments
 
-        The data constituting the F in dF/F0
+    - `fluorescence : np.ndarray`
 
-    normalized : bool (optional)
+        The data constituting the F in dF/F0. Presumes the last axis is the time axis.
+        Probably not right -- TODO fix
+
+    - `normalized : bool (optional)`
 
         Compresses the response of each row to approximately the range 0 - 1 (uses the 5th and 95th percentiles).
         Default is False
 
-    Fo : callable or np.ndarray (optional)
+    - `Fo : callable or np.ndarray (optional)`
 
         How to determine the F0 term for a given row. If Fo is callable, the function is applied to the
         roi numpy array directly (i.e. it's NOT a function that operates on only one row at a time). 
         Can also provide just a number or an array of numbers.
 
-    Passes additional args and kwargs to the Fo function, if those args and kwargs are provided.
-    
+    - Passes additional args and kwargs to the Fo function, if those args and kwargs are provided.
+
+    # Returns
+
+    fluorescence_trace : `FluorescenceTrace`
+        The computed dF/F of the input data, carrying along with it a pointer to
+        the original fluorescence data, the computed F0 value, and some additional
+        metadata.
     """
+    if isinstance(fluorescence, FlimTrace):
+        warnings.warn("Passed a `FlimTrace` object to dF/F."
+                      + " Will operate on intensity array.",
+                      category = RuntimeWarning,
+                      )
+        fluorescence = fluorescence.intensity
     if not isinstance(fluorescence,np.ndarray):
         fluorescence = np.array(fluorescence)
     fluorescence = np.atleast_2d(fluorescence)
@@ -54,19 +71,20 @@ def dFoF(
         #inspect.signature(Fo).
     else:
         try:
-            np.array(Fo).astype(float)
+            F0 = np.array(Fo).astype(float)
         except TypeError:
             raise TypeError(
                 "Keyword argument Fo is not of type float, a numpy array, "
                  + "or a callable, nor can it be cast to such."
             )
-    
-    F0 = np.atleast_2d(F0)
-    # Code smell, BIG TIME. Quick fix for the way numpy does the atleast_2d thing...
-    if F0.shape[-1] == fluorescence.shape[0]:
-        F0 = F0.T
+
+    # Stinky code...
+    # Ensure F0 matches the shape for broadcasting along the time axis
+    if F0.ndim == 1 or (F0.ndim == fluorescence.ndim and F0.shape[-1] != fluorescence.shape[-1]):
+        F0 = np.expand_dims(F0, axis=-1)
     
     df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))
+    df_trace = df_trace
     
     max_val = None
     min_val = None

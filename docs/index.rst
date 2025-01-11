@@ -46,6 +46,7 @@ These tools are used to read and manipulate data in ``.siff`` files (ScanImage-F
    im_params_api
    flim_params
    trace_analysis_api
+   `corrosiff <../_static/corrosiff/index.html>`
    siffreadermodule_api
    registration_info
 

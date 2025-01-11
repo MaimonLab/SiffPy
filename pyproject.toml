@@ -35,12 +35,15 @@ dependencies = [
     "scipy",
     "h5py",
     "importlib_resources",
+    # "corrosiffpy",
+    # "corrosiffpy @ git+https://github.com/MaimonLab/corrosiff-python.git",
+    "corrosiffpy @ git+https://github.com/MaimonLab/corrosiff-python.git#egg=dev"
 ]
 
 [project.optional-dependencies]
 # development dependency groups
-test = ['pytest', 'aiohttp']
-suite2p = ['suite2p']
+test = ['pytest', 'dropbox', 'asyncio', 'tqdm', 'aiohttp']
+suite2p = ['suite2p @ git+https://github.com/StephenThornquist/suite2p.git']
 all = ['siffpy[suite2p, test]']
 
 # pyproject.toml
@@ -50,3 +53,7 @@ addopts = "-ra -q"
 testpaths = [
     "tests",
 ]
+
+[tool.cibuildwheel]
+# Disable building PyPy wheels on all platforms
+skip = "pp*"

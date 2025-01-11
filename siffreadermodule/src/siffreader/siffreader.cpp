@@ -1,7 +1,10 @@
 // IMPORT_ARRAY() CALLED IN MODULE INIT
+#ifndef PY_SSIZE_T_CLEAN
+    #define PY_SSIZE_T_CLEAN
+#endif
+
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL siff_ARRAY_API
-#define PY_SSIZE_T_CLEAN
 #include "../../include/siffreader/siffreader.hpp"
 
 #include "../../include/framedata/sifdefin.hpp"
@@ -365,8 +368,8 @@ PyObject* SiffReader::readFixedData() const {
     PyDict_SetItemString(headerDict, "BigTiff", Py_BuildValue("O", params.bigtiff ? Py_True : Py_False));
     PyDict_SetItemString(headerDict, "IsSiff",Py_BuildValue("O", params.issiff ? Py_True : Py_False));
     PyDict_SetItemString(headerDict, "Number of frames", Py_BuildValue("n", params.numFrames));
-    PyDict_SetItemString(headerDict, "Non-varying frame data", Py_BuildValue("s#",params.headerstring.c_str(),Py_ssize_clean_t(params.NVFD_length)));
-    PyDict_SetItemString(headerDict, "ROI string", Py_BuildValue("s#",params.ROI_string.c_str(),Py_ssize_clean_t(params.ROI_string_length)));
+    PyDict_SetItemString(headerDict, "Non-varying frame data", Py_BuildValue("s#",params.headerstring.c_str(),Py_ssize_t(params.NVFD_length)));
+    PyDict_SetItemString(headerDict, "ROI string", Py_BuildValue("s#",params.ROI_string.c_str(),Py_ssize_t(params.ROI_string_length)));
     if (debug) {
         PyDict_SetItemString(headerDict, "IFD pointers", Py_BuildValue("O",VectorToList(params.allIFDs)));
     }

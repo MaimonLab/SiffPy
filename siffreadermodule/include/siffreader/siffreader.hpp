@@ -1,6 +1,7 @@
 #ifndef SIFFREADER_HPP
 #define SIFFREADER_HPP
 
+#include <cstdint>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -8,6 +9,10 @@
 #include <fstream>
 //#include <sys/mman.h>
 #include <chrono>
+
+#ifndef PY_SSIZE_T_CLEAN
+    #define PY_SSIZE_T_CLEAN
+#endif
 
 // IMPORT_ARRAY() CALLED IN MODULE INIT
 #define NO_IMPORT_ARRAY
@@ -23,7 +28,6 @@
 #include "../framedata/pyFrameData.hpp"
 #include "../debug.hpp"
 #include <numpy/arrayobject.h>
-#define PY_SSIZE_T_CLEAN
 
 // Appends the error to errstring and rethrows()
 #define REPORT_ERR(x) \

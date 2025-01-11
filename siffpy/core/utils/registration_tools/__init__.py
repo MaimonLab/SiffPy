@@ -1,11 +1,16 @@
 from pathlib import Path
 
-from siffreadermodule import SiffIO
+from typing import TYPE_CHECKING
+
+#from siffreadermodule import SiffIO
 from siffpy.core.utils import ImParams
 from siffpy.core.utils.types import PathLike
 from siffpy.core.utils.registration_tools.registration_info import (
     RegistrationType, RegistrationInfo
 )
+
+if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
 
 def to_reg_info_class(
     stringname : str
@@ -56,7 +61,7 @@ def to_reg_info_class(
 
 def to_registration_info(
         path : PathLike, 
-        siffio : SiffIO = None,
+        siffio : 'SiffIO' = None,
         im_params : ImParams = None,
     )->RegistrationInfo:
     """

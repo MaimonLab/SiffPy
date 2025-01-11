@@ -41,6 +41,8 @@ extensions = [
     #'myst_nb',
 ]
 
+html_extra_path = ['_static/corrosiff']
+
 source_suffix = [".rst", ".md"]
 
 # Add any paths that contain templates here, relative to this directory.

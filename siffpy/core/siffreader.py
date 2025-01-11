@@ -1,5 +1,4 @@
 import copy
-import logging
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -8,15 +7,16 @@ import numpy as np
 
 ## Should I move some import statements to function definitions
 from siffpy.core import io, timetools
-from siffpy.core.flim import FLIMParams, FlimUnits
+from siffpy.core.flim import FLIMParams, FlimUnits, default_flimparams
 from siffpy.core.utils.event_stamp import EventStamp
 
 #from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_class
 from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
-from siffpy.siffmath.flim import FlimTrace
+from siffpy.core.utils import warn_for_mroi
+from siffpy.siffmath.flim import FlimTrace, FlimMethod
 from siffpy.siffmath.utils import Timeseries
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
 
 # TODO:
 # __repr__
@@ -32,7 +32,12 @@ class SiffReader(object):
     """
 
 ### INIT AND DUNDER METHODS
-    def __init__(self, filename : Optional[PathLike] = None, open : bool = True):
+    def __init__(
+            self,
+            filename : Optional[PathLike] = None,
+            open : bool = True,
+            backend : str = 'corrosiff'
+        ):
         """
         Opens file `filename` if provided, otherwise creates an inactive SiffReader.
         If open is True, opens the file. If open is False, does not open the file.
@@ -44,6 +49,12 @@ class SiffReader(object):
 
         * open (optional, bool):
             Whether or not to open the file immediately. Default is True.
+
+        * backend (optional, str):
+            Which backend to use. Default is 'corrosiff', which is the
+            Rust backend. You can also use the (hopefully-soon-to-be-deprecated)
+            'siffreadermodule' backend which is written in C++ and whose source is in 
+            the `siffreadermodule` directory.
 
         # Returns
 
@@ -74,7 +85,17 @@ class SiffReader(object):
         self.opened = False
         self.debug = False
         self.events = None
-        self.siffio = SiffIO()
+        if backend == 'siffreadermodule':
+            from siffreadermodule import SiffIO
+            warnings.warn(
+                DeprecationWarning("The 'siffreadermodule' backend is deprecated and will be removed in a future version")
+            )
+            self.siffio = SiffIO()
+        elif backend == 'corrosiff':
+            pass
+        else:
+            raise ValueError("Backend must be 'siffreadermodule' or 'corrosiff'")
+        self.backend = backend
         if isinstance(filename, Path):
             filename = str(filename)
         if filename is None:
@@ -140,10 +161,14 @@ class SiffReader(object):
         filename = Path(filename)            
         if self.opened and not (filename == self.filename):
             self.siffio.close()
-        
-#        print(f"Opening {filename}, collecting metadata...")
 
-        self.siffio.open(str(filename))
+        if self.backend == 'corrosiff':
+            from corrosiffpy import open_file
+            self.siffio = open_file(str(filename))
+
+        if self.backend == 'siffreadermodule':
+            self.siffio.open(str(filename))
+        
         self.filename = filename
 
         header = self.siffio.get_file_header()
@@ -167,31 +192,56 @@ class SiffReader(object):
             self._time_axis_epoch = None
 
         #self.events = io.find_events(self.im_params, self.get_frames_metadata())
-        flim_params = io.load_flim_params(filename)
-        if any(flim_params):
-            self._flim_params = flim_params
-        #print("Finished opening and reading file")
+        try:
+            flim_params = io.load_flim_params(filename)
+            if any(flim_params):
+                self.flim_params = flim_params
+        except Exception as e:
+            print(f"Failed to load FLIM parameters with error: {e}")
 
     def close(self) -> None:
         """ Closes opened file """
-        self.siffio.close()
+        if self.backend == 'siffreadermodule':
+            self.siffio.close()
+        if self.backend == 'corrosiff' and hasattr(self, 'siffio'):
+            del self.siffio
         self.opened = False
         self.filename = ''
         if hasattr(self, 'im_params'):
             delattr(self, 'im_params')
 
+    def load_registration_info(self, path : PathLike)->None:
+        """
+        Loads the registration information from a file and sets it as the registration info for the SiffReader.
+        """
+        self.registration_info = to_reg_info_class(
+            io.load_registration_info(path)
+        )
+
     @property
-    def flim_params(self)->Tuple[FLIMParams]:
-        """ Returns the FLIMParams object if it exists """
+    def flim_params(self)->Optional[Tuple[FLIMParams]]:
+        """
+        Returns the FLIMParams objects if they exist
+        
+        Returns `None` if no `FLIMParams` objects have been loaded
+        """
         if hasattr(self, '_flim_params'):
             return self._flim_params
-        return (None,)
+        return None
     
     @flim_params.setter
-    def flim_params(self, flim_params : Union[FLIMParams, str])->None:
+    def flim_params(self, flim_params : Union[Tuple, List, FLIMParams, str, Dict])->None:
         """ Sets the FLIMParams object """
         if isinstance(flim_params, str):
-            flim_params = io.load_flim_params(flim_params)
+            flim_params = tuple(io.load_flim_params(flim_params))
+        if isinstance(flim_params, dict):
+            flim_params = tuple(FLIMParams.from_dict(**flim_params))
+        if isinstance(flim_params, List):
+            flim_params = tuple(flim_params)
+        if isinstance(flim_params, FLIMParams):
+            flim_params = (flim_params,)
+        if not isinstance(flim_params, Tuple):
+            raise ValueError("flim_params must be a FLIMParams, a list of FLIMParams, a dict, or a string")
         self._flim_params = flim_params
 
 ### TIME AXIS METHODS
@@ -478,16 +528,16 @@ class SiffReader(object):
 
         # Arguments
 
-        * seconds : float
-            Time in seconds to convert
+        * `seconds` : *float*
+            * Time in seconds to convert
 
-        * base : str
-            Base to convert to. Can be 'volume' or 'frame'. Defaults to 'volume'.
+        * `base` : *str*
+            * Base to convert to. Can be 'volume' or 'frame'. Defaults to 'volume'.
 
         # Returns
         
-        * frames : int
-            Number of frames that time represents.
+        * `frames` : *int*
+            * Number of frames that time represents.
 
         # Example
 
@@ -504,7 +554,7 @@ class SiffReader(object):
         >> 10
         ```
         """
-
+        base = base.lower()
         if base == 'volume':
             return int(seconds/self.dt_volume)
         if base == 'frame':
@@ -518,6 +568,20 @@ class SiffReader(object):
         return [io.FrameMetaData(meta_dict)
             for meta_dict in io.frame_metadata_to_dict(self.siffio.get_frame_metadata(frames=frames))
         ]
+    
+    def epoch_time_to_volume_index(self, epoch_time : int) -> int:
+        """
+        Returns the index of the volume containing the epoch time provided.
+        """
+        return np.searchsorted(self.t_axis(reference_time = 'epoch'), epoch_time)
+
+    def epoch_time_to_frame_index(self, epoch_time : int, correct_flyback : bool = False) -> int:
+        """
+        Returns the index of the frame containing the epoch time provided. Note:
+        by default frames are numbered by _frame triggers_,
+        meaning they include flyback frames in their indexing!
+        """
+        return np.searchsorted(self.get_time(reference_time = 'epoch'), epoch_time)
 
     def epoch_to_frame_time(self, epoch_time : int) -> float:
         """ Converts epoch time to frame time for this experiment (returned in seconds) """
@@ -568,9 +632,9 @@ class SiffReader(object):
     def get_frames(
         self,
         frames: Optional[List[int]] = None,
-        registration_dict : Optional[dict] = None,
-        as_array : bool = True,
-        ) -> Union[List['ImageArray'], 'ImageArray']:
+        registration_dict : Optional[Dict] = None,
+        full : bool = False,
+        ) -> 'ImageArray':
         
         """
         Returns the frames requested in frames keyword, or if None returns all frames.
@@ -585,13 +649,16 @@ class SiffReader(object):
         * registration_dict (optional) : `dict`
             Registration dictionary, if used
 
-        * as_array : `bool` (True)
-            Type of returned PyObject. Default is np.ndarray, if False will return list
+        * full (optional) : `bool`
+            If True, includes an arrival time axis.
+            Be aware, this will multiply the size of the array
+            by ~600x!
 
         # Returns
         
-        * `np.ndarray` or `List[np.ndarray]`
-            Either a n_frames by y by x array or a list of numpy arrays.
+        * `np.ndarray`
+            Size of array is either `(n_frames, y, x)` if `full` is False,
+            or `(n_frames, y, x, tau)` if `full` is True.
 
         # Examples
 
@@ -619,15 +686,24 @@ class SiffReader(object):
         >> (500, 256, 128)
         ```
         """
-        registration_dict = self.registration_dict if registration_dict is None else registration_dict
-        frames = list(range(self.im_params.num_frames)) if frames is None else frames
-        
-        if registration_dict is None:
-            framelist = self.siffio.get_frames(frames = frames, as_array = as_array)
-        else:
-            framelist = self.siffio.get_frames(frames = frames, registration = registration_dict, as_array = as_array)
+        warn_for_mroi(self)
 
-        return framelist
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            else registration_dict
+        )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
+        
+        frames = list(range(self.im_params.num_frames)) if frames is None else frames
+
+        if full:
+            return self.siffio.get_frames_full(
+                frames = frames, registration=registration_dict
+            )
+        return self.siffio.get_frames(frames = frames, registration = registration_dict)
+
     
     def sum_mask(
         self,
@@ -655,34 +731,34 @@ class SiffReader(object):
 
         # Arguments
 
-        * mask : Union[np.ndarray[bool], List[np.ndarray[bool]]]
+        * `mask : Union[np.ndarray[bool], List[np.ndarray[bool]]]`
             Mask to sum over. Must be either the same shape as individual frames
             (in which case z_index is used) or have a 0th axis with length equal
             to the number of z slices. If a `list` is provided, or if the mask
             has dimension > 3, the function will sum over each mask in the list
             (presuming the slowest dimension is the mask index).
 
-        * timepoint_start : int
+        * `timepoint_start : int`
             Starting timepoint for the sum. Default is 0.
 
-        * timepoint_end : int
+        * `timepoint_end : int`
             Ending timepoint for the sum. Default is None, which means the last timepoint.
 
-        * z_index : List[int]
+        * `z_index : List[int]`
             List of z-slices to sum over. Default is None, which means all z-slices.
 
-        * color_channel : int
+        * `color_channel : int`
             Color channel to sum over. Default is 1, which means the FIRST color channel.
         
-        * registration_dict : dict
+        * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or if you want to use a different one.
 
-        * return_framewise : bool
+        * `return_framewise : bool`
             If True, does not sum across timepoints.
             
         # Returns
         
-        * np.ndarray
+        * `np.ndarray`
             Summed photon counts as an array of shape `(n_timepoints,)`
             (unless `return_framewise` is True, in which case it is `(n_frames,)`).
 
@@ -739,6 +815,8 @@ class SiffReader(object):
         9727  9909  9827 9941  9867  9997]
         ```
         """
+        warn_for_mroi(self)
+
         if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
             return self.sum_masks(
                 masks = mask,
@@ -753,6 +831,7 @@ class SiffReader(object):
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
@@ -797,23 +876,23 @@ class SiffReader(object):
 
         # Arguments
 
-        * mask : np.ndarray[bool]
+        * `mask : np.ndarray[bool]`
             Mask to sum over. If 2d, applies the same mask to every frame.
             Otherwise, applies the 3d mask slices to each z slice sequentially
             (assumes the slowest dimension is the z index). There is no
             safety checking done to make sure that the frames cycle through
             the z slices in the order corresponding to the mask!
 
-        * frames : List[int]
+        * `frames : List[int]`
             List of frames to sum over
 
-        * registration_dict : dict
+        * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or
             if you want to use a custom one.
             
         # Returns
 
-        * np.ndarray
+        * `np.ndarray`
 
             (`n_frames`,) framewise ROI sum
 
@@ -860,6 +939,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict')
             else registration_dict
         )
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         return self.siffio.sum_roi(
             mask = mask,
@@ -1017,12 +1098,15 @@ class SiffReader(object):
 
         - `SiffReader.sum_mask` to sum over a single mask
         """
+        warn_for_mroi(self)
+
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
 
         timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
 
         registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if masks.ndim > 3:
             if masks.shape[-3] != self.im_params.num_slices:
@@ -1069,7 +1153,11 @@ class SiffReader(object):
         raise NotImplementedError("Haven't re-implemented pool_frames yet")
 
 ### FLIM METHODS
-    def get_histogram(self, frames: Optional[List[int]] = None, mask : Optional[np.ndarray] = None) -> np.ndarray:
+    def get_histogram(
+            self,
+            frames: Optional[List[int]] = None,
+            framewise : bool = False,
+        ) -> np.ndarray:
         """
         Get just the arrival times of photons in the list frames.
 
@@ -1078,16 +1166,19 @@ class SiffReader(object):
         
         # Arguments
         
-        * frames (optional, list of ints):
+        * `frames : Optional[List[int]]`
             Frames to get arrival times of. If NONE, collects from all frames.
 
-        * mask (optional, np.ndarray):
-            z,y,x mask to apply to the data. If None, no mask is applied.
+        * `framewise : bool`
+            If True, returns the arrival times for each frame separately
+            rather than pooling them all together.
 
         # Returns
 
-        * histogram (np.ndarray):
-            1 dimensional histogram of arrival times
+        * `histogram : np.ndarray`
+            1 dimensional histogram of arrival times unless
+            framewise is True, in which case it is a 2d array
+            with shape (n_frames, n_bins)
 
         # Examples
 
@@ -1113,13 +1204,76 @@ class SiffReader(object):
         ...
         ...
         ]
-        
+        ```
         """
-        if mask is not None:
-            raise NotImplementedError("Masking not yet implemented in get_histogram!")
-        if frames is None:
-            return self.siffio.get_histogram(frames=self.im_params.all_frames)
-        return self.siffio.get_histogram(frames=frames)[:self.im_params.num_bins]
+        if framewise:
+            if self.backend == 'siffreadermodule':
+                raise NotImplementedError("Framewise histograms not yet implemented in `siffreadermodule`")
+            return self.siffio.get_histogram_by_frames(
+                frames = frames,
+            )
+        return self.siffio.get_histogram(frames = frames)
+    
+    def get_histogram_masked(
+        self,
+        mask : 'BoolMaskArray',
+        frames : Optional[List[int]] = None,
+        registration_dict : Optional[Dict] = None,
+    )->np.ndarray:
+        """
+        Get the arrival time histogram of photons within a mask for
+        each frame.
+
+        # Arguments
+
+        * mask : np.ndarray[bool]
+            Mask to sum over. If 2d, applies the same mask to every frame.
+            Otherwise, applies the 3d mask slices to each z slice (not implemented
+            yet)
+
+        * frames : List[int]
+            List of frames to sum over
+
+        * registration_dict : dict
+            Registration dictionary, if there is not a stored one or
+            if you want to use a custom one.
+
+        # Returns
+
+        * np.ndarray
+            Arrival time histogram of the masked region (shape is (n_frames, n_bins))
+
+        # Examples
+
+        ```python
+        from siffpy import SiffReader
+        reader = SiffReader('example.siff')
+
+        # Create a mask
+        mask = np.zeros(reader.im_params.shape).astype(bool)
+        mask[:mask.shape[0]//2, mask.shape[1]//2:] = True
+
+        # Get the histogram of the first 1000 frames
+        hist = reader.get_histogram_masked(mask = mask, frames = list(range(1000)))
+
+        print(hist.shape, hist)
+
+        >>> (1000, 629) [[  0   0   0 ...   0   0   0]
+        ```
+        """
+        warn_for_mroi(self)
+
+        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
+
+        # if mask.ndim != 2:
+        #     raise NotImplementedError("3D masks not yet implemented")
+
+        return self.siffio.get_histogram_masked(
+            mask = mask,
+            frames = frames,
+            registration = registration_dict
+        )
 
     def histograms(
         self,
@@ -1179,12 +1333,127 @@ class SiffReader(object):
         
         return np.array([self.get_histogram(frames) for frames in true_framelists])
 
+    def fit_flimparams_to_timepoints(
+        self,
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        color_channel : int = 0,
+        mask : Optional['BoolMaskArray'] = None,
+        initial_guess : Optional[FLIMParams] = None,
+    ) -> FLIMParams:
+        """
+        Fits a FLIMParams object to the timepoints requested.
+        If a mask is provided, fits only photons within the
+        masked region. Stores the FLIMParams object in the
+        SiffReader object but also returns a reference to the
+        same object.
+
+        # Arguments
+
+        * `timepoint_start` : int
+            Start of the timepoints to fit to.
+
+        * `timepoint_end` : int
+            End of the timepoints to fit to. None means the
+            last timepoint.
+
+        * `color_channel` : int
+            Color channel to fit to. Default is 0. 0-indexed!
+
+        * `mask` : Optional[np.ndarray[bool]]
+            Mask for the frames acquired. If None, fits to all frames.
+
+        * `initial_guess` : Optional[FLIMParams]
+            Initial guess for the FLIMParams object. If None, uses
+            the default FLIMParams object produced by `default_flimparams()`.
+
+        # Returns
+
+        * `FLIMParams`
+            A reference to the FLIMParams object fit to the data, also
+            stored in `self.flim_params`.
+
+        # Examples
+
+        ```python
+
+        from siffpy import SiffReader
+        reader = SiffReader('example.siff')
+
+        # Fit the FLIMParams object to the first 1000 timepoints
+        # in the first color channel
+
+        fp = reader.fit_flimparams_to_timepoints(
+            timepoint_end = 1000,
+            color_channel = 0,
+        )
+
+        print(reader.flim_params)
+
+        # Do the same with a mask in the upper left quadrant
+
+        mask = np.zeros(reader.im_params.shape).astype(bool)
+        mask[:mask.shape[0]//2, mask.shape[1]//2:] = True
+
+        fp_two = reader.fit_flimparams_to_timepoints(
+            timepoint_end = 1000,
+            color_channel = 0,
+            mask = mask,
+        )
+
+        assert ( fp != fp_two )
+        ```
+        """
+
+        if initial_guess is None:
+            fp = default_flimparams()
+        else:
+            fp = initial_guess
+
+        framelist = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            color_channel=color_channel
+        )
+
+        if mask is None:
+            hist = self.get_histogram(framelist).astype(float)
+        else:
+            hist = self.get_histogram_masked(mask, framelist).astype(float).sum(axis = 0)
+        
+        try:
+            fp.fit_params_to_data(
+                hist,
+                optimization_units='countbins',
+            )
+        except ValueError: # Unstable optimizer I guess?
+            # give it one more try!
+            fp.noise = 0.2
+            fp.fit_params_to_data(
+                hist,
+                optimization_units='countbins',
+            )
+
+        if self.flim_params is None:
+            self.flim_params = fp
+
+        else:
+            fpl = list(self.flim_params)
+            ncols = len(fpl)
+            if color_channel >= ncols:
+                fpl += [None]*(color_channel-ncols+1)
+            fpl[color_channel] = fp
+            self.flim_params = tuple(fpl)
+        
+        return fp
+
     def get_frames_flim(
         self,
-        params : FLIMParams,
+        params : Optional[FLIMParams] = None,
         frames: Optional[List[int]] = None,
         registration_dict : Optional[Dict] = None,
         confidence_metric : str = 'chi_sq',
+        method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
@@ -1192,14 +1461,74 @@ class SiffReader(object):
         to the frames requested. Units of the FlimTrace
         are 'countbins'.
         """
-     
-        if frames is None:
-            frames = list(range(self.im_params.num_frames))
+        warn_for_mroi(self)
+
+        if self.backend == 'siffreadermodule':
+            return self._get_frames_flim_srm(
+                params = params,
+                frames = frames,
+                registration_dict = registration_dict,
+                confidence_metric = confidence_metric
+            )
+        
+        method = FlimMethod(method)
 
         registration_dict = self.registration_dict if (
                 registration_dict is None
                 and hasattr(self, 'registration_dict') 
             ) else registration_dict
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
+
+        lifetime, intensity, confidence = self.siffio.flim_map(
+            params,
+            frames = frames,
+            registration = registration_dict,
+            flim_method = method.value,
+            confidence_metric=confidence_metric
+        )    
+
+        return FlimTrace(
+            lifetime,
+            intensity = intensity,
+            #confidence= np.array(flim_arrays[2]),
+            FLIMParams = params,
+            method = method.value,
+            units = 'countbins',
+        )
+
+    def _get_frames_flim_srm(
+        self,
+        params : FLIMParams,
+        frames: Optional[List[int]] = None,
+        registration_dict : Optional[Dict] = None,
+        confidence_metric : str = 'chi_sq',
+        method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
+        ) -> FlimTrace:
+        """
+        Returns a FlimTrace object of dimensions
+        n_frames by y_size by x_size corresponding
+        to the frames requested. Units of the FlimTrace
+        are 'countbins'.
+        """
+
+        if params is None:
+            raise ValueError(
+                "Must provide FLIMParams object for `siffreadermodule` \
+                backend"
+            )
+     
+        if frames is None:
+            frames = list(range(self.im_params.num_frames))
+
+        method = FlimMethod(method)
+
+        registration_dict = self.registration_dict if (
+                registration_dict is None
+                and hasattr(self, 'registration_dict') 
+            ) else registration_dict
+        
+        registration_dict = _rinfo_safe_convert(registration_dict)
         
         if registration_dict is None:
             flim_arrays = self.siffio.flim_map(
@@ -1226,14 +1555,15 @@ class SiffReader(object):
 
     def sum_mask_flim(
         self,
-        params : FLIMParams,
         mask : Union['BoolMaskArray',List['BoolMaskArray']],
+        params : Optional[FLIMParams] = None,
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[int] = None,
         color_channel : int = 1,
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
+        flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -1247,19 +1577,19 @@ class SiffReader(object):
 
         # Arguments
 
-        * `params` : FLIMParams object or list of FLIMParams
-            The FLIMParams objects fit to the FLIM data of this .siff file. If
-            the FLIMParams objects do not all have a color_channel attribute,
-            then the optional argument color_list must be provided and be a list
-            of ints corresponding to the * 1-indexed * color channel numbers for
-            each FLIMParams, unless there is only one color channel in the data.
-
         * `mask` : Union[np.ndarray[bool], List[np.ndarray[bool]]]
             A mask that defines the boundaries of the region being considered.
             May be 2d (in which case it is applied to all z-planes) or higher
             dimensional (in which case it must have the same number of z-planes
             as the image data frames requested). If a list is provided, the function
             will call `SiffReader.sum_masks_flim` instead.
+
+        * `params` : FLIMParams object or list of FLIMParams
+            The FLIMParams objects fit to the FLIM data of this .siff file. If
+            the FLIMParams objects do not all have a color_channel attribute,
+            then the optional argument color_list must be provided and be a list
+            of ints corresponding to the * 1-indexed * color channel numbers for
+            each FLIMParams, unless there is only one color channel in the data.
 
         * `timepoint_start` : int (optional) (default is 0)
             The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
@@ -1277,6 +1607,10 @@ class SiffReader(object):
         * `return_framewise` : bool
             If True, does not sum across timepoints, and returns a flat array
             corresponding to the frames.
+
+        * `flim_method` : Union[str, FlimMethod]
+            The method to use for the FLIM analysis. Default is 'empirical'.
+            Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
             
         # Returns
 
@@ -1294,6 +1628,94 @@ class SiffReader(object):
         during one read of the file.
         
         """
+        warn_for_mroi(self)
+
+        if self.backend == 'siffreadermodule':
+            return self._sum_mask_flim_srm(
+                params = params,
+                mask = mask,
+                timepoint_start = timepoint_start,
+                timepoint_end = timepoint_end,
+                z_index = z_index,
+                color_channel = color_channel,
+                registration_dict = registration_dict,
+                return_framewise = return_framewise
+            )
+        
+        flim_method = FlimMethod(flim_method)
+
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None
+            else timepoint_end
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None 
+            and hasattr(self, 'registration_dict') 
+            else registration_dict
+        )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
+        
+        if mask.ndim != 2:
+            if mask.shape[0] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image")
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        summed_flim_data, summed_intensity_data, _ = self.siffio.sum_roi_flim(
+            mask,
+            params,
+            frames = frames,
+            flim_method = flim_method.value,
+            registration = registration_dict
+        )
+
+        if return_framewise:
+            return FlimTrace(
+                summed_flim_data, 
+                intensity = summed_intensity_data,
+                FLIMParams = params,
+                method = flim_method.value,
+                info_string = "ROI",
+                units = FlimUnits.COUNTBINS,
+            )
+
+        return FlimTrace(
+            summed_flim_data, 
+            intensity = summed_intensity_data,
+            FLIMParams = params,
+            method = flim_method.value,
+            info_string = "ROI",
+            units = FlimUnits.COUNTBINS,
+        ).reshape(
+            (-1, mask.shape[0] if mask.ndim > 2 else 1)
+        ).sum(axis=1)
+        
+    def _sum_mask_flim_srm(
+        self,
+        params : FLIMParams,
+        mask : Union['BoolMaskArray',List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
+        )->FlimTrace:
+        """ The `siffreadermodule` implementation,
+        slow and inefficient (and requires reading the frames
+        twice!), but has to be implemented separately because
+        the flim mask calls only return the lifetime array
+        (without intensity data).
+        """
         if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
             return self.sum_masks_flim(
                 masks = mask,
@@ -1306,10 +1728,12 @@ class SiffReader(object):
             )
 
         if not isinstance(params, FLIMParams):
-            raise ValueError("params argument must be a FLIMParams object")
-        
-        params = copy.deepcopy(params) 
-        params.convert_units('countbins')
+            raise ValueError("params argument must be a FLIMParams object for `siffreadermodule` backend")
+
+        if self.backend == 'siffreadermodule':
+            params = copy.deepcopy(params) 
+            params.convert_units('countbins')
+         
         
         timepoint_end = (
             self.im_params.num_timepoints
@@ -1323,6 +1747,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict') 
             else registration_dict
         )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
         
         if mask.ndim != 2:
             if mask.shape[0] != self.im_params.num_slices:
@@ -1368,28 +1794,29 @@ class SiffReader(object):
         ).reshape(
             (-1, mask.shape[0] if mask.ndim > 2 else 1)
         ).sum(axis=1)
-    
+
     def sum_masks_flim(
         self,
-        params : FLIMParams,
         masks : Union['BoolMaskArray', List['BoolMaskArray']],
+        params : Optional[FLIMParams] = None,
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[int] = None,
         color_channel : int = 1,
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
+        flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
         )->FlimTrace:
         """
         Computes the empirical lifetime within a set of ROIs over timesteps.
 
         # Arguments
 
-        * `params` : FLIMParams object for the color channel to get a
-            `tau_offset` parameter.
-
         * `masks` : Union[np.ndarray[bool], List[np.ndarray[bool]]]
             A mask that defines the boundaries of the region being considered.        
+            
+        * `params` : FLIMParams object for the color channel to get a
+            `tau_offset` parameter.
 
         * `timepoint_start` : int (optional) (default is 0)
             The TIMEPOINT (not frame) at which to start the analysis. Defaults to 0.
@@ -1412,6 +1839,127 @@ class SiffReader(object):
             If True, returns a flat array of all frames, rather than summing across
             timepoints.
 
+        * `flim_method` : Union[str, FlimMethod]
+            The method to use for the FLIM analysis. Default is 'empirical'.
+            Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
+        
+        # Returns
+
+        * FlimTrace
+            TODO :DOCUMENT
+
+        # Example
+
+        TODO
+        ```python
+
+            from siffpy import SiffReader
+            reader = SiffReader('example.siff')
+
+        ```
+
+        """
+        warn_for_mroi(self)
+
+        if self.backend == 'siffreadermodule':
+            return self._sum_masks_flim_srm(
+                params = params,
+                masks = masks,
+                timepoint_start = timepoint_start,
+                timepoint_end = timepoint_end,
+                z_index = z_index,
+                color_channel = color_channel,
+                registration_dict = registration_dict,
+                return_framewise = return_framewise
+            )
+        
+        flim_method = FlimMethod(flim_method)
+        # if flim_method != FlimMethod.EMPIRICAL:
+        #     raise NotImplementedError(
+        #         "Only empirical lifetime method is implemented in `siffio` backend so far"
+        #     )
+
+        if isinstance(masks, list):
+            masks = np.array(masks).squeeze()
+        
+        timepoint_end = (
+            self.im_params.num_timepoints
+            if timepoint_end is None else timepoint_end
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            and hasattr(self, 'registration_dict')
+            else registration_dict
+        )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
+
+        if masks.ndim > 3:
+            if masks.shape[-3] != self.im_params.num_slices:
+                raise ValueError("Mask must have same number of z-slices as the image"
+                    + f" you provided masks with shape {masks.shape} with the z axis"
+                    + f" presumed to be of length {masks.shape[-3]} while the number of"
+                    + f" z slices in the image is {self.im_params.num_slices}"
+                )
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        flim_summed, intensity_summed, _ = self.siffio.sum_rois_flim(
+            masks = masks,
+            params = params,
+            frames = frames,
+            flim_method = flim_method.value,
+            registration = registration_dict,
+        )
+
+        if return_framewise:
+            return FlimTrace(
+                flim_summed,
+                intensity = intensity_summed,
+                FLIMParams = params,
+                method = flim_method.value,
+                info_string = "Multi-ROIs",
+                units = FlimUnits.COUNTBINS,
+            )
+
+        # Reshape AFTER making a `FlimTrace`
+        # or else things won't be added correctly.
+        return FlimTrace(
+            flim_summed,
+            intensity = intensity_summed,
+            FLIMParams = params,
+            method = flim_method.value,
+            info_string = "Multi-ROIs",
+            units = FlimUnits.COUNTBINS,
+        ).reshape(
+            (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
+        ).sum(axis=2)
+
+        raise NotImplementedError("Not yet implemented using corrosiff backend")
+    
+    def _sum_masks_flim_srm(
+        self,
+        params : FLIMParams,
+        masks : Union['BoolMaskArray', List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[dict] = None,
+        return_framewise : bool = False,
+        ) ->FlimTrace:
+        """ The `siffreadermodule` implementation,
+        slow and inefficient (and requires reading the frames
+        twice!) but has to be implemented separately because
+        the flim mask calls only return the lifetime array
+        (without intensity data).
         """
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
@@ -1433,6 +1981,8 @@ class SiffReader(object):
             and hasattr(self, 'registration_dict')
             else registration_dict
         )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
 
         if masks.ndim > 3:
             if masks.shape[-3] != self.im_params.num_slices:
@@ -1485,6 +2035,7 @@ class SiffReader(object):
         ).reshape(
             (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
         ).sum(axis=2)
+            
                 
 ### REGISTRATION METHODS
     def register(
@@ -1510,9 +2061,14 @@ class SiffReader(object):
             Whether or not to save the dict. Name will be as TODO
 
         Other kwargs are passed to the registration method!
+        If `nowarn` is included as a `kwarg`, it will suppress
+        the `zplane` alignment warning.
         """
+        if 'nowarn' in kwargs:
+            kwargs.pop('nowarn')
+        else:
+            warnings.warn("\n\n \t Don't forget to fix the zplane alignment!!")
 
-        logging.warn("\n\n \t Don't forget to fix the zplane alignment!!")
         if not self.opened:
             raise RuntimeError("No open .siff or .tiff")
 
@@ -1539,10 +2095,25 @@ class SiffReader(object):
         registration_info.save(save_path = save_path)
 
         return self.registration_dict
+
+    @property
+    def registration_info(self) -> RegistrationInfo:
+        if hasattr(self, '_registration_info'):
+            return self._registration_info
+        raise AttributeError("No registration info loaded"\
+                             " Try `load_registration_info` first")
     
+    @registration_info.setter
+    def registration_info(self, registration_info : RegistrationInfo):
+        if not isinstance(registration_info, RegistrationInfo):
+            raise ValueError("registration_info must be set to a RegistrationInfo object")
+        self._registration_info = registration_info
+
     @property
     def registration_dict(self) -> Optional[Dict]:
         if hasattr(self, 'registration_info'):
+            if self.registration_info is None:
+                return None
             return self.registration_info.yx_shifts
         return None
 
@@ -1557,7 +2128,9 @@ class SiffReader(object):
 ### IMPARAMS SHORTHAND
     @property
     def all_frames(self) -> Sequence[int]:
-        return self.im_params.flatten_by_timepoints()
+        if not hasattr(self, '_all_frames'):
+            self._all_frames = self.im_params.flatten_by_timepoints()
+        return self._all_frames
     
     @property
     def series_shape(self)->Sequence[int]:
@@ -1567,3 +2140,15 @@ class SiffReader(object):
         as flattened frames.
         """
         return (-1, *self.im_params.volume)
+    
+def _rinfo_safe_convert(registration_info : Union[RegistrationInfo, Dict]) -> Dict:
+    """
+    Converts a `RegistrationInfo` into a dictionary so that it can be used
+    as a registration dictionary argument to the `Siffio` class functions.
+    """
+    if isinstance(registration_info, RegistrationInfo):
+        return registration_info.yx_shifts
+    if isinstance(registration_info, dict) and 'yx_shifts' in registration_info:
+        return registration_info['yx_shifts']
+    if isinstance(registration_info, dict):
+        return registration_info

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, TYPE_CHECKING
 
 import numpy as np
 import numpy.fft as fft
@@ -7,14 +7,18 @@ from numpy.linalg import solve
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
-from siffreadermodule import SiffIO
+#from siffreadermodule import SiffIO
+#from corrosiffpy import SiffIO
 from siffpy.core.utils.circle_fcns import circ_d, re_circ
 from siffpy.core.utils.registration_tools.siffpy.alignment import (
     align_to_reference
 )
 
+if TYPE_CHECKING:
+    from corrosiffpy import SiffIO
+
 def register_frames(
-        siffio : SiffIO,
+        siffio : 'SiffIO',
         reference_frame : np.ndarray,
         frames : List[int],
         registration_dict : Dict = {},

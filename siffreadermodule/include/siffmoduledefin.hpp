@@ -1,6 +1,7 @@
 #ifndef SIFFMODULEDEFIN_HPP
 #define SIFFMODULEDEFIN_HPP
 
+
 // DOCSTRING DEFS
 
 constexpr const char* MODULE_DOC =

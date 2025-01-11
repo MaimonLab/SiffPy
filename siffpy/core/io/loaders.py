@@ -68,14 +68,17 @@ def load_registration_legacy(filename : str)->tuple:
     return tuple(ret)
 
 def load_flim_params(
-        filename : PathLike
+        filename : PathLike,
+        glob_pattern : str = "*.flimparams",
     )->Tuple['FLIMParams']:
     """
     Returns a tuple of FLIMParams if any are stored in a directory
     with the name of the file, but with a .flimparams extension.
+
+    Can use an alternate `glob_pattern` if preferred.
     """
     filename = pathlib.Path(filename)
     return tuple(
         FLIMParams.load(x)
-        for x in filename.with_suffix("").glob("*.flimparams")
+        for x in filename.with_suffix("").glob(glob_pattern)
     )

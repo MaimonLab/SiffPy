@@ -28,6 +28,7 @@ this with `PyCapsule`s at some point to resolve that.
 #include <string>
 #include "structmember.h"
 #include <iostream>
+#include <cstdint>
 #include "../siffreader/siffreader.hpp"
 #include "siffiodocstring.hpp"
 
@@ -796,7 +797,10 @@ static PyObject* siffio_flim_map(SiffIO* self, PyObject* args, PyObject* kw) {
         return NULL;
     }
 
+    populate_frame_list_if_null(&listOfFrames, self->siffreader);
+
     if(!conf_measure_length) conf_measure = (char*) "chi_sq";
+    if (registrationDict == NULL) registrationDict = Py_None;
     // defaults to 0's
     bool need_to_decref_regdict = false;
     if(registrationDict == Py_None) {
@@ -922,6 +926,8 @@ static PyArrayObject* siffio_sum_rois(SiffIO* self, PyObject* args, PyObject*kw)
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
 
+    if (registrationDict == NULL) registrationDict = Py_None;
+
     bool need_to_decref_dict = false;
     if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
@@ -1024,6 +1030,8 @@ static PyArrayObject* siffio_sum_roi(SiffIO* self, PyObject* args, PyObject*kw){
     }
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
+
+    if (registrationDict == NULL) registrationDict = Py_None;
 
     bool need_to_decref_dict = false;
     if(registrationDict == Py_None) {
@@ -1143,6 +1151,8 @@ static PyArrayObject *siffio_sum_rois_flim(SiffIO *self, PyObject *args, PyObjec
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
     
+    if (registrationDict == NULL) registrationDict = Py_None;
+
     bool need_to_decref_dict = false;
     if(registrationDict == Py_None) {
         registrationDict = PyDict_New();
@@ -1269,6 +1279,8 @@ static PyArrayObject* siffio_sum_roi_flim(SiffIO *self, PyObject *args, PyObject
 
     populate_frame_list_if_null(&frames_list, self->siffreader);
     
+    if (registrationDict == NULL) registrationDict = Py_None;
+
     bool need_to_decref_dict = false;
     if(registrationDict == Py_None) {
         registrationDict = PyDict_New();

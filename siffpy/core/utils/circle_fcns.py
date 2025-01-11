@@ -1,5 +1,6 @@
 # Functions for circularizing floats and ints
 from typing import Any, Tuple
+import warnings
 
 import numpy as np
 
@@ -180,6 +181,11 @@ def circ_corr(
     >>> 0.9131513426682732
     ```
     """
+    if (x.dtype == np.complex128) or (y.dtype == np.complex128):
+        warnings.warn(
+            "Passed complex-valued array to `circ_corr`. May be a mistake. \
+            Consider using `circ_corr_complex` instead."
+        )
     expd_1 = np.exp(1j*x)
     expd_2 = np.exp(1j*y)
 

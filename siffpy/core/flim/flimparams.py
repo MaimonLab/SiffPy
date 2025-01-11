@@ -105,9 +105,13 @@ class FLIMParams():
         ):
         """
         Initialized with a list of Exp objects and an Irf object
-        in the `args` parameter.
+        in the `args` parameter. A `Noise` may also be provided
+        as a member of the argument list, or the `noise` keyword
+        argument may be provided.
 
         These will be stored in the `exps` and `irf` attributes.
+        If there is noise in the model, `self._allow_noise` will
+        be > 0
 
         See also:
         ---------
@@ -182,10 +186,14 @@ class FLIMParams():
                     + " May be specified as a tuple or as a list of `Exp` and `IRF` objects."
                 )
 
-        if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
-            raise ValueError("Fractions of exponentials must sum to 1.")
+        # if np.abs(np.sum([exp.frac for exp in self.exps]) -1) > 0.01:
+        #     raise ValueError("Fractions of exponentials must sum to 1.")
         self.color_channel = color_channel
-        self._noise = noise
+        noise_arg : Noise = next((x for x in args if isinstance(x, Noise)), None)
+        if noise_arg is None:
+            self._noise = noise
+        else:
+            self._noise = noise_arg.frac
         self.name = name
 
     tau_g = property(
@@ -382,12 +390,17 @@ class FLIMParams():
     
     @property
     def noise(self)->float:
-        """ The noise parameter """
+        """
+        The noise parameter -- fraction of photons presumed
+        to arise from uniformly distributed arrival times.
+        """
         return self._noise
     
     @noise.setter
     def noise(self, new_noise : float):
         """ Sets the noise parameter """
+        if new_noise < 0: 
+            raise ValueError("Noise value must be >= 0.")
         self._noise = new_noise
 
     @property
@@ -443,21 +456,21 @@ class FLIMParams():
 
         Alias for `probability_dist`
 
-        INPUTS
-        ------
-        x_range : np.ndarray (1-dimensional)
+        ## Arguments
+        
+        - `x_range : np.ndarray` (1-dimensional)
 
             The x values you want the output probabilities of. Usually this will be something like
             np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
 
-        RETURN VALUES
-        ------------
-        p_out : np.ndarray(1-dimensional)
+        ## Returns
+
+        - `p_out : np.ndarray` (1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
 
-        Example
-        -------
+        ## Example
+        
         Create a `FLIMParams` object and get the probability distribution of a photon
         arriving in any of the time bins provided
 
@@ -485,21 +498,21 @@ class FLIMParams():
         data set, rescale this by the total number of photons in the data set.
         Assumes x_range is in the same units as the FLIMParams.
 
-        INPUTS
-        ------
-        x_range : np.ndarray (1-dimensional)
+        ## Arguments
+        
+        - `x_range : np.ndarray` (1-dimensional)
 
             The x values you want the output probabilities of. Usually this will be something like
             np.arange(MAX_BIN_VALUE), e.g. np.arange(1024)
 
-        RETURN VALUES
-        ------------
-        p_out : np.ndarray(1-dimensional)
+        ## Returns
+
+        - `p_out : np.ndarray` (1-dimensional)
             
             The probability of observing a photon in each corresponding bin of x_range.
 
-        Example
-        -------
+        ## Example
+        
         Create a `FLIMParams` object and get the probability distribution of a photon
         arriving in any of the time bins provided
 
@@ -799,10 +812,10 @@ class FLIMParams():
         """
         Converts a JSON-compatible dictionary to a FLIMParams
 
-        Example code:
-        -------------
+        ## Example code:
 
         ```python
+
         flim_params = FLIMParams.from_dict(
             dict(
                 exps = [
@@ -814,6 +827,8 @@ class FLIMParams():
                 noise = 0.1,
                 name = "Test FLIMParams",
             )
+        )
+        ```
         
         """
         exps = [Exp.from_dict(exp_dict) for exp_dict in data_dict['exps']]
@@ -1007,6 +1022,36 @@ class FLIMParams():
 
         return np.histogram(samples, bins = x_range)[0]
     
+    def fraction_to_empirical(self, fractions : np.ndarray) -> np.ndarray:
+        """
+        Converts the `fractions` argument into the equivalent empirical lifetime
+        using the exponential parameter fits.
+
+        ## Arguments
+
+        - `fractions : np.ndarray`
+
+            An array of fractions of the total photons in each bin. Should be
+            dimensions (..., self.n_exps - 1), with the presumption that the final
+            bin adds up to 1 (i.e. fractions.sum(axis=-1) <= 1)
+
+        ## Returns
+
+        - `empirical : np.ndarray`
+
+            An array of the empirical lifetimes corresponding to the fractions
+            in the input array.
+        """
+        if self.n_exp == 2:
+            fractions = np.expand_dims(fractions, axis=-1)
+
+        return (
+            fractions @ np.array([exp.tau for exp in self.exps[:-1]]) 
+            + ((1-fractions.sum(axis=-1)) * self.exps[-1].tau)
+        )
+
+
+    
     def __eq__(self, other)->bool:
         """
         Two FLIMParams objects are equal if they have the same parameters
@@ -1192,8 +1237,8 @@ class Exp(FLIMParameter):
     class_params = ['tau', 'frac']
     unitful_params = ['tau']
     aliases = {
-        'frac' : ['fraction'],
-        'tau' : ['lifetime'],
+        'frac' : ['fraction', 'f'],
+        'tau' : ['lifetime', 'exp', 'average', 'mean', 'empirical_lifetime'],
     }
 
 class Irf(FLIMParameter):
@@ -1204,17 +1249,16 @@ class Irf(FLIMParameter):
     with the exponentials to produce the estimated
     arrival time distribution).
 
-    Params:
-    -------
+    ## Params:
     tau_offset : float
         Mean offset of the IRF
     tau_g : float
         Width of the IRF
 
-    Aliases:
-    -------
-    tau_offset : ['mu', 'mean', 'offset']
-    tau_g : ['sigma', 'width']
+    ## Aliases:
+    
+    `tau_offset` : `['mu', 'mean', 'offset']`
+    `tau_g` : `['sigma', 'width']`
     """
     class_params = ['tau_offset', 'tau_g']
     unitful_params = ['tau_offset', 'tau_g']
@@ -1222,4 +1266,26 @@ class Irf(FLIMParameter):
     aliases = {
         'tau_offset' : ['mu', 'mean', 'offset'],
         'tau_g' : ['sigma', 'width']
+    }
+
+class Noise(FLIMParameter): 
+    """
+    Background noise signal, assumes a
+    uniform photon arrival time.
+
+    Unitless
+
+    ## Params:
+
+    `frac : float`
+
+    ## Aliases:
+
+    `frac : 'fraction'`
+    """
+    class_params = ['frac']
+    unitful_params = []
+
+    aliases = {
+        'frac' : ['fraction']
     }

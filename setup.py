@@ -2,6 +2,9 @@ from setuptools import setup, Extension
 import platform
 import sys
 import subprocess
+
+# TODO: Only run setup.py if `[siffreadermodule]` optional
+# dependency set specified
       
 try:
    import numpy
@@ -82,24 +85,6 @@ else:
       #"-Werror"
    ]
 
-if not (
-      (platform.system() == 'Darwin') and
-      ('Clang' in sys.version)
-   ):
-   print(
-      """
-      SiffPy's `siffreadermodule` has only been tested on
-      MacOS with a python distribution compiled with clang.
-      Your Python was apparently not built with clang,
-      or you are not on MacOS!
-      No guarantees it will work for you!
-
-      That said, all C++ code is built with the
-      standard C++11 tools, so it should work on
-      any platform with a C++11 compiler 
-      """
-   )
-
 siffmodule = Extension(
    name='siffreadermodule',
    sources = [
@@ -159,4 +144,12 @@ except Exception:
       )
 
       siffmodule.extra_compile_args.append("-stdlib=libc++")
-      setupcall()
+      try:
+         setupcall()
+      except Exception:
+         warnings.warn(
+            """ Failed to build `siffreadermodule`, the
+            old file I/O backend. Attempts to use `SiffPy` with
+            `siffreadermodule` will fail.
+            """
+         )

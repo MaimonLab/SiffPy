@@ -1,9 +1,12 @@
 import numpy as np
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from pathlib import Path
+import copy
+from enum import Enum
 
 import h5py
 
+from siffpy.siffmath.flim.phasor import correct_phasor
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace
 from siffpy.core.flim import FlimUnits, convert_flimunits
 from siffpy.core.flim import FLIMParams
@@ -15,6 +18,17 @@ if TYPE_CHECKING:
     from siffpy.siffmath.utils.types import (
         FlimArrayLike, FluorescenceArrayLike
     )
+
+class FlimMethod(Enum):
+    """
+    Options for the method attribute of a FlimTrace.
+
+    Determines which operations can be performed and,
+    in some cases, what the nature of that transformation
+    is. Will grow as more methods are implemented.
+    """
+    EMPIRICAL = "empirical lifetime"
+    PHASOR = "phasor"
 
 
 class FlimTrace(np.ndarray):
@@ -52,10 +66,11 @@ class FlimTrace(np.ndarray):
             intensity : Optional['FluorescenceArrayLike'] = None,
             confidence : Optional[np.ndarray] = None,
             FLIMParams : Optional['FLIMParams'] = None,
-            method : Optional[str] = None,
+            method : Optional[Union[str, FlimMethod]] = None,
             angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             nocast : bool = False,
+            max_arrival_time : Optional[int] = None,
             info_string : str = "", # new attributes TBD?
         ):
         """ 
@@ -99,11 +114,14 @@ class FlimTrace(np.ndarray):
 
         # add the new attributes to the created instance
         obj.FLIMParams = FLIMParams
-        obj.method = method
+        obj.method = FlimMethod(method) if method is not None else None
         obj.angle = angle
         if units is None:
             units = FlimUnits.UNKNOWN
         obj.units = FlimUnits(units)
+        if max_arrival_time is not None:
+            obj.max_arrival_time = max_arrival_time
+
         obj.info_string = info_string
         
         # Finally, we must return the newly created object:
@@ -125,6 +143,153 @@ class FlimTrace(np.ndarray):
     def fluorescence(self)->FluorescenceTrace:
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
         return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
+    
+    def subtract_noise(
+            self,
+            max_arrival_time : float,
+            units : Optional['FlimUnitsLike'] = None,
+            n_photons : Union[Optional[int], Optional[np.ndarray]] = None,
+            rotate_by_offset : bool = False,
+        ):
+        """
+        Either subtracts the noise from the `FLIMParams` fit or
+        subtracts an external value of photons from the intensity
+        and lifetime data (determined by the `n_photons` parameter).
+
+        Mode 1: `n_photons` is `None`:
+        ------------------------------
+
+        If the current `FLIMParams` attribute has a `noise` parameter that may be
+        influencing the lifetime value, this subtracts out the estimated noise from
+        each array entry by presuming the `noise` value corresponds to that fraction
+        of photons originated from a source of uniformly distributed arrival times.
+
+        If self.`FLIMParams` is `None` and `n_photons` is `None, this
+        function does nothing. Otherwise, it
+        modifies the `intensity` and `lifetime` attributes in place then
+        adjusts the `noise` value of the current `FLIMParams` attribute to 0.
+        Because this _mutates_ the `FLIMParams` object, this makes a copy so that
+        it does not affect other arrays pointing to the same object.
+
+        The subtraction does the following:
+
+        - `intensity` : Multiplies by (1-`noise`) if `n_photons` is `None`.
+
+        - `lifetime` : Subtracts `max_arrival_time/2 * noise`
+
+        Mode 2: `n_photons` is not `None`:
+        ----------------------------------
+
+        Subtracts a fixed number of photons from the intensity and lifetime data
+        (this can either be an array of the same shape as the current array, or
+        a single integer for all time points). This is useful for subtracting
+        a time-varying background signal (e.g. projector noise that turns on
+        mid-experiment) from the data.
+
+        ## Arguments
+
+        - `max_arrival_time` : float
+
+            In the same units as the current lifetime if `units` is `None`
+        
+        - `units` : `FlimUnitsLike | None`
+
+            Specifies the units of `max_arrival_time`. If `None`, they are
+            presumed to be the same as the `FlimTrace`.
+        """
+
+        # Subtracts the noise if the value is already known.
+        if n_photons is not None:
+            if (
+                isinstance(n_photons, np.ndarray) 
+                and n_photons.shape != self.intensity.shape
+            ):
+                raise ValueError("n_photons must be either an integer \
+                                 or an array of the same shape as the intensity array."
+                )
+
+            if self.method == FlimMethod.EMPIRICAL:
+                self[...] -= max_arrival_time*n_photons/(2*(n_photons + self.intensity))
+            elif self.method == FlimMethod.PHASOR:
+                # Needs a little nuance still...
+                
+                # self[...] = correct_phasor(
+                #     self.__array__(),
+                #     self.FLIMParams,
+                #     max_arrival_time,
+                #     rotate_by_offset=False,
+                #     subtract_noise = True
+                # )
+
+                raise NotImplementedError("Subtracting noise from phasors"
+                  + " using a fixed photon number is not yet implemented."
+                )
+            else:
+                raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
+                            +  "is not yet implemented.")
+            self.intensity -= n_photons
+            return
+
+        # All subsequent methods rely on a trusted
+        # FLIMParams object.
+        if self.FLIMParams is None:
+            return
+        
+        # Uses the value of the noise, assumes a uniform distribution,
+        # and subtracts that proportion of photons from the intensity
+        # and lifetime data.
+        if self.method == FlimMethod.EMPIRICAL:
+            if self.FLIMParams.noise == 0:
+                return
+            if units is None:
+                if self.units is None:
+                    raise ValueError(
+                        "If `max_arrival_time` units are specified in `subtract_noise`," \
+                        + " the FlimTrace itself must have units to convert it into."
+                    )
+                max_arrival_time = convert_flimunits(
+                    max_arrival_time,
+                    from_units = FlimUnits(units),
+                    to_units = self.units
+                )
+            max_arrival_time = float(max_arrival_time)
+            self[...] -= (self.FLIMParams.noise)*max_arrival_time/2
+            self[...] /= 1-self.FLIMParams.noise
+            self.intensity *= (1-self.FLIMParams.noise)
+            self.FLIMParams : FLIMParams = copy.deepcopy(self.FLIMParams)
+            self.FLIMParams.noise = 0.0
+            return
+        # Assumes the noise drags the phasor towards the origin and pulls
+        # it off the simplex connecting the `Exp` states.
+        elif self.method == FlimMethod.PHASOR:
+            if units is None:
+                if self.units is None:
+                    raise ValueError(
+                        "If `max_arrival_time` units are specified in `subtract_noise`," \
+                        + " the FlimTrace itself must have units (and it will be assumed to be " \
+                        + "the same as the `max_arrival_time` units)."
+                    )
+            with self.FLIMParams.as_units('countbins'):
+                max_arrival_time = convert_flimunits(
+                    max_arrival_time,
+                    from_units = FlimUnits(units),
+                    to_units = FlimUnits.COUNTBINS,
+                )
+                new_phasors = correct_phasor(
+                    self.__array__(),
+                    self.FLIMParams,
+                    max_arrival_time,
+                    rotate_by_offset=rotate_by_offset,
+                    subtract_noise = True
+                )
+                # the ratio should be exactly real, but due to fp error it might not be,
+                # so we take the abs
+                self.intensity *= np.abs(self.lifetime/new_phasors)
+                self[...] = new_phasors
+            return
+        
+        raise NotImplementedError("Subtracting noise from methods other than `empirical lifetime`"
+                            +  "or `phasor` is not yet implemented.")
 
     def set_units(self, units : 'FlimUnitsLike'):
         """
@@ -138,15 +303,42 @@ class FlimTrace(np.ndarray):
 
     def convert_units(self, units : 'FlimUnitsLike'):
         """ Converts units in place """
-        
-        self[...] = convert_flimunits(self.__array__(), self.units, units)
+        if self.method != FlimMethod.PHASOR:
+            self[...] = convert_flimunits(self.__array__(), self.units, units)
         self.units = units
         if self.FLIMParams is not None:
             self.FLIMParams.convert_units(units)
+
+    def convert_method(self, to : FlimMethod, flim_params : Optional[FLIMParams] = None):
+        """
+        Converts between a `phasor` and a `empirical lifetime` trace using
+        the provided `FLIMParams` object. If the `FLIMParams` object is not
+        provided, the `FLIMParams` attribute of the FlimTrace is used.
+
+        If the method is already the same as the method provided, this
+        function does nothing.
+
+        ## Example
+
+        ```python
+        from siffpy import default_flim_params
+        # Convert a phasor trace to an empirical lifetime trace
+        empirical_trace = phasor_trace.convert_method(
+            'empirical lifetime',
+            flim_params = default_flimparams()
+        )
+        ```
+        """
+
+        to = FlimMethod(to)
+        if self.method == to:
+            return
+        raise NotImplementedError("Method conversion not yet implemented.")
+
     
     @property
     def _inheritance_dict(self)->dict:
-        return {
+        ret = {
             'confidence' : self.confidence,
             'FLIMParams' : self.FLIMParams,
             'method' : self.method,
@@ -155,13 +347,56 @@ class FlimTrace(np.ndarray):
             'units' : self.units,
         }
 
+        if hasattr(self, 'max_arrival_time'):
+            ret['max_arrival_time'] = self.max_arrival_time
+
+        return ret
+    
+    def __copy__(self):
+        """
+        Because the `FlimTrace` contains many pointers to other arrays,
+        and the `FlimTrace` can modify itself and those arrays in-place,
+        a standard `copy` of a `FlimTrace` would likely be expected to behave
+        like a `deepcopy`. This copies the array and the intensity array
+        """
+
+        copywisedict = {
+            k : v.copy() if (hasattr(v, 'copy') and callable(v.copy))
+            else copy.copy(v)
+            for k, v in self._inheritance_dict.items()
+        }
+
+        return FlimTrace(
+            self.__array__().copy(),
+            intensity = self.intensity.copy(),
+            **copywisedict
+        )
+    
+    def __deepcopy__(self, memo):
+        """
+        Deep copy of the internal attrs
+        """
+
+        copywisedict = {
+            k : copy.deepcopy(v, memo) if (hasattr(v, '__deepcopy__') and callable(v.__deepcopy__))
+            else copy.copy(v)
+            for k, v in self._inheritance_dict.items()
+        }
+
+        return FlimTrace(
+            self.__array__().__deepcopy__(memo),
+            intensity = self.intensity.__deepcopy__(memo),
+            **copywisedict
+        )
+
+
     def __repr__(self)->str:
         return f"{self.__class__.__name__} :\n" + \
         f"Units : {self.units}, Info: {self.info_string}, Method : {self.method}\n"+\
         f"Lifetime:\n{self.__array__()}\nIntensity:\n{self.intensity}"
 
-    def __array_wrap__(self, out_arr, context=None):
-        return super().__array_wrap__(out_arr, context=context)
+    def __array_wrap__(self, out_arr, context=None, **kwargs):
+        return super().__array_wrap__(out_arr, context=context, **kwargs)
 
     def __array_finalize__(self, obj):
         if obj is None:
@@ -334,7 +569,7 @@ class FlimTrace(np.ndarray):
             f.create_dataset("intensity", data = self.intensity)
             #f['FLIMParams'] = self.FLIMParams can't store arbitrary Python object...
             f.attrs['units'] = h5py.Empty('s') if self.units is None else FlimUnits(self.units).value
-            f.attrs['method'] = h5py.Empty('s') if self.method is None else self.method
+            f.attrs['method'] = h5py.Empty('s') if self.method is None else FlimMethod(self.method).value
             f.attrs['angle'] = h5py.Empty('f') if self.angle is None else self.angle
             f.attrs['info_string'] = h5py.Empty('s') if self.info_string is None else self.info_string
         if self.FLIMParams is not None:

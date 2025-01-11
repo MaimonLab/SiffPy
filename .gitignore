@@ -20,9 +20,14 @@ genkeys.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # C extensions
 *.so
+
+# Testing
+.tox/
+tests/test_fileread
 
 # Distribution / packaging
 bin/
