@@ -35,9 +35,9 @@ dependencies = [
     "scipy",
     "h5py",
     "importlib_resources",
-    # "corrosiffpy",
+    "corrosiffpy",
     # "corrosiffpy @ git+https://github.com/MaimonLab/corrosiff-python.git",
-    "corrosiffpy @ git+https://github.com/MaimonLab/corrosiff-python.git#egg=dev"
+    # "corrosiffpy @ git+https://github.com/MaimonLab/corrosiff-python.git#egg=dev"
 ]
 
 [project.optional-dependencies]

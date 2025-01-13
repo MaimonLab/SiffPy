@@ -38,6 +38,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autosummary',
     'sphinx_rtd_theme',
+    'myst_parser',
     #'myst_nb',
 ]
 

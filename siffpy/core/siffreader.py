@@ -1340,6 +1340,8 @@ class SiffReader(object):
         color_channel : int = 0,
         mask : Optional['BoolMaskArray'] = None,
         initial_guess : Optional[FLIMParams] = None,
+        num_lasers : int = 1,
+        num_exps : int = 2,
     ) -> FLIMParams:
         """
         Fits a FLIMParams object to the timepoints requested.
@@ -1366,6 +1368,14 @@ class SiffReader(object):
         * `initial_guess` : Optional[FLIMParams]
             Initial guess for the FLIMParams object. If None, uses
             the default FLIMParams object produced by `default_flimparams()`.
+
+        * `num_lasers` : int
+            If `initial_guess` is None, the number of lasers (i.e. IRFs) to use in the
+            initial guess.
+
+        * `num_exps` : int
+            If `initial_guess` is None, the number of exponentials to use in the
+            initial guess.
 
         # Returns
 
@@ -1406,7 +1416,7 @@ class SiffReader(object):
         """
 
         if initial_guess is None:
-            fp = default_flimparams()
+            fp = default_flimparams(n_irfs = num_lasers, n_exps = num_exps)
         else:
             fp = initial_guess
 

@@ -9,7 +9,7 @@ simple functions to convert to ``.tiff``. For now, it only implements the ``Scan
 ``.tiff`` specification (which is not OME compliant!!), but soon I will add ``OME-TIFF``
 support as a keyword argument.
 
-I will also (soon) implement a command line tool to call the ``siff_to_tiff`` C++ code
+I will also (soon) implement a command line tool to call the ``siff_to_tiff`` ``Rust`` code
 directly. Not yet though!
 
 ``SiffPy`` hosts a wrapper function for the ``siffreadermodule`` function (described below)
@@ -35,4 +35,4 @@ Warning: the function below is autodocumented using the DOCSTRING attached to th
 current implementation. The more reliable documentation is in the ``siff_to_tiff``
 function's stub file in ``siffreadermodule/__init__.pyi``.
 
-.. autofunction:: siffreadermodule.siff_to_tiff
+.. autofunction:: corrosiffpy.siff_to_tiff
