@@ -26,13 +26,16 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
-          
           CIBW_SKIP: pp*
           # Run the package tests using `pytest`
           CIBW_TEST_REQUIRES: pytest dropbox asyncio tqdm aiohttp suite2p
           CIBW_TEST_COMMAND: >
             cd {package} &&
             pytest tests
+          DROPBOX_SECRET: ${{ secrets.DROPBOX_SECRET }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_SHARED_LINK: ${{ secrets.DROPBOX_SHARED_LINK }}
     
       - uses: actions/upload-artifact@v4
         with:
