@@ -6,5 +6,8 @@ def test_core_imports():
     import corrosiffpy
 
 def test_registration_imports():
-    import suite2p
+    try:
+        import suite2p
+    except ImportError:
+        pytest.skip("Suite2p not installed")
     #import caiman
