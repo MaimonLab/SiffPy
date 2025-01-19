@@ -389,6 +389,21 @@ class FLIMParams():
         return self.tau_offset
     
     @property
+    def offsets(self) -> List[Tuple[float, float]]:
+        """
+        All offsets in a list format paired with their
+        corresponding weights. For a single IRF, this is
+        a weight of 1, but if there are multiple laser pulses
+        the weights will sum to one.
+
+        # Returns
+
+        - `offsets : List[Tuple[float, float]]`
+            [(offset, weight), ...]
+        """
+        return [(self.tau_offset, 1)]
+    
+    @property
     def noise(self)->float:
         """
         The noise parameter -- fraction of photons presumed

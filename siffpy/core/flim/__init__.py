@@ -8,7 +8,7 @@ see the `siffpy.siffmath.flim` module.
 from typing import Union
 from siffpy.core.flim.flimparams import FLIMParams, Exp, Irf # noqa: F401
 from siffpy.core.flim.multi_pulse import MultiPulseFLIMParams, MultiIrf, FractionalIrf # noqa: F401
-from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits # noqa: F401
+from siffpy.core.flim.flimunits import FlimUnits, convert_flimunits, FlimUnitsLike # noqa: F401
 
 import numpy as np
 

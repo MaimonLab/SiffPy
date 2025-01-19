@@ -4,7 +4,7 @@ involving multiple pulses, and so multiple IRFs.
 """
 from typing import (
     Any, Union, List, Tuple, Dict, Optional,
-    TYPE_CHECKING, Callable
+    TYPE_CHECKING, Callable, Iterator,
 )
 
 import numpy as np
@@ -235,7 +235,7 @@ class MultiIrf(FractionalIrf):
         """
         self.irfs[index] = value
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[FractionalIrf]:
         """
         Iterates over the IRFs
         """
@@ -269,6 +269,13 @@ class MultiPulseFLIMParams(FLIMParams):
             self.irf = next(
                 arg for arg in args if isinstance(arg, MultiIrf)
             )
+
+    @property
+    def offsets(self) -> List[Tuple[float, float]]:
+        return [
+            (irf.tau_offset, irf.frac)
+            for irf in self.irfs
+        ]
 
     @property
     def irfs(self)->MultiIrf:

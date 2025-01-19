@@ -7,7 +7,7 @@ import numpy as np
 
 ## Should I move some import statements to function definitions
 from siffpy.core import io, timetools
-from siffpy.core.flim import FLIMParams, FlimUnits, default_flimparams
+from siffpy.core.flim import FLIMParams, FlimUnits, default_flimparams, FlimUnitsLike
 from siffpy.core.utils.event_stamp import EventStamp
 
 #from siffpy.core.utils import ImParams
@@ -1464,6 +1464,7 @@ class SiffReader(object):
         registration_dict : Optional[Dict] = None,
         confidence_metric : str = 'chi_sq',
         method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
+        units : 'FlimUnitsLike' = 'nanoseconds',
         ) -> FlimTrace:
         """
         Returns a FlimTrace object of dimensions
@@ -1498,14 +1499,16 @@ class SiffReader(object):
             confidence_metric=confidence_metric
         )    
 
-        return FlimTrace(
+        ft = FlimTrace(
             lifetime,
             intensity = intensity,
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = method.value,
-            units = 'countbins',
         )
+
+        ft.convert_units(units)
+        return ft
 
     def _get_frames_flim_srm(
         self,
@@ -1574,6 +1577,7 @@ class SiffReader(object):
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
         flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
+        units : 'FlimUnitsLike' = 'nanoseconds',
         )->FlimTrace:
         """
         Computes the empirical lifetime within an ROI over timesteps.
@@ -1621,6 +1625,9 @@ class SiffReader(object):
         * `flim_method` : Union[str, FlimMethod]
             The method to use for the FLIM analysis. Default is 'empirical'.
             Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
+
+        * `units` : FlimUnitsLike
+            The units to return the FLIM data in. Default is 'nanoseconds'.
             
         # Returns
 
@@ -1689,7 +1696,7 @@ class SiffReader(object):
         )
 
         if return_framewise:
-            return FlimTrace(
+            ft = FlimTrace(
                 summed_flim_data, 
                 intensity = summed_intensity_data,
                 FLIMParams = params,
@@ -1698,7 +1705,10 @@ class SiffReader(object):
                 units = FlimUnits.COUNTBINS,
             )
 
-        return FlimTrace(
+            ft.convert_units(units)
+            return ft
+
+        ft = FlimTrace(
             summed_flim_data, 
             intensity = summed_intensity_data,
             FLIMParams = params,
@@ -1708,6 +1718,9 @@ class SiffReader(object):
         ).reshape(
             (-1, mask.shape[0] if mask.ndim > 2 else 1)
         ).sum(axis=1)
+
+        ft.convert_units(units)
+        return ft
         
     def _sum_mask_flim_srm(
         self,
@@ -1816,6 +1829,7 @@ class SiffReader(object):
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
         flim_method : Union[str, FlimMethod] = FlimMethod.EMPIRICAL,
+        units : 'FlimUnitsLike' = 'nanoseconds',
         )->FlimTrace:
         """
         Computes the empirical lifetime within a set of ROIs over timesteps.
@@ -1852,6 +1866,9 @@ class SiffReader(object):
         * `flim_method` : Union[str, FlimMethod]
             The method to use for the FLIM analysis. Default is 'empirical'.
             Options are any of the `FlimMethod` enum values (`siffpy.siffmath.flim.FlimMethod`).
+
+        * `units` : FlimUnitsLike
+            The units to return the FLIM data in. Default is 'nanoseconds'.
         
         # Returns
 
@@ -1930,7 +1947,7 @@ class SiffReader(object):
         )
 
         if return_framewise:
-            return FlimTrace(
+            ft = FlimTrace(
                 flim_summed,
                 intensity = intensity_summed,
                 FLIMParams = params,
@@ -1939,9 +1956,12 @@ class SiffReader(object):
                 units = FlimUnits.COUNTBINS,
             )
 
+            ft.convert_units(units)
+            return ft
+
         # Reshape AFTER making a `FlimTrace`
         # or else things won't be added correctly.
-        return FlimTrace(
+        ft = FlimTrace(
             flim_summed,
             intensity = intensity_summed,
             FLIMParams = params,
@@ -1952,8 +1972,9 @@ class SiffReader(object):
             (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
         ).sum(axis=2)
 
-        raise NotImplementedError("Not yet implemented using corrosiff backend")
-    
+        ft = ft.convert_units(units)
+        return ft
+
     def _sum_masks_flim_srm(
         self,
         params : FLIMParams,
