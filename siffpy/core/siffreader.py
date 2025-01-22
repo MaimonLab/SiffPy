@@ -1972,7 +1972,7 @@ class SiffReader(object):
             (masks.shape[0], -1, masks.shape[1] if masks.ndim > 3 else 1)
         ).sum(axis=2)
 
-        ft = ft.convert_units(units)
+        ft.convert_units(units)
         return ft
 
     def _sum_masks_flim_srm(
