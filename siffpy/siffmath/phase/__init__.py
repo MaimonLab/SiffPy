@@ -74,7 +74,8 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
     """
     if len(shift) != x.size//x.shape[0]:
         raise ValueError(
-            "`shift` must have the same number of elements as the first dimension of `x` \
+            f"`shift` must have the same number of elements as the first dimension of `x` \
+            input was of shape {x.shape}, and `shift` was of length {len(shift)}. \
             ``` \
             assert len(shift) == x.size//x.shape[0]\
             ```"
@@ -82,13 +83,16 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
     if isinstance(shift, PhaseTrace):
         shift = np.angle(shift)
 
+    # Fraction of the column dimension to shift by
+    shift = np.mod(shift, 2 * np.pi) / (2*np.pi)
+
     shifted = np.zeros_like(x)
     n_cols = x.shape[0]
     for t in range(x.shape[1]):
-        idx = np.angle(np.exp(1j*shift[t]))*n_cols/(2*np.pi)
+        idx = n_cols * shift[t]
         whole = idx.astype(int)
-        frac = idx - whole
-        shifted[:,t] = np.roll((1-np.abs(frac))*x[:,t], whole)
-        shifted[:,t] += np.roll(np.abs(frac)*x[:,t], int(whole+np.sign(frac)))
+        frac = idx - whole # always positive
+        shifted[:,t] = np.roll((1-frac)*x[:,t], whole, axis = 0)
+        shifted[:,t] += np.roll(frac*x[:,t], whole+1, axis = 0)
 
     return shifted

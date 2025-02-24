@@ -52,6 +52,7 @@ def sct_defaults(suite2p_default_ops : Dict)->Dict:
     #suite2p_default_ops['batch_size'] = 300
     suite2p_default_ops['two_step_registration'] = False
     suite2p_default_ops['nimg_init'] = 300
+    suite2p_default_ops['smooth_sigma_time'] = 2
     #suite2p_default_ops['norm_frames'] = F
     return suite2p_default_ops
 
@@ -137,6 +138,9 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         self.reference_frames = np.array(
             [reg_ret[0] for reg_ret in reg_rets]
         ).astype(np.float32)/100
+
+        # align the reference frames to one another:
+        # TO DO!!
 
         frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
 

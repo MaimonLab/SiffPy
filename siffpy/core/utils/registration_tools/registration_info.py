@@ -80,6 +80,16 @@ class RegistrationInfo(ABC):
         raise NotImplementedError()
 
     def save(self, save_path : Optional[PathLike] = None):
+        """
+        Saves the `RegistrationInfo` object to `save_path`
+
+        # Arguments
+
+        - `save_path` : PathLike 
+            The path to save the `RegistrationInfo` object to.
+            If None, saves to the same directory as the original file, down
+            a level in a directory with the same name as the original file.
+        """
         if save_path is None:
             save_path = Path(self.filename).with_suffix("")
         save_path = Path(save_path)
@@ -161,12 +171,21 @@ class RegistrationInfo(ABC):
             yx_shifts = {idx : tuple(shift) for idx, shift in zip(frame_index, shift_values.tolist())}
             reference_frames = f['reference_frames'][:]
 
+            other_keys = {}
+            if hasattr(cls, 'saved_attrs'):
+                for attr_name in cls.saved_attrs:
+                    try:
+                        other_keys[attr_name] = f.attrs[attr_name]
+                    except Exception as e:
+                        print(f"Failed to load attribute {attr_name} with error: {e}")
+
         return {
             'filename' : filename,
             'registration_type' : registration_type,
             'registration_color' : registration_color_channel,
             'yx_shifts' : yx_shifts,
             'reference_frames' : reference_frames,
+            **other_keys,
         }
         
     def __repr__(self):
