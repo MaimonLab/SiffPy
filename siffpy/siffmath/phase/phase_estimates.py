@@ -106,7 +106,7 @@ def pva(
         **kwargs
     ) -> PhaseTrace:
     """
-    Population vector average, a la Jayaraman lab
+    Population vector average, à la Jayaraman lab
 
     Arguments
     ---------
@@ -206,7 +206,7 @@ def pva(
     err = error_function(vector_timeseries, pva_val)
 
     return PhaseTrace(
-        pva_val,
+        pva_val/vector_timeseries.shape[0], # averaged!
         method = 'pva_normalized' if normalize else 'pva',
         error_array = err,
         time = time

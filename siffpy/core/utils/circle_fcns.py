@@ -65,7 +65,8 @@ def circ_corr(
         x : np.ndarray,
         y : np.ndarray,
         axis : int = 0,
-        method : str = 'Fisher'
+        method : str = 'Fisher',
+        ignore_nans : bool = False,
     )->float:
     """
     Warning: recommend putting your angles in the complex plane
@@ -104,26 +105,30 @@ def circ_corr(
     Arguments
     ---------
 
-    x : np.ndarray
+    - x : np.ndarray
 
         One of the two arrays of circular variables to correlate (in radians
         doesn't matter if it starts at 0 or -pi)
 
-    y : np.ndarray
+    - y : np.ndarray
 
         The other of the two arrays of circular variables to correlate (in radians
         doesn't matter if it starts at 0 or -pi)
 
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
 
-    method : str = "Fisher"
+    - method : str = "Fisher"
 
         The method to use to compute the correlation. Options are "Fisher" and
         "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
         Defaults to "Fisher".
+    
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.
 
     Returns
     -------
@@ -189,13 +194,14 @@ def circ_corr(
     expd_1 = np.exp(1j*x)
     expd_2 = np.exp(1j*y)
 
-    return circ_corr_complex(expd_1, expd_2, axis=axis, method = method)
+    return circ_corr_complex(expd_1, expd_2, axis=axis, method = method, ignore_nans = ignore_nans)
 
 def circ_corr_complex(
         x : np.ndarray,
         y : np.ndarray,
         axis : int = 0,
-        method : str = "Fisher"
+        method : str = "Fisher",
+        ignore_nans : bool = False,
     )->float:
     """
     Presumes x and y are already complex numbers on the unit circle!
@@ -230,29 +236,33 @@ def circ_corr_complex(
     ARGUMENTS
     ---------
 
-    x : np.ndarray
+    - x : np.ndarray
 
         One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
 
-    y : np.ndarray
+    - y : np.ndarray
 
         The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
 
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
 
-    method : str = "Fisher"
+    - method : str = "Fisher"
 
         The method to use to compute the correlation. Options are "Fisher" and
         "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
         Defaults to "Fisher".
+    
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.
     """
     if method == "Fisher":
-        return circ_corr_complex_fisher(x,y,axis)
+        return circ_corr_complex_fisher(x,y,axis, ignore_nans = ignore_nans)
     elif method in ["Jammalamadaka", "Pearson-sine"]:
-        return circ_corr_complex_jl(x,y,axis)
+        return circ_corr_complex_jl(x,y,axis, ignore_nans = ignore_nans)
     
     raise ValueError(
         "Invalid method passed to circ_corr_complex. Must be"
@@ -263,6 +273,7 @@ def circ_corr_complex_jl(
         x : 'np.ndarray[Any, np.dtype[np.complex128]]',
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         axis : int = 0,
+        ignore_nans : bool = False,
     )->float:
     """
     Presumes x and y are already complex numbers on the unit circle!
@@ -292,20 +303,29 @@ def circ_corr_complex_jl(
     ARGUMENTS
     ---------
 
-    x : np.ndarray
+    - x : np.ndarray
 
         One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
 
-    y : np.ndarray
+    - y : np.ndarray
 
         The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
 
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
+    
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.
 
     """
+    if ignore_nans:
+        x_zeroed, y_zeroed = x/np.nanmean(x, axis=axis), y/np.nanmean(y, axis=axis)
+        return np.nansum(x_zeroed.imag * y_zeroed.imag, axis=axis) / np.sqrt(
+            np.nansum(x_zeroed.imag**2, axis=axis) * np.nansum(y_zeroed.imag**2, axis=axis)
+        )
     x_zeroed, y_zeroed = x/np.mean(x, axis=axis), y/np.mean(y, axis=axis)
     return np.sum(x_zeroed.imag * y_zeroed.imag, axis=axis) / np.sqrt(
         np.sum(x_zeroed.imag**2, axis=axis) * np.sum(y_zeroed.imag**2, axis=axis)
@@ -315,6 +335,7 @@ def circ_corr_complex_fisher(
         x : 'np.ndarray[Any, np.dtype[np.complex128]]',
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         axis : int = 0,
+        ignore_nans : bool = False,
     )->float:
     """
     Presumes x and y are already complex numbers on the unit circle!
@@ -349,18 +370,22 @@ def circ_corr_complex_fisher(
     ARGUMENTS
     ---------
 
-    x : np.ndarray
+    - x : np.ndarray
 
         One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
 
-    y : np.ndarray
+    - y : np.ndarray
 
         The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
 
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
+
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.
 
     """
     
@@ -371,16 +396,24 @@ def circ_corr_complex_fisher(
     # the second half is the prediction of a NEGATIVE association between x and y, i.e. x ~ -y + alpha.
     # Each term is the magnitude of the resultant mean vector of the sum vs. the difference of the two series
 
-    plussum = np.sum(plus,axis = axis)
-    minussum = np.sum(minus, axis = axis)
+    if ignore_nans:
+        plussum = np.nansum(plus, axis=axis)
+        minussum = np.nansum(minus, axis=axis)
+    else:
+        plussum = np.sum(plus,axis = axis)
+        minussum = np.sum(minus, axis = axis)
     
     numerator = (
         minussum* np.conjugate(minussum) -
         plussum * np.conjugate(plussum)
     )
 
-    xsum = np.sum(x**2, axis=axis)
-    ysum = np.sum(y**2, axis=axis)
+    if ignore_nans:
+        xsum = np.nansum(x**2, axis=axis)
+        ysum = np.nansum(y**2, axis=axis)
+    else:
+        xsum = np.sum(x**2, axis=axis)
+        ysum = np.sum(y**2, axis=axis)
 
     # normalization factor
     
@@ -396,7 +429,8 @@ def running_circ_corr(
         y : np.ndarray,
         window_width : int,
         axis : int = 0,
-        method : str = "Fisher"
+        method : str = "Fisher",
+        ignore_nans : bool = False,
         )->np.ndarray:
     """
     Takes two arrays of circular numbers and computes the circular correlation
@@ -406,28 +440,32 @@ def running_circ_corr(
 
     Arguments
     ---------
-    x : np.ndarray
+    - x : np.ndarray
         
         Values of -pi to +pi (or 0 to 2 pi, just has to be radians)
 
-    y: np.ndarray
+    - y: np.ndarray
 
         Values of -pi to +pi (or 0 to 2 pi, just has to be radians)
 
-    window_width : int
+    - window_width : int
 
         The width of the sliding window in numbers of entries
 
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
 
-    method : str = "Fisher"
+    - method : str = "Fisher"
 
         The method to use to compute the correlation. Options are "Fisher" and
         "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
         Defaults to "Fisher".
+
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.
 
     Returns
     -------
@@ -495,14 +533,15 @@ def running_circ_corr(
     """
     x = np.exp(1j*x)
     y = np.exp(1j*y)
-    return running_circ_corr_complex(x,y,window_width,axis,method)
+    return running_circ_corr_complex(x,y,window_width,axis,method, ignore_nans = ignore_nans)
 
 def running_circ_corr_complex(
         x : 'np.ndarray[Any, np.dtype[np.complex128]]',
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
-        method : str = "Fisher"
+        method : str = "Fisher",
+        ignore_nans : bool = False,
         )->np.ndarray:
     """
     Takes two arrays of complex numbers and computes the circular correlation
@@ -512,25 +551,29 @@ def running_circ_corr_complex(
 
     Arguments
     ---------
-    x : np.ndarray
+    - x : np.ndarray
 
-    y: np.ndarray
+    - y: np.ndarray
 
-    window_width : int
+    - window_width : int
 
         The width of the sliding window in numbers of entries
     
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
 
-    method : str = "Fisher"
+    - method : str = "Fisher"
 
         The method to use to compute the correlation. Options are "Fisher" and
         "Jammalamadaka" (also accepts "Pearson-sine" as an alias for "Jammalamadaka").
         Defaults to "Fisher".
-    
+
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively. 
+
     Returns
     -------
     circ_corrs : np.ndarray
@@ -556,9 +599,9 @@ def running_circ_corr_complex(
     """ 
 
     if method in ("Fisher", 'fisher'):
-        return running_circ_corr_complex_fisher(x,y,window_width,axis)
+        return running_circ_corr_complex_fisher(x,y,window_width,axis, ignore_nans = ignore_nans)
     elif method in ("jammalamadaka", "Jammalamadaka", "Pearson-sine"):
-        return running_circ_corr_complex_jl(x,y,window_width,axis)
+        return running_circ_corr_complex_jl(x,y,window_width,axis, ignore_nans = ignore_nans)
     
     raise ValueError(
         "Invalid method passed to running_circ_corr_complex. Must be"
@@ -570,6 +613,7 @@ def running_circ_corr_complex_jl(
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
+        ignore_nans : bool = False,
         )->'np.ndarray[Any, np.dtype[np.float64]]':
     """
     Takes two arrays of complex numbers and computes the circular correlation
@@ -579,27 +623,38 @@ def running_circ_corr_complex_jl(
 
     Arguments
     ---------
-    x : np.ndarray
+    - x : np.ndarray
 
-    y: np.ndarray
+    - y: np.ndarray
 
-    window_width : int
+    - window_width : int
 
         The width of the sliding window in numbers of entries
     
-    axis : int = 0
+    - axis : int = 0
 
         The axis along which to take the correlation (i.e. the direction being summed).
         Defaults to 0.
+
+    - ignore_nans : bool = False
+        Whether to ignore nans in the input arrays. If True, will use np.nanmean
+        and np.nansum to compute the mean and sum, respectively.    
     
     Returns
     -------
     circ_corrs : np.ndarray
     """
-    x_zeroed, y_zeroed = x/np.mean(x, axis=axis), y/np.mean(y, axis=axis)
+    if ignore_nans:
+        x_zeroed, y_zeroed = x/np.nanmean(x, axis=axis), y/np.nanmean(y, axis=axis)
+    else:
+        x_zeroed, y_zeroed = x/np.mean(x, axis=axis), y/np.mean(y, axis=axis)
     
-    numerator = np.cumsum(x_zeroed.imag * y_zeroed.imag, axis=axis)
-    x_sq, y_sq = np.cumsum(x_zeroed.imag**2, axis=axis), np.cumsum(y_zeroed.imag**2, axis=axis)
+    if ignore_nans:
+        numerator = np.nancumsum(x_zeroed.imag * y_zeroed.imag, axis=axis)
+        x_sq, y_sq = np.nancumsum(x_zeroed.imag**2, axis=axis), np.nancumsum(y_zeroed.imag**2, axis=axis)
+    else:
+        numerator = np.cumsum(x_zeroed.imag * y_zeroed.imag, axis=axis)
+        x_sq, y_sq = np.cumsum(x_zeroed.imag**2, axis=axis), np.cumsum(y_zeroed.imag**2, axis=axis)
 
     return (
         (numerator[window_width:] - numerator[:-window_width])
@@ -614,6 +669,7 @@ def running_circ_corr_complex_fisher(
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
+        ignore_nans : bool = False,
         )->np.ndarray:
     """
     Takes two arrays of complex numbers and computes the circular correlation
@@ -644,8 +700,12 @@ def running_circ_corr_complex_fisher(
     plus = x*y
     minus = x/y
 
-    plus_cumsum = np.cumsum(plus,axis = axis)
-    minus_cumsum = np.cumsum(minus, axis = axis)
+    if ignore_nans:
+        plus_cumsum = np.nancumsum(plus,axis = axis)
+        minus_cumsum = np.nancumsum(minus, axis = axis)
+    else:
+        plus_cumsum = np.cumsum(plus,axis = axis)
+        minus_cumsum = np.cumsum(minus, axis = axis)
     run_plus = plus_cumsum[window_width:] - plus_cumsum[:-window_width]
     run_minus = minus_cumsum[window_width:] - minus_cumsum[:-window_width]
 
@@ -654,8 +714,12 @@ def running_circ_corr_complex_fisher(
         (run_plus * np.conjugate(run_plus))
     )
 
-    x_cumsum = np.cumsum(x**2, axis=0)
-    y_cumsum = np.cumsum(y**2, axis=0)
+    if ignore_nans:
+        x_cumsum = np.nancumsum(x**2, axis=axis)
+        y_cumsum = np.nancumsum(y**2, axis=axis)
+    else:
+        x_cumsum = np.cumsum(x**2, axis=0)
+        y_cumsum = np.cumsum(y**2, axis=0)
 
     run_xcs = x_cumsum[window_width:] - x_cumsum[:-window_width]
     run_ycs = y_cumsum[window_width:] - y_cumsum[:-window_width]

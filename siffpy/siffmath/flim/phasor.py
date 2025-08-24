@@ -125,7 +125,7 @@ def phasor_to_fraction(
 
     Derivation: Let $a$ and $b$ be the phasor values of the endpoints of the
     line connecting the two states. Our input phasor, $z$, is a linear combination
-    of $a$ and $b$: $z = a + t(b-a)$. Then $t \in \mathbb{B}$, the fraction of the phasor in state $a$,
+    of $a$ and $b$: $z = a + t(b-a)$. Then $t in mathbb{B}$, the fraction of the phasor in state $a$,
     is just $t = (z-a)/(b-a)$.
 
     ## Arguments

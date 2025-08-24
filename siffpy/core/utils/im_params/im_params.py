@@ -355,6 +355,13 @@ class ImParams():
     def shape(self)->Tuple[int, int]:
         """ Shape of one frame: (n ysize, xsize)"""
         return (self.ysize, self.xsize)
+    
+    @property
+    def mean_pixel_dwell_time(self) -> float:
+        """ Average dwell time on a pixel in seconds 
+        (computed by ScanImage) 
+        """
+        return self.Scan2D.scanPixelTimeMean
 
     @property
     def volume(self)->Tuple[int, ...]:
@@ -581,7 +588,7 @@ class ImParams():
         If reference_z is None, returns _all_ frames, irrespective of z.
 
         If color_channel (0-indexed) is None, returns all colors. But since
-        timestamps for each color channel are the same, typically you expect
+        timepoints for each color channel are the same, typically you expect
         NOT to use this.
 
         Examples
@@ -621,6 +628,13 @@ class ImParams():
         `[0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16]`
         
         """
+
+        if (
+            color_channel is not None and
+            isinstance(self.colors, list)
+            and (color_channel+1) not in self.colors
+        ):
+            raise ValueError(f"Color channel {color_channel} specified not acquired in this image set.")
 
         timestep_size = self.frames_per_volume # how many frames constitute a timepoint
         

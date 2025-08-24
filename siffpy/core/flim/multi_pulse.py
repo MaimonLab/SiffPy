@@ -52,6 +52,30 @@ def noisy_objective(params, tau_axis, data, n_pulses):
     """
     Minimize the sum of squared errors
     with a noise term
+
+    ## Arguments
+
+    - `params` : np.ndarray
+        The parameters to optimize in the form:
+        `(tau, frac, tau, frac, ...,
+        mean, sigma, irf_frac, mean, sigma, irf_frac, ...,
+        noise)`
+
+    - `tau_axis` : np.ndarray
+        The time axis in the same units as the params corresponding
+        to the axis of the data
+
+    - `data` : np.ndarray
+        The data to fit to
+    
+    - `n_pulses` : int
+        The number of pulses in the model
+
+    ## Returns
+
+    - `float`
+        The sum of the normalized squared errors
+
     """
     PARAMS_PER_PULSE = 3
     exp_params = params[:(-n_pulses*PARAMS_PER_PULSE - 1)]
@@ -72,7 +96,7 @@ def noisy_objective(params, tau_axis, data, n_pulses):
     with_noise = (1-params[-1])*total_irf_contribution + params[-1]/len(tau_axis)
     squared_error = (with_noise[1:] - data[1:]) ** 2
     normalized_error = squared_error / data[1:]
-
+    
     # Sum up normalized errors
     return np.sum(normalized_error)
 
@@ -138,6 +162,10 @@ class MultiIrf(FractionalIrf):
                 for irf in self.irfs
             ]
         return super().__getattribute__(__name)
+
+    @property
+    def tau_offsets(self) -> List[float]:
+        return [irf.tau_offset for irf in self.irfs]
 
     @property
     def units(self)->Union[FlimUnits, List[FlimUnits]]:
@@ -246,6 +274,21 @@ class MultiIrf(FractionalIrf):
         Returns the number of IRFs
         """
         return len(self.irfs)
+    
+    def __eq__(self, other):
+        """
+        Two `MultiIRFs` are equal if all of their
+        `FractionalIrf` objects have equal params
+        in the same order
+        """
+
+        equal = False
+        if isinstance(other, MultiIrf):
+            equal = all(
+                irf == other_irf
+                for irf, other_irf in zip(self.irfs, other.irfs)
+            )
+        return equal
 
 class MultiPulseFLIMParams(FLIMParams):
     """
@@ -490,120 +533,15 @@ class MultiPulseFLIMParams(FLIMParams):
             + increasing_mus_constraints
         )
     
-    def fit_params_to_data(
-        self,
-        data : np.ndarray,
-        initial_guess : Optional[np.ndarray] = None,
-        loss_function : 'LossFunction' = MSE,
-        solver : Optional[Callable] = None,
-        x_range : Optional[np.ndarray] = None,
-        optimization_units : FlimUnitsLike = FlimUnits.NANOSECONDS,
-        **kwargs
-    )->OptimizeResult:
-        """
-        Takes in the data and adjusts the internal
-        parameters of this FLIMParams object to
-        minimize the metric input. Default is CHI-SQUARED.
-
-        Stores new parameter values IN PLACE, but will return
-        the scipy OptimizeResult object.
-
-        ACTUALLY NO LONGER USING LOSS_FUNCTION AND SOLVER ---
-        FUNCTION CALL OVERHEAD WAS MAKING IT VERY SLOW. TO DO:
-        FIGURE OUT A WAY TO PRESERVE THAT FLEXIBILITY!!
-
-        Inputs
-        ------
-        data : np.ndarray
-
-            A numpy array of the arrival time histogram. Data[n] = number
-            of photons arriving in bin n
-
-        initial_guess : tuple
-
-            Guess for initial params in FLIMParams.param_tuple format.
-            Presumed to be in the same units as the FLIMParams
-            when the function is called (if not None).
-        
-        loss_function : LossFunction
-
-            Defines the cost function for curve fitting. Defaults to chi-squared
-
-            Argument 1: DATA (1d-ndarray) as above
-
-            Argument 2: PARAMS (tuple)
-
-            All other arguments must be KWARGS.
-
-        solver : Callable
-
-            A function that takes the metric and an initial guess and returns
-            some object that has an attribute called 'x' that is a tuple with
-            the same format as the FIT result of the param_tuple. This is the
-            format of the default scipy.optimize.minimize functions.
-
-        x_range : np.ndarray
-
-            The range of the x-axis in the same units as the FLIMParams.
-            If not provided, assumes the data is in countbins and uses
-            np.arange(len(data)) as the x_range.
-
-        **kwargs
-
-            Passed to the metric function.
-
-        Returns
-        -------
-
-        fit : scipy.optimize.OptimizeResult
-
-            The OptimizeResult object for diagnostics on the fit.
-        """
-        optimization_units = FlimUnits(optimization_units)
-        if  (
-            optimization_units is FlimUnits.COUNTBINS
-            and x_range is None
-        ):
-            x_range = np.arange(len(data))
-        
-        if x_range is None:
-            raise ValueError(
-                "Must provide x_range for solutions in real time units"
-            )
-
-        with self.as_units(optimization_units):
-            if initial_guess is None:
-                initial_guess = self.param_tuple
-            initial_guess = np.array(initial_guess)
-        
-            if self.allow_noise and (len(initial_guess) == self.n_params - 1):
-                initial_guess = np.append(initial_guess, self.noise)
-
-            data /= data.sum()
-
-            fit_obj = minimize(
-                noisy_objective if self.allow_noise else noiseless_objective,
-                initial_guess,
-                args = (x_range, data, self.n_pulses),
-                method = 'trust-constr',
-                bounds = self.bounds,
-                constraints = self.constraints,
-            )
-
-            fit_tuple = fit_obj.x
-            
-            if self.allow_noise:
-                self.param_tuple = fit_tuple[:-1]
-                self.noise = fit_tuple[-1]
-            else:
-                self.param_tuple = fit_tuple
-
-        fit_obj.x = FlimUnits.convert_flimunits(
-            fit_obj.x,
-            optimization_units,
-            self.units
-        )
-        return fit_obj
+    @property
+    def objective(self) -> Callable:
+        if self.allow_noise:
+            return noisy_objective
+        return noiseless_objective
+    
+    @property
+    def optimizer_args(self) -> Tuple:
+        return (self.n_pulses,)
 
 ######## STORING ########
     @classmethod

@@ -1,6 +1,8 @@
 from functools import reduce
 from operator import add
 import re
+import ast
+
 
 import warnings
 
@@ -14,8 +16,15 @@ def _unsafe_eval(val):
     on standard ScanImage output!!!!!!!
     """
     try:
-        ret = eval(val)
+        # Spaces between strings become commas
+        spaced_val = re.sub(r"(?<=[\"'])\s+(?=[\"'])", ", ", val)
+        # sorry this is safer but for some reason it seems to fail!
+        # I will dig into it because otherwise people can inject malicious
+        # code into the header data!!!!
+        # ret = ast.literal_eval(spaced_val)
+        ret = eval(spaced_val)
     except (NameError, SyntaxError):
+
         if isinstance(val, str):
             try:
                 if contains_vector(val):
@@ -25,9 +34,15 @@ def _unsafe_eval(val):
             except Exception:
                 ret = val
         else:
-            ret = val
+            try:
+                ret = eval(val)
+            except Exception:
+                ret = val
     except Exception:
-        ret = val
+        try:
+            val = eval(ret)
+        except Exception:
+            ret = val
     
     return ret
             

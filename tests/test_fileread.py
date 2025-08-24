@@ -263,23 +263,39 @@ def test_mask_intensity_methods(
         # as making an array from the returned value of
         # each passed one at a time.
 
-        assert (np.array([
+        assert np.allclose(np.array([
             sr.sum_mask(mask) for mask in two_d_masks
-            ]) == sr.sum_masks(two_d_masks)).all()
-        
+            ]) , sr.sum_masks(two_d_masks)).all()
+
         # Do the same for 3d
-        assert (np.array([
+        assert np.allclose(np.array([
             sr.sum_mask(mask) for mask in three_d_masks
-            ]) == sr.sum_masks(three_d_masks)).all()
-        
-        assert (np.array([
+            ]) , sr.sum_masks(three_d_masks)).all()
+
+        assert np.allclose(np.array([
             sr.sum_mask(mask, registration_dict = {}) for mask in two_d_masks
-            ]) == sr.sum_masks(two_d_masks, registration_dict = {})).all()
-        
+            ]) , sr.sum_masks(two_d_masks, registration_dict = {}))
+
         # Do the same for 3d
-        assert (np.array([
+        assert np.allclose(np.array([
             sr.sum_mask(mask, registration_dict = {}) for mask in three_d_masks
-            ]) == sr.sum_masks(three_d_masks, registration_dict= {})).all()
+            ]) , sr.sum_masks(three_d_masks, registration_dict= {}))
+        
+        # Confirm that the 1d roi methods give the same results as
+        # applying a mask after extracting the frames
+
+        framelist = sr.im_params.flatten_by_timepoints()
+        frames = sr.get_frames(framelist)
+        assert np.allclose(np.array([
+            sr.get_mask_1d(mask, frames = frames) for mask in two_d_masks]),
+            np.array([frames[:, mask] for mask in two_d_masks])
+        )
+
+        frames.reshape(-1, three_d_masks[0].shape[0], *sr.im_params.shape)
+        assert np.allclose(np.array([
+            sr.get_mask_1d(mask, frames = frames) for mask in three_d_masks]),
+            np.array([frames[:, mask] for mask in three_d_masks])
+        )
 
     apply_test_to_all(test_reader, test_file_in, masks)
 

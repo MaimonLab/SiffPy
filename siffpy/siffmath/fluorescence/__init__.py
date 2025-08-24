@@ -5,6 +5,7 @@ import warnings
 from typing import Callable, Union, TYPE_CHECKING
 import numpy as np
 
+from siffpy.siffmath.fluorescence.color_correction import correct_bleedthrough_linear
 from siffpy.siffmath.fluorescence.traces import FluorescenceTrace, FluorescenceVector # noqa: F401
 from siffpy.siffmath.fluorescence.baseline_methods import fifth_percentile
 from siffpy.siffmath.flim.traces import FlimTrace

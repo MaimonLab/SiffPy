@@ -1,7 +1,8 @@
 import json
 from typing import (
-    Any, Callable, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
+    Any, TYPE_CHECKING, Optional, List, Dict, Tuple, Union
 )
+from collections.abc import Callable
 from pathlib import Path
 from contextlib import contextmanager
 
@@ -26,6 +27,16 @@ def multi_exponential_pdf_from_params(
     """
     Returns the probability distribution of observing a photon at each
     time in x_range given the exponential parameters and the IRF parameters.
+
+    ## Arguments
+
+    - `x_range : np.ndarray`
+        The x axis of the pdf
+
+    - `params : np.ndarray`
+        The parameters of the exponential distribution. The parameters
+        should be [tau1, frac1, tau2, frac2, ... , mean, sigma]
+
     """
 
     pdist = np.zeros(x_range.shape)
@@ -633,6 +644,18 @@ class FLIMParams():
             ub=1,
         )]
     
+    @property
+    def objective(self) -> Callable[[Tuple[float], np.ndarray, np.ndarray], float]:
+        """ Objective function for fitting """
+        if self.allow_noise:
+            return noisy_objective
+        else:
+            return noiseless_objective
+
+    @property
+    def optimizer_args(self) -> Tuple:
+        return ()
+    
     def fit_params_to_data(
             self,
             data            : np.ndarray,
@@ -760,12 +783,12 @@ class FLIMParams():
             Color channel: None
         """
         optimization_units = FlimUnits(optimization_units)
-        
+        data = np.array(data)
         if (
             optimization_units is FlimUnits.COUNTBINS
             and x_range is None
         ):
-            x_range = np.arange(len(data))
+            x_range = np.arange(data.shape[-1])
 
         assert x_range is not None, "Must provide x_range for solutions in real time units"
 
@@ -779,12 +802,14 @@ class FLIMParams():
                 if initial_guess.size == len(self.param_tuple):
                     initial_guess = np.append(initial_guess, self.noise)
 
-            data /= np.sum(data)
+            data = data/np.sum(data)
+
+            objective = self.objective
 
             fit_obj = minimize(
-                noisy_objective if self.allow_noise else noiseless_objective,
+                objective,
                 initial_guess,
-                args = (x_range, data),
+                args = (x_range, data, *self.optimizer_args),
                 method = 'trust-constr',
                 bounds = self.bounds,
                 constraints = self.constraints,
@@ -796,8 +821,12 @@ class FLIMParams():
 
             fit_tuple = fit_obj.x
             if self.allow_noise:
-                self.param_tuple = fit_tuple[:-1]
-                self.noise = fit_tuple[-1]
+                if hasattr(self.noise, '__len__'):
+                    self.param_tuple = fit_tuple[:-len(self.noise)]
+                    self.noise = fit_tuple[-len(self.noise):]
+                else:
+                    self.param_tuple = fit_tuple[:-1]
+                    self.noise = fit_tuple[-1]
             else:
                 self.param_tuple = fit_tuple
 
@@ -1143,8 +1172,8 @@ class FLIMParameter():
                     self.__class__,
                     alias,
                     property(
-                        lambda self: getattr(self, true_param),
-                        lambda self, val: setattr(self, true_param, val)
+                        lambda self, true_param = true_param: getattr(self, true_param),
+                        lambda self, val, true_param = true_param: setattr(self, true_param, val)
                     )
                 )
                 if alias in params:
@@ -1222,7 +1251,7 @@ class FLIMParameter():
         return (
             (type(self) is type(other))
             and all(
-                getattr(self, par) == getattr(other, par)
+                np.allclose(getattr(self, par), getattr(other, par), rtol = 1e-3)
                 for par in self.__class__.class_params
             )
         )

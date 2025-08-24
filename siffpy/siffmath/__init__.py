@@ -11,7 +11,7 @@ from siffpy.siffmath.flim import FlimTrace # noqa: F401
 from siffpy.siffmath.fluorescence import (
     FluorescenceTrace, dFoF, photon_counts, # noqa: F401
 )
-from siffpy.siffmath.utils import Timeseries # noqa: F401
+from siffpy.siffmath.utils import Timeseries, local_correlation # noqa: F401
 import siffpy.siffmath.fluorescence as fluorescence
 
 def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:

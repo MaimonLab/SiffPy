@@ -27,7 +27,7 @@ class FlimUnits(Enum):
         """
         self*conversion_factor = other
         """
-        if self is FlimUnits.UNKNOWN or other is FlimUnits.UNKNOWN:
+        if (self is FlimUnits.UNKNOWN) or (other is FlimUnits.UNKNOWN):
             raise ValueError("Cannot convert from or to UNKNOWN FlimUnits")
         if self is other:
             return 1.0

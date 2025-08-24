@@ -10,13 +10,11 @@ from siffpy.core import io, timetools
 from siffpy.core.flim import FLIMParams, FlimUnits, default_flimparams, FlimUnitsLike
 from siffpy.core.utils.event_stamp import EventStamp
 
-#from siffpy.core.utils import ImParams
 from siffpy.core.utils.registration_tools import RegistrationInfo, to_reg_info_class
 from siffpy.core.utils.types import BoolMaskArray, ImageArray, PathLike
 from siffpy.core.utils import warn_for_mroi
 from siffpy.siffmath.flim import FlimTrace, FlimMethod
 from siffpy.siffmath.utils import Timeseries
-#from siffreadermodule import SiffIO
 
 # TODO:
 # __repr__
@@ -464,19 +462,28 @@ class SiffReader(object):
                         'epoch_nanoseconds'
                     )
             laser_time, system_time = self.siffio.get_epoch_both(frames = frames)
-            # laser_time drifts with respect to the jittery system time.
-            # does a linear regression to correct for this drift
-            slope, _ = np.polyfit(
-                laser_time,
-                (
-                    (laser_time-laser_time[0]).astype(float)
-                    - (system_time-system_time[0]).astype(float)
-                ),
-                1
-            )
+
+            if not hasattr(self, '_laser_epoch_slope'):
+                # laser_time drifts with respect to the jittery system time.
+                # does a linear regression to correct for this drift
+                frames = list(range(self.im_params.num_frames))
+
+                fit_laser_time, fit_system_time = self.siffio.get_epoch_both(frames = frames)
+
+                # memoize time zero
+                self._laser_epoch_slope, _ = np.polyfit(
+                    fit_laser_time,
+                    (
+                        (fit_laser_time-fit_laser_time[0]).astype(float)
+                        - (fit_system_time-fit_system_time[0]).astype(float)
+                    ),
+                    1
+                )
+
+                self._time_zero = int(fit_system_time[0])
 
             return Timeseries(
-                laser_time - (slope*(laser_time-laser_time[0])).astype('uint64'),
+                laser_time - (self._laser_epoch_slope*(laser_time-self._time_zero)).astype('uint64'),
                 'epoch_nanoseconds'
             )
         
@@ -487,7 +494,7 @@ class SiffReader(object):
         """ Returns the time zero of the experiment in epoch time """
         if hasattr(self, '_time_zero'): # only compute once, but only succeeds if we need it and it exists
             return self._time_zero
-        self._time_zero = self.t_axis(0,1,0, reference_time = 'epoch')[0].astype(int)
+        self.t_axis(0, 1, 0, reference_time = 'epoch')[0].astype(int)
         return self._time_zero
 
     @property
@@ -704,6 +711,115 @@ class SiffReader(object):
             )
         return self.siffio.get_frames(frames = frames, registration = registration_dict)
 
+    def get_mask_1d(
+        self,
+        mask : Union['BoolMaskArray', List['BoolMaskArray']],
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        z_index : Optional[int] = None,
+        color_channel : int = 1,
+        registration_dict : Optional[Dict] = None,
+    ) -> 'ImageArray':
+        """
+
+        # NOT IMPLEMENTED YET
+
+        Returns just the masked data as a numpy array of shape
+        `(n_timepoints, n_pixels)`,
+        where `n_pixels` is the number of pixels in the mask
+        (whether it's a volume or a plane).
+
+        This is equivalent to getting all of the full frames and then
+        masking them, but this reads directly from the file without creating
+        the intermediate (often large) array first.
+
+        # Arguments
+
+        * `mask : Union[np.ndarray[bool], List[np.ndarray[bool]]]`
+            Mask to apply to the frames. Must be either the same shape as individual frames
+            (in which case z_index is used) or have a 0th axis with length equal
+            to the number of z slices. If a `list` is provided, the function will sum over each mask in the list
+            (presuming the slowest dimension is the mask index).
+
+        * `timepoint_start : int`
+            Starting timepoint for the mask. Default is 0.
+
+        * `timepoint_end : int`
+            Ending timepoint for the mask. Default is None, which means the last timepoint.
+
+        * `z_index : List[int]`
+            List of z-slices to apply the mask to. Default is None, which means all z-slices.
+
+        * `color_channel : int`
+            Color channel to apply the mask to. Default is 1, which means the FIRST color channel.
+
+        * `registration_dict : dict`
+            Registration dictionary, if there is not a stored one or if you want to use a different one.
+        
+        # Returns
+
+        * `np.ndarray`
+            Masked data as an array of shape `(n_timepoints, n_pixels)`,
+            where `n_pixels` is the number of pixels in the mask.
+            If the mask was 2D, then the shape will be `(n_frames, n_pixels)`.
+
+        # See also
+
+        - `SiffReader.sum_mask` to sum over the masked data instead of returning it pixelwise
+
+        - `SiffReader.get_masks` to get multiple masks at once.
+
+        # Examples
+
+        ```python
+
+        from siffpy import SiffReader
+        reader = SiffReader('my_file_path.siff')
+
+        # Make a mask of random pixels
+
+        mask = np.random.rand(*reader.im_params.shape) > 0.5
+
+        masked_data = reader.get_mask(
+            mask = mask,
+            timepoint_start = 0,
+            timepoint_end = 10,
+            z_index = None,  # Apply to all z-slices
+            color_channel = 1,  # Apply to the first color channel
+        )
+
+        assert (masked_data.shape[-1] == mask.sum())
+        """
+
+        warn_for_mroi(self)
+
+        timepoint_end = self.im_params.num_timepoints if timepoint_end is None else timepoint_end
+
+        registration_dict = self.registration_dict if registration_dict is None and hasattr(self, 'registration_dict') else registration_dict
+        registration_dict = _rinfo_safe_convert(registration_dict)
+
+        if mask.ndim != 2:
+            raise NotImplementedError("Only 2D masks are implemented so far, there's a big in the corrosiff backend for 3D masks")
+            if mask.shape[0] != self.im_params.num_slices:
+                raise ValueError(
+                    "Mask must have same number of z-slices as the image."
+                    + f" Provided masks have shape {mask.shape} and image "
+                    + f"has {self.im_params.num_slices} slices."
+                )
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            reference_z = z_index,
+            color_channel = color_channel-1,
+        )
+
+        return self.siffio.get_roi_1d(
+            mask = mask,
+            frames = frames,
+            registration = registration_dict
+        )
+
     
     def sum_mask(
         self,
@@ -771,6 +887,9 @@ class SiffReader(object):
         - `SiffReader.sum_masks` to sum over multiple masks
         in one pass of reading the file (should be far more efficient
         than iterating).
+
+        - `SiffReader.get_mask` to get the masked data pixelwise
+        instead of summing it.
 
         # Examples
         
@@ -1505,6 +1624,7 @@ class SiffReader(object):
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = method.value,
+            units = 'countbins',
         )
 
         ft.convert_units(units)

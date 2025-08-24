@@ -52,7 +52,7 @@ def sct_defaults(suite2p_default_ops : Dict)->Dict:
     #suite2p_default_ops['batch_size'] = 300
     suite2p_default_ops['two_step_registration'] = False
     suite2p_default_ops['nimg_init'] = 300
-    suite2p_default_ops['smooth_sigma_time'] = 2
+    suite2p_default_ops['smooth_sigma_time'] = 0
     #suite2p_default_ops['norm_frames'] = F
     return suite2p_default_ops
 
@@ -90,12 +90,18 @@ class Suite2pRegistrationInfo(RegistrationInfo):
 
     def register(self,
         siffio : 'SiffIO',
-        *args,
+        *,
         alignment_color_channel : int = 0,
+        z_align : bool = False,
+        t_bounds : Tuple[int, int] = (None,None),
         **kwargs
         ):
         """
         Registers individual planes using suite2p's registration method.
+
+        If `z_registration` is `True`, aligns the planes to one another by
+        picking the least variable plane across the stack and fixing all other
+        planes to that one.
         
         If a kwarg called `ops` is provided, that's passed to suite2p's
         registration_wrapper function. Otherwise, the default_ops are used.
@@ -122,14 +128,16 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             **kwargs,
         }
 
+        t_bounds = slice(None) if t_bounds == (None, None) else slice(*t_bounds)
+
         # Each list element is a tuple:
         # reference image, _, _, _, offsets (y, x), _, _
         reg_rets = [ # hee hee
             register.registration_wrapper(
-                registered_frames[: , k, :, :].squeeze(),
+                registered_frames[t_bounds , k, :, :].squeeze(),
                 # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
                 # this keeps the values from being truncated to 0
-                f_raw = 100*frames[:, k, :, :].squeeze(),
+                f_raw = 100*frames[t_bounds, k, :, :].squeeze(),
                 ops = ops
             )
             for k in range(self.im_params.num_slices)
@@ -140,18 +148,21 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         ).astype(np.float32)/100
 
         # align the reference frames to one another:
-        # TO DO!!
+        if z_align:
+            raise NotImplementedError("Z-alignment not yet implemented")
+        else:
 
-        frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
+            frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
 
-        self.yx_shifts = {}
-        ysize, xsize = self.im_params.ysize, self.im_params.xsize
-        for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
-            y_offsets = -registration[4][0]
-            x_offsets = -registration[4][1]
-            offsets = np.array([y_offsets, x_offsets]).T
-            for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
-                self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
+            self.yx_shifts = {}
+            ysize, xsize = self.im_params.ysize, self.im_params.xsize
+            for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
+                framelist = framelist[t_bounds]
+                y_offsets = -registration[4][0]
+                x_offsets = -registration[4][1]
+                offsets = np.array([y_offsets, x_offsets]).T
+                for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
+                    self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
 
         populate_dict_across_colors(
             self.im_params,

@@ -193,4 +193,11 @@ class PhaseTrace(np.ndarray):
         assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() > 0
         ```
         """
-        return 1.0/self
+        return PhaseTrace(
+            self.real - 1j*self.imag,
+            method = self.method,
+            error_array = self.error_array,
+            time = self.time,
+            info_string = self.info_string,
+            units = self.units,
+        )

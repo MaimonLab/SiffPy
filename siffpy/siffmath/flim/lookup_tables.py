@@ -394,6 +394,26 @@ jRCaMP1b = DangerousFit(
 
 # )
 
+GCaMP6s = IntensityHillFit(
+    n = 2.45,
+    k50 = 147,
+    zero_point = 0.0,
+    max_point = 53.8,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'GCaMP6s',
+)
+
+GCaMP6f = IntensityHillFit(
+    n = 2.21,
+    k50 = 297,
+    zero_point = 0.0,
+    max_point = 39.9,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'dF/F_0',
+    name = 'GCaMP6f',
+)
+
 jGCaMP7f = IntensityHillFit(
     n = 3.10,
     k50 = 150,
