@@ -11,3 +11,6 @@ def test_registration_imports():
     except ImportError:
         pytest.skip("Suite2p not installed")
     #import caiman
+
+if __name__ == "__main__":
+    pytest.main([__file__])
