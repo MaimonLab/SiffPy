@@ -168,17 +168,18 @@ class ImParams():
 
     @property
     def picoseconds_per_bin(self)->int:
-        """ Picoseconds per photon arrival time bin """
-        if hasattr(self, 'Scan2D'):
-            if hasattr(self.Scan2D, 'Acq'):
-                return MULTIHARP_BASE_RES*(2**(self.Scan2D.Acq.binResolution))
-    
+        """ Picoseconds per photon arrival time bin. Fails if not a .siff file """
+        return MULTIHARP_BASE_RES*(2**(self.Scan2D.Acq.binResolution))
+
+    @property
+    def laser_rep_rate(self)->int:
+        """ Laser repetition rate in syncs / sec, Fails if not a .siff file """
+        return self.Scan2D.Acq.countrates[0]
+
     @property
     def num_bins(self)->int:
-        """ Number of photon arrival time bins """
-        if hasattr(self, 'Scan2D'):
-            if hasattr(self.Scan2D, 'Acq'):
-                return self.Scan2D.Acq.Tau_bins
+        """ Number of photon arrival time bins. Fails if not a .siff file """
+        return self.Scan2D.Acq.Tau_bins
 
     @property
     def num_frames(self)->int:
@@ -202,9 +203,9 @@ class ImParams():
         return fr
 
     @property
-    def arrival_time_bins(self)->np.ndarray[Any, np.float64]:
+    def arrival_time_bins(self)->np.ndarray[Any, np.dtype[np.floating]]:
         """ The time bins of the arrival time histogram in PICOSECONDS """
-        return np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin
+        return (np.arange(self.num_bins, dtype=float)*self.picoseconds_per_bin).astype(float)
     
     @property
     def num_true_frames(self)->int:
@@ -250,7 +251,7 @@ class ImParams():
         return 0.0
     
     @property
-    def z_vals(self)->List[float]:
+    def z_vals(self)->Optional[List[float]]:
         """ List of z values for each slice """
         if hasattr(self, 'StackManager'):
             if self.StackManager.enable:
@@ -260,8 +261,7 @@ class ImParams():
     @property
     def colors(self)->Union[List[int],int]:
         """ Can be int or list of ints, inherited from MATLAB """
-        if hasattr(self, 'Channels'):
-            return self.Channels.channelSave
+        return self.Channels.channelSave
 
     @property
     def color_list(self)->List[int]:
@@ -274,82 +274,78 @@ class ImParams():
     @property
     def zoom(self)->float:
         """ Scan zoom factor """
-        if hasattr(self, 'RoiManager'):
-            return self.RoiManager.scanZoomFactor
+        return self.RoiManager.scanZoomFactor
     
     @property
-    def imaging_fov(self)->List[float]:
+    def imaging_fov(self)->List[List[float]]:
         """ Imaging field of view (in microns) -- relies on correct objective settings """
-        if hasattr(self, 'RoiManager'):
-            return self.RoiManager.imagingFovUm
+        return self.RoiManager.imagingFovUm
 
     @property
     def xsize(self)->int:
         """ Number of pixels in the x dimension """
-        if hasattr(self, 'RoiManager'):
-            if self.RoiManager.mroiEnable:
-                warnings.warn(
-                # raise NotImplementedError(
-                """
-                These data use the mROI functionality,
-                which has not yet been implemented in
-                SiffPy. Let Stephen know!
+        if self.RoiManager.mroiEnable:
+            warnings.warn(
+            # raise NotImplementedError(
+            """
+            These data use the mROI functionality,
+            which has not yet been implemented in
+            SiffPy. Let Stephen know!
 
-                If you are seeing this as a WARNING,
-                then mROI functionality is in development,
-                though not yet implemented!
-                """
-                )
+            If you are seeing this as a WARNING,
+            then mROI functionality is in development,
+            though not yet implemented!
+            """
+            )
 
-                # If they're not all the same size, raise an error -- at least for now.
-                first_roi = self.roi_groups['imagingRoiGroup'].rois[0]
-                if not all(
-                    [
-                        roi.scanfields['pixelResolutionXY'][0] 
-                        == first_roi.scanfields['pixelResolutionXY'][0]
-                        for roi in self.roi_groups['imagingRoiGroup'].rois
-                    ]
-                    ):
-                        raise NotImplementedError(
-                            "mROIs do not share an x resolution. \
-                            Support for ROIs of different sizes is not yet implemented."
-                        )
-                return first_roi.scanfields['pixelResolutionXY'][0]
+            # If they're not all the same size, raise an error -- at least for now.
+            first_roi = self.roi_groups['imagingRoiGroup'].rois[0]
+            if not all(
+                [
+                    roi.scanfields['pixelResolutionXY'][0] 
+                    == first_roi.scanfields['pixelResolutionXY'][0]
+                    for roi in self.roi_groups['imagingRoiGroup'].rois
+                ]
+                ):
+                    raise NotImplementedError(
+                        "mROIs do not share an x resolution. \
+                        Support for ROIs of different sizes is not yet implemented."
+                    )
+            return first_roi.scanfields['pixelResolutionXY'][0]
 
-            return self.RoiManager.pixelsPerLine
+        return self.RoiManager.pixelsPerLine
 
     @property
     def ysize(self)->int:
         """ Number of pixels in the y dimension """
-        if hasattr(self, 'RoiManager'):
-            if self.RoiManager.mroiEnable:
-                warnings.warn(
-                # raise NotImplementedError(
-                """
-                These data use the mROI functionality,
-                which has not yet been implemented in
-                SiffPy. Let Stephen know!
+        if self.RoiManager.mroiEnable:
+            warnings.warn(
+            # raise NotImplementedError(
+            """
+            These data use the mROI functionality,
+            which has not yet been implemented in
+            SiffPy. Let Stephen know!
 
-                If you are seeing this as a WARNING,
-                then mROI functionality is in development,
-                though not yet implemented!
-                """
+            If you are seeing this as a WARNING,
+            then mROI functionality is in development,
+            though not yet implemented!
+            """
+            )
+
+            # Correct for the inter-scanfield flyback
+            scanfield_lines = int(
+                self.Scan2D.flytoTimePerScanfield /
+                (   self.RoiManager.linePeriod
+                    * (1 + int(self.Scan2D.bidirectional)) # divide by 2 if bidi
                 )
+            ) + 1 # round up
+            return sum([
+                roi.scanfields['pixelResolutionXY'][1]
+                + scanfield_lines
+                for roi in self.roi_groups['imagingRoiGroup'].rois
+            ])
 
-                # Correct for the inter-scanfield flyback
-                scanfield_lines = int(
-                    self.Scan2D.flytoTimePerScanfield /
-                    (   self.RoiManager.linePeriod
-                        * (1 + int(self.Scan2D.bidirectional)) # divide by 2 if bidi
-                    )
-                ) + 1 # round up
-                return sum([
-                    roi.scanfields['pixelResolutionXY'][1]
-                    + scanfield_lines
-                    for roi in self.roi_groups['imagingRoiGroup'].rois
-                ])
-
-            return self.RoiManager.linesPerFrame
+        return self.RoiManager.linesPerFrame
 
     @property
     def shape(self)->Tuple[int, int]:
@@ -492,7 +488,7 @@ class ImParams():
     @property
     def num_colors(self) -> int:
         """ Number of color channels acquired """
-        if hasattr(self.colors, '__len__'):
+        if isinstance(self.colors, list):
             return len(self.colors)
         return 1
 
@@ -587,9 +583,9 @@ class ImParams():
         
         If reference_z is None, returns _all_ frames, irrespective of z.
 
-        If color_channel (0-indexed) is None, returns all colors. But since
-        timepoints for each color channel are the same, typically you expect
-        NOT to use this.
+        If color_channel (0-indexed) is None, returns all colors. Order
+        is then
+        [timepoint_1, z_1, color_1, color_2, ..., z_2, color_1, color_2, ..., timepoint_2, ...]
 
         Examples
         -------

@@ -147,11 +147,11 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             [reg_ret[0] for reg_ret in reg_rets]
         ).astype(np.float32)/100
 
-        # align the reference frames to one another:
+        # align the reference frames to one another using the corrXY output of `registration_wrapper`:
         if z_align:
+            corrXY_across_z = np.array([reg_ret[4][2] for reg_ret in reg_rets])
             raise NotImplementedError("Z-alignment not yet implemented")
         else:
-
             frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
 
             self.yx_shifts = {}

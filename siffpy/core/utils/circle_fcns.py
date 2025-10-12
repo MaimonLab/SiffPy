@@ -66,7 +66,7 @@ def circ_corr(
         y : np.ndarray,
         axis : int = 0,
         method : str = 'Fisher',
-        ignore_nans : bool = False,
+        ignore_nans : bool = True,
     )->float:
     """
     Warning: recommend putting your angles in the complex plane
@@ -201,7 +201,7 @@ def circ_corr_complex(
         y : np.ndarray,
         axis : int = 0,
         method : str = "Fisher",
-        ignore_nans : bool = False,
+        ignore_nans : bool = True,
     )->float:
     """
     Presumes x and y are already complex numbers on the unit circle!

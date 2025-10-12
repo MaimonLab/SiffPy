@@ -12,6 +12,7 @@ def nth_percentile(
     n : float,
     rolling_window : Optional[int] = None,
     ignore_zeros : bool = False,
+    axis : int = -1,
 ):
     """
     Roi-wise nth percentile value
@@ -39,15 +40,15 @@ def nth_percentile(
     """
 
     if rolling_window is None:
-        sorted_array = np.sort(rois,axis=-1)
+        sorted_array = np.sort(rois, axis=axis)
         if ignore_zeros:
             return np.array([
                 roi[roi!=0][n*len(roi[roi!=0])//100]
                 for roi in sorted_array
             ])
 
-        return sorted_array.take(n*sorted_array.shape[-1]//100, axis=-1)
-    
+        return sorted_array.take(n*sorted_array.shape[axis]//100, axis=axis)
+
     if rolling_window > 1000:
         warning("Large rolling window size. This may be slow. "+
                 "Remind me to implement a faster version of this at some point."
@@ -57,6 +58,7 @@ def nth_percentile(
         rolling_window,
         percentile = n/100,
         ignore_zeros = ignore_zeros,
+        axis = axis,
     )
 
 
@@ -64,6 +66,7 @@ def fifth_percentile(
         rois : 'ImageArray',
         rolling_window : Optional[int] = None,
         ignore_zeros : bool = False,
+        axis : int = -1,
     ) -> np.ndarray:
     """
     Roi-wise 5th percentile value
@@ -77,7 +80,7 @@ def fifth_percentile(
     If rolling_window is not None, returns a n_roi, n_frames array for broadcasting purposes...
     Maybe this is dumb
     """
-    return nth_percentile(rois, 5, rolling_window, ignore_zeros=ignore_zeros)
+    return nth_percentile(rois, 5, rolling_window, ignore_zeros=ignore_zeros, axis = axis,)
 
 def roi_mean(rois : 'ImageArray') -> np.ndarray:
     """ Takes the mean within each ROI """
@@ -88,6 +91,7 @@ def compute_rolling_baseline(
     width : int,
     percentile : float = 0.05,
     ignore_zeros : bool = False,
+    axis : int = -1,
 ):  
     frac_zeros = 0
     # Suboptimal....
@@ -95,5 +99,10 @@ def compute_rolling_baseline(
         frac_zeros += np.sum(f_array==0)/f_array.size
     from scipy.ndimage import percentile_filter
     #""" WARNING: SLOW FOR LARGE WINDOWS. Should do this better."""
-    size = (1,int(width//2)) if f_array.ndim > 1 else int(width//2)
-    return percentile_filter(f_array, (frac_zeros + percentile)*100, size=size)
+    # size = (*(1 for _ in range(f_array.ndim - 1)),int(width//2)) if f_array.ndim > 1 else int(width//2)
+    if f_array.ndim == 1:
+        size = int(width//2)
+    else:
+        size = [1 for _ in range(f_array.ndim)]
+        size[axis] = int(width//2)
+    return percentile_filter(f_array, (frac_zeros + percentile)*100, size=size,)

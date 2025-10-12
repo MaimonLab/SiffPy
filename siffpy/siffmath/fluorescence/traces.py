@@ -1,5 +1,5 @@
 import numpy as np
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, TypeVar, Any
 from pathlib import Path
 
 import h5py
@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from siffpy.siffmath.utils.types import (
         FluorescenceArrayLike, FluorescenceVectorLike
     )
+
+T = TypeVar('T', bound = np.dtype)
 
 class FluorescenceTrace(np.ndarray):
     """
@@ -46,14 +48,14 @@ class FluorescenceTrace(np.ndarray):
     def __new__(
         cls,
         input_array : 'FluorescenceArrayLike',
-        method : str = None,
+        method : Optional[str] = None,
         normalized : bool = False,
-        F : Optional[np.ndarray] = None,
-        F0 : Optional[np.ndarray] = None,
+        F : Optional[np.ndarray[Any, T]] = None,
+        F0 : Optional[np.ndarray[Any, T]] = None,
         #time_axis : np.ndarray = np.ndarray(None),
-        max_val : Optional[np.ndarray] = np.inf,
-        min_val : Optional[np.ndarray] = np.array(0.0),
-        angle : Optional[np.ndarray] = None,
+        max_val : Optional[np.ndarray[Any, T]] = np.inf,
+        min_val : Optional[np.ndarray[Any, T]] = np.array(0.0),
+        angle : Optional[np.ndarray[Any, T]] = None,
         info_string : Optional[str] = None, # new attributes TBD?
         ):
         

@@ -114,10 +114,10 @@ def phasor_to_lifetimes(
     )
 
 def phasor_to_fraction(
-        phasor : Union[np.ndarray[Any, np.complex128], complex],
+        phasor : Union[np.ndarray[Any, np.dtype[np.complexfloating]], complex],
         params : FLIMParams,
         rep_period : float,
-    ) -> np.ndarray[Any, np.float64]:
+    ) -> np.ndarray[Any, np.dtype[np.floating]]:
     """
     Given a phasor and a set of `FLIMParams`, returns the fraction in the
     corresponding exponential states. The phasor should be corrected for
@@ -166,7 +166,7 @@ def phasor_to_fraction(
         for endpt, startpt in zip(bounds[:-1], bounds[1:])
     ]).T.squeeze().T
     
-def universal_circle() -> np.ndarray[Any, np.complex128]:
+def universal_circle() -> np.ndarray[Any, np.dtype[np.complexfloating]]:
     """
     Returns the universal circle on which single-exponential phasors live.
     A semicircle centered on (0.5, 0) of radius 0.5.
@@ -190,7 +190,7 @@ def universal_circle() -> np.ndarray[Any, np.complex128]:
 
     return 0.5 + 0.5*np.exp(1j*theta)
 
-def histogram_to_phasor(hist : np.ndarray[Any, np.float64]) -> np.ndarray[Any, np.complex128]:
+def histogram_to_phasor(hist : np.ndarray[Any, np.dtype[np.floating]]) -> np.ndarray[Any, np.dtype[np.complexfloating]]:
     """
     Transforms an arrival time histogram, or a series of them,
     into a single phasor. Assumes the fastest axis of the histogram
@@ -249,13 +249,13 @@ def histogram_to_phasor(hist : np.ndarray[Any, np.float64]) -> np.ndarray[Any, n
     return x + 1j*y
 
 def correct_phasor(
-        phasor : np.ndarray[Any, np.complex128],
+        phasor : np.ndarray[Any, np.dtype[np.complexfloating]],
         params : 'FLIMParams',
         hist_length : int,
         rotate_by_offset : bool = True,
         subtract_noise : bool = False,
         inplace : bool = False
-    ) -> np.ndarray[Any, np.complex128]:
+    ) -> np.ndarray[Any, np.dtype[np.complexfloating]]:
     """
     Corrects a phasor for the effects of the instrument response function
     and projects onto the line connecting the states of the `FLIMParams` if 

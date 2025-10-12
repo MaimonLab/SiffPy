@@ -72,7 +72,7 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
 
     ```
     """
-    if len(shift) != x.size//x.shape[0]:
+    if len(shift) != x.shape[0]:
         raise ValueError(
             f"`shift` must have the same number of elements as the first dimension of `x` \
             input was of shape {x.shape}, and `shift` was of length {len(shift)}. \

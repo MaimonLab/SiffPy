@@ -22,6 +22,7 @@ def dFoF(
         *args,
         normalized : bool = False,
         Fo : Union[np.ndarray, float, Callable[[np.ndarray], Union[np.ndarray, int, float]]] = fifth_percentile,
+        time_axis : int = -1,
         **kwargs
     )->FluorescenceTrace:
     """
@@ -68,7 +69,7 @@ def dFoF(
     
     #info_string = ""
     if callable(Fo):
-        F0 = Fo(fluorescence, *args, **kwargs)
+        F0 = Fo(fluorescence, *args, axis = time_axis, **kwargs)
         #inspect.signature(Fo).
     else:
         try:
@@ -82,7 +83,7 @@ def dFoF(
     # Stinky code...
     # Ensure F0 matches the shape for broadcasting along the time axis
     if F0.ndim == 1 or (F0.ndim == fluorescence.ndim and F0.shape[-1] != fluorescence.shape[-1]):
-        F0 = np.expand_dims(F0, axis=-1)
+        F0 = np.expand_dims(F0, axis=time_axis)
     
     df_trace = ((fluorescence.astype(float) - F0.astype(float))/F0.astype(float))
     df_trace = df_trace
@@ -91,9 +92,9 @@ def dFoF(
     min_val = None
 
     if normalized:
-        sorted_vals = np.sort(df_trace,axis=1)
-        min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
-        max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
+        sorted_vals = np.sort(df_trace, axis = time_axis)
+        min_val = sorted_vals[:,sorted_vals.shape[time_axis]//20]
+        max_val = sorted_vals[:,int(sorted_vals.shape[time_axis]*(1.0-1.0/20))]
         df_trace = ((df_trace.T - min_val)/(max_val - min_val)).T
 
     df_trace = df_trace.squeeze()

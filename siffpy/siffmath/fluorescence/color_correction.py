@@ -2,18 +2,20 @@
 A submodule containing methods for performing color channel
 correction analyses to estimate bleedthrough
 """
-from typing import Tuple, Any
+from typing import Tuple, Any, TypeVar
 
 import numpy as np
 
 from ..utils.types import ImageArray
 
+T = TypeVar('T', bound = np.dtype)
+
 def correct_bleedthrough_linear(
-        x : np.ndarray,
-        y : np.ndarray,
+        x : np.ndarray[Any, T],
+        y : np.ndarray[Any, T],
         x_to_y : float = 0.0,
         y_to_x : float = 0.0
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray[Any, T], np.ndarray[Any, T]]:
     """ 
     Corrects bleedthrough between two color channels assuming the relationships:
 
@@ -49,7 +51,7 @@ def correct_bleedthrough_linear(
         np.maximum((y - x_to_y*x)/(1-(x_to_y*y_to_x)), 0),
     )
 
-def linear_fit(*image_channels : Tuple[ImageArray])->np.ndarray[Any, np.float64]:
+def linear_fit(*image_channels : Tuple[ImageArray])->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Estimates a linear fit from each channel to the others.
 

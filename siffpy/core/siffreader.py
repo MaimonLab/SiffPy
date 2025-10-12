@@ -1,7 +1,7 @@
 import copy
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union, Any
 
 import numpy as np
 
@@ -249,7 +249,7 @@ class SiffReader(object):
         timepoint_end : Optional[int] = None,
         reference_z : int = 0,
         reference_time : str = 'experiment',
-        ) -> np.ndarray:
+        ) -> Union[np.ndarray[Any,np.dtype[np.floating]], np.ndarray[Any,np.dtype[np.uint64]]]:
         """
         Returns the time-stamps of frames. By default, returns the time stamps of all frames relative
         to acquisition start.
@@ -486,7 +486,8 @@ class SiffReader(object):
                 laser_time - (self._laser_epoch_slope*(laser_time-self._time_zero)).astype('uint64'),
                 'epoch_nanoseconds'
             )
-        
+        else:
+            raise ValueError("reference_time must be 'experiment' or 'epoch'")
 
 
     @property
@@ -525,7 +526,7 @@ class SiffReader(object):
             "Don't use `dt_frame` if there's no `RoiManager` ScanImage metadata!"
             + " It's extremely slow and badly implemented!!"
         )
-        return np.diff(self.get_time(reference = 'experiment')).mean()
+        return np.diff(self.get_time(reference_time = 'experiment')).mean()
     
     def sec_to_frames(self, seconds : float, base : str = 'volume')->int:
         """
@@ -710,6 +711,70 @@ class SiffReader(object):
                 frames = frames, registration=registration_dict
             )
         return self.siffio.get_frames(frames = frames, registration = registration_dict)
+
+    def get_volume(
+        self,
+        timepoint_start : int = 0,
+        timepoint_end : Optional[int] = None,
+        color_channel : Optional[int] = 1,
+        registration_dict : Optional[Dict] = None,
+    ) -> np.ndarray[Any, np.dtype[np.uint16]]:
+        """
+        Similar to `get_frames`, but returns either a 5D array of shape
+        `(n_timepoints, n_slices, n_colors, y, x)` or a 4D array of shape
+        `(n_timepoints, n_slices, y, x)` and takes
+        the "timepoints" as arguments instead of frames. Only returns
+        full volumes!
+
+        # Arguments
+        * `timepoint_start : int`
+            Starting timepoint for the volume. Default is 0, the first
+            volume in the file.
+
+        * `timepoint_end : int`
+            Ending timepoint for the volume. Default is None, which means
+            the last volume in the file.
+
+        * `color_channel : int`
+            Color channel to return. Default is 1, which means the FIRST
+            color channel. If None, returns all color channels.
+
+        * `registration_dict : dict`
+            Registration dictionary, if there is not a stored one or
+            if you want to use a different one.
+        
+        # Returns
+
+        * `np.ndarray[Any, np.dtype[np.uint16]]`
+            Size of array is either `(n_timepoints, n_slices, y, x)` if
+            `color_channel` is an `int`, or
+            `(n_timepoints, n_slices, n_colors, y, x)` if `color_channel`
+            is None.
+        """
+
+        frames = self.im_params.flatten_by_timepoints(
+            timepoint_start = timepoint_start,
+            timepoint_end = timepoint_end,
+            color_channel = None if color_channel is None else color_channel-1,
+        )
+
+        registration_dict = (
+            self.registration_dict
+            if registration_dict is None
+            else registration_dict
+        )
+
+        registration_dict = _rinfo_safe_convert(registration_dict)
+        
+        shape_tuple = (
+            self.im_params.volume if color_channel is None
+            else self.im_params.volume_one_color
+        )
+        
+        return self.siffio.get_frames(
+            frames = frames,
+            registration = registration_dict,
+        ).reshape(-1, *shape_tuple)
 
     def get_mask_1d(
         self,
