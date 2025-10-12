@@ -1,5 +1,6 @@
 import inspect
 import textwrap
+from typing import List, Optional, Tuple, Any
 
 import numpy as np
 
@@ -7,7 +8,7 @@ from siffpy.siffmath.phase.traces import PhaseTrace
 import siffpy.siffmath.phase.phase_estimates as phase_estimates
 from siffpy.siffmath.utils.types import PhaseTraceLike
 
-def phase_alignment_functions(print_docstrings : bool = True)->None:
+def phase_alignment_functions(print_docstrings : bool = True)->Optional[List[Tuple[str, Any]]]:
     """
     Prints the available methods for aligning a vector time series to a phase,
     as well as returning the string
@@ -28,7 +29,12 @@ def phase_alignment_functions(print_docstrings : bool = True)->None:
     else:
         return memberfcns
     
-def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
+def phase_shift(
+        x : np.ndarray,
+        shift : PhaseTraceLike,
+        shift_axis : int = 0,
+        time_axis : int = -1
+    )->np.ndarray:
     """
     Shifts the phase of a vector time series by the phase requested.
 
@@ -52,6 +58,9 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
         Accepts either an array of angles (does not need to be wrapped)
         or a `PhaseTrace` object.
 
+    time_axis : int, optional
+        The axis of `x` that is the time axis to iterate along, by default -1
+
     Returns
     -------
     np.ndarray
@@ -72,14 +81,14 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
 
     ```
     """
-    if len(shift) != x.shape[0]:
+    if len(shift) != x.shape[time_axis]:
         raise ValueError(
-            f"`shift` must have the same number of elements as the first dimension of `x` \
-            input was of shape {x.shape}, and `shift` was of length {len(shift)}. \
-            ``` \
-            assert len(shift) == x.size//x.shape[0]\
-            ```"
+            f"`shift` must have the same number of elements as the `time_axis` dimension of `x` \
+            input was of shape {x.shape}, `time_axis` was {time_axis} \
+            and `shift` was of length {len(shift)}."
         )
+    if np.issubdtype(shift.dtype, np.floating):
+        shift = np.angle(np.exp(1j*shift))
     if isinstance(shift, PhaseTrace):
         shift = np.angle(shift)
 
@@ -87,12 +96,27 @@ def phase_shift(x : np.ndarray, shift : PhaseTraceLike)->np.ndarray:
     shift = np.mod(shift, 2 * np.pi) / (2*np.pi)
 
     shifted = np.zeros_like(x)
-    n_cols = x.shape[0]
-    for t in range(x.shape[1]):
+    n_cols = x.shape[shift_axis]
+    for t in range(len(shift)):
         idx = n_cols * shift[t]
         whole = idx.astype(int)
         frac = idx - whole # always positive
-        shifted[:,t] = np.roll((1-frac)*x[:,t], whole, axis = 0)
-        shifted[:,t] += np.roll(frac*x[:,t], whole+1, axis = 0)
+        
+        # Not sure how to vectorize this part
+        this_row = np.take(x, t, axis = time_axis)
+        new_row = np.roll((1-frac)*this_row, whole, axis = shift_axis)
+        new_row += np.roll(frac*this_row, whole+1, axis = shift_axis)
+
+        if time_axis == -1:
+            indices = np.s_[
+                (slice(None),) * (shifted.ndim - 1) + (t,)
+            ]
+        else:
+            indices = np.s_[
+                (slice(None),) * time_axis + (t,) + (slice(None),) * (shifted.ndim - time_axis - 1)
+            ]
+
+        shifted[indices] = new_row
+
 
     return shifted
