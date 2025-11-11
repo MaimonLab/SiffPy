@@ -482,6 +482,7 @@ class SiffReader(object):
 
                 self._time_zero = int(fit_system_time[0])
 
+            # self._experiment_to_epoch = 
             return Timeseries(
                 laser_time - (self._laser_epoch_slope*(laser_time-self._time_zero)).astype('uint64'),
                 'epoch_nanoseconds'
@@ -892,7 +893,7 @@ class SiffReader(object):
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[int] = None,
-        color_channel :  int = 1,
+        color_channel :  Optional[int] = 1,
         registration_dict : Optional[Dict] = None,
         return_framewise : bool = False,
         )->'ImageArray':
@@ -928,8 +929,10 @@ class SiffReader(object):
         * `z_index : List[int]`
             List of z-slices to sum over. Default is None, which means all z-slices.
 
-        * `color_channel : int`
+        * `color_channel : Optional[int]`
             Color channel to sum over. Default is 1, which means the FIRST color channel.
+            If `None`, sums over all color channels (and returns an array of shape
+            `(n_timepoints, n_colors)`).
         
         * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or if you want to use a different one.
@@ -1001,6 +1004,11 @@ class SiffReader(object):
         """
         warn_for_mroi(self)
 
+        if color_channel is None:
+            raise NotImplementedError(
+                "Multiple color channel summation not implemented yet in sum_mask."
+            )
+
         if isinstance(mask, list) or (isinstance(mask, np.ndarray) and mask.ndim) > 3:
             return self.sum_masks(
                 masks = mask,
@@ -1029,7 +1037,7 @@ class SiffReader(object):
             timepoint_start = timepoint_start,
             timepoint_end = timepoint_end,
             reference_z = z_index,
-            color_channel = color_channel-1,
+            color_channel = color_channel-1 if color_channel is not None else None,
         )
 
         frames_summed = self._sum_mask_frames(
@@ -1138,7 +1146,7 @@ class SiffReader(object):
         timepoint_start : int = 0,
         timepoint_end : Optional[int] = None,
         z_index : Optional[int] = None,
-        color_channel :  int = 1,
+        color_channel :  Optional[int] = 1,
         registration_dict : Optional[dict] = None,
         return_framewise : bool = False,
         )->'ImageArray':
@@ -1179,9 +1187,10 @@ class SiffReader(object):
         * `z_index : List[int]`
             List of z-slices to sum over. Default is None, which means all z-slices.
 
-        * `color_channel : int`
+        * `color_channel : Optional[int]`
             Color channel to sum over. Default is 1, which means the FIRST color channel,
-            (à la ScanImage).
+            (à la ScanImage). If `None`, sums over all color channels
+            (and returns an array of shape `(n_masks, n_timepoints, n_colors)`).
 
         * `registration_dict : dict`
             Registration dictionary, if there is not a stored one or
@@ -1284,6 +1293,11 @@ class SiffReader(object):
         """
         warn_for_mroi(self)
 
+        if color_channel is None:
+            raise NotImplementedError(
+                "Multiple color channel summation not implemented yet in sum_masks."
+            )
+
         if isinstance(masks, list):
             masks = np.array(masks).squeeze()
 
@@ -1304,7 +1318,7 @@ class SiffReader(object):
             timepoint_start = timepoint_start,
             timepoint_end = timepoint_end,
             reference_z = z_index,
-            color_channel = color_channel-1,
+            color_channel = color_channel-1 if color_channel is not None else None,
         )
 
         frames_summed = self.siffio.sum_rois(
@@ -1685,7 +1699,7 @@ class SiffReader(object):
 
         ft = FlimTrace(
             lifetime,
-            intensity = intensity,
+            intensity = intensity.astype(float),
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = method.value,
@@ -1744,7 +1758,7 @@ class SiffReader(object):
 
         return FlimTrace(
             flim_arrays[0],
-            intensity = flim_arrays[1],
+            intensity = flim_arrays[1].astype(float),
             #confidence= np.array(flim_arrays[2]),
             FLIMParams = params,
             method = 'empirical lifetime',
@@ -1883,7 +1897,7 @@ class SiffReader(object):
         if return_framewise:
             ft = FlimTrace(
                 summed_flim_data, 
-                intensity = summed_intensity_data,
+                intensity = summed_intensity_data.astype(float),
                 FLIMParams = params,
                 method = flim_method.value,
                 info_string = "ROI",
@@ -1895,7 +1909,7 @@ class SiffReader(object):
 
         ft = FlimTrace(
             summed_flim_data, 
-            intensity = summed_intensity_data,
+            intensity = summed_intensity_data.astype(float),
             FLIMParams = params,
             method = flim_method.value,
             info_string = "ROI",
@@ -1985,7 +1999,7 @@ class SiffReader(object):
         if return_framewise:
             return FlimTrace(
                 summed_flim_data, 
-                intensity = summed_intensity_data,
+                intensity = summed_intensity_data.astype(float),
                 FLIMParams = params,
                 method = 'empirical lifetime',
                 info_string = "ROI",
@@ -1994,7 +2008,7 @@ class SiffReader(object):
 
         return FlimTrace(
             summed_flim_data, 
-            intensity = summed_intensity_data,
+            intensity = summed_intensity_data.astype(float),
             FLIMParams = params,
             method = 'empirical lifetime',
             info_string = "ROI",
@@ -2134,7 +2148,7 @@ class SiffReader(object):
         if return_framewise:
             ft = FlimTrace(
                 flim_summed,
-                intensity = intensity_summed,
+                intensity = intensity_summed.astype(float),
                 FLIMParams = params,
                 method = flim_method.value,
                 info_string = "Multi-ROIs",
@@ -2148,7 +2162,7 @@ class SiffReader(object):
         # or else things won't be added correctly.
         ft = FlimTrace(
             flim_summed,
-            intensity = intensity_summed,
+            intensity = intensity_summed.astype(float),
             FLIMParams = params,
             method = flim_method.value,
             info_string = "Multi-ROIs",
@@ -2232,7 +2246,7 @@ class SiffReader(object):
         if return_framewise:
             return FlimTrace(
                 flim_summed,
-                intensity = intensity_summed,
+                intensity = intensity_summed.astype(float),
                 FLIMParams = params,
                 method = 'empirical lifetime',
                 info_string = "Multi-ROIs",
@@ -2243,7 +2257,7 @@ class SiffReader(object):
         # or else things won't be added correctly.
         return FlimTrace(
             flim_summed,
-            intensity = intensity_summed,
+            intensity = intensity_summed.astype(float),
             FLIMParams = params,
             method = 'empirical lifetime',
             info_string = "Multi-ROIs",

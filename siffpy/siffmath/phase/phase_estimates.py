@@ -169,7 +169,7 @@ def pva(
             and all(x is not None for x in vector_timeseries.angle)
         ):
             angle_coords = np.exp(-1j*vector_timeseries.angle)
-    elif angle_coords is None:
+    if angle_coords is None:
         angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
     
     if angle_coords.dtype != np.complex128:
