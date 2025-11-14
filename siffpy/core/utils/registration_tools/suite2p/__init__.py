@@ -3,7 +3,7 @@ Wrapper code to facilitate running suite2p from
 inside siffpy
 """
 from inspect import Parameter
-from typing import Tuple, Dict, TYPE_CHECKING
+from typing import Tuple, Dict, TYPE_CHECKING, Optional
 import warnings
 
 import numpy as np
@@ -93,11 +93,34 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         *,
         alignment_color_channel : int = 0,
         z_align : bool = False,
-        t_bounds : Tuple[int, int] = (None,None),
+        volume_bounds : Optional[Tuple[int,int]] = None,
+        planes_sequentially : bool = False,
         **kwargs
         ):
         """
         Registers individual planes using suite2p's registration method.
+
+        # Arguments
+
+        - siffio : SiffIO
+            The SiffIO object to use for registration
+
+        - alignment_color_channel : int
+            The color channel to use for registration
+
+        - z_align : bool
+            Whether or not to align the planes to one another after
+            registering each plane individually.
+
+        - volume_bounds : Optional[Tuple[int,int]]
+            Tuple of (start_volume, end_volume) to use for registration.
+            If None, uses all volumes. Be careful with this one -- an incomplete
+            registration dictionary will confuse analyses that try to read in
+            all frames using the registration dictionary (missing frame keys result
+            in errors thrown by the `SiffIO` class methods).
+
+        - planes_sequentially : bool
+            Whether to load and register each plane sequentially to save memory.
 
         If `z_registration` is `True`, aligns the planes to one another by
         picking the least variable plane across the stack and fixing all other
@@ -115,33 +138,70 @@ class Suite2pRegistrationInfo(RegistrationInfo):
                 "Suite2p is not installed. Please install suite2p to use this module."
             )
 
+        # Planes sequentially saves memory by loading each plane into memory
+        # in separate iterations
+        if planes_sequentially:
+            # raise NotImplementedError("Sequential plane registration not yet implemented.")
 
-        frames = siffio.get_frames(
-            frames = self.im_params.flatten_by_timepoints(color_channel=alignment_color_channel),
-            registration = {}, # guarantee the raw frames
-        ).astype(np.float32).reshape(-1, *self.im_params.volume_one_color)
+            reg_rets = []
+            for plane_idx in range(self.im_params.num_slices):
 
-        registered_frames = np.zeros_like(frames)
+                frames = siffio.get_frames(
+                    frames = self.im_params.flatten_by_timepoints(
+                        color_channel=alignment_color_channel,
+                        reference_z=plane_idx,
+                    ),
+                    registration = {}, # guarantee the raw frames
+                ).astype(np.float32).reshape(-1, *list(self.im_params.volume_one_color)[1:])
 
-        ops = {
-            **default_ops(),    
-            **kwargs,
-        }
+                registered_frames = np.zeros_like(frames)
 
-        t_bounds = slice(None) if t_bounds == (None, None) else slice(*t_bounds)
+                ops = {
+                    **default_ops(),
+                    **kwargs,
+                }
 
-        # Each list element is a tuple:
-        # reference image, _, _, _, offsets (y, x), _, _
-        reg_rets = [ # hee hee
-            register.registration_wrapper(
-                registered_frames[t_bounds , k, :, :].squeeze(),
-                # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
-                # this keeps the values from being truncated to 0
-                f_raw = 100*frames[t_bounds, k, :, :].squeeze(),
-                ops = ops
-            )
-            for k in range(self.im_params.num_slices)
-        ]
+                t_bounds = slice(None) if volume_bounds is None else slice(*volume_bounds)
+
+                reg_rets.append(
+                    register.registration_wrapper(
+                        registered_frames[t_bounds , :, :].squeeze(),
+                        # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
+                        # this keeps the values from being truncated to 0
+                        f_raw = 100*frames[t_bounds, :, :].squeeze(),
+                        ops = ops
+                    )
+                )
+        
+        # Is there any reason to do it this way still? I think it's useful if
+        # suite2p develops 3d registration (maybe I should try suite3d?)
+        else:
+            frames = siffio.get_frames(
+                frames = self.im_params.flatten_by_timepoints(color_channel=alignment_color_channel),
+                registration = {}, # guarantee the raw frames
+            ).astype(np.float32).reshape(-1, *self.im_params.volume_one_color)
+
+            registered_frames = np.zeros_like(frames)
+
+            ops = {
+                **default_ops(),    
+                **kwargs,
+            }
+
+            t_bounds = slice(None) if volume_bounds is None else slice(*volume_bounds)
+
+            # Each list element is a tuple:
+            # reference image, _, _, _, offsets (y, x), _, _
+            reg_rets = [ # hee hee
+                register.registration_wrapper(
+                    registered_frames[t_bounds , k, :, :].squeeze(),
+                    # scale f_raw by 100 since suite2p averages and THEN casts to uint16,
+                    # this keeps the values from being truncated to 0
+                    f_raw = 100*frames[t_bounds, k, :, :].squeeze(),
+                    ops = ops
+                )
+                for k in range(self.im_params.num_slices)
+            ]
 
         self.reference_frames = np.array(
             [reg_ret[0] for reg_ret in reg_rets]

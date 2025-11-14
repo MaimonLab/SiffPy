@@ -2273,6 +2273,7 @@ class SiffReader(object):
         registration_method="siffpy",
         save_path : Optional[PathLike] = None, 
         alignment_color_channel : int = 0,
+        volume_bounds : Optional[Tuple[int,int]] = None,
         **kwargs
         ) -> Dict:
         """
@@ -2290,7 +2291,16 @@ class SiffReader(object):
         save_path (optional) : `PathLike`
             Whether or not to save the dict. Name will be as TODO
 
-        Other kwargs are passed to the registration method!
+        volume_bounds (optional) : Tuple[int,int]
+            Tuple of (start_volume, end_volume) to use for registration.
+            If None, uses all volumes. Be careful with this one -- an incomplete
+            registration dictionary will confuse analyses that try to read in
+            all frames using the registration dictionary (missing frame keys result
+            in errors thrown by the `SiffIO` class methods).
+
+        Other kwargs are passed to the registration method, so look up the
+        relevant `RegistrationInfo` class for more details.
+
         If `nowarn` is included as a `kwarg`, it will suppress
         the `zplane` alignment warning.
         """
@@ -2316,6 +2326,7 @@ class SiffReader(object):
             registration_info.register(
                 self.siffio,
                 alignment_color_channel = alignment_color_channel,
+                volume_bounds = volume_bounds,
                 **kwargs
             )
 

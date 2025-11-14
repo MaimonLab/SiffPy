@@ -68,6 +68,7 @@ class RegistrationInfo(ABC):
         siffio : 'SiffIO',
         *args,
         alignment_color_channel : int = 0,
+        volume_bounds : Optional[Tuple[int,int]] = None,
         **kwargs
         ):
         raise NotImplementedError()
