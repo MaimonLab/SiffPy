@@ -94,7 +94,7 @@ class Suite2pRegistrationInfo(RegistrationInfo):
         alignment_color_channel : int = 0,
         z_align : bool = False,
         volume_bounds : Optional[Tuple[int,int]] = None,
-        planes_sequentially : bool = False,
+        planes_sequentially : bool = True,
         **kwargs
         ):
         """
@@ -121,6 +121,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
 
         - planes_sequentially : bool
             Whether to load and register each plane sequentially to save memory.
+            I think this should be basically net zero in terms of speed, but it
+            saves a lot of memory for large datasets (and probably saves time then too!)
 
         If `z_registration` is `True`, aligns the planes to one another by
         picking the least variable plane across the stack and fixing all other
