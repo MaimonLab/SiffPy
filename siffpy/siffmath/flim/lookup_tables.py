@@ -5,6 +5,14 @@ the variable of interest.
 """
 from dataclasses import dataclass
 from typing import List, Dict
+from enum import Enum
+
+class LifetypeType(str, Enum):
+    PHASE = 'phase'
+    MODULATION = 'modulation'
+    EMPIRICAL = 'empirical'
+    UNDEFINED = 'undefined'
+
 
 def hill_equation(
     x : float,
@@ -62,6 +70,9 @@ class FluorophoreHillFit:
     units_out : str
         Units of the output variable
 
+    lifetime_type : `LifetypeType`
+        Type of lifetime measurement (e.g. 'phase', 'modulation', 'empirical')
+
     
 
     TODO: more foolproof unit stuff.
@@ -73,6 +84,7 @@ class FluorophoreHillFit:
     units_in : str = 'Undefined'
     units_out : str = 'Undefined'
     name : str = 'Unnamed'
+    lifetime_type : LifetypeType = LifetypeType.UNDEFINED
 
     def __call__(self, lifetime : float) -> float:
         """
@@ -94,6 +106,19 @@ class FluorophoreHillFit:
         """
         return hill_equation(
             concentration,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+    
+    def to_concentration(self, input : float, temperature : float = 23.0):
+        """
+        Hill equation to convert
+        concentration to lifetime
+        """
+        return inverse_hill_equation(
+            input,
             self.n,
             self.k50,
             self.zero_point,
@@ -330,14 +355,26 @@ class IntensityHillFit(FluorophoreHillFit):
 #     name = 'TqCaFLITS',
 # )
 
-TqCaFLITS = FluorophoreHillFit(
+TqCaFLITS_PHASE = FluorophoreHillFit(
     n = 1.63,
     k50 = 265,
-    zero_point = 1.72,
-    max_point = 2.86,
+    zero_point = 1.40,
+    max_point = 2.78,
     units_in = r'[Ca$2^+$] (nM)',
     units_out = 'nanoseconds',
     name = 'TqCaFLITS',
+    lifetime_type = LifetypeType.PHASE
+)
+
+TqCaFLITS_MODULATION = FluorophoreHillFit(
+    n = 1.63,
+    k50 = 265,
+    zero_point = 1.80,
+    max_point = 3.01,
+    units_in = r'[Ca$2^+$] (nM)',
+    units_out = 'nanoseconds',
+    name = 'TqCaFLITS',
+    lifetime_type = LifetypeType.MODULATION
 )
 
 # TqCaFLITS = TemperatureSensitiveFit(

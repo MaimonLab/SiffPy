@@ -14,6 +14,10 @@ will not be compatible with `PyPy` interpreters. This is only because `PyPy` is 
 supported by the `rust-numpy` tools, and manually bridging the `Rust` library to `Python`
 would be a nightmare.
 
+- I am beginning to think this package "does too much" again and think it should be
+broken up into multiple packages. Maybe one with just `siffmath` and one for the pure
+file IO operations? But all the `FLIM` stuff is pretty useful!
+
 ### TODOS:
 -   More sophisticated single `FLIMParams` object, rather than the complex 
 class hierarchy for distinguishing number of laser pulses, number of fluorophores,

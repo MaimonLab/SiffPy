@@ -3,6 +3,7 @@ import textwrap
 from typing import List, Optional, Tuple, Any
 
 import numpy as np
+from scipy.interpolate import interp1d
 
 from siffpy.siffmath.phase.traces import PhaseTrace
 import siffpy.siffmath.phase.phase_estimates as phase_estimates
@@ -30,44 +31,48 @@ def phase_alignment_functions(print_docstrings : bool = True)->Optional[List[Tup
         return memberfcns
     
 def phase_shift(
-        x : np.ndarray,
+        x : np.ndarray[Any, Any],
         shift : PhaseTraceLike,
         shift_axis : int = 0,
-        time_axis : int = -1
+        time_axis : int = -1,
+        angle_coords : Optional[np.ndarray[Any, np.dtype[np.floating]]] = None,
     )->np.ndarray:
     """
     Shifts the phase of a vector time series by the phase requested.
-
-    Expects the first dimension of x to be the phase shifting dimension.
 
     Interpolates for phases that do not evenly divide the number of bins,
     (e.g. if there are 4 bins and the phase is 60 degrees, 2/3 of the mass
     of the 0th bin will go into the 90 degree bin, and 1/3 will go into the 0
     degree bin).
 
-    *TO DO: THIS IS SLOW AND BADLY IMPLEMENTED -- DO IT RIGHT, WITHOUT A LOOP*
+    ## Parameters
 
-    Parameters
-    ----------
-
-    x : np.ndarray
+    - `x` : np.ndarray
         The vector time series to shift the phase of. Must be of shape
         (n_bins, n_time)
 
-    phase : PhaseTraceLike
+    - `phase` : PhaseTraceLike
         Accepts either an array of angles (does not need to be wrapped)
         or a `PhaseTrace` object.
 
-    time_axis : int, optional
+    - `time_axis` : int, optional
         The axis of `x` that is the time axis to iterate along, by default -1
 
-    Returns
-    -------
+    - `angle_coords` : Optional[np.ndarray[Any, np.dtype[np.floating]]], optional
+        If provided, the coordinates of the angle bins. This is useful, for example,
+        if the angle bins are not evenly spaced, as in the EPGS of the protocerebral bridge,
+        or if there are duplicates as in the Δ7s of the bridge. If `None`, the function
+        will assume evenly distributed angle bins of width 2π/`x.shape[shift_axis]`
+        starting from -π.
+
+    ## Returns
+    
     np.ndarray
         The phase shifted vector time series. Will be of same shape as `x`
+        but rotated so that the `phase` is centered at the 0 degree bin, i.e.
+        the `center` column if `angle_coords` is not provided.
 
-    Example
-    -------
+    ## Example
 
     ```python
 
@@ -80,6 +85,18 @@ def phase_shift(
     shifted = phase_shift(x, phase)
 
     ```
+
+    ## Note
+
+    This operation _will_ produce a sinusoid for identically and independently distributed
+    Gaussian random variables! This is provable! Think of it this way: the phase operation
+    will have a tendency to align to the position where multiple columns are positive, not
+    the position where the greatest value is taken. So there will be a strong correlation
+    between columns adjacent to the "phase null" column. This, for iid Gaussian rvs, is
+    provably going to be a sinusoid that goes up and down by np.sqrt(np.pi/N) z-scores
+    (e.g. ~0.5 z scores for 16 bins). For other random noise patterns, it produces
+    a different distribution of values. But just make sure you do shuffle controls and
+    don't take a sinusoid too seriously without doing your own due diligence!
     """
     if len(shift) != x.shape[time_axis]:
         raise ValueError(
@@ -92,31 +109,44 @@ def phase_shift(
     if isinstance(shift, PhaseTrace):
         shift = np.angle(shift)
 
+    if angle_coords is not None:
+        new_angles = np.linspace(-np.pi, np.pi, 2*x.shape[shift_axis], endpoint=False)
+        x = interp1d(angle_coords, x,
+            axis=shift_axis, kind = 'linear', bounds_error=False,
+            fill_value="extrapolate"
+        )(new_angles)
+
+    shifted = np.zeros_like(x)
+        
     # Fraction of the column dimension to shift by
     shift = np.mod(shift, 2 * np.pi) / (2*np.pi)
 
-    shifted = np.zeros_like(x)
     n_cols = x.shape[shift_axis]
-    for t in range(len(shift)):
-        idx = n_cols * shift[t]
-        whole = idx.astype(int)
-        frac = idx - whole # always positive
-        
-        # Not sure how to vectorize this part
-        this_row = np.take(x, t, axis = time_axis)
-        new_row = np.roll((1-frac)*this_row, whole, axis = shift_axis)
-        new_row += np.roll(frac*this_row, whole+1, axis = shift_axis)
+    
+    # Create an array for indexing the columns
+    bin_shape = [1] * x.ndim
+    bin_shape[shift_axis] = n_cols
+    bin_idx = np.arange(n_cols).reshape(bin_shape).astype(int)
 
-        if time_axis == -1:
-            indices = np.s_[
-                (slice(None),) * (shifted.ndim - 1) + (t,)
-            ]
-        else:
-            indices = np.s_[
-                (slice(None),) * time_axis + (t,) + (slice(None),) * (shifted.ndim - time_axis - 1)
-            ]
+    time_shape = [1] * x.ndim
+    time_shape[time_axis] = len(shift)
+    
+    shift_vals = (shift * n_cols).reshape(time_shape)
+    whole = shift_vals.astype(int)
+    frac = shift_vals - whole # always positive between 0 and 1
 
-        shifted[indices] = new_row
 
+    idx_low = (bin_idx - whole + 1) % n_cols
+    idx_high = (bin_idx - whole) % n_cols
+
+    shifted += np.take_along_axis(x, np.broadcast_to(idx_low, x.shape), axis=shift_axis) * (1 - frac)
+    shifted += np.take_along_axis(x, np.broadcast_to(idx_high, x.shape), axis=shift_axis) * frac
+
+    if angle_coords is not None:
+        # Back to the old angle coordinates
+        shifted = interp1d(new_angles, shifted,
+            axis=shift_axis, kind = 'linear', bounds_error=False,
+            fill_value="extrapolate"
+        )(angle_coords)
 
     return shifted

@@ -5,7 +5,7 @@ All phase-alignment methods take, at the very least,
 an argument vector_timeseries, which is a numpy array,
 and accept a keyword argument error_estimate, which is a boolean
 """
-from typing import Callable, Union, Optional, Tuple, Any
+from typing import Callable, Union, Optional, Tuple, Any, TypeVar
 from enum import Enum
 
 import numpy as np
@@ -25,6 +25,8 @@ __all__ = [
     'pva',
     'pva_flim',
 ]
+
+ArrayType = TypeVar('ArrayType', bound=np.ndarray)
 
 class PhaseErrorFunction(Enum):
     """
@@ -98,11 +100,12 @@ def pva_flim(
 
 def pva(
         vector_timeseries : Union[np.ndarray, FluorescenceTrace],
-        normalize        : bool                              = True, 
+        normalize         : bool                              = True, 
         time              : Optional[np.ndarray]              = None,
         error_function    : Optional[Union[Callable,str]]     = 'relative_magnitude',
         filter_fcn        : Optional[Union[Callable,str]]     = None,
-        angle_coords      : Optional[np.ndarray[Any, Any]]              = None,
+        angle_coords      : Optional[np.ndarray[Any, Any]]    = None,
+        normalization_func: Optional[Callable[[ArrayType], ArrayType]] = None,
         **kwargs
     ) -> PhaseTrace:
     """
@@ -118,6 +121,8 @@ def pva(
 
     normalize : bool
         Whether to normalize the vector timeseries before computing the PVA.
+        Note, normalizes along the TIME axis, not the shift_axis. Each row
+        will be normalized to span between 0 and 1 across the time axis. This is important for the error function, which is based on the relative magnitude of the PVA to the sum of the vector components.
 
     time : np.ndarray
 
@@ -153,10 +158,14 @@ def pva(
     """
     
     if normalize:
-        sorted_vals = np.sort(vector_timeseries,axis=1)
-        min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
-        max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
-        vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
+        if normalization_func is None:
+            sorted_vals = np.sort(vector_timeseries,axis=1)
+            min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
+            max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
+            vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
+
+        else:
+            vector_timeseries = normalization_func(vector_timeseries)
 
     if isinstance(vector_timeseries, FluorescenceTrace) and (angle_coords is None):
         if (
@@ -170,7 +179,7 @@ def pva(
         ):
             angle_coords = np.exp(-1j*vector_timeseries.angle)
     if angle_coords is None:
-        angle_coords = np.exp(np.linspace(np.pi, -np.pi, vector_timeseries.shape[0])*1j) # it goes clockwise.
+        angle_coords = np.exp(np.linspace(-np.pi, np.pi, vector_timeseries.shape[0])*1j)
     
     if angle_coords.dtype != np.complex128:
         angle_coords = np.exp(1j*angle_coords)

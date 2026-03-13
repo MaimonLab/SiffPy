@@ -40,14 +40,21 @@ def _unsafe_eval(val):
                 ret = val
     except Exception:
         try:
-            val = eval(ret)
+            ret = eval(val)
         except Exception:
             ret = val
     
     return ret
             
 class ScanImageModule():
-    """ Generic module for each ScanImage module stored in header data """
+    """
+    Generic module for each ScanImage module stored in header data
+    
+    Made a long time ago, honestly kind of a dangerous implementation
+    just setting attrs like this! Would be nice if it allowed better
+    code inspection too though I guess we can't anticipate what other
+    modules might have as parameters.
+    """
     
     def __init__(self, name : str):
         self.module_name = name
@@ -72,8 +79,8 @@ class ScanImageModule():
     def __getitem__(self, key : str):
         if hasattr(self, key):
             return getattr(self, key)
-        else:
-            super().__getitem__(key)
+        else: # should raise error if not used as a mixin
+            super().__getitem__(key) # type: ignore
 
     def __getattr__(self, __name : str):
         if __name in self.submodules:
@@ -109,7 +116,7 @@ class Scanfield():
             setattr(self, key, _unsafe_eval(val))
 
     def __str__(self):
-        return f"Scanfield {self.name} with parameters:\n\t{self.__dict__}"
+        return f"Scanfield {self.name} with parameters:\n\t{self.__dict__}" # type: ignore
     
     def __repr__(self):
         return self.__str__()

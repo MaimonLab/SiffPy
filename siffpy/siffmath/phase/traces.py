@@ -170,7 +170,7 @@ class PhaseTrace(np.ndarray):
         assert (phase_trace[1:]/phase_trace[:-1]).angle.mean() < 0
         ```
         """
-        self[...] = 1.0/self
+        self[...] = self.real - 1j*self.imag
 
     def inverted(self)->'PhaseTrace':
         """

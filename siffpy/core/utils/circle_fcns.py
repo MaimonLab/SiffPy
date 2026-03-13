@@ -1,8 +1,28 @@
 # Functions for circularizing floats and ints
+from enum import Enum
 from typing import Any, Tuple
 import warnings
 
 import numpy as np
+
+
+
+class CircCorrMethod(Enum):
+    FISHER = "Fisher"
+    JAMMALAMADAKA = "Jammalamadaka"
+
+    @classmethod
+    def from_string(cls, string : str) -> 'CircCorrMethod':
+        string = string.lower()
+        if string == "fisher":
+            return cls.FISHER
+        elif string in ("jammalamadaka", "pearson-sine"):
+            return cls.JAMMALAMADAKA
+        else:
+            raise ValueError(
+                f"Invalid method string passed to CircCorrMethod.from_string: {string}. Must be 'Fisher' or 'Jammalamadaka' (also accepts 'Pearson-sine' as an alias for 'Jammalamadaka')"
+            )
+
 
 def circ_d(x : float, y : float, rollover : float)->float:
     """Wrapped-around distance between x and y"""
@@ -65,7 +85,7 @@ def circ_corr(
         x : np.ndarray,
         y : np.ndarray,
         axis : int = 0,
-        method : str = 'Fisher',
+        method : CircCorrMethod = CircCorrMethod.FISHER,
         ignore_nans : bool = True,
     )->float:
     """
@@ -200,7 +220,7 @@ def circ_corr_complex(
         x : np.ndarray,
         y : np.ndarray,
         axis : int = 0,
-        method : str = "Fisher",
+        method : CircCorrMethod = CircCorrMethod.FISHER,
         ignore_nans : bool = True,
     )->float:
     """
@@ -259,9 +279,11 @@ def circ_corr_complex(
         Whether to ignore nans in the input arrays. If True, will use np.nanmean
         and np.nansum to compute the mean and sum, respectively.
     """
-    if method == "Fisher":
+    if isinstance(method, str):
+        method = CircCorrMethod.from_string(method)
+    if method == CircCorrMethod.FISHER:
         return circ_corr_complex_fisher(x,y,axis, ignore_nans = ignore_nans)
-    elif method in ["Jammalamadaka", "Pearson-sine"]:
+    elif method == CircCorrMethod.JAMMALAMADAKA:
         return circ_corr_complex_jl(x,y,axis, ignore_nans = ignore_nans)
     
     raise ValueError(
@@ -388,6 +410,15 @@ def circ_corr_complex_fisher(
         and np.nansum to compute the mean and sum, respectively.
 
     """
+
+    if ignore_nans:
+        # Hate this and should come up with a better way!
+        # A total reallocation seems not great! but I guess
+        # I make so many arrays in this that this doesn't add much more
+        x = x.copy()
+        y = y.copy()
+        x[np.isnan(x) | np.isnan(y)] = np.nan
+        y[np.isnan(x) | np.isnan(y)] = np.nan
     
     plus = x*y
     minus = x/y
@@ -416,11 +447,18 @@ def circ_corr_complex_fisher(
         ysum = np.sum(y**2, axis=axis)
 
     # normalization factor
+
+    if ignore_nans: 
+        denominator = np.sqrt(
+            ((x.shape[axis] - np.sum(np.isnan(x)))**2 - xsum*np.conjugate(xsum)) *
+            ((y.shape[axis] - np.sum(np.isnan(y)))**2 - ysum*np.conjugate(ysum))
+        )
     
-    denominator = np.sqrt(
-        (x.shape[axis]**2 - xsum*np.conjugate(xsum)) *
-        (y.shape[axis]**2 - ysum*np.conjugate(ysum))
-    )
+    else:
+        denominator = np.sqrt(
+            (x.shape[axis]**2 - xsum*np.conjugate(xsum)) *
+            (y.shape[axis]**2 - ysum*np.conjugate(ysum))
+        )
     
     return np.real(numerator/denominator)
 
@@ -429,7 +467,7 @@ def running_circ_corr(
         y : np.ndarray,
         window_width : int,
         axis : int = 0,
-        method : str = "Fisher",
+        method : CircCorrMethod = CircCorrMethod.FISHER,
         ignore_nans : bool = False,
         )->np.ndarray:
     """
@@ -540,7 +578,7 @@ def running_circ_corr_complex(
         y : 'np.ndarray[Any, np.dtype[np.complex128]]',
         window_width : int,
         axis : int = 0,
-        method : str = "Fisher",
+        method : CircCorrMethod = CircCorrMethod.FISHER,
         ignore_nans : bool = False,
         )->np.ndarray:
     """
@@ -598,9 +636,12 @@ def running_circ_corr_complex(
     >>> ((990,), True)
     """ 
 
-    if method in ("Fisher", 'fisher'):
+    if isinstance(method, str):
+        method = CircCorrMethod.from_string(method)
+
+    if method == CircCorrMethod.FISHER:
         return running_circ_corr_complex_fisher(x,y,window_width,axis, ignore_nans = ignore_nans)
-    elif method in ("jammalamadaka", "Jammalamadaka", "Pearson-sine"):
+    elif method == CircCorrMethod.JAMMALAMADAKA:
         return running_circ_corr_complex_jl(x,y,window_width,axis, ignore_nans = ignore_nans)
     
     raise ValueError(
@@ -696,6 +737,14 @@ def running_circ_corr_complex_fisher(
     -------
     circ_corrs : np.ndarray
     """
+    if ignore_nans:
+        # Hate this and should come up with a better way!
+        # A total reallocation seems not great! but I guess
+        # I make so many arrays in this that this doesn't add much more
+        x = x.copy()
+        y = y.copy()
+        x[np.isnan(x) | np.isnan(y)] = np.nan
+        y[np.isnan(x) | np.isnan(y)] = np.nan
 
     plus = x*y
     minus = x/y
@@ -723,6 +772,11 @@ def running_circ_corr_complex_fisher(
 
     run_xcs = x_cumsum[window_width:] - x_cumsum[:-window_width]
     run_ycs = y_cumsum[window_width:] - y_cumsum[:-window_width]
+
+    if ignore_nans:
+        nancount_cumsum = np.cumsum(np.isnan(x), axis=axis)
+        running_nancount = nancount_cumsum[window_width:] - nancount_cumsum[:-window_width]
+        window_width = window_width - running_nancount # type: ignore
 
     run_den = np.sqrt(
         (window_width**2 - run_xcs*np.conjugate(run_xcs))*

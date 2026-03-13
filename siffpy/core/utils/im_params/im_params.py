@@ -2,7 +2,7 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union, List, Dict, Tuple, Optional
+from typing import Any, Union, List, Dict, Tuple, Optional, Callable
 from functools import wraps
 import warnings
 
@@ -279,6 +279,13 @@ class ImParams():
     @property
     def imaging_fov(self)->List[List[float]]:
         """ Imaging field of view (in microns) -- relies on correct objective settings """
+        if self.base.objectiveResolution == 15:
+            warnings.warn(
+                "Objective resolution is set to 15 um/°, which is likely incorrect "+
+                "(this is the default value in ScanImage). "+
+                "Check that the objective resolution was set correctly " +
+                "in ScanImage before trusting FOV values."
+            )
         return self.RoiManager.imagingFovUm
 
     @property
@@ -496,6 +503,88 @@ class ImParams():
     def final_full_volume_frame(self)->int:
         """ Final frame that is in a full volume """
         return self.num_true_frames - self.num_true_frames % self.frames_per_volume
+    
+    def find_properties_containing(self, substring : str, preprocess : Optional[Callable[[str], str]] = None) -> Dict[str, Any]:
+        """
+        Searches through the ScanImage modules for any properties containing
+        `substring` in their name, returns a dict of them of the form:
+        {
+            'property_name' : property_value,
+            ...
+        }
+
+        ## Arguments
+
+        - substring : str
+            Substring to search for in property names
+
+        - preprocess : Optional[Callable[[str], str]]
+            Function to preprocess property names before checking
+            if they contain the substring. For example, to make
+            the search case-insensitive, you could provide `str.lower`
+            as the preprocess function.
+
+        ## Returns
+
+        - Dict[str, Any]
+            Dictionary of property names and their values that contain
+            the specified substring.
+
+        ## Example
+        ```python
+        from siffpy import SiffReader
+
+        reader = SiffReader('my_file.siff')
+        print (reader.im_params.find_properties_containing('zoom'))
+
+        >>> {}
+
+        print (
+            reader.im_params.find_properties_containing(
+            'zoom', preprocess= lambda x : x.lower() )
+        )
+
+        >>> {
+        ```
+        """
+
+        ret_dict = {}
+        if preprocess is None:
+            def preprocess(x): return x
+        
+        def recurse_prop_search(retdict : Dict[str, Any],
+                                keyname_root : str,
+                                module : ScanImageModule):
+            for prop_name, prop_val in module.__dict__.items():
+                if substring in preprocess(prop_name):
+                    param_name = keyname_root + "." + prop_name
+                    retdict[param_name] = prop_val
+                if isinstance(prop_val, ScanImageModule):
+                    param_name = keyname_root + "." + prop_name
+                    recurse_prop_search(
+                        retdict,
+                        param_name,
+                        prop_val
+                    )
+                if prop_name == 'submodules':
+                    prop_val : Dict[str, ScanImageModule]
+                    for submod_name, submod in prop_val.items():
+                        param_name = keyname_root + "." + submod_name
+                        recurse_prop_search(
+                            retdict,
+                            param_name,
+                            submod
+                        )
+
+        for key, mod in self.si_modules.items():
+            key_name = key
+            recurse_prop_search(
+                ret_dict,
+                key_name,
+                mod
+            )
+        
+        return ret_dict
 
     ### DICT-LIKE INTERFACE ###
     ### You can treat an ImParams like a dict.

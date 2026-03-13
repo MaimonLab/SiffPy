@@ -14,7 +14,7 @@ from siffpy.siffmath.fluorescence import (
 from siffpy.siffmath.utils import Timeseries, local_correlation # noqa: F401
 import siffpy.siffmath.fluorescence as fluorescence
 
-def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
+def fluorescence_fcns(print_docstrings : bool = True) -> List:
     """
     List of public functions available from fluorescence
     submodule. Seems a little silly since I can just use
@@ -38,8 +38,7 @@ def fluorescence_fcns(print_docstrings : bool = True) -> List[str]:
 
     if print_docstrings:
         print(print_string)
-    else:
-        return fcns
+    return fcns
     
 def correlate_series(
         x : np.ndarray,
