@@ -1,5 +1,5 @@
 import numpy as np
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Literal, TYPE_CHECKING, Optional, Union, Generic, TypeVar
 from pathlib import Path
 import copy
 from enum import Enum
@@ -30,8 +30,10 @@ class FlimMethod(Enum):
     EMPIRICAL = "empirical lifetime"
     PHASOR = "phasor"
 
+Method = TypeVar('Method', bound=FlimMethod)
+FlimMethodString = Literal['empirical lifetime', 'phasor']
 
-class FlimTrace(np.ndarray):
+class FlimTrace(np.ndarray, Generic[Method]):
     """
     Subclasses numpy arrays and adds
     extra attributes that might be useful
@@ -66,7 +68,7 @@ class FlimTrace(np.ndarray):
             intensity : Optional['FluorescenceArrayLike'] = None,
             confidence : Optional[np.ndarray] = None,
             FLIMParams : Optional['FLIMParams'] = None,
-            method : Optional[Union[str, FlimMethod]] = None,
+            method : Optional[Union[str, Method]] = None,
             angle : Optional[float] = None,
             units : 'FlimUnitsLike' = FlimUnits.UNKNOWN,
             nocast : bool = False,
@@ -142,14 +144,18 @@ class FlimTrace(np.ndarray):
     @property
     def fluorescence(self)->FluorescenceTrace:
         """ Returns the intensity array of a FlimTrace as a FluorescenceTrace """
-        return FluorescenceTrace(self.intensity, method = 'Photon counts', F = self.intensity)
+        return FluorescenceTrace(
+            self.intensity,
+            method = 'Photon counts',
+            F = self.intensity
+        )
     
     def subtract_noise(
-            self,
-            max_arrival_time : float,
-            units : Optional['FlimUnitsLike'] = None,
-            n_photons : Union[Optional[int], Optional[np.ndarray]] = None,
-            rotate_by_offset : bool = False,
+        self,
+        max_arrival_time : float,
+        units : Optional['FlimUnitsLike'] = None,
+        n_photons : Union[Optional[int], Optional[np.ndarray]] = None,
+        rotate_by_offset : bool = False,
         ):
         """
         Either subtracts the noise from the `FLIMParams` fit or

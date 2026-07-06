@@ -1,7 +1,7 @@
+from typing import Any, Optional, Union
 from functools import reduce
 from operator import add
 import re
-import ast
 
 
 import warnings
@@ -111,9 +111,32 @@ class ScanImageSubModule(ScanImageModule):
 
 class Scanfield():
     """ Generic ScanImage scanfield """
+
+    centerXY: list[float]
+    ver : int
+    classname : str
+    UserData : Optional[Any]
+    roiUuid : str
+    roiUuiduint64 : int
+    sizeXY : list[float]
+    rotationDegrees : float
+    enable : int
+    pixelResolutionXY : list[int]
+    pixelToRefTransform: list[list[float]]
+    affine : list[list[float]]
+
     def __init__(self, scanfield_dict : dict):
         for key, val in scanfield_dict.items():
             setattr(self, key, _unsafe_eval(val))
+
+    def __getitem__(self, key):
+        """
+        Allows dict-like access.
+        """
+        if hasattr(self, key):
+            return getattr(self, key)
+        else: # should raise error if not used as a mixin
+            super().__getitem__(key) # type: ignore
 
     def __str__(self):
         return f"Scanfield {self.name} with parameters:\n\t{self.__dict__}" # type: ignore
@@ -125,52 +148,75 @@ class SIROI():
     """
     ScanImage ROIs -- NOT to be confused with siffpy ROIs
     """
+
+    scanfields : Union[Scanfield, list[Scanfield]]
+    name : str
+    ver : int
+    classname : int
+    roiUuid : str
+    roiUuiduint64: int
+    discretePlaneMode : int
+    powers : Optional[Any]
+    pzAdjust : list[float]
+    Lzs : Optional[Any]
+    enable : int
+    zs : Any
+
+
     def __init__(self, roi_dict : dict):
         for key, val in roi_dict.items():
             if key == 'scanfields':
                 if isinstance(val, dict):
                     
-                    self.scanfields = [Scanfield(val)]
+                    self.scanfields = Scanfield(
+                        _unsafe_eval(val)
+                    )
 
                 elif isinstance(val, list):
+                    print("is list")
                     self.scanfields = [
                         Scanfield(field)
                         for field in val
                     ]
-
+                # else:
+                    # self.scanfields = Scanfield(val)
+            else:
                 setattr(self, key, _unsafe_eval(val))
 
     def __repr__(self):
         return self.__str__()
     
     def __str__(self) -> str:
-        return f"""
-        ROI {self.name if hasattr(self, 'name') else ""} with
-        {len(self.scanfields)
-        if hasattr(self, 'scanfields') and hasattr(self.scanfields, '__iter__')
-        else 1} scanfield(s):\n
-        {self.scanfields if hasattr(self, 'scanfields') else ""}
-        """
+        retstr = (
+            f"ROI {self.name} with parameters:\n"
+        )
+
+        for k, v in self.__dict__.items():
+            if k != 'name':
+                retstr += f"\t{k} : {v}\n"
+
+        return retstr
 
 class ROIGroup():
     """ Generic ROI group for ScanImage ROI groups """
+    name : str
     def __init__(self, roi_dict : dict):
         for key, val in roi_dict.items():
             if key == 'rois':
                 if not isinstance(val,dict):
-                    warnings.warn(
-                        """
-                        ROIs is not simply a dictionary,
-                        meaning that you're probably using
-                        mROI functionality. Yay! Send
-                        the code to Stephen so he can
-                        implement it.
+                    # warnings.warn(
+                    #     """
+                    #     ROIs is not simply a dictionary,
+                    #     meaning that you're probably using
+                    #     mROI functionality. Yay! Send
+                    #     the code to Stephen so he can
+                    #     implement it.
 
-                        NOTE: you're on the branch that ALLOWS
-                        you to open these -- that means the feature
-                        is in development but not implemented yet.
-                        """
-                    )
+                    #     NOTE: you're on the branch that ALLOWS
+                    #     you to open these -- that means the feature
+                    #     is in development but not implemented yet.
+                    #     """
+                    # )
                     if not isinstance(val, list):
                         raise NotImplementedError(
                             """
@@ -191,14 +237,21 @@ class ROIGroup():
                 setattr(self, key, _unsafe_eval(val))
     
     def __str__(self):
-        return f"""
-        ROI group {self.name} with
-        {len(self.rois)
-        if hasattr(self.rois, '__iter__')
-        else 1} ROI(s):\n
-        {self.rois}
-        """
-    
+        retstr = (
+            f"ROI group {self.name} with" +
+            f" {len(self.rois)} ROI(s):\n"
+        )
+
+        for k, v in self.__dict__.items():
+            if k != 'name' and k != 'rois':
+                retstr += f"\t{k} : {v}\n"
+        
+        if hasattr(self, 'rois'):
+            for roi in self.rois:
+                retstr += f"\t{roi}\n"
+
+
+        return retstr
 
     def __repr__(self)->str:
         return self.__str__()

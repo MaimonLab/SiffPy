@@ -121,8 +121,10 @@ def pva(
 
     normalize : bool
         Whether to normalize the vector timeseries before computing the PVA.
-        Note, normalizes along the TIME axis, not the shift_axis. Each row
-        will be normalized to span between 0 and 1 across the time axis. This is important for the error function, which is based on the relative magnitude of the PVA to the sum of the vector components.
+        Note, normalizes along the `shift_axis` axis, not the `time_axis`. Each row
+        will be normalized to span between 0 and 1 across the set of ROIs.
+        This is important for the error function, which is based on the
+        relative magnitude of the PVA to the sum of the vector components.
 
     time : np.ndarray
 
@@ -159,10 +161,15 @@ def pva(
     
     if normalize:
         if normalization_func is None:
-            sorted_vals = np.sort(vector_timeseries,axis=1)
-            min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
-            max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
-            vector_timeseries = ((vector_timeseries.T - min_val)/(max_val - min_val)).T
+            sorted_vals = np.sort(vector_timeseries,axis=0)
+            # min_val = sorted_vals[:,sorted_vals.shape[-1]//20]
+            # max_val = sorted_vals[:,int(sorted_vals.shape[-1]*(1.0-1.0/20))]
+            min_val = sorted_vals[sorted_vals.shape[0]//20,:]
+            max_val = sorted_vals[int(sorted_vals.shape[0]*(1.0-1.0/20)),:].reshape(1,-1)
+            vector_timeseries = (
+                (vector_timeseries - min_val[np.newaxis, ...])
+                /(max_val[np.newaxis,...] - min_val[np.newaxis,...])
+            ).squeeze(axis = 0)
 
         else:
             vector_timeseries = normalization_func(vector_timeseries)

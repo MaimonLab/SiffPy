@@ -1,10 +1,45 @@
 """
 Generic functions for dealing with phasors.
 """
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Union, Tuple
 import numpy as np
 
 from siffpy.core.flim import FLIMParams
+
+class PhasorLifetime(Enum):
+    """
+    Defines the types of lifetimes that can be returned from a phasor
+    """
+    MODULATION = 'modulation'
+    PHASE = 'phase'
+@dataclass
+class PhasorLifetimes():
+    """
+    Wrapper class to store the modulation and phase lifetimes
+    in a way that is readable. Can be accessed like a tuple for
+    backcompatibility with the 0th item being the modulation lifetime
+    and the 1st item being the phase lifetime.
+    """
+    modulation_lifetime : Union[np.ndarray[Any, np.dtype[np.floating]], float]
+    phase_lifetime : Union[np.ndarray, float]
+
+    def __getitem__(self, key):
+        if key == 0:
+            return self.modulation_lifetime
+        elif key == 'modulation':
+            return self.modulation_lifetime
+        elif key == PhasorLifetime.MODULATION:
+            return self.modulation_lifetime
+        elif key == 1:
+            return self.phase_lifetime
+        elif key == 'phase':
+            return self.phase_lifetime
+        elif key == PhasorLifetime.PHASE:
+            return self.phase_lifetime
+        else:
+            raise IndexError("PhasorLifetimes only has two items: modulation and phase lifetimes.")
 
 def tau_to_phasor(
         tau : Union[np.ndarray,float],
@@ -77,9 +112,9 @@ def phasor_to_tau(
     return rep_period*s/(g*2*np.pi)
 
 def phasor_to_lifetimes(
-        phasor : Union[np.ndarray, complex],
-        rep_period : float,
-    ) -> Tuple[Union[np.ndarray,float], Union[np.ndarray,float]]:
+    phasor : Union[np.ndarray, complex],
+    rep_period : float,
+    ) -> PhasorLifetimes:
     """
     Returns the modulation and phase lifetime values for a given
     phasor using the relations:
@@ -98,19 +133,20 @@ def phasor_to_lifetimes(
         The phasors to transform (as an array or a single value)
 
     - `rep_period : float`
-        The repetition rate of the laser pulses (in Hz)
+        The repetition rate of the laser pulses
 
     # Returns
 
-    - `lifetimes : (tau_m : float, tau_phi : float)`
-        A tuple of the modulation and phase lifetimes in seconds.
+    - `lifetimes : PhasorLifetimes`
+        An instance of the `PhasorLifetimes` class containing
+        the modulation and phase lifetimes in the inverse units as `rep_period`.
 
     """
     m = np.abs(phasor)
-    phi = np.angle(phasor)
-    return (
-        np.sqrt(m**(-2) - 1)*rep_period/(2*np.pi),
-        np.tan(phi)*rep_period/(2*np.pi)
+    # phi = np.angle(phasor)
+    return PhasorLifetimes(
+        modulation_lifetime = np.sqrt(m**(-2) - 1)*rep_period/(2*np.pi),
+        phase_lifetime = np.imag(phasor)*rep_period/(2*np.pi*np.real(phasor))
     )
 
 def phasor_to_fraction(

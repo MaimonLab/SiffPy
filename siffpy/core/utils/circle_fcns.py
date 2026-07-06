@@ -1,11 +1,11 @@
 # Functions for circularizing floats and ints
 from enum import Enum
-from typing import Any, Tuple
+from typing import Any, Literal, Tuple, Union, TypeVar
 import warnings
 
 import numpy as np
 
-
+T = TypeVar('T', bound = np.dtype)
 
 class CircCorrMethod(Enum):
     FISHER = "Fisher"
@@ -22,23 +22,8 @@ class CircCorrMethod(Enum):
             raise ValueError(
                 f"Invalid method string passed to CircCorrMethod.from_string: {string}. Must be 'Fisher' or 'Jammalamadaka' (also accepts 'Pearson-sine' as an alias for 'Jammalamadaka')"
             )
-
-
-def circ_d(x : float, y : float, rollover : float)->float:
-    """Wrapped-around distance between x and y"""
-    return ((x-y + rollover/2) % rollover) - rollover/2
-
-def re_circ(x : float, rollover : float) -> float:
-    """ Takes de-circularized data and reverts it to circularized """
-    return (x + rollover) % rollover
-
-def roll_d(roll1 : Tuple[float, float], roll2: Tuple[float,float], rollover_y: float, rollover_x : float)->float:
-    """ Distance between two rollovers """
-    d_y = circ_d(roll1[0],roll2[0],rollover_y)
-    d_x = circ_d(roll1[1],roll2[1],rollover_x)
-    return np.sqrt(d_x**2 + d_y**2)
-
-def circ_diff(arr : np.ndarray)->np.ndarray:
+        
+def circ_diff(arr : np.ndarray[Any, T])->np.ndarray[Any, T]:
     """
     Takes the difference of presumed circular variables.
     Returned array is 1 element shorter than the input array.
@@ -58,36 +43,15 @@ def circ_diff(arr : np.ndarray)->np.ndarray:
         The circular difference between successive time points.
         Length of the array is 1 
     """
-
-    return np.angle(np.exp(arr[1:]*1j)/np.exp(arr[:-1]*1j))
-
-def circ_unwrap(arr: np.ndarray, offset : float = 0.0)->np.ndarray:
-    """
-    Takes a circular variable and converts it to an unwrapped circular variable
-    (i.e. sums the cumulative differences, so that instead of ranging over an 
-    interval of width 2*pi, it ranges from -inf to +inf). Sets the first point
-    to offset
-
-    Arguments
-    --------
-
-    arr : np.ndarray
-
-        A circular variable with periodicity 2*pi.
-
-    offset : float = 0.0
-
-        What the value of the first point should be
-    """
-    return np.insert(np.cumsum(circ_diff(arr)),0,offset)
+    return np.diff(np.unwrap(arr))
 
 def circ_corr(
-        x : np.ndarray,
-        y : np.ndarray,
+        x : np.ndarray[Any, np.dtype[np.floating]],
+        y : np.ndarray[Any, np.dtype[np.floating]],
         axis : int = 0,
-        method : CircCorrMethod = CircCorrMethod.FISHER,
+        method : Union[CircCorrMethod, Literal["Fisher", "Jammalamadaka",]] = CircCorrMethod.FISHER,
         ignore_nans : bool = True,
-    )->float:
+    )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Warning: recommend putting your angles in the complex plane
     FIRST and using circ_corr_complex, because putting your time series
@@ -153,7 +117,7 @@ def circ_corr(
     Returns
     -------
 
-    rho : float
+    rho : np.ndarray[Any, np.dtype[np.floating]]
 
         The circular correlation between x and y
 
@@ -217,12 +181,12 @@ def circ_corr(
     return circ_corr_complex(expd_1, expd_2, axis=axis, method = method, ignore_nans = ignore_nans)
 
 def circ_corr_complex(
-        x : np.ndarray,
-        y : np.ndarray,
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         axis : int = 0,
-        method : CircCorrMethod = CircCorrMethod.FISHER,
+        method : Union[CircCorrMethod, Literal["Fisher", "Jammalamadaka"]] = CircCorrMethod.FISHER,
         ignore_nans : bool = True,
-    )->float:
+    )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Presumes x and y are already complex numbers on the unit circle!
     This one is even faster because it skips the exp step. Recommended
@@ -256,11 +220,11 @@ def circ_corr_complex(
     ARGUMENTS
     ---------
 
-    - x : np.ndarray
+    - x : np.ndarray[Any, np.dtype[np.complexfloating]]
 
         One of the two arrays of circular variables to correlate (in form exp(1j*theta_1))
 
-    - y : np.ndarray
+    - y : np.ndarray[Any, np.dtype[np.complexfloating]]
 
         The other of the two arrays of circular variables to correlate (in form exp(1j*theta_2))
 
@@ -292,11 +256,11 @@ def circ_corr_complex(
         )
     
 def circ_corr_complex_jl(
-        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
-        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         axis : int = 0,
         ignore_nans : bool = False,
-    )->float:
+    )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Presumes x and y are already complex numbers on the unit circle!
     This one is even faster because it skips the exp step. Recommended
@@ -354,11 +318,11 @@ def circ_corr_complex_jl(
     )
 
 def circ_corr_complex_fisher(
-        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
-        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         axis : int = 0,
         ignore_nans : bool = False,
-    )->float:
+    )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Presumes x and y are already complex numbers on the unit circle!
     This one is even faster because it skips the exp step. Recommended
@@ -463,13 +427,13 @@ def circ_corr_complex_fisher(
     return np.real(numerator/denominator)
 
 def running_circ_corr(
-        x : np.ndarray,
-        y : np.ndarray,
+        x : np.ndarray[Any, np.dtype[np.floating]],
+        y : np.ndarray[Any, np.dtype[np.floating]],
         window_width : int,
         axis : int = 0,
-        method : CircCorrMethod = CircCorrMethod.FISHER,
+        method : Union[CircCorrMethod, Literal["Fisher", "Jammalamadaka"]] = CircCorrMethod.FISHER,
         ignore_nans : bool = False,
-        )->np.ndarray:
+    )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Takes two arrays of circular numbers and computes the circular correlation
     between them in a sliding window fashion. The returned array is window_width elements
@@ -574,13 +538,13 @@ def running_circ_corr(
     return running_circ_corr_complex(x,y,window_width,axis,method, ignore_nans = ignore_nans)
 
 def running_circ_corr_complex(
-        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
-        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         window_width : int,
         axis : int = 0,
-        method : CircCorrMethod = CircCorrMethod.FISHER,
+        method : Union[CircCorrMethod, Literal["Fisher", "Jammalamadaka"]] = CircCorrMethod.FISHER,
         ignore_nans : bool = False,
-        )->np.ndarray:
+        )->np.ndarray[Any, np.dtype[np.floating]]:
     """
     Takes two arrays of complex numbers and computes the circular correlation
     between them in a sliding window fashion. The returned array is window_width elements
@@ -650,12 +614,12 @@ def running_circ_corr_complex(
         )
 
 def running_circ_corr_complex_jl(
-        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
-        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         window_width : int,
         axis : int = 0,
         ignore_nans : bool = False,
-        )->'np.ndarray[Any, np.dtype[np.float64]]':
+        ) -> np.ndarray[Any, np.dtype[np.floating]]:
     """
     Takes two arrays of complex numbers and computes the circular correlation
     between them in a sliding window fashion. The returned array is window_width elements
@@ -706,12 +670,12 @@ def running_circ_corr_complex_jl(
     )
 
 def running_circ_corr_complex_fisher(
-        x : 'np.ndarray[Any, np.dtype[np.complex128]]',
-        y : 'np.ndarray[Any, np.dtype[np.complex128]]',
+        x : np.ndarray[Any, np.dtype[np.complexfloating]],
+        y : np.ndarray[Any, np.dtype[np.complexfloating]],
         window_width : int,
         axis : int = 0,
         ignore_nans : bool = False,
-        )->np.ndarray:
+        ) -> np.ndarray[Any, np.dtype[np.floating]]:
     """
     Takes two arrays of complex numbers and computes the circular correlation
     between them in a sliding window fashion. The returned array is window_width elements

@@ -1,5 +1,5 @@
 # Functions for loading different types of files.
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional, overload, Any
 import pickle
 import pathlib
 import logging
@@ -7,14 +7,55 @@ import logging
 from siffpy.core.utils.types import PathLike
 from siffpy.core.flim import FLIMParams
 from siffpy.core.utils.registration_tools import (
-    RegistrationInfo, to_registration_info, to_reg_info_class
+    RegistrationInfo, to_registration_info, to_reg_info_class,
+    MROIRegistrationInfo, RegistrationInfoCollection, to_registration_info_collection,
 )
+
+@overload
+def load_registration(
+        siffio,
+        im_params,
+        filename : PathLike,
+        mroi : None,
+    )->RegistrationInfo:
+    ...
+
+@overload
+def load_registration(
+        siffio,
+        im_params,
+        filename : PathLike,
+        mroi : Any,
+    )->RegistrationInfoCollection:
+    ...    
 
 def load_registration(
         siffio,
         im_params,
-        filename : Union[pathlib.Path, str]
-    )->RegistrationInfo:
+        filename : Union[pathlib.Path, str],
+        mroi : Optional[Any] = None,
+    )->Optional[Union[RegistrationInfo, RegistrationInfoCollection]]:
+    """
+    Checks for a `RegistrationInfo` file associated with the
+    passed `filename` by looking for any file with the suffix
+    `_registration_info` in the same directory as the passed `filename`
+    or its subdirectories. If such a file is found, it is loaded and returned as a
+    `RegistrationInfo` object.
+
+    ## Arguments
+
+    - `siffio`: The `SiffIO` object to use for loading the registration information.
+    - `im_params`: The `ImParams` object to use for loading the registration information.
+    - `filename`: The filename to look for associated registration information.
+    - `mroi`: Whether to look for MROI registration information (default: False).
+
+    ## Returns
+
+    - A `RegistrationInfo` object if registration information is found, or a `RegistrationInfoCollection`
+        of `MROIRegistrationInfo`
+        objects if `mroi` is True.
+    - `None` if no registration information is found.
+    """
     path = pathlib.Path(filename)
     if not path.exists():
         raise FileNotFoundError(f"File {path} does not exist.")
@@ -23,9 +64,15 @@ def load_registration(
                     path.with_suffix("")/(path.stem+"_registration_info")
                 ).with_suffix(
                     RegistrationInfo.REGISTRATION_INFO_SUFFIX
-                )
-        ).exists():
-        return to_registration_info(regpath, siffio, im_params)
+        )
+    ).exists():
+        if mroi is None:
+            return to_registration_info(regpath, siffio, im_params)
+    
+    rdicts_iterator = path.with_suffix("").glob(path.stem + '_registration_info*')
+    if mroi is not None and (next(rdicts_iterator, None) is not None):
+        return to_registration_info_collection(path, siffio, im_params)
+    
     if (regpath := path.with_suffix(".dict")).exists():
         reg_dict, ref_frames = load_registration_legacy(filename)
         ret_val : RegistrationInfo = to_reg_info_class('siffpy')(siffio, im_params)
@@ -34,6 +81,8 @@ def load_registration(
         ret_val.registration_color_channel = 0
         ret_val.save()
         return ret_val
+
+    return None    
 
 def load_registration_legacy(filename : str)->tuple:
     """

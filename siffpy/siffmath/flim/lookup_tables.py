@@ -38,6 +38,10 @@ def inverse_hill_equation(
     Inverse Hill equation for converting
     a FLIM value to a concentration
     """
+    if y <= zero_point:
+        return 0.0
+    if y >= max_point:
+        return float('inf')
     return k50 / ( ( (max_point - zero_point) / (y - zero_point) ) - 1 )**(1/n)
 
 @dataclass
@@ -93,6 +97,19 @@ class FluorophoreHillFit:
         """
         return inverse_hill_equation(
             lifetime,
+            self.n,
+            self.k50,
+            self.zero_point,
+            self.max_point
+        )
+
+    def from_concentration(self, concentration : float) -> float:
+        """
+        Hill equation to convert
+        concentration to output variable
+        """
+        return hill_equation(
+            concentration,
             self.n,
             self.k50,
             self.zero_point,

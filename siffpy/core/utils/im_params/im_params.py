@@ -2,15 +2,17 @@
 # relevant data, makes a simple object to pass around
 import re
 import logging
-from typing import Any, Union, List, Dict, Tuple, Optional, Callable
+from typing import Any, Union, List, Dict, Tuple, Optional, Callable, TypeVar
 from functools import wraps
 import warnings
 
 import numpy as np
 
-from siffpy.core.utils.im_params.scanimage import ScanImageModule, ROIGroup
+from siffpy.core.utils.im_params.scanimage import ScanImageModule, ROIGroup, SIROI, Scanfield
 
 MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
+
+T = TypeVar('T', bound=np.dtype) # for type hinting of arrays of any numeric type
 
 def correct_flyback(f):
     """
@@ -75,6 +77,319 @@ def correct_flyback(f):
         return f(*args, **kwargs)
     return shift_by_flybacks_wrapper
 
+class ImagingROI():
+    """
+    Contains the data used to specify where in a FOV was
+    imaged during mROI imaging. Hopefully will continue to
+    be compatible. Mostly just type hinted to make it clear!
+
+    This class will evolve to be able to operate on more complex
+    mROI imaging recordings, but for now it is just designed to work
+    with FOVs with a range of z values with shared y and x dimensions.
+    """
+
+    name : str
+
+    def __init__(
+        self,
+        idxs : Tuple[np.ndarray[Any, np.dtype[np.int_]], List[slice], List[slice]],
+        scanimage_roi : SIROI, 
+        vol_dims : Tuple[int, int, int]
+        ):
+        """
+        Initializes an ImagingROI from a ScanImage ROI object.
+        Basically just recasts the object so that there are
+        more natural calling conventions.
+
+        ## Arguments:
+        - idxs : Tuple[np.ndarray[Any, np.dtype[np.int_]], List[slice], List[slice]]
+            The indices of the ROI in the z, y, and x dimensions, respectively.
+            The z indices are a list of integers, while the y and x indices
+            are lists of slices (one slice per z plane).
+
+        - scanimage_roi : SIROI
+            The original ScanImage ROI object that this ImagingROI is based on.
+
+        - vol_dims : Tuple[int, int, int]
+            The dimensions of the full volume (num_slices, ysize, xsize) that this
+            ImagingROI is a part of. Used to generate the mask
+        
+        """
+        self.z_idxs, self.y_idxs, self.x_idxs = idxs
+        self.vol_dims = vol_dims
+        self.si_roi = scanimage_roi
+
+    @property
+    def mask(self) -> np.ndarray[Any, np.dtype[np.bool_]]:
+        """
+        Converts the ImagingROI to a boolean mask that
+        the siffreader can use to extract data _or_ which
+        can be applied to the output of `get_frames`.
+
+        Mask is returned as a copy, so it may be altered without
+        affecting the original mask stored in the ImagingROI object.
+        The original mask may be accessed through the `_mask` attribute
+        if it needs to be mutated in place.
+        
+        Will be the same shape as the full volume array.
+        """
+        if hasattr(self, '_mask'):
+            return self._mask.copy()
+        mask = np.zeros(self.vol_dims, dtype=np.bool_)
+        for z_idx, y_idx, x_idx in zip(self.z_idxs, self.y_idxs, self.x_idxs):
+            mask[z_idx, y_idx, x_idx] = True
+        
+        self._mask = mask
+        return self._mask.copy()
+
+    @property
+    def roi_bounds(self)->Tuple[Tuple[int,int],...]:
+        """
+        Returns each dimension's min and max bounds that contain the ROI
+        as a tuple of the form ((zmin, zmax), (ymin, ymax), (xmin, xmax)).
+        """
+        idxs = np.meshgrid(
+            *[np.arange(s) for s in self.vol_dims],
+            indexing = 'ij',
+        )
+        
+        return tuple([
+            (int(np.min(dim[self.mask])), int(np.max(dim[self.mask])))
+            for dim in idxs
+        ])
+
+    def from_masked(
+            self,
+            masked : np.ndarray[Any, T],
+            mask_with_nan : bool = False,
+            to_minimal_image : bool = False,
+            plane : Optional[int] = None,
+        ) -> np.ndarray[Any, T]:
+        """
+        Applies the mask of this ROI to an array of values corresponding to the values in the ROI,
+        returning an array of the same shape as the full volume, with values outside the ROI set to NaN.
+
+        ```
+        full_volume = np.full((*masked.shape[:-1], *self.vol_dims), np.nan)
+        full_volume[self.mask] = masked
+        return full_volume
+        ```
+        but I thought having the method might be more intuitive for some.
+
+        Alternatively, you may produce a _minimal image_, which is only of the size
+        required to fit the entire mROI -- i.e. it minimizes the number of `nan` elements
+        required, but does not have the full image shape.
+
+        ## Arguments:
+
+        - masked : np.ndarray
+           An array of values corresponding to the values in the ROI.
+           Shape should be compatible with this `ImagingROI`'s `mask` property,
+           i.e. if `roi.mask.sum() == D` then `masked.shape` should be `(...,D)`...
+           okay it's a little more complicated, will come back to annotate better.
+
+        - mask_with_nan : bool
+             Whether to fill values outside the ROI with NaN (if True) or 0 (if False).
+             If `True`, it forces the returned array to be of `dtype` `float`.
+
+        - to_minimal_image : bool
+            Whether to return a minimal image that is only of the size required to fit the entire mROI,
+            i.e. it minimizes the number of `nan` elements required, but does not have the full image shape.
+
+        - plane : Optional[int]
+            Returns only the specified plane of the ROI -- presumes that the input `masked`
+            corresponds to the data from that plane
+
+        ## Returns:
+
+        - np.ndarray
+            - If `to_minimal_image` is `False`, returns an array of the same shape as the full volume,
+            with values outside the ROI set to NaN or 0 (depending on `mask_with_nan`).
+
+            - If `to_minimal_image` is `True`, returns a minimal image that is only of the size
+            required to fit the entire mROI (i.e. the shape defined by `roi_bounds`)
+        """
+        if to_minimal_image:
+            minimal_image = np.full(
+                (
+                    *masked.shape[:-1],
+                    *self.minimal_mask.shape,
+                ),
+                np.nan,
+                dtype= float if mask_with_nan else masked.dtype
+            )
+            if plane is not None:
+                minimal_image[..., plane, :, :].flat = masked
+                return minimal_image[..., plane, :, :].squeeze()
+            minimal_image[..., self.minimal_mask] = masked
+            return minimal_image
+
+        full_volume = np.full(
+            (*masked.shape[:-1], *self.vol_dims),
+            np.nan,
+            dtype= float if mask_with_nan else masked.dtype
+        )
+        if plane is not None:
+            full_volume[..., plane, :, :][self.mask[plane]] = masked
+            return full_volume[..., plane, :, :].squeeze()
+        full_volume[..., self.mask] = masked
+        return full_volume
+    
+    @property
+    def minimal_mask(self) -> np.ndarray[Any, np.dtype[np.bool_]]:
+        """
+        A boolean mask of the same shape as the minimal image defined by `roi_bounds`,
+        which can be used to apply the ROI mask to a minimal image.
+        """
+        zmin, zmax = self.roi_bounds[0]
+        ymin, ymax = self.roi_bounds[1]
+        xmin, xmax = self.roi_bounds[2]
+
+        minimal_mask = self.mask[zmin:zmax + 1, ymin:ymax + 1, xmin:xmax + 1]
+
+        return minimal_mask
+
+    def minimal_volume_to_full(
+        self,
+        minimal_volume : np.ndarray[Any, T],
+        use_nan : bool = False,
+    ) -> np.ndarray[Any, T]:
+        """
+        Returns a full-volume array from the minimal-masked version by using
+        the internal mROI parameters to know which parts of the array to populate.
+        Essentially transforms an array of shape `(..., *roi_bounds_shape)` to an
+        array of shape `(..., *vol_dims)`, where `roi_bounds_shape` is the shape of
+        the minimal image defined by `roi_bounds`.
+
+        ## Arguments:
+        - minimal_volume : np.ndarray
+            An array of shape `(..., *roi_bounds_shape)` containing the values
+            in the minimal image defined by `roi_bounds`.
+
+        - use_nan : bool
+            Whether to fill values outside the ROI with NaN (if True) or 0 (if False).
+            If `True`, it forces the returned array to be of `dtype` `float`.
+        """
+
+        if not (minimal_volume.shape[-3:] == self.mask.shape):
+            raise ValueError(
+                f"Shape of minimal_volume {minimal_volume.shape} is"
+                 + f" not compatible with the shape of the ROI mask {self.mask.shape}."
+            )
+
+        full_volume = np.full(
+            (*minimal_volume.shape[:-3], *self.vol_dims),
+            np.nan if use_nan else 0,
+            dtype = float if use_nan else minimal_volume.dtype
+        )
+
+        full_volume[..., self.mask] = minimal_volume
+    
+        return full_volume
+
+    def masked_to_frame(self,
+        masked : np.ndarray[Any, T],
+        template : np.ndarray[Any, T],
+        mask_with_nan : bool = False
+    ) -> None:
+        """
+        Modifies `template` in place by filling the values at the indices of this ROI
+        with the values from `masked`. This is basically the inverse of applying the mask
+        to the output of `get_frames` -- it allows you to take a small array of just the
+        values in the ROI and put them back into a full-size array of the same shape as the
+        full volume.
+
+        Literally this is the same as
+        ```
+        template[self.mask] = masked
+        ```
+        but I thought having the method might be more intuitive for some.
+
+        ## Arguments:
+
+        - masked : np.ndarray
+           An array of values corresponding to the values in the ROI.
+           Shape should be compatible with this `ImagingROI`'s `mask` property,
+           i.e. if `roi.mask.sum() == D` then `masked.shape` should be `(...,D)`...
+           okay it's a little more complicated, will come back to annotate better.
+
+        - template : np.ndarray
+              An array of the same shape as the full volume, which will be modified in place
+              by filling the values at the indices of this ROI with the values from `masked`.
+              This is basically the inverse of applying the mask to the output of `get_frames` --
+              it allows you to take a small array of just the values in the ROI and put them back
+              into a full-size array of the same shape as the full volume.
+        """
+        template.fill(np.nan if mask_with_nan else 0)
+        template[..., self.mask] = masked
+
+    @property
+    def name(self) -> str:
+        """ Name of the ROI, inherited from the ScanImage ROI object """
+        return self.si_roi.name
+    
+    @property
+    def scale(self) -> Tuple[float,...]:
+        """ Scale of the ROI (currently just y, x and only for single scanfields...)"""
+        if isinstance(self.si_roi.scanfields, Scanfield):
+            size_x, size_y = self.si_roi.scanfields.sizeXY
+            px_x, px_y = self.si_roi.scanfields.pixelResolutionXY
+            return (size_y/px_y, size_x/px_x)
+        raise NotImplementedError("Scale is only implemented for single scanfields.")
+
+    @property
+    def aspect_yx(self) -> float:
+        return self.scale[-2]/self.scale[-1]
+    
+    @property
+    def roiUuid(self) -> str:
+        """ UUID of the ROI, inherited from the ScanImage ROI object """
+        return self.si_roi.roiUuid
+
+    def __str__(self):
+        ret_str = "Imaging ROI with parameters:\n"
+        ret_str += f"Full volume dimensions: {self.vol_dims}\n"
+        ret_str += f"ScanImage ROI parameters:\n{self.si_roi}"
+        return ret_str
+
+    def __repr__(self):
+        return self.__str__()
+
+class IntegrationROI(SIROI):
+    """
+    Contains the data used to specify analyzed regions in ScanImage
+    during imaging. Nothing currently implemented using this
+    functionality.
+    """
+    pass
+
+class PhotostimROI(SIROI):
+    """
+    Contains the data specifying the location of photostimulation
+    during ScanImage experiments. Nothing currently implemented using this
+    functionality.
+    """
+    pass
+
+class ImagingRoisList(list[ImagingROI]):
+    """
+    A list of `ImagingROI` objects, with some helper methods for getting
+    information about the ROIs in the list.
+    """
+
+    def __getitem__(self, key):
+        """
+        Allows dict-like access to the ROIs in the list by their name.
+        """
+        if isinstance(key, str):
+            for roi in self:
+                if roi.name == key:
+                    return roi
+                if roi.roiUuid == key:
+                    return roi
+        else:
+            return super().__getitem__(key)
+
 class ImParams():
     """
     A single simple object that guarantees some core parameters
@@ -87,6 +402,11 @@ class ImParams():
     """
 
     CHANNEL_AXIS : int = -3 # index of the color channel dimension
+    
+    RoiManager : Optional[ScanImageModule]
+    Scan2D : Optional[ScanImageModule]
+    FastZ : Optional[ScanImageModule]
+    StackManager : Optional[ScanImageModule]
 
     def __init__(self, num_frames = None, **param_dict):
         """
@@ -111,7 +431,8 @@ class ImParams():
     
     def add_roi_data(self, roi_data : Dict):
         """ Adds ROI data to the ImParams object """
-        self.roi_groups = {}
+        if not hasattr(self, 'roi_groups'):
+            self.roi_groups = {}
         for roi_group_name, roi_group_data in roi_data['RoiGroups'].items():
             if roi_group_data is not None:
                 self.roi_groups[roi_group_name] = ROIGroup(roi_group_data)
@@ -130,6 +451,61 @@ class ImParams():
         p.text(self.__repr__())
 
     @property
+    def imaging_rois(self) -> Optional[ImagingRoisList]:
+        """ Returns a list of ROIGroup objects if mROIs are present, otherwise None """
+        if hasattr(self, '_imaging_rois'):
+            return self._imaging_rois
+        if hasattr(self, 'roi_groups'):
+            imaging_roi_group : ROIGroup = self.roi_groups['imagingRoiGroup']
+            # image_idxs = (
+            #     np.arange(self.num_slices, dtype = int),
+            #     np.arange(self.ysize, dtype = int),
+            #     np.arange(self.xsize, dtype = int)
+            # )
+            scan_to_lines = int(
+                self.Scan2D.flytoTimePerScanfield /
+                self.RoiManager.linePeriod
+            ) + 1
+
+            ret_rois = []
+            rois_list : List[SIROI] = imaging_roi_group.rois
+            if any(isinstance(roi.scanfields, list) for roi in rois_list):
+                print(
+                    [roi.scanfields for roi in rois_list]
+                )
+                raise NotImplementedError(
+                    "Have not implemented mROIs for different scanfields in each z plane yet."
+                    + " Hopefully this is easy to implement once I've had a little experience playing"
+                    + " with mROI I just haven't had a chance to test it out yet."
+                )
+            rois_list.sort(key = lambda roi: roi.scanfields.centerXY[1])
+            
+            lines_offset = 0
+            
+            for roi in imaging_roi_group.rois:
+                sf = roi.scanfields
+                x_count, y_count = sf['pixelResolutionXY']
+                z_idxs = np.arange(self.num_slices, dtype = int)
+                y_idxs = [slice(lines_offset, lines_offset + y_count )
+                                   for z in z_idxs]
+                x_idxs = [slice(0, x_count) for z in z_idxs]
+                ret_rois.append(
+                    ImagingROI(
+                        idxs = (
+                            z_idxs,
+                            y_idxs,
+                            x_idxs
+                        ),
+                        scanimage_roi = roi,
+                        vol_dims = (self.num_slices, self.ysize, self.xsize)
+                    )
+                )
+                lines_offset += y_count + scan_to_lines
+            self._imaging_rois = ImagingRoisList(ret_rois)
+            return self._imaging_rois
+        return None
+
+    @property
     def discard_frames(self)->bool:
         """ Whether or not to discard frames because they are flyback frames"""
         return (
@@ -139,10 +515,12 @@ class ImParams():
         )
 
     @property
-    def num_discard_flyback_frames(self)->int:
+    def num_discard_flyback_frames(self) -> int:
         """ Number of frames per volume discarded due to flyback """
-        if hasattr(self, 'FastZ'):
-            return self.FastZ.numDiscardFlybackFrames*self.num_colors
+        if self.discard_frames:
+            if hasattr(self, 'FastZ'):
+                return self.FastZ.numDiscardFlybackFrames*self.num_colors
+        return 0
 
     @property
     def flyback_frames(self)->List[int]:
@@ -270,7 +648,11 @@ class ImParams():
             return self.colors
         else:
             return [self.colors]
-
+    
+    @property
+    def aspect_yx(self) -> float:
+        return self.scale[-2]/self.scale[-1]
+    
     @property
     def zoom(self)->float:
         """ Scan zoom factor """
@@ -292,19 +674,6 @@ class ImParams():
     def xsize(self)->int:
         """ Number of pixels in the x dimension """
         if self.RoiManager.mroiEnable:
-            warnings.warn(
-            # raise NotImplementedError(
-            """
-            These data use the mROI functionality,
-            which has not yet been implemented in
-            SiffPy. Let Stephen know!
-
-            If you are seeing this as a WARNING,
-            then mROI functionality is in development,
-            though not yet implemented!
-            """
-            )
-
             # If they're not all the same size, raise an error -- at least for now.
             first_roi = self.roi_groups['imagingRoiGroup'].rois[0]
             if not all(
@@ -326,19 +695,6 @@ class ImParams():
     def ysize(self)->int:
         """ Number of pixels in the y dimension """
         if self.RoiManager.mroiEnable:
-            warnings.warn(
-            # raise NotImplementedError(
-            """
-            These data use the mROI functionality,
-            which has not yet been implemented in
-            SiffPy. Let Stephen know!
-
-            If you are seeing this as a WARNING,
-            then mROI functionality is in development,
-            though not yet implemented!
-            """
-            )
-
             # Correct for the inter-scanfield flyback
             scanfield_lines = int(
                 self.Scan2D.flytoTimePerScanfield /
@@ -417,14 +773,25 @@ class ImParams():
             if self.step_size == 0: # single plane but usings stacks
                 step_size = 1e-6 # arbitrary value
             ret_list.append(step_size)
-        if not len(self.imaging_fov) == 4:
-            raise ArithmeticError("Scale for mROI im_params not yet implemented")
-        fov = self.imaging_fov
-        ret_list.append(1) # color channel
-        xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
-        yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
-        ret_list.append(yrange/self.ysize)
-        ret_list.append(xrange/self.xsize)
+        if len(self.imaging_fov) == 4:
+            fov = self.imaging_fov
+            ret_list.append(1) # color channel
+            xrange = float(max([corner[0] for corner in fov]) - min([corner[0] for corner in fov]))
+            yrange = float(max([corner[1] for corner in fov]) - min([corner[1] for corner in fov]))
+            ret_list.append(yrange/self.ysize)
+            ret_list.append(xrange/self.xsize)
+            
+        else:
+            # raise ArithmeticError("Scale for mROI im_params not yet implemented")
+            warnings.warn(
+                "Using mROI functionality: scale is not meaningful because each ROI"
+                + " may have a different size FOV for the same pixel count."
+                + " Image is presented in pure pixel units instead."
+            )
+            # To do : something more correct
+            ret_list.append(1.0)
+            ret_list.append(1.0)
+        
         return ret_list
     @property
     def scale_force_z(self)->List[float]:
@@ -550,7 +917,7 @@ class ImParams():
 
         ret_dict = {}
         if preprocess is None:
-            def preprocess(x): return x
+            preprocess = lambda x : x
         
         def recurse_prop_search(retdict : Dict[str, Any],
                                 keyname_root : str,

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Callable, Tuple, Dict, TYPE_CHECKING
+from typing import List, Optional, Callable, Tuple, Dict, TYPE_CHECKING, Iterable
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -13,6 +13,7 @@ from siffpy.core.utils.types import PathLike
 
 if TYPE_CHECKING:
     from corrosiffpy import SiffIO
+    from siffpy.core.utils.im_params.im_params import ImagingROI
 
 def populate_dict_across_colors(
     im_params : ImParams,
@@ -43,6 +44,9 @@ class RegistrationInfo(ABC):
     REGISTRATION_INFO_SUFFIX = ".h5"
     backend : RegistrationType = RegistrationType.Siffpy
     multithreading_compatible : bool = True # Whether this registration method can be run in parallel
+    saved_attrs : List[str] = []
+    # If there is an alternate mROI equivalent class of this
+    # registration info, it should be stored here instead.
 
     def __init__(
             self,
@@ -55,12 +59,21 @@ class RegistrationInfo(ABC):
         self.im_params = im_params
         self.registration_color_channel = None
 
-    def __get_item__(self, idx : int):
+    def __getitem__(self, idx : int)->Tuple[int,int]:
         return self.yx_shifts[idx]
     
     @property
     def registration_type(self)->'RegistrationType':
         return self.__class__.backend
+
+    @classmethod
+    def mroi_class(cls) -> Optional[type['MROIRegistrationInfo']]:
+        """
+        If there is an alternate mROI equivalent class of this registration info,
+        it should be returned here.
+        Otherwise, returns None.
+        """
+        return None
 
     @abstractmethod
     def register(
@@ -80,7 +93,7 @@ class RegistrationInfo(ABC):
         )->Tuple[int,int]:
         raise NotImplementedError()
 
-    def save(self, save_path : Optional[PathLike] = None):
+    def save(self, save_path : Optional[PathLike] = None, append_fileinfo : bool = True):
         """
         Saves the `RegistrationInfo` object to `save_path`
 
@@ -94,7 +107,8 @@ class RegistrationInfo(ABC):
         if save_path is None:
             save_path = Path(self.filename).with_suffix("")
         save_path = Path(save_path)
-        save_path = save_path / f"{Path(self.filename).stem}_registration_info{self.REGISTRATION_INFO_SUFFIX}"
+        if append_fileinfo:
+            save_path = save_path / f"{Path(self.filename).stem}_registration_info{self.REGISTRATION_INFO_SUFFIX}"
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         with h5File(save_path, 'w') as f:
@@ -218,3 +232,75 @@ class CustomRegistrationInfo(RegistrationInfo):
             z_plane : int
         )->Tuple[int,int]:
         return self.alignment_func(image, z_plane)
+
+class MROIRegistrationInfo(RegistrationInfo):
+    """
+    A class to store registration information for MROI data.
+    Just needs to be subclassed by any `RegistrationInfo
+    """
+    roiUuid : str
+    # saved_attrs = ['roiUuiduint64']
+    default_class : type[RegistrationInfo]
+
+    def __init__(self, siffio : 'SiffIO', im_params : ImParams, mroi : 'ImagingROI'):
+        super().__init__(siffio, im_params)
+        self.roiUuid = mroi.si_roi.roiUuid
+
+    def save(self, save_path : Optional[PathLike] = None, append_fileinfo : bool = True):
+        """
+        Saves the `RegistrationInfo` object to `save_path`
+
+        # Arguments
+
+        - `save_path` : PathLike 
+            The path to save the `RegistrationInfo` object to.
+            If None, saves to the same directory as the original file, down
+            a level in a directory with the same name as the original file.
+        """
+        if save_path is None:
+            save_path = Path(self.filename).with_suffix("")
+        save_path = Path(save_path)
+        if append_fileinfo:
+            save_path = save_path / f"{Path(self.filename).stem}_registration_info_{self.roiUuid}{self.REGISTRATION_INFO_SUFFIX}"
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        super().save(save_path, append_fileinfo=False)
+
+        with h5File(save_path, 'r+') as f:
+            f.attrs['roiUuid'] = str(self.roiUuid)
+
+    @classmethod
+    def load_as_dict(
+        cls,
+        path : PathLike,   
+    )->dict:
+        """
+        Returns a dict that can be used to instantiate a `RegistrationInfo` subclass
+        """
+        path = Path(path)
+
+        ret_dict = super(MROIRegistrationInfo, cls).load_as_dict(path)
+        
+        with h5File(path, 'r') as f:
+            if 'roiUuid' not in f.attrs:
+                raise ValueError("No roiUuid found in the file." \
+                + " Likely not produced from an imaging ROI. Use a standard"
+                + f" `RegistrationInfo` class instead, e.g. {cls.default_class}."
+                )
+            roiUuid = f.attrs['roiUuid']
+            ret_dict['roiUuid'] = str(roiUuid)
+
+        return ret_dict
+    
+    def register_mroi(
+        self,
+        siffio : 'SiffIO',
+        roi : 'ImagingROI',
+        *,
+        alignment_color_channel : int = 0,
+        z_align : bool = False,
+        volume_bounds : Optional[Tuple[int,int]] = None,
+        planes_sequentially : bool = True,
+        **kwargs
+    ):
+        raise NotImplementedError()
+   

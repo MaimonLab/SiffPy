@@ -25,7 +25,7 @@ class SiffIO():
         """The name of the file being read"""
 
     @property
-    def debug(self, debug_status : bool)->bool:
+    def debug(self)->bool:
         """ Whether operating in debug mode """
 
     @property
