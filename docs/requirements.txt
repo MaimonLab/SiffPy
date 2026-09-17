@@ -6,3 +6,4 @@ nbsphinx
 suite2p
 myst_parser
 corrosiffpy
+#IPython

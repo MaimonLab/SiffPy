@@ -1,6 +1,7 @@
 import inspect
 import textwrap
 from typing import List, Optional, Tuple, Any
+import warnings
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -31,13 +32,15 @@ def phase_alignment_functions(print_docstrings : bool = True)->Optional[List[Tup
         return memberfcns
     
 def phase_shift(
-        x : np.ndarray[Any, Any],
-        shift : PhaseTraceLike,
-        shift_axis : int = 0,
-        time_axis : int = -1,
-        angle_coords : Optional[np.ndarray[Any, np.dtype[np.floating]]] = None,
+    x : np.ndarray[Any, Any],
+    shift : PhaseTraceLike,
+    shift_axis : int = 0,
+    time_axis : int = -1,
+    angle_coords : Optional[np.ndarray[Any, np.dtype[np.floating]]] = None,
     )->np.ndarray:
     """
+    # USE PHASE_SHIFT_FFT INSTEAD, THIS FUNCTION IS SLOWER, BUT IS STILL IN PLACE FOR REFERENCE AND BACK-CONSISTENCY.
+
     Shifts the phase of a vector time series by the phase requested.
 
     Interpolates for phases that do not evenly divide the number of bins,
@@ -51,7 +54,7 @@ def phase_shift(
         The vector time series to shift the phase of. Must be of shape
         (n_bins, n_time)
 
-    - `phase` : PhaseTraceLike
+    - `shift` : PhaseTraceLike
         Accepts either an array of angles (does not need to be wrapped)
         or a `PhaseTrace` object.
 
@@ -98,6 +101,14 @@ def phase_shift(
     a different distribution of values. But just make sure you do shuffle controls and
     don't take a sinusoid too seriously without doing your own due diligence!
     """
+
+    warnings.warn(
+        "This function is slower than phase_shift_fft, and is only kept for" \
+        "back-compatibility. "+
+        "Use phase_shift_fft instead.",
+        category = FutureWarning,
+    )
+
     if len(shift) != x.shape[time_axis]:
         raise ValueError(
             f"`shift` must have the same number of elements as the `time_axis` dimension of `x` \
@@ -106,13 +117,15 @@ def phase_shift(
         )
     if np.issubdtype(shift.dtype, np.floating):
         shift = np.angle(np.exp(1j*shift))
-    if isinstance(shift, PhaseTrace):
+    if np.issubdtype(shift.dtype, np.complexfloating) or isinstance(shift, PhaseTrace):
         shift = np.angle(shift)
 
     if angle_coords is not None:
         new_angles = np.linspace(-np.pi, np.pi, 2*x.shape[shift_axis], endpoint=False)
+        # Bad, does weird stuff at edges.
         x = interp1d(angle_coords, x,
-            axis=shift_axis, kind = 'linear', bounds_error=False,
+            axis=shift_axis, kind = 'linear',
+            bounds_error=False,
             fill_value="extrapolate"
         )(new_angles)
 
@@ -139,13 +152,135 @@ def phase_shift(
     idx_low = (bin_idx - whole + 1) % n_cols
     idx_high = (bin_idx - whole) % n_cols
 
-    shifted += np.take_along_axis(x, np.broadcast_to(idx_low, x.shape), axis=shift_axis) * (1 - frac)
-    shifted += np.take_along_axis(x, np.broadcast_to(idx_high, x.shape), axis=shift_axis) * frac
+    shifted += np.take_along_axis(
+        x, 
+        np.broadcast_to(idx_low, x.shape),
+        axis=shift_axis
+    ) * (1 - frac)
+
+    shifted += np.take_along_axis(
+        x,
+        np.broadcast_to(idx_high, x.shape),
+        axis=shift_axis
+    ) * frac
 
     if angle_coords is not None:
         # Back to the old angle coordinates
         shifted = interp1d(new_angles, shifted,
-            axis=shift_axis, kind = 'linear', bounds_error=False,
+            axis=shift_axis, kind = 'linear',
+            bounds_error=False,
+            fill_value="extrapolate"
+        )(angle_coords)
+
+    return shifted
+
+def phase_shift_fft(
+    x : np.ndarray[Any, Any],
+    shift : PhaseTraceLike,
+    shift_axis : int = 0,
+    time_axis : int = -1,
+    angle_coords : Optional[np.ndarray[Any, np.dtype[np.floating]]] = None,
+    ) -> np.ndarray:
+    """
+    Shifts the phase of a vector time series by the phase requested. This
+    implementation uses the FFT to the shift the phase, which runs faster
+    than the interpolation and gives almost-identical results. Sadly, this
+    implementation should have been the first one I thought of, but I just
+    used the standard one in the Maimon lab for a long time. This came to me
+    in a dream (wish I were joking), but it's obviously a very simple and
+    intuitive implementation.
+
+    ## Parameters
+
+    - `x` : np.ndarray
+        The vector time series to shift the phase of. Must be of shape
+        (n_bins, n_time)
+
+    - `shift` : PhaseTraceLike
+        Accepts either an array of angles (does not need to be wrapped)
+        or a `PhaseTrace` object.
+
+    - `time_axis` : int, optional
+        The axis of `x` that is the time axis to iterate along, by default -1
+
+    - `angle_coords` : Optional[np.ndarray[Any, np.dtype[np.floating]]], optional
+        If provided, the coordinates of the angle bins. This is useful, for example,
+        if the angle bins are not evenly spaced, as in the EPGS of the protocerebral bridge,
+        or if there are duplicates as in the Δ7s of the bridge. If `None`, the function
+        will assume evenly distributed angle bins of width 2π/`x.shape[shift_axis]`
+        starting from -π.
+
+    ## Returns
+    
+    np.ndarray
+        The phase shifted vector time series. Will be of same shape as `x`
+        but rotated so that the `phase` is centered at the 0 degree bin, i.e.
+        the `center` column if `angle_coords` is not provided.
+
+    ## Example
+
+    ```python
+
+    import numpy as np
+    from siffpy.siffmath.phase import phase_shift
+
+    x = np.random.randn(16, 12000)
+    d_phase = np.random.randn(12000) + 0.01
+    phase = np.angle(np.exp(1j*np.cumsum(d_phase)))
+    shifted = phase_shift(x, phase)
+    ```
+
+    ## Note
+
+    This operation _will_ produce a sinusoid for identically and independently distributed
+    Gaussian random variables! This is provable! Think of it this way: the phase operation
+    will have a tendency to align to the position where multiple columns are positive, not
+    the position where the greatest value is taken. So there will be a strong correlation
+    between columns adjacent to the "phase null" column. This, for iid Gaussian rvs, is
+    provably going to be a sinusoid that goes up and down by np.sqrt(np.pi/N) z-scores
+    (e.g. ~0.5 z scores for 16 bins). For other random noise patterns, it produces
+    a different distribution of values. But just make sure you do shuffle controls and
+    don't take a sinusoid too seriously without doing your own due diligence!
+    """
+    if len(shift) != x.shape[time_axis]:
+        raise ValueError(
+            f"`shift` must have the same number of elements as the `time_axis` dimension of `x` \
+            input was of shape {x.shape}, `time_axis` was {time_axis} \
+            and `shift` was of length {len(shift)}."
+        )
+    if np.issubdtype(shift.dtype, np.floating):
+        shift = np.angle(np.exp(1j*shift))
+    if np.issubdtype(shift.dtype, np.complexfloating) or isinstance(shift, PhaseTrace):
+        shift = np.angle(shift)
+
+    if angle_coords is not None:
+        new_angles = np.linspace(-np.pi,
+                                 np.pi,
+                                 2*x.shape[shift_axis],
+                                 endpoint=False)
+        # Bad, does weird stuff at edges.
+        x = interp1d(angle_coords, x,
+            axis=shift_axis, kind = 'linear',
+            bounds_error=False,
+            fill_value="extrapolate"
+        )(new_angles)
+
+    ftrans = np.fft.fft(x, axis=shift_axis)
+    ftrans /= np.exp(
+        1j*shift
+        *np.expand_dims(
+            np.fft.fftfreq(x.shape[shift_axis], d=1/x.shape[shift_axis]),
+            axis = tuple(x for x in range(x.ndim) if x != shift_axis),
+        )
+
+    )
+    shifted = np.fft.ifft(ftrans, axis=shift_axis).real
+
+    if angle_coords is not None:
+        # Back to the old angle coordinates
+        shifted = interp1d(new_angles, shifted,
+            axis=shift_axis, kind = 'linear',
+            bounds_error=False,
             fill_value="extrapolate"
         )(angle_coords)
 

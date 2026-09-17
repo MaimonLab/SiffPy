@@ -6,6 +6,7 @@ from scipy.signal import correlate, correlation_lags
 import numpy as np
 
 from siffpy.siffmath.phase import phase_alignment_functions # noqa: F401
+from siffpy.siffmath.phase import phase_shift_fft as phase_shift # noqa: F401
 from siffpy.siffmath.phase.phase_estimates import estimate_phase # noqa: F401
 from siffpy.siffmath.flim import FlimTrace # noqa: F401
 from siffpy.siffmath.fluorescence import (
