@@ -3,7 +3,7 @@ Wrapper code to facilitate running suite2p from
 inside siffpy
 """
 from inspect import Parameter
-from typing import Tuple, Dict, TYPE_CHECKING, Optional
+from typing import Tuple, Dict, TYPE_CHECKING, Optional, Union
 import warnings
 
 import numpy as np
@@ -225,13 +225,37 @@ class Suite2pRegistrationInfo(RegistrationInfo):
                 for k in range(self.im_params.num_slices)
             ]
 
+        def parse_reg_rets(
+            reg_ret : Union[Dict,Tuple],
+            key : str,
+        ):
+            """
+            Necessary now since registration_wrapper returns a
+            dict in the newer versions of suite2p but a tuple
+            in the older versions, when it really should have just
+            been `NamedTuple` or `dataclass` all along!!!!
+            """
+            if isinstance(reg_ret, dict):
+                return reg_ret[key]
+            if isinstance(reg_ret, tuple):
+                if key == 'refImg':
+                    return reg_ret[0]
+                if key == 'corrXY':
+                    return reg_ret[4]
+                if key == 'yoff':
+                    return reg_ret[4][0]
+                if key == 'xoff':
+                    return reg_ret[4][1]
+            raise ValueError(f"Unknown type for `reg_ret` : {type(reg_ret)}")
+            
+
         self.reference_frames = np.array(
-            [reg_ret[0] for reg_ret in reg_rets]
+            [parse_reg_rets(reg_ret, 'refImg') for reg_ret in reg_rets]
         ).astype(np.float32)/100
 
         # align the reference frames to one another using the corrXY output of `registration_wrapper`:
         if z_align:
-            corrXY_across_z = np.array([reg_ret[4][2] for reg_ret in reg_rets])
+            corrXY_across_z = np.array([parse_reg_rets(reg_ret, 'corrXY')[2] for reg_ret in reg_rets])
             raise NotImplementedError("Z-alignment not yet implemented")
         else:
             frame_idxs = self.im_params.framelist_by_slice(color_channel = alignment_color_channel)
@@ -240,8 +264,8 @@ class Suite2pRegistrationInfo(RegistrationInfo):
             ysize, xsize = self.im_params.ysize, self.im_params.xsize
             for registration, framelist in zip(reg_rets, frame_idxs): # iterate over slices
                 framelist = framelist[t_bounds]
-                y_offsets = -registration[4][0]
-                x_offsets = -registration[4][1]
+                y_offsets = -parse_reg_rets(registration, 'yoff')
+                x_offsets = -parse_reg_rets(registration, 'xoff')
                 offsets = np.array([y_offsets, x_offsets]).T
                 for frame_idx, offset in zip(framelist, offsets): # iterate over frames in slice
                     self.yx_shifts[frame_idx] = (int(offset[0]) % ysize, int(offset[1]) % xsize)
