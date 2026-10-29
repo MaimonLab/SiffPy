@@ -1,5 +1,6 @@
 from typing import List, Dict
 
+from enum import Enum
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
@@ -7,6 +8,11 @@ from siffpy.core.io import FrameMetaData, frame_metadata_to_dict
 
 SEC_TO_NANO = 1e9
 NANO_TO_SEC = 1e-9
+
+class Timebase(Enum):
+    """ Enum for timebase types """
+    EPOCH = "epoch"
+    EXPERIMENT = "experiment"
 
 def epoch_to_frame_time(epoch_time : int, frame_meta : FrameMetaData)->float:
     """ Converts epoch time to frame time for this experiment (returned in seconds) """

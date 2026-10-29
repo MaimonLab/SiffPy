@@ -45,7 +45,7 @@ dependencies = [
 test = ['pytest', 'dropbox', 'asyncio', 'tqdm', 'aiohttp']
 # Newer versions of suite2p have implementation changes that make them run
 # painfully slowly on macOS.
-suite2p = ['suite2p @ git+https://github.com/StephenThornquist/suite2p.git#egg=ci_macos_fix_and_py311']
+suite2p = ['suite2p @ git+https://github.com/StephenThornquist/suite2p.git']
 #suite2p = ['suite2p @ git+https://github.com/MouseLand/suite2p.git']
 #suite2p = ['suite2p']
 all = ['siffpy[suite2p, test]']

@@ -1,14 +1,21 @@
 # Im_params object, ensures the existence of all the
 # relevant data, makes a simple object to pass around
-import re
+from __future__ import annotations
+
 import logging
-from typing import Any, Union, List, Dict, Tuple, Optional, Callable, TypeVar
-from functools import wraps
+import re
 import warnings
+from functools import wraps
+from typing import Any, Callable, TypeVar
 
 import numpy as np
 
-from siffpy.core.utils.im_params.scanimage import ScanImageModule, ROIGroup, SIROI, Scanfield
+from siffpy.core.utils.im_params.scanimage import (
+    SIROI,
+    ROIGroup,
+    Scanfield,
+    ScanImageModule,
+)
 
 MULTIHARP_BASE_RES = 5 # in picoseconds WARNING BEFORE MHLIB V3 THIS VALUE IS 20. I DIDN'T THINK TO PUT THIS INFO IN THE SIFF FILE
 
@@ -21,7 +28,7 @@ def correct_flyback(f):
     @wraps(f)
     def shift_by_flybacks_wrapper(
         *args, **kwargs
-        )->Union[List[int], List[List[int]]]:
+        )->list[int] | list[list[int]]:
         """
         Calls a function, checks that it returns the correct types
         of values (frames or lists of frames), and then removes
@@ -30,7 +37,7 @@ def correct_flyback(f):
         Otherwise, passes through
         """
         def shift_by_flyback(
-                framelist : List[int],
+                framelist : list[int],
                 num_frames_per_volume : int,
                 num_flyback_frames : int,
                 max_frames : int,
@@ -88,13 +95,11 @@ class ImagingROI():
     with FOVs with a range of z values with shared y and x dimensions.
     """
 
-    name : str
-
     def __init__(
         self,
-        idxs : Tuple[np.ndarray[Any, np.dtype[np.int_]], List[slice], List[slice]],
+        idxs : tuple[np.ndarray[Any, np.dtype[np.int_]], list[slice], list[slice]],
         scanimage_roi : SIROI, 
-        vol_dims : Tuple[int, int, int]
+        vol_dims : tuple[int, int, int]
         ):
         """
         Initializes an ImagingROI from a ScanImage ROI object.
@@ -143,7 +148,7 @@ class ImagingROI():
         return self._mask.copy()
 
     @property
-    def roi_bounds(self)->Tuple[Tuple[int,int],...]:
+    def roi_bounds(self)->tuple[tuple[int,int],...]:
         """
         Returns each dimension's min and max bounds that contain the ROI
         as a tuple of the form ((zmin, zmax), (ymin, ymax), (xmin, xmax)).
@@ -163,7 +168,7 @@ class ImagingROI():
             masked : np.ndarray[Any, T],
             mask_with_nan : bool = False,
             to_minimal_image : bool = False,
-            plane : Optional[int] = None,
+            plane : int | None = None,
         ) -> np.ndarray[Any, T]:
         """
         Applies the mask of this ROI to an array of values corresponding to the values in the ROI,
@@ -253,7 +258,7 @@ class ImagingROI():
         self,
         minimal_volume : np.ndarray[Any, T],
         use_nan : bool = False,
-    ) -> np.ndarray[Any, T]:
+    ) -> np.ndarray[Any, T | np.dtype[np.floating]]:
         """
         Returns a full-volume array from the minimal-masked version by using
         the internal mROI parameters to know which parts of the array to populate.
@@ -329,7 +334,7 @@ class ImagingROI():
         return self.si_roi.name
     
     @property
-    def scale(self) -> Tuple[float,...]:
+    def scale(self) -> tuple[float,...]:
         """ Scale of the ROI (currently just y, x and only for single scanfields...)"""
         if isinstance(self.si_roi.scanfields, Scanfield):
             size_x, size_y = self.si_roi.scanfields.sizeXY
@@ -361,7 +366,6 @@ class IntegrationROI(SIROI):
     during imaging. Nothing currently implemented using this
     functionality.
     """
-    pass
 
 class PhotostimROI(SIROI):
     """
@@ -369,7 +373,6 @@ class PhotostimROI(SIROI):
     during ScanImage experiments. Nothing currently implemented using this
     functionality.
     """
-    pass
 
 class ImagingRoisList(list[ImagingROI]):
     """
@@ -403,10 +406,10 @@ class ImParams():
 
     CHANNEL_AXIS : int = -3 # index of the color channel dimension
     
-    RoiManager : Optional[ScanImageModule]
-    Scan2D : Optional[ScanImageModule]
-    FastZ : Optional[ScanImageModule]
-    StackManager : Optional[ScanImageModule]
+    RoiManager : ScanImageModule | None
+    Scan2D : ScanImageModule | None
+    FastZ : ScanImageModule | None
+    StackManager : ScanImageModule | None
 
     def __init__(self, num_frames = None, **param_dict):
         """
@@ -415,7 +418,7 @@ class ImParams():
         computes a few other useful parameters too.
 
         """
-        self.si_modules : Dict[str, ScanImageModule]= {}
+        self.si_modules : dict[str, ScanImageModule]= {}
 
         if num_frames is not None:
             self._num_frames_from_siffio = num_frames
@@ -424,12 +427,12 @@ class ImParams():
             return
 
         try:
-            self.frames_per_volume = self.num_slices * self.frames_per_slice * self.num_colors
-            self.num_volumes = self.num_frames // self.frames_per_volume
+            self.frames_per_volume = self.num_slices * self.frames_per_slice * self.num_colors # type: ignore
+            self.num_volumes = self.num_frames // self.frames_per_volume # type:ignore
         except AttributeError: # then some of the above params were not defined.
             pass
     
-    def add_roi_data(self, roi_data : Dict):
+    def add_roi_data(self, roi_data : dict):
         """ Adds ROI data to the ImParams object """
         if not hasattr(self, 'roi_groups'):
             self.roi_groups = {}
@@ -451,7 +454,7 @@ class ImParams():
         p.text(self.__repr__())
 
     @property
-    def imaging_rois(self) -> Optional[ImagingRoisList]:
+    def imaging_rois(self) -> ImagingRoisList | None:
         """ Returns a list of ROIGroup objects if mROIs are present, otherwise None """
         if hasattr(self, '_imaging_rois'):
             return self._imaging_rois
@@ -463,12 +466,12 @@ class ImParams():
             #     np.arange(self.xsize, dtype = int)
             # )
             scan_to_lines = int(
-                self.Scan2D.flytoTimePerScanfield /
-                self.RoiManager.linePeriod
+                self.Scan2D.flytoTimePerScanfield / # type: ignore
+                self.RoiManager.linePeriod # type: ignore
             ) + 1
 
             ret_rois = []
-            rois_list : List[SIROI] = imaging_roi_group.rois
+            rois_list : list[SIROI] = imaging_roi_group.rois
             if any(isinstance(roi.scanfields, list) for roi in rois_list):
                 print(
                     [roi.scanfields for roi in rois_list]
@@ -510,22 +513,21 @@ class ImParams():
         """ Whether or not to discard frames because they are flyback frames"""
         return (
             hasattr(self, 'FastZ')
-            and self.FastZ.discardFlybackFrames 
-            and self.FastZ.enable
+            and self.FastZ.discardFlybackFrames # type: ignore
+            and self.FastZ.enable # type: ignore
         )
 
     @property
     def num_discard_flyback_frames(self) -> int:
         """ Number of frames per volume discarded due to flyback """
-        if self.discard_frames:
-            if hasattr(self, 'FastZ'):
-                return self.FastZ.numDiscardFlybackFrames*self.num_colors
+        if self.discard_frames and hasattr(self, 'FastZ'):
+                return self.FastZ.numDiscardFlybackFrames*self.num_colors # type: ignore
         return 0
 
     @property
-    def flyback_frames(self)->List[int]:
+    def flyback_frames(self)->list[int]:
         """ Lists the indices of flyback frames """
-        if not (hasattr(self, 'FastZ') and self.FastZ.enable):
+        if not (hasattr(self, 'FastZ') and self.FastZ.enable): # type: ignore
             return []
         return [
             frame for frame in range(self.num_frames)
@@ -536,7 +538,7 @@ class ImParams():
         ]
 
     @property
-    def all_frames(self)->List[int]:
+    def all_frames(self)->list[int]:
         """
         Returns all _NON-FLYBACK_ frames...
         including those which will not constitute a full
@@ -547,28 +549,27 @@ class ImParams():
     @property
     def picoseconds_per_bin(self)->int:
         """ Picoseconds per photon arrival time bin. Fails if not a .siff file """
-        return MULTIHARP_BASE_RES*(2**(self.Scan2D.Acq.binResolution))
+        return MULTIHARP_BASE_RES*(2**(self.Scan2D.Acq.binResolution)) #type:ignore
 
     @property
     def laser_rep_rate(self)->int:
         """ Laser repetition rate in syncs / sec, Fails if not a .siff file """
-        return self.Scan2D.Acq.countrates[0]
+        return self.Scan2D.Acq.countrates[0] # type:ignore
 
     @property
     def num_bins(self)->int:
         """ Number of photon arrival time bins. Fails if not a .siff file """
-        return self.Scan2D.Acq.Tau_bins
+        return self.Scan2D.Acq.Tau_bins # type:ignore
 
     @property
     def num_frames(self)->int:
         """ Total number of frames in the image set (INCLUDES FLYBACK)"""
         if hasattr(self, '_num_frames_from_siffio'):
             return self._num_frames_from_siffio
-        if hasattr(self, 'StackManager'):
-            if self.StackManager.enable:
+        if hasattr(self, 'StackManager') and self.StackManager.enable: # type: ignore
                 return (
-                    self.StackManager.actualNumVolumes *
-                    self.StackManager.numFramesPerVolume
+                    self.StackManager.actualNumVolumes * # type: ignore
+                    self.StackManager.numFramesPerVolume # type: ignore
                 )
         return 0
     
@@ -598,9 +599,8 @@ class ImParams():
     @property
     def num_slices(self)->int:
         """ Number of slices per volume """
-        if hasattr(self, 'StackManager'):
-            if self.StackManager.enable:
-                if self.StackManager.stackZEndPos == self.StackManager.stackZStartPos:
+        if self.StackManager is not None and self.StackManager.enable: # type: ignore
+                if self.StackManager.stackZEndPos == self.StackManager.stackZStartPos: # type: ignore
                     # WARN THE USER THAT THIS IS HAPPENING -- actually, don't?
                     # This happens often enough intentionally that the warnings
                     # are extremely annoying.
@@ -609,40 +609,37 @@ class ImParams():
                     #     "set incorrectly during acquisition. Warning just in case."
                     # )
                     return 1
-                return self.StackManager.actualNumSlices
+                return self.StackManager.actualNumSlices # type: ignore
         return 1
     
     @property
     def frames_per_slice(self)->int:
         """ Number of frames per slice in one volume """
-        if hasattr(self, 'StackManager'):
-            if self.StackManager.enable:
-                return self.StackManager.framesPerSlice
+        if self.StackManager is not None and self.StackManager.enable:
+                return self.StackManager.framesPerSlice # type: ignore
         return 1
     
     @property
     def step_size(self)->float:
         """ Step size between slices """
-        if hasattr(self, 'StackManager'):
-            if self.StackManager.enable:
-                return self.StackManager.actualStackZStepSize
+        if self.StackManager is not None and self.StackManager.enable:
+            return self.StackManager.actualStackZStepSize # type: ignore
         return 0.0
     
     @property
-    def z_vals(self)->Optional[List[float]]:
+    def z_vals(self)->list[float] | None:
         """ List of z values for each slice """
-        if hasattr(self, 'StackManager'):
-            if self.StackManager.enable:
-                return self.StackManager.zsRelative
+        if self.StackManager is not None and self.StackManager.enable:
+            return self.StackManager.zsRelative # type: ignore
         return None
     
     @property
-    def colors(self)->Union[List[int],int]:
+    def colors(self)-> list[int] | int:
         """ Can be int or list of ints, inherited from MATLAB """
         return self.Channels.channelSave
 
     @property
-    def color_list(self)->List[int]:
+    def color_list(self)->list[int]:
         """ Guaranteed to be a list of ints """
         if isinstance(self.colors,list):
             return self.colors
@@ -656,10 +653,10 @@ class ImParams():
     @property
     def zoom(self)->float:
         """ Scan zoom factor """
-        return self.RoiManager.scanZoomFactor
+        return self.RoiManager.scanZoomFactor # type: ignore
     
     @property
-    def imaging_fov(self)->List[List[float]]:
+    def imaging_fov(self)->list[list[float]]:
         """ Imaging field of view (in microns) -- relies on correct objective settings """
         if self.base.objectiveResolution == 15:
             warnings.warn(
@@ -668,38 +665,36 @@ class ImParams():
                 "Check that the objective resolution was set correctly " +
                 "in ScanImage before trusting FOV values."
             )
-        return self.RoiManager.imagingFovUm
+        return self.RoiManager.imagingFovUm # type: ignore
 
     @property
     def xsize(self)->int:
         """ Number of pixels in the x dimension """
-        if self.RoiManager.mroiEnable:
+        if self.RoiManager is not None and self.RoiManager.mroiEnable:
             # If they're not all the same size, raise an error -- at least for now.
             first_roi = self.roi_groups['imagingRoiGroup'].rois[0]
             if not all(
-                [
-                    roi.scanfields['pixelResolutionXY'][0] 
-                    == first_roi.scanfields['pixelResolutionXY'][0]
-                    for roi in self.roi_groups['imagingRoiGroup'].rois
-                ]
-                ):
-                    raise NotImplementedError(
-                        "mROIs do not share an x resolution. \
-                        Support for ROIs of different sizes is not yet implemented."
-                    )
+                roi.scanfields['pixelResolutionXY'][0] 
+                == first_roi.scanfields['pixelResolutionXY'][0]
+                for roi in self.roi_groups['imagingRoiGroup'].rois
+            ):
+                raise NotImplementedError(
+                    "mROIs do not share an x resolution. \
+                    Support for ROIs of different sizes is not yet implemented."
+                )
             return first_roi.scanfields['pixelResolutionXY'][0]
 
-        return self.RoiManager.pixelsPerLine
+        return self.RoiManager.pixelsPerLine # type: ignore
 
     @property
     def ysize(self)->int:
         """ Number of pixels in the y dimension """
-        if self.RoiManager.mroiEnable:
+        if self.RoiMananger is not None and self.RoiManager.mroiEnable: # type: ignore
             # Correct for the inter-scanfield flyback
             scanfield_lines = int(
-                self.Scan2D.flytoTimePerScanfield /
-                (   self.RoiManager.linePeriod
-                    * (1 + int(self.Scan2D.bidirectional)) # divide by 2 if bidi
+                self.Scan2D.flytoTimePerScanfield / # type: ignore
+                (   self.RoiManager.linePeriod # type: ignore
+                    * (1 + int(self.Scan2D.bidirectional)) # divide by 2 if bidi # type: ignore
                 )
             ) + 1 # round up
             return sum([
@@ -708,10 +703,10 @@ class ImParams():
                 for roi in self.roi_groups['imagingRoiGroup'].rois
             ])
 
-        return self.RoiManager.linesPerFrame
+        return self.RoiManager.linesPerFrame # type: ignore
 
     @property
-    def shape(self)->Tuple[int, int]:
+    def shape(self)->tuple[int, int]:
         """ Shape of one frame: (n ysize, xsize)"""
         return (self.ysize, self.xsize)
     
@@ -723,7 +718,7 @@ class ImParams():
         return self.Scan2D.scanPixelTimeMean
 
     @property
-    def volume(self)->Tuple[int, ...]:
+    def volume(self)->tuple[int, ...]:
         """
         Shape of one full volume: (num_slices, <frames_per_slice>, num_colors, ysize, xsize)
         with entries in <> only printed if they are greater than 1
@@ -737,7 +732,7 @@ class ImParams():
         return tuple(ret_list)
     
     @property
-    def volume_one_color(self)->Tuple[int, ...]:
+    def volume_one_color(self)->tuple[int, ...]:
         """ Shape of one full volume in one color channel """
         if self.num_colors == 1:
             return tuple(self.volume)
@@ -745,12 +740,12 @@ class ImParams():
         return tuple(self.volume[:-3] + self.volume[-2:])
     
     @property
-    def single_channel_volume(self)->Tuple[int, ...]:
+    def single_channel_volume(self)->tuple[int, ...]:
         """ Return the shape of one volume of one color channel (num_slices, ysize, xsize) """
         return (self.num_slices, *self.shape)
     
     @property
-    def stack(self)->Tuple[int, ...]:
+    def stack(self)->tuple[int, ...]:
         """ Shape of one stack: (num_slices, frames_per_slice, ysize, xsize)"""
         ret_list = [self.num_true_frames // (self.frames_per_volume), self.num_slices]
         if self.frames_per_slice > 1 :
@@ -759,14 +754,14 @@ class ImParams():
         return tuple(ret_list)
 
     @property
-    def scale(self)->List[float]:
+    def scale(self)->list[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
         [time , (frames_per_slice_in_units_time), (z), color, y , x]
         """
         # units of microns, except for time, which is in frames.
         ret_list = [1.0] # time axis!
-        if not (self.frames_per_slice == 1):
+        if self.frames_per_slice != 1:
             ret_list.append(1.0/(self.frames_per_volume)) 
         if self.num_slices > 1: # otherwise irrelevant
             step_size = self.step_size
@@ -794,7 +789,7 @@ class ImParams():
         
         return ret_list
     @property
-    def scale_force_z(self)->List[float]:
+    def scale_force_z(self)->list[float]:
         """
         Returns the scale, but forces a z axis to be present,
         even if there is only one slice.
@@ -805,7 +800,7 @@ class ImParams():
         return scale
 
     @property
-    def scale_no_color_no_fps(self)->List[float]:
+    def scale_no_color_no_fps(self)->list[float]:
         """
         Returns the relative scale of the spatial axes (plus a 1.0 for the time axis) in order of:
         [time , z , y , x]
@@ -832,7 +827,7 @@ class ImParams():
         # return ret_list
 
     @property
-    def axis_labels(self) -> List[str]:
+    def axis_labels(self) -> list[str]:
         """ Labels for each array axis """
         ret_list = ['Time']
         if self.frames_per_slice > 1:
@@ -871,7 +866,10 @@ class ImParams():
         """ Final frame that is in a full volume """
         return self.num_true_frames - self.num_true_frames % self.frames_per_volume
     
-    def find_properties_containing(self, substring : str, preprocess : Optional[Callable[[str], str]] = None) -> Dict[str, Any]:
+    def find_properties_containing(self,
+            substring : str,
+            preprocess : Callable[[str], str] | None = None
+        ) -> dict[str, Any]:
         """
         Searches through the ScanImage modules for any properties containing
         `substring` in their name, returns a dict of them of the form:
@@ -919,7 +917,7 @@ class ImParams():
         if preprocess is None:
             preprocess = lambda x : x
         
-        def recurse_prop_search(retdict : Dict[str, Any],
+        def recurse_prop_search(retdict : dict[str, Any],
                                 keyname_root : str,
                                 module : ScanImageModule):
             for prop_name, prop_val in module.__dict__.items():
@@ -934,7 +932,7 @@ class ImParams():
                         prop_val
                     )
                 if prop_name == 'submodules':
-                    prop_val : Dict[str, ScanImageModule]
+                    prop_val : dict[str, ScanImageModule]
                     for submod_name, submod in prop_val.items():
                         param_name = keyname_root + "." + submod_name
                         recurse_prop_search(
@@ -979,21 +977,21 @@ class ImParams():
         return self.__dict__.keys()
 
     def values(self):
-        return [getattr(self, key) for key in self.__dict__.keys()]
+        return [getattr(self, key) for key in self.__dict__]
 
     def __repr__(self) -> str:
         retstr = "Image parameters: \n"
         for key in self.__dict__:
             if key == "si_modules":
                 retstr += "\tScanImage modules : \n"
-                for module_name, module in self.si_modules.items():
+                for module_name in self.si_modules:
                     retstr += f"\t\t{module_name}\n"
             else:
                 retstr += "\t" + str(key) + " : " + str(getattr(self,key)) + "\n" 
         return retstr
     
     @property
-    def array_shape(self) -> Union[Tuple[int, int, int, int, int], Tuple[int, int, int, int, int, int]]:
+    def array_shape(self) -> tuple[int, int, int, int, int] | tuple[int, int, int, int, int, int]:
         """
         Returns the shape that an array of frames would be in standard order:
         `(t, z, frames_per_slice (if greater than 1), c, y, x)`
@@ -1030,10 +1028,10 @@ class ImParams():
     @correct_flyback
     def flatten_by_timepoints(self,
         timepoint_start : int = 0,
-        timepoint_end : Optional[int] = None,
-        reference_z : Optional[int] = None,
-        color_channel : Optional[int] = 0,
-    )->List[int]:
+        timepoint_end : int | None = None,
+        reference_z : int | None = None,
+        color_channel : int | None = 0,
+    ) -> list[int]:
         """
         Returns all frame indices within a set of timepoints.
         
@@ -1125,9 +1123,9 @@ class ImParams():
     @correct_flyback
     def framelist_by_slice(
             self,
-            color_channel : Optional[int] = None,
-            slice_idx : Optional[int] = None
-        ) -> List[List[int]]:
+            color_channel : int | None = None,
+            slice_idx : int | None = None
+        ) -> list[list[int]]:
         """
         List of lists, each sublist containing the frames indices that share a z slice
         
@@ -1169,11 +1167,11 @@ class ImParams():
     #@correct_flyback flyback is already corrected in framelist_by_slice
     def framelist_by_slices(
             self,
-            color_channel : Optional[int] = None,
+            slices : list[int] | int,
+            color_channel : int | None = None,
             lower_bound : int = 0,
-            upper_bound : Optional[int] = None,
-            slices : Optional[List[int]] = None
-        )->List[int]:
+            upper_bound : int | None = None,
+        )->list[int]:
         """
         Flattened list of all frames corresponding to the color channel and slices provided
         """
@@ -1181,7 +1179,7 @@ class ImParams():
             upper_bound = self.num_timepoints
         frames = []
 
-        if not hasattr(slices, '__len__'):
+        if isinstance(slices, int):
             slices = [slices]
 
         for slice_idx in slices:
@@ -1195,8 +1193,8 @@ class ImParams():
         self,
         color_channel : int,
         lower_bound_timepoint : int = 0,
-        upper_bound_timepoint : Optional[int] = None
-        )->List:
+        upper_bound_timepoint : int | None = None
+        )->list[int]:
         """
         List of all frames that share a color, regardless of slice.
         Color channel is * 0-indexed * !
@@ -1222,8 +1220,8 @@ class ImParams():
         self,
         color_channel : int,
         timepoint_start : int = 0,
-        timepoint_end : Optional[int] = None,
-        slice_idx : Optional[int] = None)->List[List[int]]:
+        timepoint_end : int | None = None,
+        slice_idx : int | None = None)->list[list[int]]:
         """
         If slice_idx is None:
         list of lists, each containing frames that share a timepoint, i.e. same stack but different slices or colors
@@ -1266,7 +1264,7 @@ class ImParams():
             return all_frames[:, (slice_idx*fps):((slice_idx+1)*fps), color_channel].flatten().tolist()
         
     @staticmethod
-    def from_dict(header_dict: Dict, num_frames : Optional[int] = None)->'ImParams':
+    def from_dict(header_dict: dict[str, int], num_frames : int | None = None)->ImParams:
         """
         Builds an `ImParams` object from a dict of header data,
         which is easier to generate with C++ than the correct Python object

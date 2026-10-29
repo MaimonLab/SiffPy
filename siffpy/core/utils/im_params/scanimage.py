@@ -1,14 +1,12 @@
-from typing import Any, Optional, Union
+from __future__ import annotations
+
+import re
 from functools import reduce
 from operator import add
-import re
+from typing import Any, Optional, Union
 
+from siffpy.core.utils.im_params.from_matlab import contains_vector, matrix_to_listlist
 
-import warnings
-
-from siffpy.core.utils.im_params.from_matlab import (
-    contains_vector, matrix_to_listlist
-)
 
 def _unsafe_eval(val):
     """
@@ -76,13 +74,13 @@ class ScanImageModule():
                 parname = split_key[1]
             self.submodules[module_name].add_param(parname, val)
 
-    def __getitem__(self, key : str):
+    def __getitem__(self, key : str, /):
         if hasattr(self, key):
             return getattr(self, key)
         else: # should raise error if not used as a mixin
             super().__getitem__(key) # type: ignore
 
-    def __getattr__(self, __name : str):
+    def __getattr__(self, __name : str, /):
         if __name in self.submodules:
             return self.submodules[__name]
         else:
@@ -93,7 +91,7 @@ class ScanImageModule():
             add,
             (
                 f"\n\t{str(k)} : {str(v)}" for k, v in self.__dict__.items()
-                if not k == 'module_name'
+                if k != 'module_name'
             )
         )
 
@@ -115,7 +113,7 @@ class Scanfield():
     centerXY: list[float]
     ver : int
     classname : str
-    UserData : Optional[Any]
+    UserData : Any | None
     roiUuid : str
     roiUuiduint64 : int
     sizeXY : list[float]
@@ -149,16 +147,16 @@ class SIROI():
     ScanImage ROIs -- NOT to be confused with siffpy ROIs
     """
 
-    scanfields : Union[Scanfield, list[Scanfield]]
+    scanfields : Scanfield | list[Scanfield]
     name : str
     ver : int
     classname : int
     roiUuid : str
     roiUuiduint64: int
     discretePlaneMode : int
-    powers : Optional[Any]
+    powers : Any | None
     pzAdjust : list[float]
-    Lzs : Optional[Any]
+    Lzs : Any | None
     enable : int
     zs : Any
 
